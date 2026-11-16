@@ -1,17 +1,33 @@
+'use strict';
+
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
 const baseUrl = process.env.BELT_PREVIEW_URL || 'http://127.0.0.1:4173';
-const route = '/category/' + encodeURIComponent('تسمه-و-انتقال-نیرو');
-const beltSlug = 'تسمه-و-انتقال-نیرو';
-const productFixture = [
-  { code: 'A42', name: 'تسمه وی بلت کلاسیک A42', nameEn: 'Classic V-Belt A42', brand: 'Bando', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه V-BELT', subcategory: 'کلاسیک', technicalSpecs: [{ key: 'پروفیل', value: 'A' }, { key: 'طول مؤثر', value: '1067 mm' }, { key: 'جنس', value: 'NR' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 3, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['کلاسیک'], unit: 'عدد', active: true, featured: true },
-  { code: 'SPA 1250', name: 'تسمه پروفیل باریک SPA 1250', nameEn: 'Narrow V-Belt SPA 1250', brand: 'Optibelt', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه V-BELT', subcategory: 'پروفیل باریک', technicalSpecs: [{ key: 'پروفیل', value: 'SPA' }, { key: 'طول مؤثر', value: '1250 mm' }, { key: 'جنس', value: 'NR' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 5, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['اسپشیال'], unit: 'عدد', active: true },
-  { code: '8M-1200', name: 'تسمه تایمینگ 8M-1200', nameEn: 'Timing Belt 8M-1200', brand: 'Gates', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه تایمینگ', subcategory: 'تسمه تایمینگ', technicalSpecs: [{ key: 'گام (Pitch)', value: '8 mm' }, { key: 'طول مؤثر', value: '1200 mm' }, { key: 'جنس', value: 'HNBR' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 2, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['تایمینگ'], unit: 'عدد', active: true },
-  { code: 'PK 8', name: 'تسمه شیاری PK 8', nameEn: 'Ribbed Belt PK 8', brand: 'Megadyne', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه شیاری', subcategory: 'تسمه شیاری', technicalSpecs: [{ key: 'پروفیل', value: 'PK' }, { key: 'تعداد شیار', value: '8' }, { key: 'طول مؤثر', value: '800 mm' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 0, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['شیاری'], unit: 'عدد', active: true },
-  { code: 'PU-8', name: 'تسمه گرد پلی یورتان 8mm', nameEn: 'Round Polyurethane Belt 8mm', brand: 'Contitech', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه گرد پلی اورتان', subcategory: 'تسمه گرد پلی اورتان', technicalSpecs: [{ key: 'قطر', value: '8 mm' }, { key: 'جنس', value: 'Polyurethane' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 4, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['پلی یورتان'], unit: 'متر', active: true },
-  { code: 'CRC-WELD-01', name: 'تسمه CRC پنج ضلعی جوشی پلی یورتان', nameEn: 'Welded Pentagonal Polyurethane Belt', brand: 'Mitsuboshi', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه CRC پنج ضلعی', subcategory: 'تسمه CRC پنج ضلعی', technicalSpecs: [{ key: 'مقطع', value: 'پنج ضلعی' }, { key: 'اتصال', value: 'جوشی' }, { key: 'جنس', value: 'Polyurethane' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 1, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['CRC', 'جوشی'], unit: 'متر', active: true },
-];
+const categories = [
+  { slug: 'excel-v2-1-1', name: 'تسمه تایمینگ' },
+  { slug: 'excel-v2-1-2', name: 'تسمه وی‌بلت (V-Belt)' },
+  { slug: 'excel-v2-1-3', name: 'تسمه جوشی با سایت' },
+  { slug: 'excel-v2-1-4', name: 'تسمه بارکش و تجهیزات جوشی' },
+].map(category => ({
+  ...category,
+  routeSlug: category.slug,
+  active: true,
+  description: 'کاتالوگ تخصصی ' + category.name,
+  image: null,
+  familyCount: 0,
+  skuCount: 0,
+  children: [{ name: 'زیرگروه‌های تخصصی', children: [{ name: 'مدل‌های ثبت‌شده' }] }],
+}));
+const group = {
+  id: 'excel-v2-1',
+  title: 'انواع تسمه‌های صنعتی',
+  iconKey: 'layers',
+  imageUrl: null,
+  categorySlugs: categories.map(category => category.slug),
+  sortOrder: 0,
+  active: true,
+};
 const runtimeFixture = {
   success: true,
   database: true,
@@ -19,239 +35,79 @@ const runtimeFixture = {
   values: {},
   versions: {},
   productsIncluded: true,
-  products: productFixture,
+  products: [],
 };
+const tinyPng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j1ZkAAAAASUVORK5CYII=',
+  'base64',
+);
 
-const viewports = [
-  { width: 1440, height: 900 },
-  { width: 1280, height: 800 },
-  { width: 1024, height: 724 },
-  { width: 768, height: 1024 },
-  { width: 390, height: 844 },
-  { width: 360, height: 800 },
-];
+async function installRoutes(page) {
+  await page.route('**/api/**', async route => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/api/runtime') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(runtimeFixture) });
+    }
+    if (url.pathname === '/api/catalog/categories') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, categories }) });
+    }
+    if (url.pathname === '/api/catalog/navigation-groups') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, groups: [group] }) });
+    }
+    if (url.pathname.startsWith('/api/catalog/menu-category/')) {
+      const slug = decodeURIComponent(url.pathname.split('/').pop() || '');
+      const category = categories.find(item => item.slug === slug);
+      return route.fulfill({
+        status: category ? 200 : 404,
+        contentType: 'application/json',
+        body: JSON.stringify(category ? { success: true, category, families: [] } : { success: false }),
+      });
+    }
+    if (url.pathname === '/api/catalog/direct-skus') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, items: [] }) });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: null, user: null }) });
+  });
+  await page.route('**/images/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: tinyPng }));
+  await page.route('**/storage/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: tinyPng }));
+}
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const failures = [];
   try {
-    for (const viewport of viewports) {
-      const context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
-      const page = await context.newPage();
-      const pageErrors = [];
-      page.setDefaultTimeout(12000);
-      page.on('pageerror', error => pageErrors.push(error.message));
-      await page.route('**/api/runtime*', route => route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(runtimeFixture),
-      }));
-      await page.route('**/api/catalog/overrides*', route => route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: {} }),
-      }));
-
-      await page.goto(baseUrl + route, { waitUntil: 'domcontentloaded' });
-      await page.locator('main.bce').waitFor();
-      const isCompactMobile = viewport.width <= 640;
-      const familyNavigation = isCompactMobile
-        ? page.locator('.bce-mobile-sub-pills button')
-        : page.locator('.bce-family-tile');
-      await familyNavigation.first().waitFor({ state: 'visible' });
-      await page.locator('.bce-products-list .bce-product-row').first().waitFor({ timeout: 20000 });
-
-      const familyLabels = isCompactMobile
-        ? (await familyNavigation.allTextContents()).filter(name => !/^گام\s*8M$/.test(name.trim()))
-        : await page.locator('.bce-family-name').allTextContents();
-      assert.equal(familyLabels.length, 5, 'the five top-level belt families must remain available on desktop and mobile');
-      const firstFourFamilies = familyLabels.slice(0, 4);
-      assert.ok(firstFourFamilies.some(name=>/تایمینگ/.test(name)), 'timing belt family must be discoverable');
-      assert.ok(firstFourFamilies.some(name=>/وی.?بلت|V-Belt/i.test(name)), 'V-belt family must be discoverable');
-      assert.ok(firstFourFamilies.some(name=>/شیاری/.test(name)), 'ribbed belt family must be discoverable');
-      assert.ok(firstFourFamilies.some(name=>/PU|پلی.?یورتان/i.test(name)), 'polyurethane family must be discoverable');
-
-      const layout = await page.evaluate(() => ({
-        viewport: window.innerWidth,
-        document: document.documentElement.scrollWidth,
-        body: document.body.scrollWidth,
-      }));
-      assert.ok(layout.document <= layout.viewport + 1, 'unexpected horizontal document overflow: ' + JSON.stringify(layout));
-      assert.ok(layout.body <= layout.viewport + 1, 'unexpected horizontal body overflow: ' + JSON.stringify(layout));
-
-      if (isCompactMobile) {
-        // The approved compact mobile composition replaces the desktop photo
-        // hero with a search/title block and horizontal family pills.
-        await page.locator('.bce-mobile-search-bar').waitFor({ state: 'visible' });
-        await page.locator('.bce-mobile-title-block').waitFor({ state: 'visible' });
-        await page.locator('.bce-mobile-sub-pills').waitFor({ state: 'visible' });
-      } else {
-        const hero = page.locator('.bce-hero');
-        await hero.waitFor({ state: 'visible' });
-        const heroBox = await hero.boundingBox();
-        // Approved editorial hero is intentionally taller than the retired
-        // compact banner. Confirm readable composition and viewport containment.
-        const minHeroHeight = 180;
-        const maxHeroHeight = 700;
-        assert.ok(heroBox && heroBox.height >= minHeroHeight && heroBox.height <= maxHeroHeight,
-          'hero escaped responsive height bounds at ' + viewport.width + 'px: ' + JSON.stringify({actual: heroBox?.height, minHeroHeight, maxHeroHeight}));
-        const heroPhoto = page.locator('.bce-hero-photo');
-        await heroPhoto.waitFor({ state: 'visible' });
-        await heroPhoto.evaluate(image => image.decode());
-        const heroImageLoaded = await heroPhoto.evaluate(image => image.complete && image.naturalWidth > 0);
-        assert.ok(heroImageLoaded, 'the industrial hero image must load successfully');
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+      const context = await browser.newContext({ viewport, locale: 'fa-IR', reducedMotion: 'reduce' });
+      for (const category of categories) {
+        const page = await context.newPage();
+        const pageErrors = [];
+        page.setDefaultTimeout(15000);
+        page.on('pageerror', error => pageErrors.push(error.message));
+        await installRoutes(page);
+        await page.goto(baseUrl + '/category/' + category.slug, { waitUntil: 'domcontentloaded' });
+        await page.locator('.excel-category-page').waitFor();
+        await page.getByRole('heading', { name: category.name }).waitFor({ timeout: 20000 });
+        assert.equal(new URL(page.url()).pathname, '/category/' + category.slug, 'category must retain its unique canonical URL: ' + page.url());
+        assert.equal(await page.locator('.excel-category-results').count(), 1, 'canonical category must render its own product results region');
+        const layout = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth, body: document.body.scrollWidth }));
+        assert.ok(layout.document <= layout.viewport + 1, 'category page horizontal overflow: ' + JSON.stringify(layout));
+        assert.ok(layout.body <= layout.viewport + 1, 'category body horizontal overflow: ' + JSON.stringify(layout));
+        if (pageErrors.length) failures.push({ viewport, category: category.slug, pageErrors });
+        await page.screenshot({ path: '/tmp/belt-category-' + category.slug + '-' + viewport.width + '.png', fullPage: false, animations: 'disabled' });
+        console.log('BELT_CANONICAL_ROUTE_OK', category.slug, viewport.width + 'px', JSON.stringify(layout));
+        await page.close();
       }
-      await page.screenshot({
-        path: '/tmp/belt-category-' + viewport.width + 'x' + viewport.height + '.png',
-        fullPage: false,
-        animations: 'disabled',
-      });
-
-      if (viewport.width > 980) {
-        await page.locator('.bce-sidebar').waitFor({ state: 'visible' });
-        await page.locator('.bce-featured-card').waitFor({ state: 'visible' });
-        const positions = await page.evaluate(() => {
-          const box = selector => {
-            const element = document.querySelector(selector);
-            const rect = element.getBoundingClientRect();
-            const style = getComputedStyle(element);
-            return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height, display: style.display, visibility: style.visibility, opacity: style.opacity, position: style.position, textLength: (element.innerText || '').length };
-          };
-          return {
-            featured: box('.bce-featured-card'),
-            results: box('.bce-results'),
-            filters: box('.bce-sidebar'),
-            grid: box('.bce-catalog'),
-          };
-        });
-        assert.ok(positions.featured.left < positions.results.left && positions.results.left < positions.filters.left, 'desktop columns must be featured-left, products-center, filters-right: ' + JSON.stringify(positions));
-        console.log('BELT_DESKTOP_GEOMETRY', viewport.width + 'x' + viewport.height, JSON.stringify(positions));
-        assert.ok(positions.featured.width >= 170 && positions.featured.height >= 220, 'featured product column collapsed: ' + JSON.stringify(positions));
-        assert.ok(positions.results.width >= 300 && positions.results.height >= 220, 'product results column collapsed: ' + JSON.stringify(positions));
-        assert.ok(positions.featured.top < viewport.height && positions.results.top < viewport.height, 'desktop content starts below the initial viewport: ' + JSON.stringify(positions));
-      } else {
-        await page.locator('.bce-featured-card').waitFor({ state: 'hidden' });
-      }
-
-      const rows = page.locator('.bce-products-list .bce-product-row');
-      const vBeltNavigation = isCompactMobile ? familyNavigation : page.locator('.bce-family-tile');
-      await vBeltNavigation.filter({ hasText: /وی.?بلت|V-Belt/i }).first().click();
-      assert.ok(page.url().includes('V-BELT'), 'the V-belt family navigation must select the combined V-belt catalogue group');
-      await page.locator('.bce-profile-row').waitFor({ state: 'visible' });
-      const profileLabels = await page.locator('.bce-profile-buttons button').allTextContents();
-      assert.ok(profileLabels.includes('A') && profileLabels.includes('SPA'), 'the V-belt profile choices must be derived from both classic and special profiles');
-      if (isCompactMobile) {
-        await familyNavigation.filter({ hasText: /^گام\s*8M$/ }).first().click();
-      } else {
-        await vBeltNavigation.filter({ hasText: /وی.?بلت|V-Belt/i }).first().click();
-      }
-      assert.ok(page.url().includes('sub=all'), 'returning to all families must restore the canonical catalogue');
-
-      if (viewport.width <= 860) {
-        await page.locator('.bce-mobile-tools > button').click();
-        const filterDialog = page.getByRole('dialog', { name: 'فیلتر محصولات' });
-        await filterDialog.waitFor({ state: 'visible' });
-        const sheetOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-        assert.ok(sheetOverflow <= 1, 'mobile filter sheet caused horizontal overflow');
-        const bandoLabel = filterDialog.locator('.bce-filter-brand-list label').filter({ hasText: 'Bando' });
-        await bandoLabel.scrollIntoViewIfNeeded();
-        const bandoInput = bandoLabel.locator('input');
-        await bandoInput.scrollIntoViewIfNeeded();
-        await bandoInput.check();
-        assert.equal(await bandoInput.isChecked(), true, 'mobile brand checkbox must become checked');
-        await filterDialog.locator('footer button').last().click();
-      } else {
-        const bandoInput = page.locator('.bce-sidebar .bce-filter-brand-list label').filter({ hasText: 'Bando' }).locator('input');
-        await bandoInput.scrollIntoViewIfNeeded();
-        await bandoInput.check();
-        assert.equal(await bandoInput.isChecked(), true, 'desktop brand checkbox must become checked');
-      }
-      assert.equal(await rows.count(), 1, 'brand filter must reduce the list to the matching catalogue product');
-      if (viewport.width <= 860) {
-        await page.locator('.bce-mobile-tools > button').click();
-        const filterDialog = page.getByRole('dialog', { name: 'فیلتر محصولات' });
-        await filterDialog.waitFor({ state: 'visible' });
-        await filterDialog.locator('footer button').first().click();
-        await filterDialog.locator('footer button').last().click();
-      } else {
-        await page.locator('.bce-sidebar-top button').click();
-      }
-      assert.equal(await rows.count(), productFixture.length, 'clearing filters must restore the full live-fixture result set');
-      if (viewport.width <= 860) {
-        await page.locator('.bce-mobile-tools > button').click();
-        const filterDialog = page.getByRole('dialog', { name: 'فیلتر محصولات' });
-        await filterDialog.waitFor({ state: 'visible' });
-        const stockLabel = filterDialog.locator('.bce-toggles label').first();
-        await stockLabel.scrollIntoViewIfNeeded();
-        const stockInput = stockLabel.locator('input');
-        await stockInput.scrollIntoViewIfNeeded();
-        await stockInput.check();
-        assert.equal(await stockInput.isChecked(), true, 'mobile stock checkbox must become checked');
-        await filterDialog.locator('footer button').last().click();
-      } else {
-        const stockInput = page.locator('.bce-sidebar .bce-toggles label').first().locator('input');
-        await stockInput.scrollIntoViewIfNeeded();
-        await stockInput.check();
-        assert.equal(await stockInput.isChecked(), true, 'desktop stock checkbox must become checked');
-      }
-      assert.equal(await rows.count(), 5, 'confirmed stock filtering must retain stocked items even when their price requires inquiry');
-      if (viewport.width <= 860) {
-        await page.locator('.bce-mobile-tools > button').click();
-        const filterDialog = page.getByRole('dialog', { name: 'فیلتر محصولات' });
-        await filterDialog.waitFor({ state: 'visible' });
-        await filterDialog.locator('footer button').first().click();
-        await filterDialog.locator('footer button').last().click();
-      } else {
-        await page.locator('.bce-sidebar-top button').click();
-      }
-      assert.equal(await rows.count(), productFixture.length, 'clearing the stock filter must restore all catalogue items');
-      if (viewport.width <= 860) {
-        await page.getByLabel('مرتب‌سازی موبایل').selectOption('code');
-      } else {
-        await page.locator('.bce-sort-desktop button').filter({ hasText: 'کد کالا' }).click();
-      }
-      const firstSortedCode = (await rows.first().locator('.bce-product-code b').textContent())?.trim();
-      assert.equal(firstSortedCode, '8M-1200', 'code sorting must reorder the actual product rows');
-      if (viewport.width <= 860) {
-        await page.getByLabel('مرتب‌سازی موبایل').selectOption('default');
-      } else {
-        await page.locator('.bce-sort-desktop button').filter({ hasText: 'جدیدترین‌ها' }).click();
-      }
-      const firstCompare = rows.nth(0).locator('.bce-card-compare-chip');
-      const secondCompare = rows.nth(1).locator('.bce-card-compare-chip');
-      await firstCompare.locator('input').check();
-      assert.equal(await firstCompare.locator('input').isChecked(), true, 'first product comparison checkbox must become selected');
-      await secondCompare.locator('input').check();
-      assert.equal(await secondCompare.locator('input').isChecked(), true, 'second product comparison checkbox must become selected');
-      await page.locator('.bce-compare-open').click();
-      const compareDialog = page.getByRole('dialog', { name: 'مقایسه محصولات انتخاب‌شده' });
-      await compareDialog.waitFor({ state: 'visible' });
-      await compareDialog.locator('.bce-compare-table').waitFor({ state: 'visible' });
-      await page.keyboard.press('Shift+Tab');
-      const focusStayedInDialog = await compareDialog.evaluate(dialog => dialog.contains(document.activeElement));
-      assert.ok(focusStayedInDialog, 'keyboard focus must remain inside the comparison dialog');
-      await page.keyboard.press('Escape');
-      await compareDialog.waitFor({ state: 'hidden' });
-      await page.locator('.bce-compare-open').click();
-      await compareDialog.waitFor({ state: 'visible' });
-      await compareDialog.locator('.bce-compare-head button').click();
-      await compareDialog.waitFor({ state: 'hidden' });
-      await page.locator('.bce-compare-clear').click();
-
-      // Re-check family navigation after closing the comparison dialog.
-      if (isCompactMobile) {
-        const allFamiliesPill = familyNavigation.first();
-        assert.ok((await allFamiliesPill.innerText()).includes('گام 8M'), 'first mobile family pill must be the all-families action');
-        await allFamiliesPill.click();
-      } else {
-        const vBeltTile = page.locator('.bce-family-tile').filter({ hasText: /وی.?بلت|V-Belt/i }).first();
-        await vBeltTile.click();
-        await vBeltTile.click();
-      }
-      assert.ok(page.url().includes('sub=all'), 'the all-families action must preserve the canonical category route');
-
-      if (pageErrors.length) failures.push({ viewport, pageErrors });
-      console.log('BELT_RESPONSIVE_OK', viewport.width + 'x' + viewport.height, JSON.stringify(layout));
+      const legacyPage = await context.newPage();
+      const legacyErrors = [];
+      legacyPage.on('pageerror', error => legacyErrors.push(error.message));
+      await installRoutes(legacyPage);
+      await legacyPage.goto(baseUrl + '/category/' + encodeURIComponent('تسمه-و-انتقال-نیرو'), { waitUntil: 'domcontentloaded' });
+      await legacyPage.waitForURL(url => url.pathname === '/categories' && url.searchParams.get('group') === 'excel-v2-1', { timeout: 15000 });
+      await legacyPage.locator('.all-categories-page').waitFor();
+      assert.equal(new URL(legacyPage.url()).searchParams.get('group'), 'excel-v2-1', 'legacy belt URL must redirect to the new industrial-belts group');
+      if (legacyErrors.length) failures.push({ viewport, category: 'legacy-belt-route', pageErrors: legacyErrors });
+      console.log('BELT_LEGACY_REDIRECT_OK', viewport.width + 'px', legacyPage.url());
+      await legacyPage.close();
       await context.close();
     }
     assert.deepEqual(failures, [], 'browser page errors were detected');
