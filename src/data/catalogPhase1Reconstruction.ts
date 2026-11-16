@@ -657,7 +657,10 @@ export function resolveStrictApprovedMenuPath(
 ): CanonicalMenuPath {
   // Only explicit legacy aliases are remapped. Unknown categories and incomplete
   // paths fail closed instead of falling back to the first leaf in an unrelated menu.
-  const slug = rawCategorySlug;
+  let slug = rawCategorySlug;
+  if (slug === 'excel-v2-7-4') slug = 'excel-v2-7-1';
+  else if (slug === 'excel-v2-10-3') slug = 'excel-v2-9-3';
+  else if (slug === 'excel-v2-10-4') slug = 'excel-v2-12-1';
   if (!CANONICAL_BY_CATEGORY.has(slug)) return UNRESOLVED_MENU_PATH;
 
   const normSub = normalizeFa(rawSubmenu);
