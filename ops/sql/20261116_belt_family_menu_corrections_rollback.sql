@@ -7,11 +7,19 @@ BEGIN
      OR to_regclass('internal.catalog_direct_skus_belt_backup_20261116') IS NULL THEN
     RAISE EXCEPTION 'Belt taxonomy rollback backup tables are missing; refusing rollback';
   END IF;
-  IF (SELECT count(*) FROM internal.catalog_family_menu_assignments_belt_backup_20261116)=0
-     OR (SELECT count(*) FROM internal.catalog_direct_skus_belt_backup_20261116)=0 THEN
-    RAISE EXCEPTION 'Belt taxonomy rollback backup is empty; refusing rollback';
+  IF (SELECT count(*) FROM internal.catalog_family_menu_assignments_belt_backup_20261116) < 18
+     OR (SELECT count(*) FROM internal.catalog_direct_skus_belt_backup_20261116) < 34 THEN
+    RAISE EXCEPTION 'Belt taxonomy rollback backup is incomplete; refusing rollback';
   END IF;
 END $$;
+
+-- Remove only the equipment assignment inserted by the forward migration.
+DELETE FROM public.catalog_family_menu_assignments
+WHERE family_code='PFAM-دستگاه-صنعتی-GENERIC--دستگاه-صنعتی-576'
+  AND category_slug='excel-v2-1-4'
+  AND submenu_name='دستگاه‌های تسمه جوشی'
+  AND leaf_name IS NULL
+  AND method='taxonomy_gap';
 
 INSERT INTO public.catalog_family_menu_assignments
   (family_code,category_slug,submenu_name,leaf_name,method,created_at,updated_at)
