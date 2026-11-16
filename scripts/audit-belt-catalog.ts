@@ -489,7 +489,7 @@ function buildExcelWorkbook(audit: ReturnType<typeof runBeltCatalogAudit>): XLSX
     Manufacturer_Brand: 'OPTIBELT',
     Product_Series: 'VB/Classic; SK/RED POWER; SUPER X-POWER/SUPER TX; KB/KBX; ZR; OMEGA/HTD/STD; ALPHA T/AT; RB ribbed PJ/PK/PL; DK double-V; ZRK automotive timing family',
     Manufacturer_Website: 'https://www.optibelt.com',
-    Catalog_URL: 'https://www.optibelt.com/fileadmin/pdf/kataloge/Optibelt-Power-Transmission-product-range-belts.pdf',
+    Catalog_URL: 'https://www.optibelt.com/fileadmin/pdf/produkte/keilriemen/Optibelt-product-range.pdf',
     Datasheet_URL: 'https://www.optibelt.com/fileadmin/pdf/kataloge/Optibelt-Power-Transmission-product-range-belts.pdf',
     Technical_Standard: 'DIN 2215 / DIN 7753 / ISO 4184 / ISO 13050 (profile-dependent)',
     Extracted_Specifications: 'The official Optibelt product-range catalog confirms supported industrial profile families and identifies ZRK as an automotive timing-belt line. Four AUTO-RU candidates are series-level only; four further codes still require reading the printed belt marking; 35023 has an 8 mm pitch and remains separate from the 9.525 mm ZRK candidates. No exact ZRK SKU datasheet match is claimed.',
