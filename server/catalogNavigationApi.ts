@@ -15,7 +15,7 @@ type MenuAssignment = {categorySlug:string;submenuName:string;leafName:string|nu
 function assignmentIsValid(row:any,assignment:MenuAssignment){
   return validateFamilyMenuAssignment({
     familyCode:row.code||row.familyCode,
-    familyName:row.familyName||row.name,
+    familyName:[row.familyName||row.name,row.variantNames].filter(Boolean).join(' '),
     productType:row.productType,
     material:row.material||row.familyMaterials,
     profile:row.profile,
@@ -29,8 +29,10 @@ function resolveFamilyMenuAssignment(row:any):MenuAssignment|null{
   const databaseAssignment:MenuAssignment|null=row.assignedCategorySlug
     ? {categorySlug:row.assignedCategorySlug,submenuName:row.assignedSubmenu||'',leafName:row.assignedLeaf||null,method:row.method||row.assignmentMethod}
     : null;
-  if(databaseAssignment&&(row.method==='admin_verified'||row.method==='excel_source_verified'||row.method==='engineering_audited'||row.assignmentMethod==='admin_verified'||row.assignmentMethod==='excel_source_verified'||row.assignmentMethod==='engineering_audited')){
-    if(assignmentIsValid(row,databaseAssignment).valid)return databaseAssignment;
+  const assignmentMethod=String(row.method||row.assignmentMethod||'');
+  const authoritative=Boolean(databaseAssignment&&['admin_verified','excel_source_verified','engineering_audited','taxonomy_gap'].includes(assignmentMethod));
+  if(authoritative){
+    return assignmentIsValid(row,databaseAssignment!).valid?databaseAssignment:null;
   }
   const fallback=getFamilyMenuAssignment(row.code||row.familyCode);
   if(!fallback)return null;
@@ -72,8 +74,8 @@ export function registerCatalogNavigationApi(app:Express){
     }catch(error){return fail(res,error);}
   });
 
-  // Category totals use the same audited family resolver as the category contents.
-  // Legacy conservative DB assignments must not override the approved static audit map.
+  // Category totals and category contents share one resolver. Database assignments
+  // are authoritative only after engineering validation; taxonomy-gap paths may omit a leaf.
   app.get('/api/catalog/categories',async(_req,res)=>{
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,categories:[]});
@@ -97,7 +99,7 @@ export function registerCatalogNavigationApi(app:Express){
            order by c.sort_order,c.name`),
         database().query(
           `select f.code,f.name as "familyName",coalesce(identity.product_type,f.name) as "productType",
-             coalesce(identity.material,f.materials,'') as material,identity.profile as profile,
+             coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
              coalesce(f.item_count,0) as "skuCount",
              a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
              a.leaf_name as "assignedLeaf",a.method
@@ -110,7 +112,8 @@ export function registerCatalogNavigationApi(app:Express){
                case when count(distinct nullif(v.identity_specs->>'material',''))<=1
                  then max(v.identity_specs->>'material') else 'MIXED' end as material,
                case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
              from public.catalog_variants v where v.family_code=f.code and v.active=true
            ) identity on true
            where f.is_active=true and f.is_deleted=false
@@ -162,7 +165,7 @@ export function registerCatalogNavigationApi(app:Express){
       const result=await database().query(
         `select a.family_code as "familyCode",f.code as code,f.name as "familyName",
             coalesce(identity.product_type,f.name) as "productType",
-            coalesce(identity.material,f.materials,'') as material,identity.profile as profile,
+            coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
             a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
             a.leaf_name as "assignedLeaf",a.method
           from public.catalog_families f
@@ -174,7 +177,8 @@ export function registerCatalogNavigationApi(app:Express){
                case when count(distinct nullif(v.identity_specs->>'material',''))<=1
                  then max(v.identity_specs->>'material') else 'MIXED' end as material,
                case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
              from public.catalog_variants v where v.family_code=f.code and v.active=true
           ) identity on true
           where f.is_active=true and f.is_deleted=false
@@ -207,7 +211,7 @@ export function registerCatalogNavigationApi(app:Express){
       const familyRows=await database().query(
         `select f.code,f.name,f.name as "familyName",coalesce(f.brand,'') as brand,
            coalesce(identity.product_type,f.name) as "productType",
-           coalesce(identity.material,f.materials,'') as material,identity.profile as profile,
+           coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
            coalesce(f.item_count,0) as "skuCount",
            a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
            a.leaf_name as "assignedLeaf",a.method
@@ -220,7 +224,8 @@ export function registerCatalogNavigationApi(app:Express){
                case when count(distinct nullif(v.identity_specs->>'material',''))<=1
                  then max(v.identity_specs->>'material') else 'MIXED' end as material,
                case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
              from public.catalog_variants v where v.family_code=f.code and v.active=true
           ) identity on true
           where f.is_active=true and f.is_deleted=false
@@ -254,7 +259,7 @@ export function registerCatalogNavigationApi(app:Express){
       const rows=await database().query(
         `select f.code as "familyCode",f.name as "familyName",
             coalesce(identity.product_type,f.name) as "productType",
-            coalesce(identity.material,f.materials,'') as material,identity.profile as profile,
+            coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
             a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
             a.leaf_name as "assignedLeaf",a.method
           from public.catalog_families f
@@ -266,7 +271,8 @@ export function registerCatalogNavigationApi(app:Express){
                case when count(distinct nullif(v.identity_specs->>'material',''))<=1
                  then max(v.identity_specs->>'material') else 'MIXED' end as material,
                case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
              from public.catalog_variants v where v.family_code=f.code and v.active=true
           ) identity on true
           where f.is_active=true and f.is_deleted=false
@@ -294,7 +300,7 @@ export function registerCatalogNavigationApi(app:Express){
       const rows=await database().query(
         `select f.code,f.name,f.name as "familyName",f.category_slug as "oldCategory",f.submenu as "oldSubmenu",
            coalesce(identity.product_type,f.name) as "productType",
-           coalesce(identity.material,f.materials,'') as material,identity.profile as profile,
+           coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
            coalesce(f.item_count,0) as "skuCount",
            a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
            a.leaf_name as "assignedLeaf",a.method as "assignmentMethod"
@@ -307,7 +313,8 @@ export function registerCatalogNavigationApi(app:Express){
                case when count(distinct nullif(v.identity_specs->>'material',''))<=1
                  then max(v.identity_specs->>'material') else 'MIXED' end as material,
                case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
              from public.catalog_variants v where v.family_code=f.code and v.active=true
           ) identity on true
           where f.is_active=true and f.is_deleted=false
@@ -348,7 +355,7 @@ export function registerCatalogNavigationApi(app:Express){
          where c.slug=$1 and c.is_active=true and c.metadata->>'source'='industrial_megamenu_hierarchy_v2' limit 1`,[categorySlug]);
       const family=await database().query(
          `select f.code,f.name as "familyName",coalesce(identity.product_type,f.name) as "productType",
-            coalesce(identity.material,f.materials,'') as material,identity.profile as profile
+            coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames"
           from public.catalog_families f
           left join lateral (
             select
@@ -357,7 +364,8 @@ export function registerCatalogNavigationApi(app:Express){
                case when count(distinct nullif(v.identity_specs->>'material',''))<=1
                  then max(v.identity_specs->>'material') else 'MIXED' end as material,
                case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
              from public.catalog_variants v where v.family_code=f.code and v.active=true
           ) identity on true
           where f.code=$1 and f.is_active=true and f.is_deleted=false limit 1`,[familyCode]);
