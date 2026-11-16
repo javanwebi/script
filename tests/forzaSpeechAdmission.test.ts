@@ -85,6 +85,18 @@ test('a filtered interim finalizes without duplicating its admitted suffix',()=>
  assert.equal(extractPersianSpeechSince(final.results,0).text,'بلبرینگ 6203');
 });
 
+test('assistant playback cannot raise the noise floor and suppress the next customer turn',()=>{
+ const gate=calibrated(false,0.001);
+ const roomFloor=gate.diagnostics(1000).floor;
+ for(let t=1050;t<=3500;t+=50)gate.sample(0.06,t,true);
+ assert.equal(gate.diagnostics(3500).floor,roomFloor,'TTS energy must not become ambient noise');
+ gate.sample(0.0005,3550,false);
+ gate.sample(0.0005,3700,false);
+ speak(gate,3750,4000,0.006,false);
+ assert.equal(gate.decide('برای دستگاه تسمه PU می خواهم',false,false,4000),'accept',
+  'the next customer turn must be admitted after assistant playback');
+});
+
 test('continuing speech survives the transition out of playback',()=>{
  const gate=calibrated(true);speak(gate,1050,1400,0.06,true);
  assert.equal(gate.decide('وایسا',false,true,1400),'accept');
