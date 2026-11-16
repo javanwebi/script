@@ -102,7 +102,7 @@ END $$;
 
 CREATE TABLE internal.catalog_belt_family_engineering_backup_20261117 (
   table_name text NOT NULL CHECK (
-    table_name IN ('catalog_variants','catalog_families','catalog_family_menu_assignments','catalog_direct_skus')
+    table_name IN ('catalog_variants','catalog_families','catalog_family_menu_assignments','catalog_direct_skus','catalog_categories')
   ),
   row_key text NOT NULL,
   row_data jsonb NOT NULL,
@@ -123,7 +123,7 @@ WHERE v.variable_specs->>'beltDivision' IN ('vbelt-crowned-crc','vbelt-banded')
        AND upper(coalesce(v.identity_specs->>'profile','')) IN ('XPZ','XPA','XPB','XPC'))
    OR upper(coalesce(v.identity_specs->>'profile','')) IN ('AA','3V','3VX','5V','5VX','8V','8VX');
 
--- Snapshot the 18 pure engineering family records whose labels or approved menu path change.
+-- Snapshot the 19 pure engineering family records whose labels or approved menu path change.
 INSERT INTO internal.catalog_belt_family_engineering_backup_20261117(table_name,row_key,row_data)
 SELECT 'catalog_families',f.code,to_jsonb(f)
 FROM public.catalog_families f
