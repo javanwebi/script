@@ -388,25 +388,29 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
   const sql=readFileSync(0,"utf8");
   const marker=await database().query(
    "select to_regclass(\x27internal.catalog_belt_taxonomy_followup_backup_20261116\x27) as backup");
-  if(marker.rows[0].backup){
+  const hasBackup=Boolean(marker.rows[0].backup);
+  if(hasBackup){
    const existing=await database().query(
     "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
    if(Number(existing.rows[0].rows)!==138)throw Error("Existing belt taxonomy backup is incomplete; refusing to continue");
-   console.log("PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138");
+  }
+  const lineage=await database().query(
+   "select " +
+   "count(*) filter(where code like \x27PFAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_pfam, " +
+   "count(*) filter(where code like \x27FAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_fam " +
+   "from public.catalog_families");
+  const activePfam=Number(lineage.rows[0].active_pfam||0);
+  const activeFam=Number(lineage.rows[0].active_fam||0);
+  console.log("PRODUCTION_CATALOG_FAMILY_LINEAGE",JSON.stringify({active_pfam:activePfam,active_fam:activeFam}));
+  if(activePfam===0&&activeFam>0){
+   console.log("PRODUCTION_BELT_PFAM_FOLLOWUP_SKIPPED reason=legacy_fam_catalog active_fam="+activeFam);
+   console.log("PRODUCTION_BELT_DIRECT_SKU_FOLLOWUP_DEFERRED reason=pfam_family_baseline_absent");
   }else{
-   const lineage=await database().query(
-    "select " +
-    "count(*) filter(where code like \x27PFAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_pfam, " +
-    "count(*) filter(where code like \x27FAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_fam " +
-    "from public.catalog_families");
-   const activePfam=Number(lineage.rows[0].active_pfam||0);
-   const activeFam=Number(lineage.rows[0].active_fam||0);
-   console.log("PRODUCTION_CATALOG_FAMILY_LINEAGE",JSON.stringify({active_pfam:activePfam,active_fam:activeFam}));
-   if(activePfam===0&&activeFam>0){
-    console.log("PRODUCTION_BELT_PFAM_FOLLOWUP_SKIPPED reason=legacy_fam_catalog active_fam="+activeFam);
-    console.log("PRODUCTION_BELT_DIRECT_SKU_FOLLOWUP_DEFERRED reason=pfam_family_baseline_absent");
+   if(activePfam===0)throw Error("No active PFAM or FAM family baseline found; refusing to apply belt taxonomy follow-up");
+   if(activeFam>0)throw Error("Mixed active FAM/PFAM family lineage; refusing to apply PFAM-only belt taxonomy follow-up");
+   if(hasBackup){
+    console.log("PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138");
    }else{
-    if(activePfam===0)throw Error("No active PFAM or FAM family baseline found; refusing to apply belt taxonomy follow-up");
     await database().query(sql);
     const applied=await database().query(
      "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
