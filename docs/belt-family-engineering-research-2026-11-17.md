@@ -43,7 +43,7 @@ This change corrects the engineering taxonomy and source handling for the belt c
 - Reclassify 15 banded variants to `FT-VBELT-BANDED`; remove the inappropriate single-belt leaf from the five active banded families.
 - Reclassify 29 American wrapped wedge variants to `FT-VBELT-WEDGE` and two cogged American wedge variants to `FT-VBELT-COGGED`.
 - Correct 139 SWR XPZ/XPA/XPB/XPC variants to raw-edge cogged rubber rather than wrapped V-belt.
-- Clarify two SWR AA items as Double-V / hexagonal AA. Keep them unresolved in the menu until an approved Excel leaf exists.
+- Classify all four AA variants (two SWR and two generic) as Double-V / hexagonal AA. Keep them unresolved in the menu until an approved Excel leaf exists; only the SWR items receive SWR-specific catalogue evidence.
 - Correct the 12 direct American wedge SKU paths and two direct AX-banded SKU paths.
 - Remove unsupported claims that CRC/TRC, banded and other V-belt compounds/cords are definitely neoprene/polyester. Use manufacturer-neutral descriptions until the exact datasheet is available.
 - Keep technical-review states and missing-evidence requirements; series-level evidence must not be mistaken for exact internal SKU verification.
