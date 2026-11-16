@@ -70,7 +70,9 @@ export function validateFamilyMenuAssignment(
   const isRubberMaterial = matches(material, /لاستیک|الاستومر|rubber|elastomer|nbr|epdm|fkm|viton|neoprene|کلروپرن/);
   const isRidgeTop = matches(identity, /تاج.?دار|گرده.?ماهی|ridge.?top|crowned/);
   const isWeldingDevice = matches(identity, /دستگاه.*(?:جوش|آپارات).*تسمه|گیره.*آپارات.*تسمه|belt.*weld.*device/);
-  const isNonBeltItem = matches(identity, /دستگاه پولیش|دستگاه تزریق|تسمه پاک.?کن|اسکریپر|تیغه فلزی|تسمه آهنی/);
+  const isBeltManufacturingDevice = matches(identity, /دستگاه.*(?:پولیش|تزریق).*apl|apl.*دستگاه/);
+  const isConveyorBelt = matches(identity, /نوار نقاله|تسمه بارکش|تسمه نقاله|conveyor|belt conveyor|گریپ.?آجدار/);
+  const isNonBeltItem = matches(identity, /دستگاه پولیش|دستگاه تزریق|تسمه سفت.?کن|belt.?tensioner|tensioner|تسمه پاک.?کن|belt.?cleaner|scraper|اسکریپر|تیغه فلزی|تسمه آهنی/);
 
   if (context.categorySlug === 'excel-v2-1-1') {
     if (!isTiming || isVbelt || isPolyV || isNonBeltItem) {
@@ -94,18 +96,18 @@ export function validateFamilyMenuAssignment(
     }
 
     if (submenu === normalize('انواع گام و کدهای تایمینگ')) {
-      if (profileCode === 't10' || profileCode === 't20' || profileCode === '3m' || profileCode === 'mxl') {
+      if (leaf && ['t10', 't20', '3m', 'mxl'].includes(profileCode)) {
         return fail('timing_profile_without_exact_approved_leaf');
       }
       if (leaf === normalize('T5 , AT5 , AT10 , AT20') && !['t5', 'at5', 'at10', 'at20'].includes(profileCode)) {
         return fail('metric_timing_leaf_profile_mismatch');
       }
-      if (leaf === normalize('H , XH , L , XL') && !['h', 'xh', 'l', 'xl', 'dh', 'dxh', 'dl', 'dxl'].includes(profileCode)) {
+      if (leaf === normalize('H , XH , L , XL') && !['h', 'xh', 'l', 'xl'].includes(profileCode)) {
         return fail('imperial_timing_leaf_profile_mismatch');
       }
       if (
         leaf === normalize('5M , 8M , 11M , 14M') &&
-        !['5m', '8m', '11m', '14m', 'd5m', 'd8m', 'd11m', 'd14m', 'rpp8m', 'rpp14m'].includes(profileCode)
+        !['5m', '8m', '11m', '14m', 'rpp8m', 'rpp14m'].includes(profileCode)
       ) {
         return fail('curvilinear_timing_leaf_profile_mismatch');
       }
@@ -126,11 +128,19 @@ export function validateFamilyMenuAssignment(
     ) {
       return fail('vbelt_classical_leaf_profile_mismatch');
     }
+    if (leaf && submenu === normalize('کلاسیک و دنده‌دار') &&
+      !['z', 'zx', 'm', 'a', 'ax', 'b', 'bx', 'c', 'cx', 'd', 'e', '8v', '8vx'].includes(profileCode)) {
+      return fail('vbelt_classical_leaf_profile_mismatch');
+    }
 
     if (
       submenu === normalize('تسمه اسپشیال') &&
       !['spz', 'xpz', 'spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc', '3v', '3vx', '5v', '5vx'].includes(profileCode)
     ) {
+      return fail('vbelt_special_leaf_profile_mismatch');
+    }
+    if (leaf && submenu === normalize('تسمه اسپشیال') &&
+      !['spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc'].includes(profileCode)) {
       return fail('vbelt_special_leaf_profile_mismatch');
     }
   }
@@ -147,11 +157,16 @@ export function validateFamilyMenuAssignment(
   }
 
   if (context.categorySlug === 'excel-v2-1-4') {
-    if (submenu === normalize('تسمه بارکش') && !isRidgeTop) {
+    if (submenu === normalize('تسمه بارکش') && !isRidgeTop && !isConveyorBelt) {
       return fail('hauling_belt_leaf_requires_crowned_conveyor_identity');
     }
-    if (submenu === normalize('دستگاه‌های تسمه جوشی') && !isWeldingDevice) {
-      return fail('belt_welding_equipment_leaf_product_type_mismatch');
+    if (submenu === normalize('دستگاه‌های تسمه جوشی')) {
+      if (!isWeldingDevice && !isBeltManufacturingDevice) {
+        return fail('belt_welding_equipment_leaf_product_type_mismatch');
+      }
+      if (leaf && !isWeldingDevice) {
+        return fail('belt_welding_equipment_leaf_product_type_mismatch');
+      }
     }
   }
 
