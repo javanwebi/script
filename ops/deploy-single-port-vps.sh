@@ -378,8 +378,9 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
 echo '===== APPLY GUARDED INDUSTRIAL BELT TAXONOMY RECONCILIATION ====='
 BELT_TAXONOMY_SQL="$STAGE/ops/sql/20261116_belt_family_taxonomy_followup.sql"
 test -s "$BELT_TAXONOMY_SQL" || { echo "REQUIRED_BELT_TAXONOMY_SQL_MISSING=$BELT_TAXONOMY_SQL"; exit 1; }
-# This is a one-time data migration. The private 138-row backup is its durable
-# completion marker; subsequent deploys verify it and never re-run the DELETE/UPDATE.
+# This reconciliation targets the separate, engineering-reconstructed PFAM catalog.
+# Legacy FAM-only production databases must not be forced through PFAM-specific IDs.
+# The 138-row backup remains the idempotency marker for databases where this dataset exists.
 docker exec -i "$OLD" node --import tsx --input-type=module -e '
  import {readFileSync} from "node:fs";
  import {database,closeDatabase} from "./server/db/connection.ts";
@@ -387,17 +388,35 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
   const sql=readFileSync(0,"utf8");
   const marker=await database().query(
    "select to_regclass(\x27internal.catalog_belt_taxonomy_followup_backup_20261116\x27) as backup");
-  if(marker.rows[0].backup){
+  const hasBackup=Boolean(marker.rows[0].backup);
+  if(hasBackup){
    const existing=await database().query(
     "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
    if(Number(existing.rows[0].rows)!==138)throw Error("Existing belt taxonomy backup is incomplete; refusing to continue");
-   console.log("PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138");
+  }
+  const lineage=await database().query(
+   "select " +
+   "count(*) filter(where code like \x27PFAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_pfam, " +
+   "count(*) filter(where code like \x27FAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_fam " +
+   "from public.catalog_families");
+  const activePfam=Number(lineage.rows[0].active_pfam||0);
+  const activeFam=Number(lineage.rows[0].active_fam||0);
+  console.log("PRODUCTION_CATALOG_FAMILY_LINEAGE",JSON.stringify({active_pfam:activePfam,active_fam:activeFam}));
+  if(activePfam===0&&activeFam>0){
+   console.log("PRODUCTION_BELT_PFAM_FOLLOWUP_SKIPPED reason=legacy_fam_catalog active_fam="+activeFam);
+   console.log("PRODUCTION_BELT_DIRECT_SKU_FOLLOWUP_DEFERRED reason=pfam_family_baseline_absent");
   }else{
-   await database().query(sql);
-   const applied=await database().query(
-    "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
-   if(Number(applied.rows[0].rows)!==138)throw Error("Belt taxonomy migration did not create its complete 138-row backup");
-   console.log("PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138");
+   if(activePfam===0)throw Error("No active PFAM or FAM family baseline found; refusing to apply belt taxonomy follow-up");
+   if(activeFam>0)throw Error("Mixed active FAM/PFAM family lineage; refusing to apply PFAM-only belt taxonomy follow-up");
+   if(hasBackup){
+    console.log("PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138");
+   }else{
+    await database().query(sql);
+    const applied=await database().query(
+     "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
+    if(Number(applied.rows[0].rows)!==138)throw Error("Belt taxonomy migration did not create its complete 138-row backup");
+    console.log("PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138");
+   }
   }
  }catch(error){
   console.error("PRODUCTION_BELT_TAXONOMY_MIGRATION_FAILED",error.code||"",error.message);
