@@ -245,9 +245,10 @@ test("industrial belt PFAM reconciliation is guarded by the active production ca
   assert.match(one, /activePfam===0&&activeFam>0/);
   assert.match(one, /PRODUCTION_BELT_ENGINEERING_SKIPPED reason=legacy_fam_catalog/);
   assert.match(one, /Mixed active FAM\/PFAM family lineage; refusing PFAM belt engineering correction/);
-  assert.match(one, /PRODUCTION_BELT_ENGINEERING_APPLIED variants=292 families=19 assignments=8 direct=14/);
-  assert.match(one, /PRODUCTION_BELT_ENGINEERING_ALREADY_APPLIED variants=292 families=19 assignments=8 direct=14/);
+  assert.match(one, /PRODUCTION_BELT_ENGINEERING_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5/);
+  assert.match(one, /PRODUCTION_BELT_ENGINEERING_ALREADY_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5/);
   assert.match(one, /Existing belt engineering backup is incomplete/);
+  assert.match(one, /categories=5/);
   assert.match(one, /tests\/catalog-menu-semantic-guard\.test\.ts/);
   assert.match(one, /tests\/belt-category-experience\.test\.ts/);
   assert.match(one, /tests\/database\/belt-family-taxonomy-followup\.test\.ts/);
