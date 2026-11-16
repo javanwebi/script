@@ -13,6 +13,7 @@ test('the Persian Diba browser recognizer is loaded from the same origin, never 
  assert.match(server,/app\.get\('\/forza-runtime\/stt\/diba-stt-fa-small\.tar\.gz'/);
  assert.match(server,/FORZA_STT_DIBA_BROWSER_ARCHIVE/);
  assert.match(server,/Cache-Control','public, max-age=31536000, immutable/);
+ assert.match(server,/sendFile\(archive,\{maxAge:'1y',immutable:true\}\)/);
  assert.match(docker,/cp \/tmp\/diba-stt-fa-small\.tar\.gz \/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
  assert.match(docker,/FORZA_STT_DIBA_BROWSER_ARCHIVE=\/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
  assert.match(deploy,/test -s \/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
