@@ -512,7 +512,7 @@ export function resolveEngineeringFamilyType(input: {
     div === 'welded-pu-round-crc' ||
     ((prof === 'ROUND' || prof === 'CRC') &&
       /جوشی|welded/i.test(pt) &&
-      /پلی.?یورتان|polyurethane|\\bTPU\\b/i.test(`${pt} ${mat}`))
+      /پلی.?یورتان|polyurethane|\bTPU\b/i.test(`${pt} ${mat}`))
   ) {
     return {
       familyTypeId: 'FT-BELT-ROUND-CRC',
