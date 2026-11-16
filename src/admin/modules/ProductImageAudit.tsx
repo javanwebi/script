@@ -442,7 +442,7 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
         <div role="dialog" aria-modal="true" aria-label="بررسی و اتصال تصویر به محصول" className="flex max-h-[94dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <header className="flex items-center justify-between gap-3 bg-[#55565A] px-4 py-3 text-white sm:px-5">
             <div className="min-w-0"><h3 className="text-sm font-black sm:text-base">بررسی و اتصال تصویر</h3><p dir="ltr" className="mt-1 truncate text-[10px] text-slate-200">{file||'تصویر جدید'} · انتخاب دسته، خانواده و کد دقیق</p></div>
-            <button type="button" onClick={closeSelection} aria-label="بستن فرم تصویر" className="shrink-0 rounded-lg border border-white/25 p-2 hover:bg-white/10"><X size={18}/></button>
+            <button type="button" onClick={()=>closeSelection()} aria-label="بستن فرم تصویر" className="shrink-0 rounded-lg border border-white/25 p-2 hover:bg-white/10"><X size={18}/></button>
           </header>
           <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(230px,0.75fr)_minmax(0,1.5fr)] lg:overflow-hidden">
             <div className="border-b border-slate-100 bg-slate-50 p-4 lg:overflow-y-auto lg:border-b-0 lg:border-l">
@@ -591,7 +591,7 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
               </div>}
               {url&&<p className="rounded-xl bg-amber-50 p-3 text-[11px] leading-6 text-amber-800">اتصال تصویر به‌تنهایی هویت فنی قطعه را تأیید نمی‌کند. مشخصات فنی کد کالا باید در فرم ویرایش همان محصول بررسی شود. فایل جدید تا ذخیره در فضای دائمی، آماده انتشار نیست.</p>}
               <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end">
-                <button type="button" onClick={closeSelection} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-[#55565A]">انصراف</button>
+                <button type="button" onClick={()=>closeSelection()} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-[#55565A]">انصراف</button>
                 {url&&<button type="button" disabled={savingUpload||(!directMode&&!familyCode)||((directMode||placement==='sku')&&!sku)||(placement==='new-sku'&&!newSkuCode.trim())|| (directMode&&(!category||!submenu))} onClick={()=>{void apply()}} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E06518] px-5 py-3 text-xs font-bold text-white hover:bg-[#c95814] disabled:cursor-not-allowed disabled:opacity-40"><Check size={16}/> {savingUpload?(directMode?'در حال ثبت کد مستقیم…':placement==='sku'?'در حال انتقال کد و ذخیره تصویر…':placement==='new-sku'?'در حال ایجاد کد و ذخیره تصویر…':'در حال ذخیره روی سرور…'):directMode?'ثبت مستقیم کد در زیرمنو':placement==='sku'?'انتقال کد و اتصال تصویر به خانواده مقصد':placement==='new-sku'?'ایجاد کد جدید و اتصال تصویر':source==='upload'?'ذخیره تصویر خانواده در سرور':'ذخیره تصویر خانواده در سایت'}</button>}
               </div>
             </div>
