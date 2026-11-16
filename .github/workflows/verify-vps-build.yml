@@ -9,6 +9,7 @@ on:
       - "src/App.tsx"
       - "src/pages/CategoryPage.tsx"
       - "src/components/catalog/ReferenceMegaMenu.tsx"
+      - "src/components/catalog/MobileCategoryExplorer.tsx"
       - "src/components/layout/Header.tsx"
       - "src/data/categories.ts"
       - "src/admin/modules/ProductsModule.tsx"
