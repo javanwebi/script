@@ -63,9 +63,11 @@ export class ForzaSpeechAdmission {
     const needed=playback&&intent!=='stop'?280:160;
     // A final may arrive slightly after acoustic silence. Interim words need
     // much fresher evidence; an old loud syllable must not admit a bystander.
-    // Browser final hypotheses can arrive well after the last PCM frame.
-    // Keep a bounded evidence grace for finals; interim text remains strict.
-    const fresh=now-this.lastStrong<=(final?1800:300);
+    // Keep final evidence bounded too: an old nearby utterance must not
+    // authorize a later background speaker after the customer has stopped.
+    // Previously accepted interim words remain preserved when their final
+    // hypothesis arrives late; no stale new text is admitted.
+    const fresh=now-this.lastStrong<=(final?900:300);
     if(!fresh)return 'reject';
     if(this.duration<needed||this.strongFrames<3)return this.onset!==null?'wait':'reject';
     if(playback&&intent==='question'&&text.trim().split(/\s+/).length<2)return 'wait';
