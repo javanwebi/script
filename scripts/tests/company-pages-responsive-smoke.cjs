@@ -78,7 +78,7 @@ const pages = [
             image.complete && image.naturalWidth > 0
           );
           assert.ok(heroImageLoaded, "Textile hero industrial image did not load");
-          const stages = page.locator(".ipt-stage-tabs button[role="tab"]");
+          const stages = page.locator('.ipt-stage-tabs button[role="tab"]');
           assert.equal(await stages.count(), 5, "Textile page must expose all five production stages");
           await stages.nth(1).click();
           assert.equal(await stages.nth(1).getAttribute("aria-selected"), "true",
