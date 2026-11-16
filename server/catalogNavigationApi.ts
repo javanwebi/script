@@ -2,12 +2,43 @@ import type {Express,Request,Response} from 'express';
 import crypto from 'node:crypto';
 import {database,databaseEnabled} from './db/connection';
 import {getFamilyMenuAssignment} from '../src/services/catalogTaxonomyResolver';
+import {validateFamilyMenuAssignment} from '../src/data/catalogMenuSemanticGuard';
 import {getPortalIdentity} from '../api/portal';
 import {canStaff} from './db/staffPermissions';
 
 const clean=(value:unknown,max=150)=>typeof value==='string'?value.trim().slice(0,max):'';
 const imageAllowed=(url:string)=>!url||((url.startsWith('/storage/products/')||url.startsWith('/storage/categories/'))&&!url.includes('..'))||(/^https:\/\/[^\s]+$/i.test(url)&&url.length<=2000);
 const fail=(res:Response,error:unknown)=>{console.error('[Catalog navigation/direct SKU]',error instanceof Error?error.message:String(error));return res.status(503).json({success:false,message:'ارتباط با پایگاه داده برقرار نشد.'});};
+
+type MenuAssignment = {categorySlug:string;submenuName:string;leafName:string|null;method?:string};
+
+function assignmentIsValid(row:any,assignment:MenuAssignment){
+  return validateFamilyMenuAssignment({
+    familyCode:row.code||row.familyCode,
+    familyName:[row.familyName||row.name,row.variantNames].filter(Boolean).join(' '),
+    productType:row.productType,
+    material:row.material||row.familyMaterials,
+    profile:row.profile,
+    categorySlug:assignment.categorySlug,
+    submenuName:assignment.submenuName,
+    leafName:assignment.leafName,
+  });
+}
+
+function resolveFamilyMenuAssignment(row:any):MenuAssignment|null{
+  const databaseAssignment:MenuAssignment|null=row.assignedCategorySlug
+    ? {categorySlug:row.assignedCategorySlug,submenuName:row.assignedSubmenu||'',leafName:row.assignedLeaf||null,method:row.method||row.assignmentMethod}
+    : null;
+  const assignmentMethod=String(row.method||row.assignmentMethod||'');
+  const authoritative=Boolean(databaseAssignment&&['admin_verified','excel_source_verified','engineering_audited','taxonomy_gap'].includes(assignmentMethod));
+  if(authoritative){
+    return assignmentIsValid(row,databaseAssignment!).valid?databaseAssignment:null;
+  }
+  const fallback=getFamilyMenuAssignment(row.code||row.familyCode);
+  if(!fallback)return null;
+  const candidate:MenuAssignment={categorySlug:fallback.categorySlug,submenuName:fallback.submenuName||'',leafName:fallback.leafName||null,method:'static_audited'};
+  return assignmentIsValid(row,candidate).valid?candidate:null;
+}
 
 export function registerCatalogNavigationApi(app:Express){
   // Same active Excel-approved category names and order as the PostgreSQL mega-menu.
@@ -43,38 +74,72 @@ export function registerCatalogNavigationApi(app:Express){
     }catch(error){return fail(res,error);}
   });
 
-  // PostgreSQL is the authoritative source for every product category shown in the mega-menu.
+  // Category totals and category contents share one resolver. Database assignments
+  // are authoritative only after engineering validation; taxonomy-gap paths may omit a leaf.
   app.get('/api/catalog/categories',async(_req,res)=>{
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,categories:[]});
-      const result=await database().query(
-        `select c.id,c.slug,c.name,c.icon,c.image_url as image,c.description,
-          c.sort_order as "sortOrder",c.is_active as active,c.metadata,
-          case when c.slug like 'excel-v2-%' then coalesce(mc.family_count,0) else coalesce(fc.family_count,0) end as "familyCount",
-          case when c.slug like 'excel-v2-%' then coalesce(mc.sku_count,0) else coalesce(fc.sku_count,0) end as "skuCount"
-        from public.catalog_categories c
-        left join (
-          select f.category_slug,
-            count(distinct f.code) filter (where f.is_active=true and f.is_deleted=false) as family_count,
-            count(distinct v.code) filter (where f.is_active=true and f.is_deleted=false and v.active=true) as sku_count
-          from public.catalog_families f
-          left join public.catalog_variants v on v.family_code=f.code
-          group by f.category_slug
-        ) fc on fc.category_slug=c.slug
-        left join (
-          select a.category_slug,count(distinct f.code) as family_count,
-            coalesce(sum(f.item_count),0) as sku_count
-          from public.catalog_family_menu_assignments a
-          join public.catalog_families f on f.code=a.family_code and f.is_active=true and f.is_deleted=false
-          group by a.category_slug
-        ) mc on mc.category_slug=c.slug
-        where c.is_active=true and (coalesce(fc.family_count,0)>0 or c.metadata->>'source'='industrial_megamenu_hierarchy_v2')
-        order by c.sort_order,c.name`);
+      const [result,familyRows]=await Promise.all([
+        database().query(
+          `select c.id,c.slug,c.name,c.icon,c.image_url as image,c.description,
+            c.sort_order as "sortOrder",c.is_active as active,c.metadata,
+            coalesce(fc.family_count,0) as "familyCount",
+            coalesce(fc.sku_count,0) as "skuCount"
+           from public.catalog_categories c
+           left join (
+             select f.category_slug,
+               count(distinct f.code) filter (where f.is_active=true and f.is_deleted=false) as family_count,
+               count(distinct v.code) filter (where f.is_active=true and f.is_deleted=false and v.active=true) as sku_count
+             from public.catalog_families f
+             left join public.catalog_variants v on v.family_code=f.code
+             group by f.category_slug
+           ) fc on fc.category_slug=c.slug
+           where c.is_active=true
+             and (coalesce(fc.family_count,0)>0 or c.metadata->>'source'='industrial_megamenu_hierarchy_v2')
+           order by c.sort_order,c.name`),
+        database().query(
+          `select f.code,f.name as "familyName",coalesce(identity.product_type,f.name) as "productType",
+             coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
+             coalesce(f.item_count,0) as "skuCount",
+             a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
+             a.leaf_name as "assignedLeaf",a.method
+           from public.catalog_families f
+           left join public.catalog_family_menu_assignments a on a.family_code=f.code
+           left join lateral (
+             select
+               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
+                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
+               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
+                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
+               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
+             from public.catalog_variants v where v.family_code=f.code and v.active=true
+           ) identity on true
+           where f.is_active=true and f.is_deleted=false
+           order by f.code limit 10000`)
+      ]);
+      const menuStats=new Map<string,{familyCount:number;skuCount:number}>();
+      for(const row of familyRows.rows){
+        const assignment=resolveFamilyMenuAssignment(row);
+        if(!assignment)continue;
+        const stats=menuStats.get(assignment.categorySlug)||{familyCount:0,skuCount:0};
+        stats.familyCount+=1;
+        stats.skuCount+=Number(row.skuCount)||0;
+        menuStats.set(assignment.categorySlug,stats);
+      }
       const categories=result.rows.map((row:any)=>{
         const metadata=row.metadata&&typeof row.metadata==='object'?row.metadata:{};
         const children=Array.isArray(metadata.children)?metadata.children:
           (Array.isArray(metadata.subcategories)?metadata.subcategories.map((name:unknown)=>({name:String(name),children:[]})):[]);
-        const familyCount=Number(row.familyCount)||0,skuCount=Number(row.skuCount)||0;
+        const menuStatsForCategory=menuStats.get(row.slug);
+        const isApprovedMenuCategory=metadata.source==='industrial_megamenu_hierarchy_v2';
+        const familyCount=isApprovedMenuCategory
+          ? Number(menuStatsForCategory?.familyCount)||0
+          : Number(row.familyCount)||0;
+        const skuCount=isApprovedMenuCategory
+          ? Number(menuStatsForCategory?.skuCount)||0
+          : Number(row.skuCount)||0;
         const subcategories=Array.isArray(metadata.subcategories)?metadata.subcategories:
           children.map((node:any)=>String(node?.name||'')).filter(Boolean);
         return {
@@ -92,24 +157,42 @@ export function registerCatalogNavigationApi(app:Express){
     }catch(error){return fail(res,error);}
   });
 
-
   // Public, metadata-only family-to-subcategory index for the all-products filters.
   // It exposes no prices, stock, images, customer data or private product fields.
   app.get('/api/catalog/menu-family-index',async(_req,res)=>{
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,assignments:[]});
       const result=await database().query(
-        `select a.family_code as "familyCode",a.category_slug as "categorySlug",
-          a.submenu_name as "submenuName",a.leaf_name as "leafName",a.method
-         from public.catalog_family_menu_assignments a
-         join public.catalog_families f on f.code=a.family_code
-         join public.catalog_categories c on c.slug=a.category_slug and c.is_active=true
-         where f.is_active=true and f.is_deleted=false
-           and c.metadata->>'source'='industrial_megamenu_hierarchy_v2'
-         order by a.category_slug,a.submenu_name,a.leaf_name,a.family_code
-         limit 10000`);
+        `select a.family_code as "familyCode",f.code as code,f.name as "familyName",
+            coalesce(identity.product_type,f.name) as "productType",
+            coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
+            a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
+            a.leaf_name as "assignedLeaf",a.method
+          from public.catalog_families f
+          left join public.catalog_family_menu_assignments a on a.family_code=f.code
+          left join lateral (
+            select
+               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
+                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
+               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
+                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
+               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
+             from public.catalog_variants v where v.family_code=f.code and v.active=true
+          ) identity on true
+          where f.is_active=true and f.is_deleted=false
+          order by a.category_slug,a.submenu_name,a.leaf_name,f.code
+          limit 10000`);
+      const assignments=result.rows.flatMap((row:any)=>{
+        const familyCode=row.code||row.familyCode;
+        const assignment=resolveFamilyMenuAssignment({...row,code:familyCode});
+        if(!assignment)return [];
+        return [{familyCode,categorySlug:assignment.categorySlug,
+          submenuName:assignment.submenuName,leafName:assignment.leafName,method:assignment.method||row.method||'static_audited'}];
+      });
       res.setHeader('Cache-Control','no-store');
-      return res.json({success:true,assignments:result.rows});
+      return res.json({success:true,assignments});
     }catch(error){return fail(res,error);}
   });
 
@@ -126,24 +209,32 @@ export function registerCatalogNavigationApi(app:Express){
          limit 1`,[slug]);
       if(!category.rows.length)return res.status(404).json({success:false,message:'دسته موجود نیست.'});
       const familyRows=await database().query(
-        `select f.code,f.name,coalesce(f.brand,'') as brand,
-          coalesce(f.item_count,0) as "skuCount",
-          a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
-          a.leaf_name as "assignedLeaf",a.method
-         from public.catalog_families f
-         left join public.catalog_family_menu_assignments a on a.family_code=f.code
-         where f.is_active=true and f.is_deleted=false
-         order by f.name,f.code limit 10000`);
+        `select f.code,f.name,f.name as "familyName",coalesce(f.brand,'') as brand,
+           coalesce(identity.product_type,f.name) as "productType",
+           coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
+           coalesce(f.item_count,0) as "skuCount",
+           a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
+           a.leaf_name as "assignedLeaf",a.method
+          from public.catalog_families f
+          left join public.catalog_family_menu_assignments a on a.family_code=f.code
+          left join lateral (
+            select
+               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
+                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
+               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
+                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
+               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
+             from public.catalog_variants v where v.family_code=f.code and v.active=true
+          ) identity on true
+          where f.is_active=true and f.is_deleted=false
+          order by f.name,f.code limit 10000`);
       const families=familyRows.rows.flatMap((row)=>{
-        const databaseAssignment=(row.assignedCategorySlug
-          ? {categorySlug:row.assignedCategorySlug,submenuName:row.assignedSubmenu,leafName:row.assignedLeaf}
-          : null);
-        const assignment=(row.method==='admin_verified'||row.method==='excel_source_verified')
-          ? databaseAssignment
-          : getFamilyMenuAssignment(row.code);
+        const assignment=resolveFamilyMenuAssignment(row);
         if(!assignment||assignment.categorySlug!==slug)return [];
         return [{
-          code:row.code,name:row.name,brand:row.brand,
+          code:row.code,name:row.familyName||row.name,brand:row.brand,
           submenu:assignment.submenuName||'',leaf:assignment.leafName||null,
           skuCount:row.skuCount
         }];
@@ -166,14 +257,39 @@ export function registerCatalogNavigationApi(app:Express){
       if(!canStaff(await getPortalIdentity(req),'products'))return res.status(403).json({success:false,message:'مجوز مشاهده کاتالوگ لازم است.'});
       if(!databaseEnabled())return res.status(503).json({success:false});
       const rows=await database().query(
-        `select a.family_code as "familyCode",a.category_slug as "categorySlug",
-           a.submenu_name as "submenuName",a.leaf_name as "leafName",a.method
-         from public.catalog_family_menu_assignments a
-         join public.catalog_families f on f.code=a.family_code
-         where f.is_active=true and f.is_deleted=false
-         order by a.family_code limit 10000`);
+        `select f.code as "familyCode",f.name as "familyName",
+            coalesce(identity.product_type,f.name) as "productType",
+            coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
+            a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
+            a.leaf_name as "assignedLeaf",a.method
+          from public.catalog_families f
+          left join public.catalog_family_menu_assignments a on a.family_code=f.code
+          left join lateral (
+            select
+               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
+                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
+               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
+                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
+               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
+             from public.catalog_variants v where v.family_code=f.code and v.active=true
+          ) identity on true
+          where f.is_active=true and f.is_deleted=false
+          order by f.code limit 10000`);
+      const assignments=rows.rows.map((row:any)=>{
+        const databaseAssignment:MenuAssignment|null=row.assignedCategorySlug
+          ? {categorySlug:row.assignedCategorySlug,submenuName:row.assignedSubmenu||'',leafName:row.assignedLeaf||null}
+          : null;
+        const semantic=databaseAssignment?assignmentIsValid(row,databaseAssignment):null;
+        const effective=resolveFamilyMenuAssignment(row);
+        return {...row,
+          semanticValid:semantic?.valid??null,
+          semanticReason:semantic?.reason??null,
+          reviewReason:databaseAssignment&&!semantic?.valid?'semantic_conflict':!effective?'unassigned':null};
+      });
       res.setHeader('Cache-Control','no-store');
-      return res.json({success:true,assignments:rows.rows});
+      return res.json({success:true,assignments});
     }catch(error){return fail(res,error);}
   });
 
@@ -182,31 +298,44 @@ export function registerCatalogNavigationApi(app:Express){
       if(!canStaff(await getPortalIdentity(req),'products'))return res.status(403).json({success:false,message:'مجوز مشاهده کاتالوگ لازم است.'});
       if(!databaseEnabled())return res.status(503).json({success:false});
       const rows=await database().query(
-        `select f.code,f.name,f.category_slug as "oldCategory",f.submenu as "oldSubmenu",
-          coalesce(f.item_count,0) as "skuCount",
-          a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
-          a.leaf_name as "assignedLeaf",a.method as "assignmentMethod"
-         from public.catalog_families f
-         left join public.catalog_family_menu_assignments a on a.family_code=f.code
-         where f.is_active=true and f.is_deleted=false
-         order by f.category_slug,f.name limit 10000`);
+        `select f.code,f.name,f.name as "familyName",f.category_slug as "oldCategory",f.submenu as "oldSubmenu",
+           coalesce(identity.product_type,f.name) as "productType",
+           coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
+           coalesce(f.item_count,0) as "skuCount",
+           a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
+           a.leaf_name as "assignedLeaf",a.method as "assignmentMethod"
+          from public.catalog_families f
+          left join public.catalog_family_menu_assignments a on a.family_code=f.code
+          left join lateral (
+            select
+               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
+                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
+               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
+                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
+               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
+             from public.catalog_variants v where v.family_code=f.code and v.active=true
+          ) identity on true
+          where f.is_active=true and f.is_deleted=false
+          order by f.category_slug,f.name limit 10000`);
       const families=rows.rows.flatMap((row)=>{
-        const databaseAssignment=(row.assignedCategorySlug
-          ? {categorySlug:row.assignedCategorySlug,submenuName:row.assignedSubmenu,leafName:row.assignedLeaf}
-          : null);
-        const assignment=(row.assignmentMethod==='admin_verified'||row.assignmentMethod==='excel_source_verified')
-          ? databaseAssignment
-          : getFamilyMenuAssignment(row.code);
-        const reviewReason=!assignment?'unassigned'
+        const databaseAssignment:MenuAssignment|null=row.assignedCategorySlug
+          ? {categorySlug:row.assignedCategorySlug,submenuName:row.assignedSubmenu||'',leafName:row.assignedLeaf||null}
+          : null;
+        const semantic=databaseAssignment?assignmentIsValid(row,databaseAssignment):null;
+        const assignment=resolveFamilyMenuAssignment({...row,method:row.assignmentMethod});
+        const reviewReason=databaseAssignment&&!semantic?.valid?'semantic_conflict'
+          : !assignment?'unassigned'
           : !assignment.submenuName?'missing_submenu'
           : !assignment.leafName?'missing_leaf':null;
         if(!reviewReason)return [];
         return [{
-          code:row.code,name:row.name,oldCategory:row.oldCategory,oldSubmenu:row.oldSubmenu,
-          skuCount:row.skuCount,assignedCategorySlug:assignment?.categorySlug||row.assignedCategorySlug,
-          assignedSubmenu:assignment?.submenuName||row.assignedSubmenu,
-          assignedLeaf:assignment?.leafName||row.assignedLeaf,
-          assignmentMethod:row.assignmentMethod,reviewReason
+          code:row.code,name:row.familyName||row.name,oldCategory:row.oldCategory,oldSubmenu:row.oldSubmenu,
+          skuCount:row.skuCount,assignedCategorySlug:row.assignedCategorySlug||assignment?.categorySlug||null,
+          assignedSubmenu:row.assignedSubmenu||assignment?.submenuName||null,
+          assignedLeaf:row.assignedLeaf||assignment?.leafName||null,
+          assignmentMethod:row.assignmentMethod,reviewReason,semanticReason:semantic?.reason??null
         }];
       }).slice(0,4000);
       return res.json({success:true,families});
@@ -225,14 +354,34 @@ export function registerCatalogNavigationApi(app:Express){
         `select c.name,c.metadata from public.catalog_categories c
          where c.slug=$1 and c.is_active=true and c.metadata->>'source'='industrial_megamenu_hierarchy_v2' limit 1`,[categorySlug]);
       const family=await database().query(
-        'select code from public.catalog_families where code=$1 and is_active=true and is_deleted=false limit 1',[familyCode]);
+         `select f.code,f.name as "familyName",coalesce(identity.product_type,f.name) as "productType",
+            coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames"
+          from public.catalog_families f
+          left join lateral (
+            select
+               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
+                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
+               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
+                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
+               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
+                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
+               string_agg(distinct v.name,' | ' order by v.name) as variant_names
+             from public.catalog_variants v where v.family_code=f.code and v.active=true
+          ) identity on true
+          where f.code=$1 and f.is_active=true and f.is_deleted=false limit 1`,[familyCode]);
       if(!category.rows.length||!family.rows.length)return res.status(404).json({success:false,message:'خانواده یا دسته مقصد یافت نشد.'});
       const nodes=Array.isArray(category.rows[0].metadata?.children)?category.rows[0].metadata.children:[];
       const selectedNode=nodes.find((node:any)=>node.name===submenu);
       if(submenu&&!selectedNode)return res.status(400).json({success:false,message:'زیرمنو با دسته انتخابی مطابقت ندارد.'});
       if(leaf&&(!selectedNode||!Array.isArray(selectedNode.children)||!selectedNode.children.some((child:any)=>child.name===leaf)))
-        return res.status(400).json({success:false,message:'ریزقلم با زیرمنو مطابقت ندارد.'});
-      await database().query(
+         return res.status(400).json({success:false,message:'ریزقلم با زیرمنو مطابقت ندارد.'});
+       const semantic=validateFamilyMenuAssignment({
+         familyCode,familyName:family.rows[0].familyName,productType:family.rows[0].productType,
+         material:family.rows[0].material,profile:family.rows[0].profile,
+         categorySlug,submenuName:submenu,leafName:leaf
+       });
+       if(!semantic.valid)return res.status(422).json({success:false,message:'مسیر انتخابی از نظر نوع قطعه یا جنس با هویت فنی خانواده سازگار نیست؛ خانواده را در صف بازبینی نگه دارید.',reason:semantic.reason});
+       await database().query(
         `insert into public.catalog_family_menu_assignments(family_code,category_slug,submenu_name,leaf_name,method)
          values($1,$2,$3,$4,'admin_verified')
          on conflict(family_code) do update set category_slug=excluded.category_slug,

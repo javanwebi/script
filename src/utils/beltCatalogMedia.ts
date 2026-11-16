@@ -1,4 +1,4 @@
-import beltManifestRaw from '../data/beltCatalogManifest.json';
+import beltManifestRaw from '../generated/beltCatalogManifest';
 import type { Product, ProductGalleryImage } from '../types';
 
 export interface BeltManifestFamilyEntry {

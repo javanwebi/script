@@ -67,7 +67,9 @@ test('first paint prefetches SQL-light categories and small product previews',()
  assert.doesNotMatch(home,/sanat-durable-hydrated/);
  assert.match(featured,/queueMicrotask/);
  assert.match(nav,/app\.get\('\x2fapi\x2fcatalog\x2fhome-categories'/);
- const quickRoute=nav.slice(nav.indexOf("app.get('/api/catalog/home-categories'"),nav.indexOf('// PostgreSQL is the authoritative source'));
+ const quickRouteStart=nav.indexOf("app.get('/api/catalog/home-categories'");
+ const quickRouteEnd=nav.indexOf('\n  });',quickRouteStart);
+ const quickRoute=nav.slice(quickRouteStart,quickRouteEnd);
  assert.ok(quickRoute.length>0);
  assert.doesNotMatch(quickRoute,/count\s*\(|join\s+public\.catalog_variants/i);
  assert.match(main,/window\.location\.pathname === '\/'/);

@@ -5,6 +5,7 @@ export type BeltConfidenceLevel =
   | 'NOMINAL_TABLE_VERIFIED'
   | 'SERIES_VERIFIED'
   | 'ALGORITHMIC_STANDARD_ONLY'
+  | 'INVENTORY_DESCRIPTION_ONLY'
   | 'REQUIRES_REVIEW';
 
 export type VerificationSourceTier =
@@ -126,6 +127,7 @@ export interface BeltTechnicalParameters {
     | 'ribbed-poly-v'
     | 'welded-pu-round-crc'
     | 'welded-pu-v-flat'
+    | 'welded-pu-v-section'
     | 'perforated-open-v'
     | 'conveyor-pvc-pu'
     | 'conveyor-grip'
@@ -144,8 +146,9 @@ export interface BeltTechnicalParameters {
     | 'heat-weldable-meter'
     | 'perforated-meter'
     | 'roll-strip'
-    | 'hardware-unit';
-  sidedness: 'single-sided' | 'double-sided' | 'symmetric-round-hex' | 'not-applicable';
+    | 'hardware-unit'
+    | 'unspecified';
+  sidedness: 'single-sided' | 'double-sided' | 'symmetric-round-hex' | 'not-applicable' | 'unknown';
   profile: string;
   pitchMm: number | null;
   toothAngleDeg: number | null;
@@ -182,7 +185,7 @@ export interface BeltSkuAuditRecord {
   proposedCategorySlug: string;
   proposedCategoryName: string;
   proposedSubmenu: string;
-  proposedLeaf: string;
+  proposedLeaf: string | null;
   taxonomyGap: string | null;
   proposedFamilyId: string;
   proposedFamilyNameFa: string;
@@ -202,7 +205,7 @@ export interface ProposedBeltFamilyRecord {
   categorySlug: string;
   categoryName: string;
   submenu: string;
-  leaf: string;
+  leaf: string | null;
   taxonomyGap: string | null;
   brand: string;
   beltDivision: BeltTechnicalParameters['beltDivision'];
@@ -305,6 +308,55 @@ const normalize = (value = '') =>
     .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
     .replace(/[\u200b-\u200f\ufeff\s]+/g, ' ')
     .trim();
+
+export interface ConveyorSurfaceProfile {
+  profile: string;
+  label: string;
+  requiresReview: boolean;
+}
+
+/**
+ * Read only explicit surface wording from the inventory title.
+ * Persian trade labels are preserved as labels; no unsupported ISO/manufacturer
+ * equivalence is inferred from them.
+ */
+export function detectConveyorSurfaceProfile(rawName: string): ConveyorSurfaceProfile {
+  const name = normalize(rawName);
+  if (/کله\s*قندی/.test(name)) {
+    const perforated = /سوراخ\s*دار/.test(name);
+    return {
+      profile: perforated ? 'PVC_CONICAL_CLEAT_PERFORATED' : 'PVC_CONICAL_CLEAT',
+      label: perforated ? 'کله‌قندی سوراخ‌دار' : 'کله‌قندی',
+      requiresReview: false,
+    };
+  }
+  if (/پامرغی|پا\s*مرغی/.test(name)) {
+    return { profile: 'PVC_PAMARGHI_PATTERN', label: 'پامرغی', requiresReview: false };
+  }
+  if (/سنگی/.test(name)) {
+    return { profile: 'PVC_STONE_SURFACE', label: 'سنگی', requiresReview: false };
+  }
+  if (/چمنی/.test(name)) {
+    return { profile: 'PVC_GRASS_PATTERN', label: 'چمنی', requiresReview: false };
+  }
+  if (/لوزی/.test(name)) {
+    return { profile: 'PVC_DIAMOND_PATTERN', label: 'لوزی', requiresReview: false };
+  }
+  if (/آجدار|rough\s*top/.test(name)) {
+    return { profile: 'PVC_ROUGH_TOP', label: 'آجدار', requiresReview: false };
+  }
+  if (/صاف|ساده/.test(name)) {
+    return { profile: 'PVC_SMOOTH', label: 'صاف / ساده', requiresReview: false };
+  }
+  if (/شفاف/.test(name)) {
+    return { profile: 'PVC_TRANSPARENT', label: 'شفاف', requiresReview: false };
+  }
+  return {
+    profile: 'PVC_SURFACE_UNSPECIFIED',
+    label: 'الگوی سطح نامشخص',
+    requiresReview: true,
+  };
+}
 
 const IMPERIAL_TIMING_SPECS: Record<
   string,
@@ -546,6 +598,25 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   const isMixedFamilyUnit = rawUnit.includes(',') || rawUnit.includes('،');
   const unit = isMixedFamilyUnit ? 'حلقه' : rawUnit;
   const brand = detectNormalizedBrand(rawName, product.brand);
+  const technicalEvidence = [...(product.technicalSpecs || []), ...(variant.technicalSpecs || [])];
+  const materialEvidence = technicalEvidence
+    .filter((spec) => /جنس|متریال|material/i.test(String(spec.key || '')))
+    .map((spec) => String(spec.value || ''))
+    .join(' ');
+  const normalizedMaterialEvidence = normalize(materialEvidence);
+  const constructionEvidence = technicalEvidence
+    .filter((spec) => /ساختار|construction|cord|کورد/i.test(String(spec.key || '')))
+    .map((spec) => String(spec.value || ''))
+    .join(' ');
+  const isPolyurethaneMaterial = /پلی.?یورتان|polyurethane|thermoplastic.?pu|\btpu\b|\bpu\b/.test(
+    normalize(`${normalizedMaterialEvidence} ${normName}`)
+  );
+  const isRubberMaterial = /لاستیک|الاستومر|rubber|elastomer|nbr|epdm|fkm|viton|neoprene|کلروپرن/.test(
+    normalize(`${normalizedMaterialEvidence} ${normName}`)
+  );
+  const isSteelCordMaterial = /سیم\s*دار|کورد\s*فولادی|steel\s*cord|fiberglass\s*cord|کورد\s*فایبرگلاس/.test(
+    normalize(`${normalizedMaterialEvidence} ${constructionEvidence} ${normName}`)
+  );
 
   // 1. Check for non-belt items inside belt or conveyor categories
   if (/^پولی(?=\s|$)/.test(normName)) {
@@ -568,10 +639,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     return buildNonBeltRecord(product, variant, brand, {
       actualProductType: 'تسمه‌پاک‌کن و تیغه اسکریپر نوار نقاله (Belt Scraper / Cleaner Blade)',
       division: 'non-belt-scraper',
-      proposedCategorySlug: 'excel-v2-7-1',
-      proposedCategoryName: 'قطعات لاستیکی صنعتی',
-      proposedSubmenu: 'انواع قطعات لاستیکی',
-      proposedLeaf: 'قطعات لاستیکی عمومی و تخصصی',
+      proposedCategorySlug: isRubberMaterial ? 'excel-v2-7-1' : 'UNRESOLVED',
+      proposedCategoryName: isRubberMaterial ? 'قطعات لاستیکی صنعتی' : 'نیازمند تعیین تکلیف',
+      proposedSubmenu: isRubberMaterial ? 'انواع قطعات لاستیکی' : 'نیازمند بررسی فنی',
+      proposedLeaf: isRubberMaterial ? 'قطعات لاستیکی عمومی و تخصصی' : 'تیغه اسکریپر — جنس و مسیر مصوب نیازمند تأیید',
       proposedFamilyId: 'FAM-AUDIT-NONBELT-SCRAPER',
       proposedFamilyNameFa: 'تیغه و لاستیک تسمه‌پاک‌کن (اسکریپر)',
       proposedFamilyNameEn: 'Conveyor Belt Scraper & Cleaner Blades',
@@ -645,7 +716,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     });
   }
 
-  if (/^دستگاه\s+گیره\s+آپارات\s+تسمه\s+جوشی/.test(normName)) {
+  if (/^دستگاه(?=.*(?:جوش|آپارات))(?=.*تسمه)/.test(normName)) {
     return {
       sku: variant.code,
       originalName: rawName,
@@ -700,6 +771,22 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     };
   }
 
+  if (/^دستگاه(?:\s|$)/.test(normName)) {
+    return buildNonBeltRecord(product, variant, brand, {
+      actualProductType: 'دستگاه صنعتی خارج از خانواده تسمه (Industrial Equipment)',
+      division: 'non-belt-metal',
+      proposedCategorySlug: 'UNRESOLVED',
+      proposedCategoryName: 'نیازمند تعیین تکلیف',
+      proposedSubmenu: 'تجهیزات صنعتی خارج از منوی تسمه',
+      proposedLeaf: 'دستگاه فاقد مسیر مصوب در دسته تسمه صنعتی',
+      proposedFamilyId: 'FAM-AUDIT-NONBELT-INDUSTRIAL-EQUIPMENT',
+      proposedFamilyNameFa: 'دستگاه صنعتی خارج از دسته تسمه',
+      proposedFamilyNameEn: 'Industrial Equipment Outside Belt Taxonomy',
+      reasoning:
+        'وجود واژه APL یا قرار گرفتن قبلی در دسته V-Belt، دستگاه پولیش یا تزریق را به تسمه تبدیل نمی‌کند. دستگاه فقط در صورت اثبات کاربرد مستقیم جوش/آپارات تسمه در زیرشاخه تجهیزات جوشی قرار می‌گیرد.',
+    });
+  }
+
   // 2. Conveyor Belts (PVC / PU / Modular / Grip)
   if (
     /^نوار\s+نقاله(?=\s|$)/.test(normName) ||
@@ -709,37 +796,89 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   ) {
     const isModular = /مدولار/.test(normName);
     const isPu = /پلی\s*یورتان|\bPU\b/i.test(normName);
-    const dims3 = normName.match(/(\d+(?:[./]\d+)?)\s*\*\s*(\d+(?:[./]\d+)?)\s*\*\s*(\d+(?:[./]\d+)?)/);
-    const dims2 = normName.match(/(\d+(?:[./]\d+)?)\s*\*\s*(\d+(?:[./]\d+)?)/);
-    let thickness: number | null = null;
-    let width: number | null = null;
-    let convLen: number | null = null;
-    if (dims3) {
-      const n1 = Number(dims3[1].replace('/', '.'));
-      const n2 = Number(dims3[2].replace('/', '.'));
-      const n3 = Number(dims3[3].replace('/', '.'));
-      if (n1 < 25) {
-        thickness = n1;
-        width = n2;
-        convLen = n3;
-      } else {
-        width = n1;
-        convLen = n2;
-      }
-    } else if (dims2) {
-      const n1 = Number(dims2[1].replace('/', '.'));
-      const n2 = Number(dims2[2].replace('/', '.'));
-      if (n1 < 25) {
-        thickness = n1;
-        width = n2;
-      } else {
-        width = n1;
-        convLen = n2;
-      }
+    const isPvc = /\bPVC\b|پی\s*وی\s*سی|پلی\s*وینیل\s*کلراید/i.test(normName);
+
+    // A generic "نوار نقاله" title is not evidence that the belt is PVC.
+    // Never silently turn an unknown material into a PVC family.
+    if (!isModular && !isPu && !isPvc) {
+      return {
+        sku: variant.code,
+        originalName: rawName,
+        originalSize: variant.size || '',
+        originalUnit,
+        unit: originalUnit,
+        currentFamilyId: product.code,
+        currentFamilyName: product.name,
+        currentCategory: product.categoryName,
+        currentSubmenu: product.submenu || '',
+        currentSubcategory: product.subcategory,
+        detectedBrand: brand,
+        proposedCategorySlug: 'UNRESOLVED',
+        proposedCategoryName: 'نیازمند تعیین مسیر مصوب',
+        proposedSubmenu: 'نیازمند تعیین جنس نوار',
+        proposedLeaf: 'نیازمند تعیین جنس نوار',
+        taxonomyGap: 'GAP-CONVEYOR-MATERIAL-UNKNOWN: عنوان کالا نوع نوار نقاله را مشخص می‌کند اما PVC، PU یا مدولار بودن آن مستند نیست؛ تا بررسی فیزیکی/دیتاشیت به دسته جنس‌محور منتقل نشود.',
+        proposedFamilyId: 'UNRESOLVED-CONVEYOR-MATERIAL-' + variant.code,
+        proposedFamilyNameFa: 'نوار نقاله با جنس نامشخص',
+        proposedFamilyNameEn: 'Conveyor Belt — Material Unverified',
+        actualProductType: 'نوار نقاله صنعتی (جنس نامشخص)',
+        technical: {
+          operatingPrinciple: 'conveying',
+          beltDivision: 'service-ambiguous',
+          supplyForm: 'unspecified',
+          sidedness: 'unknown',
+          profile: 'CONVEYOR-MATERIAL-UNKNOWN',
+          pitchMm: null,
+          toothAngleDeg: null,
+          toothHeightMm: null,
+          beltThicknessMm: null,
+          topWidthMm: null,
+          nominalWidthMm: null,
+          widthCode: null,
+          pitchLengthMm: null,
+          insideLengthMm: null,
+          outsideLengthMm: null,
+          lengthDesignation: null,
+          toothCount: null,
+          ribCount: null,
+          bodyMaterial: 'UNKNOWN',
+          tensileCord: 'UNKNOWN',
+          backingOrCoating: null,
+          standardReference: 'NOT_ESTABLISHED',
+          manufacturerSources: [],
+        },
+        confidence: 'REQUIRES_REVIEW',
+        verification: unattachedProvenancePlaceholder(),
+        recommendedAction: 'MANUAL_ENGINEERING_REVIEW',
+        engineeringReasoning: 'نوع کلی نوار از نام مشخص است، اما جنس سازنده‌محور/ساختار آن مشخص نیست؛ انتساب PVC یا PU بدون شاهد ممنوع است.',
+      };
     }
-    const convSupplyForm: BeltTechnicalParameters['supplyForm'] = /مدار\s*بسته/.test(normName) ? 'endless-loop' : 'open-ended-meter';
-    const convUnit = convSupplyForm === 'endless-loop' ? 'حلقه' : 'متر مربع';
-    const baseFam = isModular ? 'FAM-CONVEYOR-MODULAR' : isPu ? 'FAM-CONVEYOR-PU' : 'FAM-CONVEYOR-PVC';
+
+    const surface = isPvc ? detectConveyorSurfaceProfile(normName) : null;
+    const surfaceProfile = surface?.profile || (isPu ? 'CONVEYOR-PU' : 'CONVEYOR-MODULAR');
+    const surfaceLabel = surface?.label || (isPu ? 'پلی‌یورتان' : 'مدولار');
+    const convSupplyForm: BeltTechnicalParameters['supplyForm'] =
+      /مدار\s*بسته/.test(normName) || /حلقه/.test(originalUnit)
+        ? 'endless-loop'
+        : /متر/.test(originalUnit)
+          ? 'open-ended-meter'
+          : 'unspecified';
+    const convUnit = originalUnit || 'نامشخص';
+    const baseFam = isModular
+      ? 'FAM-CONVEYOR-MODULAR'
+      : isPu
+        ? 'FAM-CONVEYOR-PU'
+        : 'FAM-CONVEYOR-PVC-' + surfaceProfile;
+    const proposedFamilyId =
+      brand !== 'UNSPECIFIED' ? (baseFam + '-' + brand).replace(/[^A-Z0-9-]/g, '') : baseFam;
+    const requiresSurfaceReview = Boolean(surface?.requiresReview);
+    const bodyMaterial = isModular
+      ? 'پلیمر مدولار (گرید دقیق پلیمر نیازمند تأیید)'
+      : isPu
+        ? 'پلی‌یورتان (گرید، سختی و ساختار تقویتی نیازمند تأیید)'
+        : 'پلی‌وینیل کلراید (PVC؛ ساختار لایه‌ها و منجید نیازمند تأیید)';
+    const tensileCord = isModular ? 'NOT_APPLICABLE' : 'NOT_ESTABLISHED';
+
     return {
       sku: variant.code,
       originalName: rawName,
@@ -757,17 +896,17 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedSubmenu: 'بر اساس جنس',
       proposedLeaf: isModular ? 'نوار مدولار' : isPu ? 'نوار نقاله پلی‌اورتان (PU)' : 'نوار نقاله PVC',
       taxonomyGap: null,
-      proposedFamilyId: brand !== 'UNSPECIFIED' ? `${baseFam}-${brand}`.replace(/[^A-Z0-9-]/g, '') : baseFam,
+      proposedFamilyId,
       proposedFamilyNameFa: isModular
-        ? 'نوار نقاله مدولار پلاستیکی (شیرینگ / سبدی)'
+        ? 'نوار نقاله مدولار پلاستیکی (گرید نیازمند تأیید)'
         : isPu
-          ? 'نوار نقاله پلی‌یورتان (PU)'
-          : 'نوار نقاله صنعتی PVC',
+          ? 'نوار نقاله پلی‌یورتان (PU؛ ساختار نیازمند تأیید)'
+          : 'نوار نقاله PVC با سطح ' + surfaceLabel,
       proposedFamilyNameEn: isModular
-        ? 'Modular Plastic Conveyor Belt'
+        ? 'Modular Plastic Conveyor Belt (Polymer Grade Unverified)'
         : isPu
-          ? 'PU Industrial Conveyor Belt'
-          : 'PVC Industrial Conveyor Belt',
+          ? 'PU Conveyor Belt (Construction Unverified)'
+          : 'PVC Conveyor Belt — ' + surfaceLabel + ' Surface (Inventory Label)',
       actualProductType: isModular
         ? 'نوار نقاله مدولار (Modular Belt)'
         : isPu
@@ -777,35 +916,40 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         operatingPrinciple: 'conveying',
         beltDivision: 'conveyor-pvc-pu',
         supplyForm: convSupplyForm,
-        sidedness: 'single-sided',
-        profile: isPu ? 'CONVEYOR-PU' : isModular ? 'CONVEYOR-MODULAR' : 'CONVEYOR-PVC',
+        sidedness: 'unknown',
+        profile: surfaceProfile,
         pitchMm: null,
         toothAngleDeg: null,
         toothHeightMm: null,
-        beltThicknessMm: thickness,
-        topWidthMm: width,
-        nominalWidthMm: width,
-        widthCode: width ? `${width}mm` : null,
-        pitchLengthMm: convLen,
+        // The inventory's numeric triplets have no declared axis/unit; preserve rawSize
+        // instead of inventing millimetre dimensions from the number order.
+        beltThicknessMm: null,
+        topWidthMm: null,
+        nominalWidthMm: null,
+        widthCode: null,
+        pitchLengthMm: null,
         insideLengthMm: null,
         outsideLengthMm: null,
-        lengthDesignation: convLen ? `${convLen}` : null,
+        lengthDesignation: null,
         toothCount: null,
         ribCount: null,
-        bodyMaterial: isModular
-          ? 'پلی‌پروپیلن / استال مدولار (POM/PP)'
-          : isPu
-            ? 'پلی‌یورتان ترموپلاستیک (TPU)'
-            : 'پلی‌وینیل کلراید (PVC) چندلایه منجیددار',
-        tensileCord: isModular ? 'پین و مدول اینترلاک (Modular Interlock)' : 'منجید پلی‌استر (Polyester Fabric Plies)',
-        backingOrCoating: /آجدار/.test(normName) ? 'سطح آجدار (Grip/Rough Top)' : 'سطح صاف یا استاندارد',
-        standardReference: 'ISO 21183-1 (Light Conveyor Belts)',
-        manufacturerSources: ['ISO 21183-1 Light Conveyor Belts'],
+        bodyMaterial,
+        tensileCord,
+        backingOrCoating: surface?.label || null,
+        standardReference: 'NOT_ESTABLISHED',
+        manufacturerSources: [],
       },
-      confidence: 'ALGORITHMIC_STANDARD_ONLY',
-      verification: unattachedProvenancePlaceholder(),
-      recommendedAction: 'KEEP_IN_CURRENT_FAMILY',
-      engineeringReasoning: 'نوار نقاله استاندارد انتقال مواد منطبق با زیرشاخه نوار نقاله صنعتی (`excel-v2-2-1`).',
+      confidence: requiresSurfaceReview ? 'REQUIRES_REVIEW' : 'INVENTORY_DESCRIPTION_ONLY',
+      verification: inventoryDescriptionProvenance(
+        surface
+          ? 'برچسب سطح «' + surface.label + '» فقط از نام ثبت‌شده کالا استخراج شده؛ معادل سازنده/استاندارد و ساختار داخلی تسمه تأیید نشده است.'
+          : 'نوع جنس از نام کالا تشخیص داده شده؛ گرید پلیمر، لایه‌ها، منجید و استاندارد سازنده هنوز تأیید نشده‌اند.'
+      ),
+      recommendedAction: requiresSurfaceReview ? 'MANUAL_ENGINEERING_REVIEW' : 'CREATE_NEW_FAMILY',
+      engineeringReasoning:
+        'جنس کلی نوار از نام کالا مشخص است و ' +
+        (surface ? 'توصیف سطح «' + surface.label + '»' : 'نوع PU/مدولار') +
+        ' به‌عنوان مشخصه کاتالوگی حفظ شده است؛ اما این برچسب معادل استاندارد سازنده نیست. ساختار لایه‌ها، منجید، سختی، ابعاد محوری و انطباق استاندارد بدون دیتاشیت/بازرسی فیزیکی ادعا نمی‌شود.',
     };
   }
 
@@ -1000,12 +1144,11 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       currentSubmenu: product.submenu || '',
       currentSubcategory: product.subcategory,
       detectedBrand: brand,
-      proposedCategorySlug: 'excel-v2-1-2',
-      proposedCategoryName: 'تسمه وی‌بلت (V-Belt)',
-      proposedSubmenu: 'تسمه اسپشیال',
-      proposedLeaf: 'SPA , SPB , SPC و دندانه‌دار',
-      taxonomyGap: `GAP-RIBBED-POLY-V: تسمه‌های چندشیاری (Poly-V پروفیل ${ribProfile} مطابق ISO 9982) زیربرگ مستقل در ` +
-        '`excel-v2-1-2` ندارند و در زیربرگ «تسمه اسپشیال > SPA , SPB , SPC و دندانه‌دار» قرار می‌گیرند؛ پیشنهاد می‌شود زیربرگ «تسمه چندشیاری (PJ , PK , PL)» به اکسل اضافه شود.',
+      proposedCategorySlug: 'UNRESOLVED',
+      proposedCategoryName: 'نیازمند تعیین تکلیف',
+      proposedSubmenu: 'مسیر مصوب ندارد',
+      proposedLeaf: `تسمه چندشیاری ${ribProfile} (فاقد برگ مصوب)`,
+      taxonomyGap: `GAP-RIBBED-POLY-V: تسمه چندشیاری Poly-V پروفیل ${ribProfile} مطابق ISO 9982 خانواده فنی مستقل است؛ در منوی مصوب فعلی برگ مستقلی ندارد و نباید زیر «تسمه اسپشیال» نمایش داده شود.`,
       proposedFamilyId: `FAM-RIBBED-${familySuffix.replace(/[^A-Z0-9-]/g, '')}`,
       proposedFamilyNameFa: isCeramicPrint
         ? `تسمه چندشیاری چاپ ${ribProfile} (${brand})`
@@ -1049,12 +1192,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       },
       confidence: 'ALGORITHMIC_STANDARD_ONLY',
       verification: unattachedProvenancePlaceholder(),
-      recommendedAction:
-        product.categoryName !== 'تسمه و انتقال نیرو'
-          ? 'MOVE_TO_OTHER_CATEGORY'
-          : product.subcategory === 'تسمه صنعتی'
-            ? 'MOVE_TO_EXISTING_FAMILY'
-            : 'KEEP_IN_CURRENT_FAMILY',
+      recommendedAction: 'MANUAL_ENGINEERING_REVIEW',
       engineeringReasoning: isCeramicPrint
         ? `تسمه چندشیاری ${ribProfile} مخصوص دستگاه چاپ کاشی (Megadyne 1270PJ8) که از دسته تجهیزات کاشی به خانواده تسمه‌های چندشیاری ${ribProfile} منتقل شد.`
         : `تسمه چندشیاری پروفیل ${ribProfile} با گام شیار ${rSpec.ribPitchMm} میلی‌متر مطابق ISO 9982 / DIN 7867.`,
@@ -1080,6 +1218,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       ? upperName.match(/\b(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\s*[*×]\s*(\d{1,3})\b(?!\s*[*×])/)
       : null;
 
+  const bareMetricPuProfileMatch = upperName.match(/\b(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\b/);
+  const rubber3mProfileMatch = isRubberMaterial ? upperName.match(/\b3M\b/) : null;
   const metricPuMatch =
     mWidthLenProf ||
     mRollProf ||
@@ -1087,9 +1227,11 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     mOpenMeterWidthKeyword ||
     mOpenProfWidthStar ||
     upperName.match(/\b(\d+(?:[./]\d+)?)\s*(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\s*(?:[*×-]|\s+)?\s*(\d{3,5})?\b/) ||
-    upperName.match(/\b(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\s*(?:[*×-]|\s+)?\s*(\d+(?:[./]\d+)?)(?:\s*[*×-]\s*(\d{3,5}))?\b/);
+    upperName.match(/\b(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\s*(?:[*×-]|\s+)?\s*(\d+(?:[./]\d+)?)(?:\s*[*×-]\s*(\d{3,5}))?\b/) ||
+    bareMetricPuProfileMatch ||
+    rubber3mProfileMatch;
 
-  if (metricPuMatch) {
+  if (metricPuMatch && (isPolyurethaneMaterial || rubber3mProfileMatch)) {
     let profile = 'T10';
     let widthMm: number | null = null;
     let lengthMm: number | null = null;
@@ -1135,6 +1277,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       } else {
         widthMm = n1;
       }
+    } else if (bareMetricPuProfileMatch) {
+      profile = bareMetricPuProfileMatch[1];
+    } else if (rubber3mProfileMatch) {
+      profile = '3M';
     }
 
     if (!lengthMm && !mOpenProfWidthStar) {
@@ -1149,26 +1295,38 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       }
     }
 
-    const spec = METRIC_PU_TIMING_SPECS[profile] || METRIC_PU_TIMING_SPECS.T10;
-    const isSteelCord = /سیم\s*دار/.test(normName) || product.subcategory === 'تسمه سیم‌دار';
+    const isRubber3M = profile === '3M' && isRubberMaterial;
+    const spec: { pitchMm: number; toothAngleDeg: number | null; toothHeightMm: number; beltThicknessMm: number; sidedness: 'single-sided' | 'double-sided' } = isRubber3M
+      ? { ...CURVILINEAR_TIMING_SPECS['3M'], toothAngleDeg: null }
+      : { ...(METRIC_PU_TIMING_SPECS[profile] || METRIC_PU_TIMING_SPECS.T10) };
+    const isSteelCord = /سیم\s*دار/.test(normName) || isSteelCordMaterial || product.subcategory === 'تسمه سیم‌دار';
     const isEndless = /مدار\s*بسته/.test(normName) || (!mayBeMeterRoll && rawUnit.includes('حلقه')) || lengthMm !== null;
     const supplyForm: BeltTechnicalParameters['supplyForm'] = isEndless ? 'endless-loop' : 'open-ended-meter';
     const puUnit = isEndless ? 'حلقه' : 'متر';
     const teeth = lengthMm && spec.pitchMm ? Math.round(lengthMm / spec.pitchMm) : null;
 
     let proposedSubmenu = 'انواع گام و کدهای تایمینگ';
-    let proposedLeaf = 'T5 , AT5 , AT10 , AT20';
+    let proposedLeaf: string | null = 'T5 , AT5 , AT10 , AT20';
 
     if (hasCoating && !isCeramicPrint) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'APL دار';
-    } else if (isSteelCord && !isEndless) {
+    } else if (isSteelCord && isPolyurethaneMaterial) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'پلی‌یورتان';
+    } else if (profile === '3M' && isRubberMaterial) {
+      proposedSubmenu = 'لاستیکی فابریک';
+      proposedLeaf = 'لاستیکی فابریک ساده و دنده‌دار';
+    } else if (profile === '3M' || profile === 'T10' || profile === 'T20') {
+      proposedSubmenu = 'انواع گام و کدهای تایمینگ';
+      proposedLeaf = null;
+    }
+    if (spec.sidedness === 'double-sided' && proposedSubmenu === 'انواع گام و کدهای تایمینگ') {
+      proposedLeaf = null;
     }
 
     const familyKey = [
-      'FAM-TIMING-PU',
+      isRubber3M ? 'FAM-TIMING-RUBBER' : 'FAM-TIMING-PU',
       profile,
       supplyForm === 'endless-loop' ? 'ENDLESS' : 'OPEN',
       coatingCode,
@@ -1177,9 +1335,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
 
     let taxonomyGap: string | null = null;
     if (spec.sidedness === 'double-sided') {
-      taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${profile} در برگ «${proposedLeaf}» قرار می‌گیرد (برگ مستقل دوطرفه در اکسل وجود ندارد).`;
-    } else if (profile === 'T10' || profile === 'T20') {
-      taxonomyGap = `GAP-TIMING-T10-T20-LABEL: عنوان برگ در اکسل «T5 , AT5 , AT10 , AT20» است و کدهای ${profile} نیز در همین خانواده گام متریک ذوزنقه‌ای قرار می‌گیرند.`;
+      taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${profile} فعلاً فقط در سطح زیرمنوی گام‌های تایمینگ نمایش داده می‌شود؛ برگ مصوب مستقلی برای آن وجود ندارد.`;
+    } else if ((profile === 'T10' || profile === 'T20') && proposedSubmenu === 'انواع گام و کدهای تایمینگ') {
+      taxonomyGap = `GAP-TIMING-${profile}-LEAF-MISSING: پروفیل ${profile} در برگ مصوب «T5 , AT5 , AT10 , AT20» وجود ندارد؛ تا افزودن برگ دقیق نباید به آن مسیر منتسب شود.`;
     }
 
     return {
@@ -1204,18 +1362,22 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         'تسمه تایمینگ',
         spec.sidedness === 'double-sided' ? 'دوطرفه' : '',
         profile,
-        'پلی‌یورتان سیم‌دار',
+        isRubber3M ? 'لاستیکی' : 'پلی‌یورتان سیم‌دار',
         coatingLabel ? `(${coatingLabel})` : '',
         supplyForm === 'endless-loop' ? 'مداربسته' : 'متری',
         brand !== 'UNSPECIFIED' ? brand : '',
       ]
         .filter(Boolean)
         .join(' '),
-      proposedFamilyNameEn: `${brand} ${profile} ${spec.sidedness === 'double-sided' ? 'Double-Sided ' : ''}Polyurethane Steel-Cord Timing Belt (${supplyForm})`,
-      actualProductType: `تسمه تایمینگ متریک پلی‌یورتان پروفیل ${profile} (${supplyForm === 'endless-loop' ? 'مداربسته' : 'کلاف متری'})`,
+      proposedFamilyNameEn: isRubber3M
+        ? `${brand} 3M Rubber Timing Belt (${supplyForm})`
+        : `${brand} ${profile} ${spec.sidedness === 'double-sided' ? 'Double-Sided ' : ''}Polyurethane Steel-Cord Timing Belt (${supplyForm})`,
+      actualProductType: isRubber3M
+        ? 'تسمه تایمینگ منحنی‌الخط لاستیکی 3M'
+        : `تسمه تایمینگ متریک پلی‌یورتان پروفیل ${profile} (${supplyForm === 'endless-loop' ? 'مداربسته' : 'کلاف متری'})`,
       technical: {
         operatingPrinciple: 'synchronous',
-        beltDivision: spec.sidedness === 'double-sided' ? 'timing-metric-double' : 'timing-metric-single',
+        beltDivision: isRubber3M ? 'timing-htd-rpp-single' : spec.sidedness === 'double-sided' ? 'timing-metric-double' : 'timing-metric-single',
         supplyForm,
         sidedness: spec.sidedness,
         profile,
@@ -1232,15 +1394,19 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         lengthDesignation: lengthMm ? `${lengthMm}` : null,
         toothCount: teeth,
         ribCount: null,
-        bodyMaterial: 'پلی‌یورتان ترموپلاستیک (TPU 92 ShA)',
-        tensileCord: 'کورد فولادی گالوانیزه (Steel Cord)',
+        bodyMaterial: isRubber3M ? 'لاستیک کلروپرن (Neoprene) مطابق داده جنس کالا' : 'پلی‌یورتان ترموپلاستیک (TPU 92 ShA)',
+        tensileCord: isRubber3M ? 'نامشخص؛ نیازمند دیتاشیت سازنده' : 'کورد فولادی گالوانیزه (Steel Cord)',
         backingOrCoating: coatingLabel,
-        standardReference: 'DIN 7721 / ISO 17396 (تسمه‌های سنکرون متریک پروفیل T و AT)',
-        manufacturerSources: [
-          'DIN 7721 Synchronous Belt Drives — Metric Pitch T and AT',
-          'Megadyne Megapower / Megaflex / TNX Technical Catalog',
-          'Optibelt Alpha Linear / Alpha Flex Datasheet',
-        ],
+        standardReference: isRubber3M
+          ? 'ISO 13050 / HTD 3M curvilinear profile; compound and tensile member require manufacturer datasheet'
+          : 'DIN 7721 / ISO 17396 (تسمه‌های سنکرون متریک پروفیل T و AT)',
+        manufacturerSources: isRubber3M
+          ? ['ISO 13050 Curvilinear Synchronous Belt Profiles', 'Manufacturer datasheet required for 3M compound and tensile member']
+          : [
+              'DIN 7721 Synchronous Belt Drives — Metric Pitch T and AT',
+              'Megadyne Megapower / Megaflex / TNX Technical Catalog',
+              'Optibelt Alpha Linear / Alpha Flex Datasheet',
+            ],
       },
       confidence: 'ALGORITHMIC_STANDARD_ONLY',
       verification: unattachedProvenancePlaceholder(),
@@ -1248,9 +1414,11 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         product.categoryName !== 'تسمه و انتقال نیرو'
           ? 'MOVE_TO_OTHER_CATEGORY'
           : 'MOVE_TO_EXISTING_FAMILY',
-      engineeringReasoning: isCeramicPrint
-        ? `تسمه تایمینگ پلی‌یورتان ${profile} دستگاه چاپ کاشی مگادین ایتالیا که از دسته قطعات چاپ به دسته اصلی تسمه تایمینگ (${proposedLeaf}) منتقل شد.`
-        : `تسمه سنکرون متریک ${profile} با گام ${spec.pitchMm} میلی‌متر مطابق DIN 7721.`,
+      engineeringReasoning: isRubber3M
+        ? 'پروفیل منحنی‌الخط 3M با جنس لاستیکی ثبت‌شده؛ نوع کورد و ترکیب دقیق باید از دیتاشیت سازنده تأیید شود.'
+        : isCeramicPrint
+          ? `تسمه تایمینگ پلی‌یورتان ${profile} دستگاه چاپ کاشی مگادین ایتالیا که از دسته قطعات چاپ به دسته اصلی تسمه تایمینگ (${proposedLeaf}) منتقل شد.`
+          : `تسمه سنکرون متریک ${profile} با گام ${spec.pitchMm} میلی‌متر مطابق DIN 7721.`,
     };
   }
 
@@ -1337,7 +1505,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
 
     const profileKey = isRppSilver && (baseCode === '8M' || baseCode === '14M') ? `RPP${baseCode}` : baseCode;
     const spec = CURVILINEAR_TIMING_SPECS[profileKey] || CURVILINEAR_TIMING_SPECS[baseCode] || CURVILINEAR_TIMING_SPECS['8M'];
-    const isSteelCordHtd = /سیم\s*دار/.test(normName) || product.subcategory === 'تسمه سیم‌دار';
+    const isSteelCordHtd = /سیم\s*دار/.test(normName) || isSteelCordMaterial || product.subcategory === 'تسمه سیم‌دار';
     const isSleeve = !isMixedFamilyUnit && rawUnit.includes('سانت');
     const isOpen =
       !isSleeve &&
@@ -1353,9 +1521,11 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
 
     let taxonomyGap: string | null = null;
     if (spec.sidedness === 'double-sided') {
-      taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${baseCode} در زیربرگ «5M , 8M , 11M , 14M» قرار می‌گیرد زیرا برگ مستقل دوطرفه در اکسل وجود ندارد.`;
-    } else if (baseCode === '3M' || isRppSilver) {
-      taxonomyGap = `GAP-TIMING-MXL-3M-RPP: پروفیل ${isRppSilver ? `RPP Silver ${baseCode}` : baseCode} به نزدیک‌ترین زیربرگ «5M , 8M , 11M , 14M» نگاشت شد.`;
+      taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${baseCode} در برگ گام متناظر قرار می‌گیرد؛ برگ مستقل دوطرفه در اکسل وجود ندارد.`;
+    } else if (baseCode === '3M' && !isRubberMaterial) {
+      taxonomyGap = 'GAP-TIMING-3M-LEAF-MISSING: پروفیل 3M فقط در صورت احراز ساختار لاستیکی در برگ لاستیکی فابریک قرار می‌گیرد؛ در غیر این صورت مسیر مصوب ندارد.';
+    } else if (isRppSilver) {
+      taxonomyGap = `GAP-TIMING-RPP-PITCH: پروفیل RPP Silver ${baseCode} با گام ${baseCode} در برگ گام متناظر قرار می‌گیرد؛ شکل دندانه آن باید به‌عنوان مشخصه مستقل حفظ شود.`;
     }
 
     const matVariantTag = isSteelCordHtd ? 'STEEL-TPU' : coatingCode;
@@ -1369,13 +1539,22 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     const familyId = famParts.join('-').replace(/[^A-Z0-9-]/g, '');
 
     let proposedSubmenu = 'انواع گام و کدهای تایمینگ';
-    let proposedLeaf = '5M , 8M , 11M , 14M';
+    let proposedLeaf: string | null = '5M , 8M , 11M , 14M';
     if (hasCoating) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'APL دار';
-    } else if (supplyForm === 'open-ended-meter') {
+    } else if (isSteelCordHtd && isPolyurethaneMaterial) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'پلی‌یورتان';
+    } else if (baseCode === '3M' && isRubberMaterial) {
+      proposedSubmenu = 'لاستیکی فابریک';
+      proposedLeaf = 'لاستیکی فابریک ساده و دنده‌دار';
+    } else if (baseCode === '3M') {
+      proposedSubmenu = 'انواع گام و کدهای تایمینگ';
+      proposedLeaf = null;
+    }
+    if (spec.sidedness === 'double-sided' && proposedSubmenu === 'انواع گام و کدهای تایمینگ') {
+      proposedLeaf = null;
     }
 
     return {
@@ -1462,7 +1641,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     upperName.match(/\b(XH|DH|DL|DXL|MXL|XL|L|H)\s*(?:[*×-]\s*|.*عرض\s*)(\d{2,3})\b/);
   const impLoopMatch = upperName.match(/\b(\d{2,5}(?:[./]\d+)?)\s*(MXL|DXL|XL|DL|L|DH|H|XH)(?:\s*[-*× ]?\s*(\d{2,3}M?)\b)?/);
 
-  const isSteelCordTiming = /سیم\s*دار/.test(normName) || product.subcategory === 'تسمه سیم‌دار';
+  const isSteelCordTiming = /سیم\s*دار/.test(normName) || isSteelCordMaterial || product.subcategory === 'تسمه سیم‌دار';
 
   if (impLoopMatch || (isSteelCordTiming && impOpenMatch)) {
     let profile = 'H';
@@ -1518,20 +1697,26 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
           : 'حلقه';
 
     let proposedSubmenu = 'انواع گام و کدهای تایمینگ';
-    let proposedLeaf = 'H , XH , L , XL';
+    let proposedLeaf: string | null = 'H , XH , L , XL';
     if (hasCoating) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'APL دار';
-    } else if (isSteelCordTiming && supplyForm === 'open-ended-meter') {
+    } else if (isSteelCordTiming && isPolyurethaneMaterial) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'پلی‌یورتان';
+    } else if (profile === 'MXL') {
+      proposedSubmenu = 'انواع گام و کدهای تایمینگ';
+      proposedLeaf = null;
+    }
+    if (spec.sidedness === 'double-sided' && proposedSubmenu === 'انواع گام و کدهای تایمینگ') {
+      proposedLeaf = null;
     }
 
     let taxonomyGap: string | null = null;
     if (spec.sidedness === 'double-sided') {
-      taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${profile} (گام ${spec.pitchMm} میلی‌متر) در زیربرگ «H , XH , L , XL» قرار می‌گیرد؛ پیشنهاد می‌شود زیربرگ مستقل «DL , DH , DXL (دوطرفه)» در بازنگری اکسل اضافه شود.`;
+      taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${profile} (گام ${spec.pitchMm} میلی‌متر) فعلاً در سطح زیرمنوی گام‌های تایمینگ نمایش داده می‌شود؛ پیشنهاد می‌شود برگ مستقل «DL , DH , DXL (دوطرفه)» به اکسل اضافه شود.`;
     } else if (profile === 'MXL') {
-      taxonomyGap = 'GAP-TIMING-MXL-3M-RPP: پروفیل ظریف MXL (گام 2.032 میلی‌متر) در زیربرگ «H , XH , L , XL» قرار می‌گیرد.';
+      taxonomyGap = 'GAP-TIMING-MXL-LEAF-MISSING: پروفیل MXL در برگ مصوب H/XH/L/XL وجود ندارد و نباید در آن نمایش داده شود.';
     }
 
     const familyId = [
@@ -1769,12 +1954,12 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       currentSubmenu: product.submenu || '',
       currentSubcategory: product.subcategory,
       detectedBrand: brand,
-      proposedCategorySlug: 'excel-v2-1-1',
-      proposedCategoryName: 'تسمه تایمینگ',
-      proposedSubmenu: 'انواع گام و کدهای تایمینگ',
-      proposedLeaf: '5M , 8M , 11M , 14M',
+      proposedCategorySlug: 'UNRESOLVED',
+      proposedCategoryName: 'نیازمند تعیین تکلیف',
+      proposedSubmenu: 'کاربرد خودرویی / لیفتراکی',
+      proposedLeaf: 'تسمه تایمینگ خودرویی فاقد مسیر در منوی تسمه صنعتی',
       taxonomyGap:
-        'GAP-TIMING-AUTOMOTIVE-RU: تسمه‌های تایم دنده‌گرد خودرویی و لیفتراکی (سری Optibelt ZRK و RU) زیربرگ اختصاصی در اکسل صنعتی ندارند و به‌صورت موقت به `excel-v2-1-1` نگاشت شده‌اند تا درباره نگهداری در سبد صنعتی یا تفکیک خودرویی تصمیم‌گیری شود.',
+        'GAP-TIMING-AUTOMOTIVE-RU: تسمه‌های تایم دنده‌گرد خودرویی و لیفتراکی (سری Optibelt ZRK و RU) در منوی مصوب تسمه صنعتی مسیر اختصاصی ندارند؛ برای جلوگیری از اختلاط بازار صنعتی و خودرویی، در این دسته منتشر نمی‌شوند.',
       proposedFamilyId: `${
         is8mm ? 'FAM-TIMING-AUTO-8MM' : verifiedPitch ? 'FAM-TIMING-AUTO-RU-9P5' : 'FAM-TIMING-AUTO-RU-ZRK-REVIEW'
       }-${brand}`.replace(/[^A-Z0-9-]/g, ''),
@@ -1824,7 +2009,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       },
       confidence: 'ALGORITHMIC_STANDARD_ONLY',
       verification: unattachedProvenancePlaceholder(),
-      recommendedAction: product.subcategory === 'تسمه صنعتی' ? 'MOVE_TO_EXISTING_FAMILY' : 'KEEP_IN_CURRENT_FAMILY',
+      recommendedAction: 'MANUAL_ENGINEERING_REVIEW',
       engineeringReasoning: ref
         ? ref.note
         : ruMatch
@@ -1833,11 +2018,13 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     };
   }
 
-  // 8. Heat-Weldable Polyurethane Belts (Round / CRC / BRB / V-Sections A, B, C)
+  // 8. Heat-weldable PU belts: require actual PU material evidence. A wrapped rubber
+  // V-belt may contain the words "جوشی" or "گریپ" but is not a thermoplastic PU belt.
   if (
-    /تسمه\s+جوشی/.test(normName) ||
-    product.subcategory === 'تسمه ضدسایش' ||
-    (/^تسمه\s+گرد(?=\s|$)/.test(normName) && !/ماهی/.test(normName))
+    isPolyurethaneMaterial &&
+    (/تسمه\s+جوشی/.test(normName) ||
+      /^تسمه\s+گرد(?=\s|$)/.test(normName) ||
+      /تسمه\s+(?:فلت|تخت)/.test(normName))
   ) {
     const isRound = /گرد/.test(normName);
     const hasCrc = /\bCRC\b/i.test(upperName);
@@ -1849,10 +2036,15 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         ? 'BRB'
         : isRound
           ? 'ROUND'
-          : vSectionMatch
-            ? vSectionMatch[1]
-            : 'PU-V';
+          : /فلت|تخت|flat/.test(normName)
+            ? 'FLAT'
+            : vSectionMatch
+              ? vSectionMatch[1]
+              : 'PU-V';
     const isCrcOrRound = profileCode === 'CRC' || profileCode === 'ROUND';
+    // A welded PU V-section is not a rubber V-belt. The approved Excel menu has no dedicated PU V-section leaf.
+    const isApprovedVbeltSection = false;
+    const hasApprovedWeldedLeaf = isCrcOrRound || profileCode === 'FLAT';
     const isCorded = /نخ\s*دار/.test(normName);
     const isRoughGreen = /زبر/.test(normName);
     const isWeldedGrip = /گریپ/.test(normName);
@@ -1891,11 +2083,27 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       currentSubmenu: product.submenu || '',
       currentSubcategory: product.subcategory,
       detectedBrand: brand,
-      proposedCategorySlug: 'excel-v2-1-3',
-      proposedCategoryName: 'تسمه جوشی با سایت',
-      proposedSubmenu: isCrcOrRound ? 'تسمه گرد (CRC)' : 'تسمه فلت',
-      proposedLeaf: isCrcOrRound ? 'انواع تسمه گرد جوشی' : 'انواع تسمه تخت و فلت',
-      taxonomyGap: null,
+      proposedCategorySlug: isApprovedVbeltSection ? 'excel-v2-1-2' : hasApprovedWeldedLeaf ? 'excel-v2-1-3' : 'UNRESOLVED',
+      proposedCategoryName: isApprovedVbeltSection ? 'تسمه وی‌بلت (V-Belt)' : hasApprovedWeldedLeaf ? 'تسمه جوشی با سایت' : 'نیازمند تعیین تکلیف',
+      proposedSubmenu: isCrcOrRound
+        ? 'تسمه گرد (CRC)'
+        : profileCode === 'FLAT'
+          ? 'تسمه فلت'
+          : isApprovedVbeltSection
+            ? weldedSupplyForm === 'heat-weldable-meter' ? 'وی‌بلت متری' : 'کلاسیک و دنده‌دار'
+            : 'پروفیل جوشی فاقد برگ مصوب',
+      proposedLeaf: isCrcOrRound
+        ? 'انواع تسمه گرد جوشی'
+        : profileCode === 'FLAT'
+          ? 'انواع تسمه تخت و فلت'
+          : isApprovedVbeltSection
+            ? weldedSupplyForm === 'heat-weldable-meter'
+              ? 'تسمه A و B و C وی‌بلت متری'
+              : 'Z (9.5) , M , A , B , C , D , E , 8V'
+            : `پروفیل ${profileCode} پلی‌یورتان (فاقد برگ مصوب)`,
+      taxonomyGap: isApprovedVbeltSection || hasApprovedWeldedLeaf
+        ? null
+        : `GAP-WELDED-PU-${profileCode}-LEAF-MISSING: پروفیل ذوزنقه‌ای/BRB جوشی پلی‌یورتان در منوی مصوب برگ مستقل ندارد؛ زیر «تسمه فلت» قرار داده نمی‌شود.`,
       proposedFamilyId: `FAM-WELDED-PU-${profileCode}-${surfaceCode}-${isCorded ? 'CORDED' : 'HOMOGENEOUS'}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
       proposedFamilyNameFa: [
         'تسمه جوشی پلی‌یورتان',
@@ -1913,10 +2121,16 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         .filter(Boolean)
         .join(' '),
       proposedFamilyNameEn: `${brand} Heat-Weldable PU ${profileCode} ${surfaceCode} (${isCorded ? 'Reinforced' : 'Homogeneous'}) Belt`,
-      actualProductType: `تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل ${profileCode} (${isWeldedGrip ? 'با روکش گریپ' : isRoughGreen ? 'سطح زبر' : 'صاف'})`,
+      actualProductType: isApprovedVbeltSection
+        ? `تسمه جوشی V شکل پلی‌یورتان پروفیل ${profileCode} (${isWeldedGrip ? 'با روکش گریپ' : isRoughGreen ? 'سطح زبر' : 'صاف'})`
+        : `تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل ${profileCode} (${isWeldedGrip ? 'با روکش گریپ' : isRoughGreen ? 'سطح زبر' : 'صاف'})`,
       technical: {
-        operatingPrinciple: 'friction-round-welded',
-        beltDivision: isCrcOrRound ? 'welded-pu-round-crc' : 'welded-pu-v-flat',
+        operatingPrinciple: isCrcOrRound ? 'friction-round-welded' : 'friction-v',
+        beltDivision: isCrcOrRound
+          ? 'welded-pu-round-crc'
+          : profileCode === 'FLAT'
+            ? 'welded-pu-v-flat'
+            : 'welded-pu-v-section',
         supplyForm: weldedSupplyForm,
         sidedness: profileCode === 'ROUND' ? 'symmetric-round-hex' : 'single-sided',
         profile: profileCode,
@@ -1944,9 +2158,12 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       },
       confidence: 'ALGORITHMIC_STANDARD_ONLY',
       verification: unattachedProvenancePlaceholder(),
-      recommendedAction: 'MOVE_TO_EXISTING_FAMILY',
-      engineeringReasoning:
-        `تسمه جوشی پلی‌یورتان اکسترودشده پروفیل ${profileCode} با تفکیک دقیق برند (${brand})، سطح (${surfaceLabel}) و مغزی (${isCorded ? 'نخ‌دار' : 'ساده'}) در زیرشاخه تخصصی excel-v2-1-3.`,
+      recommendedAction: hasApprovedWeldedLeaf || isApprovedVbeltSection ? 'MOVE_TO_EXISTING_FAMILY' : 'MANUAL_ENGINEERING_REVIEW',
+      engineeringReasoning: isApprovedVbeltSection
+        ? `پروفیل جوشی پلی‌یورتان ${profileCode} دارای مقطع V ذوزنقه‌ای استاندارد است؛ مسیر منو بر اساس پروفیل A/B/C و شکل عرضه تعیین می‌شود (${weldedSupplyForm === 'heat-weldable-meter' ? 'وی‌بلت متری' : 'حلقه مداربسته کلاسیک'}). برند، سطح گریپ/صاف و مغزی همچنان هویت خانواده را جدا نگه می‌دارند.`
+        : hasApprovedWeldedLeaf
+          ? `تسمه جوشی پلی‌یورتان اکسترودشده پروفیل ${profileCode} با تفکیک دقیق برند (${brand})، سطح (${surfaceLabel}) و مغزی (${isCorded ? 'نخ‌دار' : 'ساده'}) در برگ مصوب متناظر.`
+          : `پروفیل جوشی پلی‌یورتان ${profileCode} از نظر مهندسی شناسایی شده است، اما برگ مصوب مناسبی در اکسل برای آن وجود ندارد؛ خانواده و SKU حفظ می‌شوند و تا تأیید مسیر جدید در منوی تسمه منتشر نمی‌شوند.`,
     };
   }
 
@@ -2005,8 +2222,12 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     };
   }
 
-  // 10. Endless Crowned / Ridge-Top Ceramic Tile Transport Belts (CRC / TRC / گرده ماهی, unit: حلقه)
-  if (/\b(?:CRC|TRC)\d*\b|گرد\s*ه?\s*ماهی/.test(upperName)) {
+  // 10. Endless crowned CRC/TRC ceramic transport belts. CRC alone is not enough:
+  // PU round-welded CRC is handled above; only explicit ridge-top/crowned identity belongs here.
+  const isRidgeTopIdentity = /گرده.?ماهی|تاج.?دار|ridge.?top|crowned/.test(
+    normalize(`${normName} ${materialEvidence}`)
+  );
+  if ((/\b(?:CRC|TRC)\d*\b|گرد\s*ه?\s*ماهی/.test(upperName)) && isRidgeTopIdentity) {
     const profile = /\bTRC\d*\b/.test(upperName) ? 'TRC' : 'CRC';
     const lenMatch = upperName.match(/(?:CRC|TRC)\s*(\d{3,5})|\b([ABC])\s*(\d{2,4})\b/);
     const lenVal = lenMatch ? Number(lenMatch[1] || lenMatch[3]) : null;
@@ -2022,12 +2243,12 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       currentSubmenu: product.submenu || '',
       currentSubcategory: product.subcategory,
       detectedBrand: brand,
-      proposedCategorySlug: 'excel-v2-1-3',
-      proposedCategoryName: 'تسمه جوشی با سایت',
-      proposedSubmenu: 'تسمه گرد (CRC)',
-      proposedLeaf: 'انواع تسمه گرد جوشی',
+      proposedCategorySlug: 'excel-v2-1-4',
+      proposedCategoryName: 'تسمه بارکش و تجهیزات جوشی',
+      proposedSubmenu: 'تسمه بارکش',
+      proposedLeaf: 'انواع تسمه بارکش صنعتی',
       taxonomyGap:
-        'GAP-VBELT-ENDLESS-CRC: تسمه‌های مداربسته لاستیکی تاج‌دار (Crowned/Ridge-Top CRC/TRC گرده‌ماهی با واحد حلقه) از نظر ساختار با تسمه جوشی پلی‌یورتان متری متفاوت‌اند اما در اکسل فقط زیربرگ «تسمه گرد (CRC) > انواع تسمه گرد جوشی» برای خانواده CRC وجود دارد.',
+        'GAP-RIDGE-TOP-CRC-LEAF: تسمه تاج‌دار CRC/TRC یک تسمه انتقال/بارکش مداربسته است، نه تسمه گرد جوشی PU. چون اکسل برگ مستقل Ridge-Top ندارد، فقط در برگ مصوب عمومی «تسمه بارکش» نمایش داده می‌شود و پروفیل CRC/TRC در مشخصات فنی حفظ می‌گردد.',
       proposedFamilyId: `FAM-CROWNED-ENDLESS-${profile}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
       proposedFamilyNameFa: `تسمه گرده‌ماهی (تاج‌دار) مداربسته ${profile} ${brand !== 'UNSPECIFIED' ? brand : ''}`.trim(),
       proposedFamilyNameEn: `${brand} Endless Crowned / Ridge-Top Ceramic Transport V-Belt (${profile})`,
@@ -2069,13 +2290,15 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   }
 
   // 11. Banded V-Belts (2RAX, 2RC, 3RC, 4RC, 4RSPC, 5RSPC, 1R3VX, 6R3VX, 8R3VX, 10R3VX)
-  const bandedMatch = upperName.match(/\b(\d+)R\s*(3VX|3V|5VX|5V|8VX|8V|SPZ|SPA|SPB|SPC|AX|BX|CX|A|B|C)\s*(\d{2,5})\b/);
+  const bandedMatch = upperName.match(/\b(\d+)R\s*(3VX|3V|5VX|5V|8VX|8V|SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|AX|BX|CX|A|B|C)\s*(\d{2,5})\b/);
   if (bandedMatch) {
     const bandCount = Number(bandedMatch[1]);
     const baseProf = bandedMatch[2];
     const lenCode = Number(bandedMatch[3]);
     const vSpec = VBELT_SPECS[baseProf] || VBELT_SPECS.C;
-    const isNarrow = ['3V', '3VX', '5V', '5VX', 'SPZ', 'SPA', 'SPB', 'SPC'].includes(baseProf);
+    const isNarrow = ['3V', '3VX', '5V', '5VX', 'SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(baseProf);
+    const isSpecialLeaf = ['SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(baseProf);
+    const isClassicalLeaf = ['Z', 'ZX', 'M', 'A', 'AX', 'B', 'BX', 'C', 'CX', 'D', 'E', '8V', '8VX'].includes(baseProf);
 
     return {
       sku: variant.code,
@@ -2093,9 +2316,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedCategoryName: 'تسمه وی‌بلت (V-Belt)',
       proposedSubmenu: isNarrow ? 'تسمه اسپشیال' : 'کلاسیک و دنده‌دار',
       proposedLeaf: isNarrow
-        ? 'SPA , SPB , SPC و دندانه‌دار'
-        : 'Z (9.5) , M , A , B , C , D , E , 8V',
-      taxonomyGap: `GAP-VBELT-BANDED: تسمه به‌پشت‌پیوسته (Banded Powerband) پروفیل ${baseProf} (سری‌های چندردیفه) در زیربرگ پروفیل پایه قرار می‌گیرد زیرا زیربرگ مستقل تسمه‌های Banded (چندردیفه پشت‌دار) در اکسل وجود ندارد.`,
+        ? isSpecialLeaf ? 'SPA , SPB , SPC و دندانه‌دار' : null
+        : isClassicalLeaf ? 'Z (9.5) , M , A , B , C , D , E , 8V' : null,
+      taxonomyGap: `GAP-VBELT-BANDED: تسمه به‌پشت‌پیوسته (Banded Powerband) پروفیل ${baseProf} در زیرمنوی پروفیل پایه قرار می‌گیرد؛ فقط پروفیل‌هایی که برگ مصوب دقیق دارند به برگ فرعی متصل می‌شوند.`,
       proposedFamilyId: `FAM-VBELT-BANDED-${baseProf}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
       proposedFamilyNameFa: `تسمه V شکل به‌پشت‌پیوسته (پاورباند) پروفیل ${baseProf} (${brand})`,
       proposedFamilyNameEn: `${brand} Banded V-Belt (Powerband) Profile ${baseProf}`,
@@ -2133,6 +2356,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   }
 
   // 12. Classical, Narrow/Wedge, and Hexagonal V-Belts
+  const productUpperName = normalize(product.name).toUpperCase();
+  const explicitWeldedVProfileMatch = `${upperName} ${productUpperName}`.match(/تسمه\s*جوشی\s*V\b.*?پروفیل\s*(A|B|C)\b/);
+  const explicitVProfileMatch = `${upperName} ${productUpperName}`.match(/(?:تسمه\s*V(?:\s*شکل)?|V[\s-]*BELT|وی[\s‌-]*بلت).*?پروفیل\s*(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\b/);
   const stdVMatch =
     upperName.match(/\b(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\s*[-*× ]?\s*(\d{2,5}(?:[./]\d+)?)\b/) ||
     upperName.match(/\b(\d{2,5}(?:[./]\d+)?)\s*(?:[*×]\s*)?(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|M|K)\b/);
@@ -2144,11 +2370,17 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         normName.match(/\b(\d{3,5})\.?\s*\*\s*(9[./]5|10|12[./]5|13|17|22)\b/)
       : null;
 
-  if (stdVMatch || numericVMatch) {
+  if (stdVMatch || numericVMatch || explicitWeldedVProfileMatch || explicitVProfileMatch) {
     let vProfile = 'A';
     let rawLen = 0;
 
-    if (stdVMatch) {
+    if (explicitWeldedVProfileMatch && !stdVMatch) {
+      vProfile = explicitWeldedVProfileMatch[1];
+      rawLen = 0;
+    } else if (explicitVProfileMatch && !stdVMatch) {
+      vProfile = explicitVProfileMatch[1];
+      rawLen = 0;
+    } else if (stdVMatch) {
       if (VBELT_SPECS[stdVMatch[1]]) {
         vProfile = stdVMatch[1];
         rawLen = Number(stdVMatch[2].replace('/', '.'));
@@ -2170,34 +2402,47 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     }
 
     const vSpec = VBELT_SPECS[vProfile] || VBELT_SPECS.A;
-    const isNarrowLeaf = ['SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC', '3V', '3VX', '5V', '5VX'].includes(vProfile);
-    const isOpenMeter = !isMixedFamilyUnit && rawUnit === 'متر';
-    const vUnit = isOpenMeter ? 'متر' : 'حلقه';
+    const isNarrowProfile = ['SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC', '3V', '3VX', '5V', '5VX'].includes(vProfile);
+    const isSpecialLeaf = ['SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(vProfile);
+    const isClassicalLeaf = ['Z', 'ZX', 'M', 'A', 'AX', 'B', 'BX', 'C', 'CX', 'D', 'E', '8V', '8VX'].includes(vProfile);
+    const isOpenEndedSupply = !isMixedFamilyUnit && rawUnit === 'متر';
+    const isMeterLeaf = isOpenEndedSupply && ['A', 'B', 'C'].includes(vProfile);
+    const isHexagonal = ['AA', 'BB'].includes(vProfile);
+    const isUnlistedK = vProfile === 'K';
+    const vUnit = isOpenEndedSupply ? 'متر' : 'حلقه';
 
-    const proposedSubmenu = hasCoating
-      ? 'سیم‌دار فابریک'
-      : isOpenMeter
-        ? 'وی‌بلت متری'
-        : isNarrowLeaf
-          ? 'تسمه اسپشیال'
-          : 'کلاسیک و دنده‌دار';
+    const proposedSubmenu = isHexagonal
+      ? 'پروفیل شش‌ضلعی دوطرفه'
+      : isUnlistedK
+        ? 'پروفیل K'
+        : isMeterLeaf
+          ? 'وی‌بلت متری'
+          : isNarrowProfile
+            ? 'تسمه اسپشیال'
+            : 'کلاسیک و دنده‌دار';
 
-    const proposedLeaf = hasCoating
-      ? 'APL دار'
-      : isOpenMeter
+    const proposedLeaf = isHexagonal || isUnlistedK
+      ? null
+      : isMeterLeaf
         ? 'تسمه A و B و C وی‌بلت متری'
-        : isNarrowLeaf
+        : isSpecialLeaf
           ? 'SPA , SPB , SPC و دندانه‌دار'
-          : 'Z (9.5) , M , A , B , C , D , E , 8V';
+          : isNarrowProfile
+            ? null
+            : isClassicalLeaf
+              ? 'Z (9.5) , M , A , B , C , D , E , 8V'
+              : null;
 
     let taxonomyGap: string | null = null;
-    if (vProfile === 'AA' || vProfile === 'BB') {
-      taxonomyGap = `GAP-VBELT-HEXAGONAL: تسمه شش‌ضلعی دوطرفه ${vProfile} در زیربرگ کلاسیک قرار می‌گیرد؛ پیشنهاد می‌شود برگ «تسمه شش‌ضلعی دوطرفه (AA, BB, CC)» اضافه شود.`;
-    } else if (['3V', '3VX', '5V', '5VX', 'K', 'MX', 'SPZ', 'XPZ'].includes(vProfile)) {
-      taxonomyGap = `GAP-VBELT-3V-5V-K-SPZ: پروفیل ${vProfile} به نزدیک‌ترین زیربرگ استاندارد V شکل («${proposedLeaf}») نگاشت شد.`;
+    if (isHexagonal) {
+      taxonomyGap = `GAP-VBELT-HEXAGONAL-LEAF-MISSING: تسمه شش‌ضلعی دوطرفه ${vProfile} خانواده فنی مستقلی است، اما برگ مصوب آن در اکسل وجود ندارد.`;
+    } else if (isUnlistedK) {
+      taxonomyGap = 'GAP-VBELT-K-LEAF-MISSING: پروفیل K در برگ‌های مصوب کلاسیک/اسپشیال/متری درج نشده است.';
+    } else if (['3V', '3VX', '5V', '5VX', 'MX', 'SPZ', 'XPZ'].includes(vProfile)) {
+      taxonomyGap = `GAP-VBELT-PROFILE-LABEL: پروفیل ${vProfile} در نام برگ اکسل صریحاً ذکر نشده؛ هویت آن به‌عنوان تسمه V حفظ می‌شود و باید در بازنگری منبع اکسل تأیید شود.`;
     } else if (hasCoating) {
       taxonomyGap =
-        'GAP-COATED-VBELT: در اکسل زیربرگ «APL دار» فقط زیر «تسمه تایمینگ» تعریف شده است، در حالی که این کالا تسمه V شکل روکش‌دار (پروفیل کلاسیک/باریک با روکش گریپ/آجدار) است.';
+        'GAP-COATED-VBELT: روکش گریپ/آجدار مشخصه فنی تسمه V است و مسیر آن بر اساس پروفیل پایه تعیین می‌شود؛ به اشتباه به دسته APL تسمه تایمینگ منتقل نمی‌شود.';
     }
 
     let pitchLengthMm: number | null = null;
@@ -2219,7 +2464,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     const familyId = [
       'FAM-VBELT',
       vProfile,
-      hasCoating ? coatingCode : isOpenMeter ? 'METER' : 'STD',
+      isOpenEndedSupply ? 'METER' : 'ENDLESS',
+      coatingCode,
       brand,
     ]
       .join('-')
@@ -2237,30 +2483,30 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       currentSubmenu: product.submenu || '',
       currentSubcategory: product.subcategory,
       detectedBrand: brand,
-      proposedCategorySlug: hasCoating ? 'excel-v2-1-1' : 'excel-v2-1-2',
-      proposedCategoryName: hasCoating ? 'تسمه تایمینگ' : 'تسمه وی‌بلت (V-Belt)',
+      proposedCategorySlug: 'excel-v2-1-2',
+      proposedCategoryName: 'تسمه وی‌بلت (V-Belt)',
       proposedSubmenu,
       proposedLeaf,
       taxonomyGap,
       proposedFamilyId: familyId,
       proposedFamilyNameFa: [
         'تسمه V شکل',
-        vSpec.division === 'vbelt-hexagonal' ? 'شش‌ضلعی دوطرفه' : isNarrowLeaf ? 'پروفیل باریک' : 'کلاسیک',
+        vSpec.division === 'vbelt-hexagonal' ? 'شش‌ضلعی دوطرفه' : isNarrowProfile ? 'پروفیل باریک' : 'کلاسیک',
         vProfile,
         coatingLabel ? `(${coatingLabel})` : '',
-        isOpenMeter ? 'متری' : '',
+        isOpenEndedSupply ? 'متری' : '',
         brand !== 'UNSPECIFIED' ? brand : '',
       ]
         .filter(Boolean)
         .join(' '),
       proposedFamilyNameEn: `${brand} ${vProfile} ${
-        vSpec.division === 'vbelt-hexagonal' ? 'Hexagonal Double-Sided' : isNarrowLeaf ? 'Narrow Wedge' : 'Classical'
-      } V-Belt${hasCoating ? ' (Coated)' : ''}`,
+        vSpec.division === 'vbelt-hexagonal' ? 'Hexagonal Double-Sided' : isNarrowProfile ? 'Narrow Wedge' : 'Classical'
+      } V-Belt${hasCoating ? ' (Coated)' : ''}${isOpenEndedSupply ? ' Open-Ended Meter' : ''}`,
       actualProductType: `تسمه V شکل پروفیل ${vProfile}${hasCoating ? ` همراه با ${coatingLabel}` : ''}`,
       technical: {
         operatingPrinciple: 'friction-v',
         beltDivision: vSpec.division,
-        supplyForm: isOpenMeter ? 'open-ended-meter' : 'endless-loop',
+        supplyForm: isOpenEndedSupply ? 'open-ended-meter' : 'endless-loop',
         sidedness: vSpec.sidedness,
         profile: vProfile,
         pitchMm: null,
@@ -2273,7 +2519,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         pitchLengthMm,
         insideLengthMm,
         outsideLengthMm,
-        lengthDesignation: `${vProfile}${rawLen}`,
+        lengthDesignation: rawLen > 0 ? `${vProfile}${rawLen}` : vProfile,
         toothCount: null,
         ribCount: null,
         bodyMaterial: vProfile.endsWith('X')
@@ -2321,11 +2567,11 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     currentSubmenu: product.submenu || '',
     currentSubcategory: product.subcategory,
     detectedBrand: brand,
-    proposedCategorySlug: 'excel-v2-1-4',
-    proposedCategoryName: 'تسمه بارکش و تجهیزات جوشی',
-    proposedSubmenu: 'تسمه بارکش',
-    proposedLeaf: 'انواع تسمه بارکش صنعتی',
-    taxonomyGap: null,
+    proposedCategorySlug: 'UNRESOLVED',
+    proposedCategoryName: 'نیازمند تعیین تکلیف',
+    proposedSubmenu: 'نیازمند بررسی فنی',
+    proposedLeaf: 'شرح ناکافی برای انتساب به برگ مصوب تسمه صنعتی',
+    taxonomyGap: 'GAP-APPROVED-MENU-PATH-MISSING: نوع، پروفیل یا کاربرد کالا از شرح موجود به‌صورت فنی قابل اثبات نیست؛ به‌صورت پیش‌فرض به تسمه بارکش منتسب نمی‌شود.',
     proposedFamilyId: `FAM-BELT-MANUAL-REVIEW-${reviewSupplyForm === 'open-ended-meter' ? 'METER' : 'LOOP'}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
     proposedFamilyNameFa: `تسمه نیازمند بازبینی فنی و تطبیق نمونه (${brand})`,
     proposedFamilyNameEn: `${brand} Industrial Belt Requiring Physical Sample Inspection`,
@@ -2373,15 +2619,16 @@ function buildNonBeltRecord(
     proposedCategorySlug: string;
     proposedCategoryName: string;
     proposedSubmenu: string;
-    proposedLeaf: string;
+    proposedLeaf: string | null;
     proposedFamilyId: string;
     proposedFamilyNameFa: string;
     proposedFamilyNameEn: string;
     reasoning: string;
   }
 ): BeltSkuAuditRecord {
-  const staysOutsideBeltAndConveyor =
-    product.categoryName !== 'تسمه و انتقال نیرو' && product.categoryName !== 'نوار و تسمه نقاله';
+  const isCurrentlyBeltCategory =
+    /تسمه|نقاله/.test(normalize(product.categoryName)) || /^excel-v2-1-/.test(product.categorySlug || '');
+  const staysOutsideBeltAndConveyor = !isCurrentlyBeltCategory;
   const rawNonBeltUnit = normalize(variant.unit || product.unit || 'عدد');
   const normNonBeltUnit = rawNonBeltUnit.includes(',') || rawNonBeltUnit.includes('،') ? 'عدد' : rawNonBeltUnit;
   return {
@@ -2626,6 +2873,24 @@ function unattachedProvenancePlaceholder(): VerificationProvenance {
     documentType: 'NONE_UNVERIFIED',
     matchedManufacturer: null,
     evidenceBasis: 'در حال محاسبه',
+  };
+}
+
+function inventoryDescriptionProvenance(evidenceBasis: string): VerificationProvenance {
+  return {
+    tier: 'INTERNAL_DB_CATALOG_ONLY',
+    evidenceClass7: '6_Internal_Database_Only',
+    processedBySoftwareCode: true,
+    extractedFromDatabase: true,
+    manufacturerCodeIdentified: false,
+    officialManufacturerSiteChecked: false,
+    datasheetOrCatalogChecked: false,
+    matchedAgainstReliableSource: false,
+    familyConfirmedByEvidence: false,
+    sourceUrl: 'internal://catalog/inventory-description',
+    documentType: 'INTERNAL_CATALOG_RECORD',
+    matchedManufacturer: null,
+    evidenceBasis,
   };
 }
 
@@ -3115,6 +3380,7 @@ export function runBeltCatalogAudit(products: Product[], refs?: AuditReferenceTa
     NOMINAL_TABLE_VERIFIED: 0,
     SERIES_VERIFIED: 0,
     ALGORITHMIC_STANDARD_ONLY: 0,
+    INVENTORY_DESCRIPTION_ONLY: 0,
     REQUIRES_REVIEW: 0,
   };
   const verificationTierCounts: Record<VerificationSourceTier, number> = {
@@ -3281,7 +3547,7 @@ export function runBeltCatalogAudit(products: Product[], refs?: AuditReferenceTa
 
 function checkInvariantString(
   values: Array<string | null | undefined>,
-  unknownRegex = /نامشخص|UNSPECIFIED|UNKNOWN|نیازمند قرائت/i
+  unknownRegex = /نامشخص|UNSPECIFIED|UNKNOWN|NOT_ESTABLISHED|UNVERIFIED|نیازمند قرائت/i
 ): AttributeCheckStatus {
   if (values.length === 0) return 'UNKNOWN';
   const cleaned = values.map((v) => String(v ?? '').trim());
@@ -3394,6 +3660,7 @@ export function validateFamilyEngineeringHomogeneity(
       div.startsWith('vbelt-') ||
       div === 'perforated-open-v' ||
       div === 'welded-pu-v-flat' ||
+      div === 'welded-pu-v-section' ||
       (div === 'welded-pu-round-crc' && (prof === 'CRC' || prof === 'BRB')));
   const toothAngleCheck: AttributeCheckStatus = isAmbiguous
     ? 'UNKNOWN'
@@ -3435,6 +3702,7 @@ export function validateFamilyEngineeringHomogeneity(
       div.startsWith('vbelt-') ||
       div === 'perforated-open-v' ||
       div === 'welded-pu-v-flat' ||
+      div === 'welded-pu-v-section' ||
       prof === 'CRC' ||
       prof === 'BRB';
     beltWidthCheck = checkNumericAttribute(
@@ -3481,12 +3749,12 @@ export function validateFamilyEngineeringHomogeneity(
   } else if (isAmbiguous) {
     sidednessCheck = 'UNKNOWN';
   } else {
-    sidednessCheck = new Set(members.map((m) => m.technical.sidedness)).size === 1 ? 'OK_INVARIANT' : 'FAIL_MIXED';
+    sidednessCheck = checkInvariantString(members.map((m) => m.technical.sidedness), /unknown|unspecified/i);
   }
 
   // 14. Supply Form & Unit
   const supplyFormCheck: AttributeCheckStatus =
-    new Set(members.map((m) => m.technical.supplyForm)).size === 1 ? 'OK_INVARIANT' : 'FAIL_MIXED';
+    checkInvariantString(members.map((m) => m.technical.supplyForm), /unknown|unspecified/i);
   const unitCheck: AttributeCheckStatus = checkInvariantString(members.map((m) => m.unit));
 
   // 15. Standard Reference

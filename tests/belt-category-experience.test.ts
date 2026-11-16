@@ -1,9 +1,43 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { classifyBeltSku, detectConveyorSurfaceProfile } from '../src/data/beltCatalogAudit';
+import type { Product, ProductVariant } from '../src/types';
 
 const page = readFileSync(new URL('../src/pages/BeltCategoryExperience.tsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/pages/BeltCategoryExperience.css', import.meta.url), 'utf8');
+const classifyBelt = (
+  variantName: string,
+  material: string,
+  unit = 'حلقه',
+  categorySlug = 'excel-v2-1-1',
+  categoryName = 'تسمه تایمینگ'
+) => {
+  const product = {
+    code: 'TEST-BELT-FAMILY',
+    name: variantName,
+    brand: 'GENERIC',
+    categorySlug,
+    categoryName,
+    subcategory: 'تسمه صنعتی',
+    technicalSpecs: [{ key: 'جنس و متریال', value: material }],
+    prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 },
+    stock: 0,
+    inquiryOnly: true,
+    images: [],
+    tags: [],
+    unit,
+  } as unknown as Product;
+  const variant = {
+    code: 'TEST-BELT-SKU',
+    size: 'standard',
+    name: variantName,
+    unit,
+    technicalSpecs: [],
+  } as unknown as ProductVariant;
+  return classifyBeltSku(product, variant);
+};
+
 const route = readFileSync(new URL('../src/pages/CategoryPage.tsx', import.meta.url), 'utf8');
 const directSkus = readFileSync(new URL('../src/components/catalog/DirectSkuProducts.tsx', import.meta.url), 'utf8');
 
@@ -98,7 +132,7 @@ test('belt product cards do not invent technical dimensions, material or stock c
 
 test('direct SKU cards do not borrow inferred product imagery or placeholder manufacturer names', () => {
   assert.match(page, /disableFallbackImage=\{directSkuCodes\.has\(p\.code\)\}/);
-  assert.match(page, /disableFallback=\{disableFallbackImage\}/);
+  assert.match(page, /disableFallback=\{disableFallbackImage\s*\|\|\s*Boolean\(beltMedia\)\}/);
   assert.match(page, /تصویر تأییدشده ثبت نشده/);
   assert.doesNotMatch(page, /product\.brand \|\| 'قطعات صنعتی'/);
 });
@@ -111,4 +145,75 @@ test('belt subcategory navigation counts include unique direct SKU records as we
   assert.match(page, /products\.filter\(product => productHasDisplayBrand\(product, brand\)\)/);
   assert.match(page, /const directSkuCount = directSkuRecords\.filter/);
   assert.match(page, /counts\.set\(option\.id, matchingFamilies\.length \+ directSkuCount\)/);
+});
+
+test('PVC conveyor surface trade labels remain distinct catalogue profiles', () => {
+  assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC سنگی').profile, 'PVC_STONE_SURFACE');
+  assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC پامرغی').profile, 'PVC_PAMARGHI_PATTERN');
+  assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC کله قندی').profile, 'PVC_CONICAL_CLEAT');
+  assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC چمنی').profile, 'PVC_GRASS_PATTERN');
+  assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC لوزی').profile, 'PVC_DIAMOND_PATTERN');
+  assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC آجدار').profile, 'PVC_ROUGH_TOP');
+  assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC ساده').profile, 'PVC_SMOOTH');
+  assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC شفاف').profile, 'PVC_TRANSPARENT');
+});
+
+test('unknown PVC surface wording is never silently classified as smooth', () => {
+  const result = detectConveyorSurfaceProfile('نوار نقاله PVC سبز');
+  assert.equal(result.profile, 'PVC_SURFACE_UNSPECIFIED');
+  assert.equal(result.requiresReview, true);
+});
+
+
+test('belt audit keeps V-belts out of timing APL and keeps Poly-V out of special V-belt leaf', () => {
+  const gripV = classifyBelt('تسمه جوشی V روکش گریپ‌دار پروفیل B', 'لاستیک کلروپرن');
+  assert.equal(gripV.proposedCategorySlug, 'excel-v2-1-2');
+  assert.equal(gripV.proposedSubmenu, 'کلاسیک و دنده‌دار');
+
+  const polyV = classifyBelt('تسمه چندشیاری Poly-V پروفیل PJ', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  assert.equal(polyV.proposedCategorySlug, 'UNRESOLVED');
+});
+
+test('belt audit does not place PU trapezoidal sections under flat welded belts', () => {
+  const sectionB = classifyBelt('تسمه جوشی پلی‌یورتان پروفیل B', 'TPU پلی‌یورتان', 'حلقه', 'excel-v2-1-3', 'تسمه جوشی با سایت');
+  assert.equal(sectionB.proposedCategorySlug, 'UNRESOLVED');
+  assert.equal(sectionB.technical.beltDivision, 'welded-pu-v-section');
+  assert.equal(sectionB.proposedSubmenu, 'پروفیل جوشی فاقد برگ مصوب');
+  assert.match(sectionB.taxonomyGap || '', /LEAF-MISSING/);
+});
+
+test('belt audit routes crowned CRC/TRC to hauling belts, not welded PU round belts', () => {
+  const ridge = classifyBelt('تسمه ذوزنقه‌ای تاج‌دار CRC گرده‌ماهی', 'لاستیک کلروپرن ضدسایش', 'حلقه', 'excel-v2-1-3', 'تسمه جوشی با سایت');
+  assert.equal(ridge.proposedCategorySlug, 'excel-v2-1-4');
+  assert.equal(ridge.proposedSubmenu, 'تسمه بارکش');
+  assert.equal(ridge.proposedLeaf, 'انواع تسمه بارکش صنعتی');
+});
+
+test('belt audit does not force automotive RU or unsupported T10 into neighbouring timing leaves', () => {
+  const auto = classifyBelt('تسمه تایمینگ خودرویی AUTO-RU', 'لاستیک کلروپرن');
+  assert.equal(auto.proposedCategorySlug, 'UNRESOLVED');
+
+  const t10 = classifyBelt('تسمه تایمینگ T10', 'TPU پلی‌یورتان');
+  assert.equal(t10.proposedSubmenu, 'انواع گام و کدهای تایمینگ');
+  assert.equal(t10.proposedLeaf, null);
+  assert.match(t10.taxonomyGap || '', /GAP-TIMING-T10-LEAF-MISSING/);
+
+  const rubber3m = classifyBelt('تسمه تایمینگ 3M', 'لاستیک کلروپرن');
+  assert.equal(rubber3m.proposedSubmenu, 'لاستیکی فابریک');
+  assert.equal(rubber3m.proposedLeaf, 'لاستیکی فابریک ساده و دنده‌دار');
+  assert.equal(rubber3m.technical.profile, '3M');
+  assert.equal(rubber3m.technical.pitchMm, 3);
+  assert.equal(rubber3m.technical.beltDivision, 'timing-htd-rpp-single');
+  assert.match(rubber3m.technical.bodyMaterial, /لاستیک کلروپرن/);
+});
+
+test('belt audit distinguishes V-belt meter supply from its profile menu path', () => {
+  const meterZ = classifyBelt('تسمه V شکل پروفیل Z متری', 'لاستیک', 'متر', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  assert.equal(meterZ.proposedSubmenu, 'کلاسیک و دنده‌دار');
+  assert.equal(meterZ.proposedLeaf, 'Z (9.5) , M , A , B , C , D , E , 8V');
+  assert.equal(meterZ.technical.profile, 'Z');
+  assert.equal(meterZ.technical.supplyForm, 'open-ended-meter');
+
+  const meterB = classifyBelt('تسمه V شکل پروفیل B متری', 'لاستیک', 'متر', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  assert.equal(meterB.proposedSubmenu, 'وی‌بلت متری');
 });

@@ -11,6 +11,7 @@ import {
   type AuditReferenceTables,
   type BeltSkuAuditRecord,
 } from './beltCatalogAudit';
+import { validateFamilyMenuAssignment } from './catalogMenuSemanticGuard';
 
 /**
  * 9-Level Technical Evidence Hierarchy (Phase 1 Mandatory Standard)
@@ -124,7 +125,7 @@ export interface Phase1SkuRecord {
   proposedTechnicalType: string;
   proposedCategorySlug: string;
   proposedSubmenu: string;
-  proposedLeaf: string;
+  proposedLeaf: string | null;
   unit: string;
   originalSize: string;
   invariantKey: string;
@@ -203,7 +204,7 @@ export interface FamilyTypeSummaryRecord {
   categorySlug: string;
   categoryName: string;
   submenu: string;
-  leaf: string;
+  leaf: string | null;
   reconstructedFamilyCount: number;
   familyMemberSkuCount: number;
   directProductSkuCount: number;
@@ -217,7 +218,7 @@ export interface SubcategorySkuCountRecord {
   categorySlug: string;
   categoryName: string;
   submenu: string;
-  leaf: string;
+  leaf: string | null;
   totalSkuCount: number;
   familyCount: number;
   familyMemberSkuCount: number;
@@ -250,7 +251,7 @@ export interface Phase1FamilyRecord {
   categorySlug: string;
   categoryName: string;
   submenu: string;
-  leaf: string;
+  leaf: string | null;
   unit: string;
   profile: string;
   standard: string;
@@ -288,7 +289,7 @@ export interface HaulOffAuditRecord {
   proposedCategorySlug: string;
   proposedCategoryName: string;
   proposedSubmenu: string;
-  proposedLeaf: string;
+  proposedLeaf: string | null;
   familyDecision: Phase1FamilyDecision;
   proposedFamilyId: string | null;
   engineeringExplanation: string;
@@ -306,7 +307,7 @@ export interface WeldingVsBeltAuditRecord {
   proposedCategorySlug: string;
   proposedCategoryName: string;
   proposedSubmenu: string;
-  proposedLeaf: string;
+  proposedLeaf: string | null;
   familyDecision: Phase1FamilyDecision;
   proposedFamilyId: string | null;
   separatedFromBeltFamily: boolean;
@@ -385,6 +386,10 @@ export interface Phase1ReconstructionReport {
     noDuplicateFamilyMembership: boolean;
     allCategoriesValid: boolean;
     allSubcategoriesValid: boolean;
+    noInvalidMenuAssignments: boolean;
+    allSkusHaveApprovedMenuPath: boolean;
+    taxonomyGapSkuCount: number;
+    taxonomyGapFamilyCount: number;
     allFamiliesHomogeneous: boolean;
     noBrandMixingInFamilies: boolean;
     noMaterialMixingInFamilies: boolean;
@@ -460,10 +465,13 @@ for (const grp of APPROVED_MENU_GROUPS) {
 }
 
 export function resolveMainGroupForCategory(categorySlug: string): { mainGroupId: string; mainGroupName: string } {
+  if (categorySlug === 'UNRESOLVED') {
+    return { mainGroupId: 'group-unassigned', mainGroupName: 'نیازمند تعیین گروه مصوب' };
+  }
   return (
     MAIN_GROUP_BY_CATEGORY_SLUG.get(categorySlug) || {
-      mainGroupId: 'group-9',
-      mainGroupName: 'زنجیر، پمپ، اتصالات و چرخ صنعتی',
+      mainGroupId: 'group-unassigned',
+      mainGroupName: 'نیازمند تعیین گروه مصوب',
     }
   );
 }
@@ -539,6 +547,9 @@ export function resolveEngineeringFamilyType(input: {
     if (mat.includes('آلومینیوم')) return { familyTypeId: 'FT-RAIL-ALUMINUM', familyTypeName: 'ریل و پروفیل راهنما آلومینیومی' };
     return { familyTypeId: 'FT-RAIL-METAL', familyTypeName: 'ریل راهنما فولادی و گالوانیزه' };
   }
+  if ((pt.includes('گاید') || pt.includes('راهنما')) && /فنری|spring/i.test(pt)) {
+    return { familyTypeId: 'FT-SPRING-GUIDE', familyTypeName: 'گاید راهنمای فنری صنعتی' };
+  }
   if (pt.includes('گاید') || pt.includes('سر ریل') || pt.includes('پایه نگهدارنده ریل') || pt.includes('بست، گیره و پایه نگهدارنده ریل')) {
     return { familyTypeId: 'FT-GUIDE-AND-MOUNT', familyTypeName: 'گاید خط انتقال و متعلقات نگهداری ریل' };
   }
@@ -554,8 +565,11 @@ export function resolveEngineeringFamilyType(input: {
   if (pt.includes('زنجیر') || pt.includes('قفل زنجیر') || pt.includes('نیم‌دانه زنجیر')) {
     return { familyTypeId: 'FT-CHAIN-TRANSMISSION', familyTypeName: 'زنجیر انتقال قدرت و قفل زنجیر' };
   }
-  if (pt.includes('چرخ‌زنجیر') || pt.includes('چرخ‌دنده') || pt.includes('چرخ صنعتی') || pt.includes('کوپلینگ')) {
-    return { familyTypeId: 'FT-SPROCKET-GEAR-WHEEL', familyTypeName: 'چرخ‌زنجیر، چرخ‌دنده، کوپلینگ و چرخ صنعتی' };
+  if (pt.includes('کوپلینگ') || pt.includes('کوبلینگ') || /shaft.?coupling/i.test(pt)) {
+    return { familyTypeId: 'FT-SHAFT-COUPLING', familyTypeName: 'کوپلینگ انتقال قدرت و اتصال شفت صنعتی' };
+  }
+  if (pt.includes('چرخ‌زنجیر') || pt.includes('چرخ‌دنده') || pt.includes('چرخ صنعتی')) {
+    return { familyTypeId: 'FT-SPROCKET-GEAR-WHEEL', familyTypeName: 'چرخ‌زنجیر، چرخ‌دنده و چرخ صنعتی' };
   }
   if (pt.includes('بلبرینگ')) {
     return { familyTypeId: 'FT-BEARING-BALL', familyTypeName: 'بلبرینگ صنعتی شیارعمیق' };
@@ -597,16 +611,30 @@ interface CanonicalMenuPath {
   categorySlug: string;
   categoryName: string;
   submenu: string;
-  leaf: string;
+  leaf: string | null;
 }
+
+const UNRESOLVED_MENU_PATH = {
+  categorySlug: 'UNRESOLVED',
+  categoryName: 'نیازمند تعیین مسیر مصوب',
+  submenu: 'نیازمند تعیین مسیر مصوب',
+  leaf: 'نیازمند تعیین مسیر مصوب',
+} satisfies CanonicalMenuPath;
 
 const CANONICAL_MENU_PATHS: CanonicalMenuPath[] = [];
 const CANONICAL_BY_TRIPLET = new Map<string, CanonicalMenuPath>();
+const CANONICAL_BY_SUBMENU = new Map<string, CanonicalMenuPath>();
 const CANONICAL_BY_CATEGORY = new Map<string, CanonicalMenuPath[]>();
 
 for (const cat of APPROVED_MENU_CATEGORIES) {
   const list: CanonicalMenuPath[] = [];
   for (const sub of cat.children || []) {
+    CANONICAL_BY_SUBMENU.set(`${cat.slug}::${normalizeFa(sub.name)}`, {
+      categorySlug: cat.slug,
+      categoryName: cat.name,
+      submenu: sub.name,
+      leaf: null,
+    });
     for (const lf of sub.children || []) {
       const entry: CanonicalMenuPath = {
         categorySlug: cat.slug,
@@ -626,39 +654,26 @@ for (const cat of APPROVED_MENU_CATEGORIES) {
 }
 
 /**
- * Guarantees that every (categorySlug, submenu, leaf) resolves to one of the 67 approved leaf paths
- * in APPROVED_MENU_CATEGORIES without inventing unauthorized categories or leaves.
+ * Returns an exact approved (categorySlug, submenu, leaf) triplet or an explicit
+ * UNRESOLVED sentinel. It never substitutes a nearby/first leaf for an invalid path.
  */
 export function resolveStrictApprovedMenuPath(
   rawCategorySlug: string,
   rawSubmenu: string,
-  rawLeaf: string
+  rawLeaf: string | null
 ): CanonicalMenuPath {
-  // 1. Remap legacy/non-existent category slugs to their true approved category slug
-  let slug = rawCategorySlug;
-  if (slug === 'excel-v2-7-4') slug = 'excel-v2-7-1';
-  else if (slug === 'excel-v2-10-3') slug = 'excel-v2-9-3';
-  else if (slug === 'excel-v2-10-4') slug = 'excel-v2-12-1';
-  else if (!CANONICAL_BY_CATEGORY.has(slug)) slug = 'excel-v2-9-3';
+  // Only approved category slugs are accepted. Legacy categories must be mapped
+  // through an explicitly approved path before they can be published.
+  const slug = rawCategorySlug;
+  if (!CANONICAL_BY_CATEGORY.has(slug)) return UNRESOLVED_MENU_PATH;
 
   const normSub = normalizeFa(rawSubmenu);
+  if (rawLeaf === null || !rawLeaf.trim()) {
+    return CANONICAL_BY_SUBMENU.get(`${slug}::${normSub}`) || UNRESOLVED_MENU_PATH;
+  }
   const normLeaf = normalizeFa(rawLeaf);
-
-  // 2. Exact match in the 67 approved leaves
   const exact = CANONICAL_BY_TRIPLET.get(`${slug}::${normSub}::${normLeaf}`);
-  if (exact) return exact;
-
-  // 3. Match by submenu or leaf within the target category
-  const candidates = CANONICAL_BY_CATEGORY.get(slug) || [];
-  if (candidates.length === 1) return candidates[0];
-
-  const byLeaf = candidates.find((c) => normalizeFa(c.leaf) === normLeaf);
-  if (byLeaf) return byLeaf;
-
-  const bySubmenu = candidates.find((c) => normalizeFa(c.submenu) === normSub);
-  if (bySubmenu) return bySubmenu;
-
-  return candidates[0] || CANONICAL_MENU_PATHS[0];
+  return exact || UNRESOLVED_MENU_PATH;
 }
 
 function getApprovedCategoryName(slug: string, fallback = ''): string {
@@ -1080,7 +1095,7 @@ function buildBeltPhase1SkuRecord(
       currentCategory: rawFam.categoryName,
       proposedCategory: canonical.categoryName,
       currentSubcategory: rawFam.technicalType,
-      proposedSubcategory: `${canonical.submenu} > ${canonical.leaf}`,
+      proposedSubcategory: canonical.leaf ? `${canonical.submenu} > ${canonical.leaf}` : canonical.submenu,
       familyDecision: 'DIRECT_PRODUCT',
       finalStatus: 'DIRECT_PRODUCT',
       technicalEvidence: 'INVENTORY_DESCRIPTION',
@@ -1174,7 +1189,7 @@ function buildBeltPhase1SkuRecord(
       currentCategory: rawFam.categoryName,
       proposedCategory: canonical.categoryName,
       currentSubcategory: rawFam.technicalType,
-      proposedSubcategory: `${canonical.submenu} > ${canonical.leaf}`,
+      proposedSubcategory: canonical.leaf ? `${canonical.submenu} > ${canonical.leaf}` : canonical.submenu,
       familyDecision: 'UNRESOLVED',
       finalStatus: 'UNRESOLVED',
       technicalEvidence: 'UNKNOWN',
@@ -1184,7 +1199,9 @@ function buildBeltPhase1SkuRecord(
       confidenceScore: 35,
       verificationStatus: 'REQUIRES_PHYSICAL_VERIFICATION',
       requiredAction: 'WAREHOUSE_PHYSICAL_INSPECTION_REQUIRED',
-      taxonomyGap: null,
+      taxonomyGap: beltRec.taxonomyGap || (canonical.categorySlug === 'UNRESOLVED'
+        ? 'GAP-APPROVED-MENU-PATH-MISSING: مسیر دقیق این نوار در منوی مصوب وجود ندارد.'
+        : null),
       similarProductCodes: [],
       sourceFamilyName: rawFam.name,
       sourceTechnicalType: rawFam.technicalType,
@@ -1209,6 +1226,7 @@ function buildBeltPhase1SkuRecord(
   let proposedSubmenu = beltRec.proposedSubmenu;
   let proposedLeaf = beltRec.proposedLeaf;
   let proposedTechnicalType = beltRec.actualProductType;
+  let beltTaxonomyGap = beltRec.taxonomyGap;
 
   if (gripInfo.hasGripOrCoating) {
     proposedTechnicalType =
@@ -1229,6 +1247,28 @@ function buildBeltPhase1SkuRecord(
   proposedCategoryName = canonicalBeltPath.categoryName;
   proposedSubmenu = canonicalBeltPath.submenu;
   proposedLeaf = canonicalBeltPath.leaf;
+
+  if (proposedCategorySlug === 'UNRESOLVED') {
+    beltTaxonomyGap = beltTaxonomyGap || 'GAP-APPROVED-MENU-PATH-MISSING: مسیر دقیق این خانواده در منوی مصوب وجود ندارد.';
+  } else {
+    const semantic = validateFamilyMenuAssignment({
+      familyCode: rawFam.code,
+      familyName: rawFam.name,
+      productType: proposedTechnicalType,
+      material: beltRec.technical.bodyMaterial,
+      profile: beltRec.technical.profile,
+      categorySlug: proposedCategorySlug,
+      submenuName: proposedSubmenu,
+      leafName: proposedLeaf,
+    });
+    if (!semantic.valid) {
+      beltTaxonomyGap = 'GAP-SEMANTIC-MENU-CONFLICT: ' + semantic.reason;
+      proposedCategorySlug = 'UNRESOLVED';
+      proposedCategoryName = UNRESOLVED_MENU_PATH.categoryName;
+      proposedSubmenu = UNRESOLVED_MENU_PATH.submenu;
+      proposedLeaf = UNRESOLVED_MENU_PATH.leaf;
+    }
+  }
 
   const normalizedBrand =
     !beltRec.detectedBrand ||
@@ -1276,7 +1316,9 @@ function buildBeltPhase1SkuRecord(
     evidence === 'OFFICIAL_CATALOG' ||
     evidence === 'OFFICIAL_PRODUCT_PAGE'
       ? 'VERIFIED_MANUFACTURER'
-      : 'VERIFIED_STANDARD_OR_SOURCE';
+      : evidence === 'INVENTORY_DESCRIPTION'
+        ? 'VERIFIED_INVENTORY_RECORD'
+        : 'VERIFIED_STANDARD_OR_SOURCE';
 
   const variantParts: string[] = [];
   if (beltRec.technical.pitchLengthMm) variantParts.push(`Lp=${beltRec.technical.pitchLengthMm}mm`);
@@ -1376,7 +1418,7 @@ function buildBeltPhase1SkuRecord(
     currentCategory: rawFam.categoryName,
     proposedCategory: proposedCategoryName,
     currentSubcategory: rawFam.technicalType,
-    proposedSubcategory: `${proposedSubmenu} > ${proposedLeaf}`,
+    proposedSubcategory: proposedLeaf ? `${proposedSubmenu} > ${proposedLeaf}` : proposedSubmenu,
     familyDecision: 'APPROVED_FAMILY',
     finalStatus: 'FAMILY_MEMBER',
     technicalEvidence: evidence,
@@ -1388,8 +1430,10 @@ function buildBeltPhase1SkuRecord(
         : 'MEDIUM',
     confidenceScore: computeConfidenceScore(evidence, 'APPROVED_FAMILY'),
     verificationStatus,
-    requiredAction: 'READY_FOR_MIGRATION',
-    taxonomyGap: null,
+    requiredAction: evidence === 'INVENTORY_DESCRIPTION'
+      ? 'WAREHOUSE_PHYSICAL_INSPECTION_REQUIRED'
+      : 'READY_FOR_MIGRATION',
+    taxonomyGap: beltTaxonomyGap,
     similarProductCodes: [],
     sourceFamilyName: rawFam.name,
     sourceTechnicalType: rawFam.technicalType,
@@ -1592,7 +1636,7 @@ export function classifyNonBeltSku(
       currentCategory: rawFam.categoryName,
       proposedCategory: canonical.categoryName,
       currentSubcategory: rawFam.technicalType,
-      proposedSubcategory: `${canonical.submenu} > ${canonical.leaf}`,
+      proposedSubcategory: canonical.leaf ? `${canonical.submenu} > ${canonical.leaf}` : canonical.submenu,
       familyDecision: 'UNRESOLVED',
       finalStatus: 'UNRESOLVED',
       technicalEvidence: 'UNKNOWN',
@@ -1602,7 +1646,9 @@ export function classifyNonBeltSku(
       confidenceScore: 35,
       verificationStatus: 'REQUIRES_PHYSICAL_VERIFICATION',
       requiredAction: 'WAREHOUSE_PHYSICAL_INSPECTION_REQUIRED',
-      taxonomyGap: null,
+      taxonomyGap: canonical.categorySlug === 'UNRESOLVED'
+        ? 'GAP-APPROVED-MENU-PATH-MISSING: کالای unresolved مسیر دقیق در منوی مصوب ندارد.'
+        : null,
       similarProductCodes: [],
       sourceFamilyName: rawFam.name,
       sourceTechnicalType: rawFam.technicalType,
@@ -1629,7 +1675,7 @@ export function classifyNonBeltSku(
   let standard = 'INDUSTRIAL_SPEC';
   let categorySlug = directOverride?.categorySlug || baseMenu?.categorySlug || 'excel-v2-10-1';
   let submenu = directOverride?.submenu || baseMenu?.submenuName || rawFam.submenu || '';
-  let leaf = directOverride?.subcategory || baseMenu?.leafName || '';
+  let leaf: string | null = directOverride?.subcategory || baseMenu?.leafName || null;
   let misplaced = rescuedFromBeltCategory;
   let taxonomyGap: string | null = null;
   let evidence: TechnicalEvidenceLevel = directOverride ? 'EXCEL_SOURCE' : 'INVENTORY_DESCRIPTION';
@@ -2965,22 +3011,54 @@ export function classifyNonBeltSku(
     leaf = directOverride.subcategory;
   }
 
-  // Strictly validate and normalize to one of the 67 approved leaf paths
+  // Strictly validate the exact category > submenu > leaf path, then validate
+  // its engineering meaning against the SKU/family identity. A syntactically valid
+  // leaf is not enough if the component itself belongs to another engineering domain.
   const resolvedMenu = resolveStrictApprovedMenuPath(categorySlug, submenu, leaf);
-  categorySlug = resolvedMenu.categorySlug;
-  submenu = resolvedMenu.submenu;
-  leaf = resolvedMenu.leaf;
-
-  // Detect any taxonomy gap where a specialized industrial product uses the closest approved leaf
-  if (/شیلنگ|لوله/.test(productType) && categorySlug === 'excel-v2-7-1') {
-    taxonomyGap = 'PROPOSED_LEAF: شیلنگ و لوله‌های صنعتی (تخصیص به نزدیک‌ترین برگ مصوب: قطعات لاستیکی عمومی و تخصصی)';
-  } else if (/ورق|میلگرد و بوشن پلیمر|زلامید/.test(productType) && categorySlug === 'excel-v2-7-1') {
-    taxonomyGap = 'PROPOSED_LEAF: ورق و مقاطع پلیمری مهندسی PTFE/PU/PA (تخصیص به نزدیک‌ترین برگ مصوب: قطعات لاستیکی عمومی و تخصصی)';
-  } else if (rawFam.technicalType === 'قاشقک صنعتی') {
-    taxonomyGap = 'PROPOSED_LEAF: قاشقک و باکت الواتور (تخصیص به نزدیک‌ترین برگ مصوب)';
+  if (!resolvedMenu.leaf) {
+    // A category/submenu match without an approved leaf is not a publishable
+    // family path. Keep the SKU identity, but quarantine its menu placement.
+    categorySlug = UNRESOLVED_MENU_PATH.categorySlug;
+    submenu = UNRESOLVED_MENU_PATH.submenu;
+    leaf = UNRESOLVED_MENU_PATH.leaf;
+    taxonomyGap = taxonomyGap || `GAP-APPROVED-MENU-LEAF-MISSING: برای مسیر «${resolvedMenu.categoryName} > ${resolvedMenu.submenu}» برگ مصوبی ثبت نشده است.`;
+  } else {
+    categorySlug = resolvedMenu.categorySlug;
+    submenu = resolvedMenu.submenu;
+    leaf = resolvedMenu.leaf;
   }
 
-  const proposedCategoryName = getApprovedCategoryName(categorySlug, rawFam.categoryName);
+  if (categorySlug === 'UNRESOLVED') {
+    taxonomyGap = taxonomyGap || `GAP-APPROVED-MENU-PATH-MISSING: مسیر دقیق «${rawFam.technicalType}» در منوی مصوب وجود ندارد یا ورودی دسته/زیر‌دسته/برگ دقیق نیست.`;
+  } else {
+    const semantic = validateFamilyMenuAssignment({
+      familyCode: rawFam.code,
+      familyName: rawFam.name,
+      productType,
+      material,
+      profile,
+      categorySlug,
+      submenuName: submenu,
+      leafName: leaf,
+    });
+    if (!semantic.valid) {
+      taxonomyGap = `GAP-SEMANTIC-MENU-CONFLICT: ${semantic.reason}; هویت خانواده حفظ می‌شود اما تا ایجاد/تأیید برگ صحیح نباید در این مسیر نمایش داده شود.`;
+      categorySlug = UNRESOLVED_MENU_PATH.categorySlug;
+      submenu = UNRESOLVED_MENU_PATH.submenu;
+      leaf = UNRESOLVED_MENU_PATH.leaf;
+    }
+  }
+
+  if (rawFam.technicalType === 'قاشقک صنعتی') {
+    taxonomyGap = 'GAP-APPROVED-MENU-PATH-MISSING: قاشقک و باکت الواتور در برگ مصوب مستقلی ثبت نشده است.';
+    categorySlug = 'UNRESOLVED';
+    submenu = UNRESOLVED_MENU_PATH.submenu;
+    leaf = UNRESOLVED_MENU_PATH.leaf;
+  }
+
+  const proposedCategoryName = categorySlug === 'UNRESOLVED'
+    ? UNRESOLVED_MENU_PATH.categoryName
+    : getApprovedCategoryName(categorySlug, rawFam.categoryName);
 
   const invariantKey = [
     'NONBELT',
@@ -3761,11 +3839,16 @@ export function runPhase1CatalogReconstruction(
     }
   }
 
-  const allCategoriesValid = allSkus.every((s) => CANONICAL_BY_CATEGORY.has(s.proposedCategorySlug));
-  const allSubcategoriesValid = allSkus.every((s) => {
+  const menuAssignedSkus = allSkus.filter((s) => s.proposedCategorySlug !== 'UNRESOLVED');
+  const taxonomyGapSkus = allSkus.filter((s) => s.proposedCategorySlug === 'UNRESOLVED' || Boolean(s.taxonomyGap));
+  const allCategoriesValid = menuAssignedSkus.every((s) => CANONICAL_BY_CATEGORY.has(s.proposedCategorySlug));
+  const allSubcategoriesValid = menuAssignedSkus.every((s) => {
     const entries = CANONICAL_BY_CATEGORY.get(s.proposedCategorySlug) || [];
     return entries.some((e) => e.submenu === s.proposedSubmenu && e.leaf === s.proposedLeaf);
   });
+  const taxonomyGapFamilyCount = new Set(
+    taxonomyGapSkus.map((s) => s.proposedFamily || `SOURCE:${s.currentFamily}`)
+  ).size;
 
   const beforeSingletonFamilies = rawFamilies.filter((f) => f.variants.length === 1).length;
   const beforeMultiSkuFamilies = rawFamilies.filter((f) => f.variants.length > 1).length;
@@ -3829,6 +3912,10 @@ export function runPhase1CatalogReconstruction(
       noDuplicateFamilyMembership,
       allCategoriesValid,
       allSubcategoriesValid,
+      noInvalidMenuAssignments: allCategoriesValid && allSubcategoriesValid,
+      allSkusHaveApprovedMenuPath: allSkus.every((s) => s.proposedCategorySlug !== 'UNRESOLVED'),
+      taxonomyGapSkuCount: taxonomyGapSkus.length,
+      taxonomyGapFamilyCount,
       allFamiliesHomogeneous: reconstructedFamilies.every((f) => f.validationVerdict === 'PASS_HOMOGENEOUS'),
       noBrandMixingInFamilies,
       noMaterialMixingInFamilies,

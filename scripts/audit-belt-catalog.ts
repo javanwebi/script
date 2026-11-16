@@ -1892,7 +1892,7 @@ function buildPreApprovalWorkbook(
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(liveDb.diffs), 'Live_DB_Inspection');
 
   // Sheet 8: Approved_Taxonomy_Mapping
-  const leafAgg = new Map<string, { slug: string; catName: string; submenu: string; leaf: string; skus: string[]; fams: Set<string> }>();
+  const leafAgg = new Map<string, { slug: string; catName: string; submenu: string; leaf: string | null; skus: string[]; fams: Set<string> }>();
   for (const r of audit.reportA_skuClassifications) {
     if (r.technical.operatingPrinciple === 'non-belt') continue;
     const key = `${r.proposedCategorySlug}|${r.proposedSubmenu}|${r.proposedLeaf}`;

@@ -77,7 +77,7 @@ function inferGroupIdFromCategorySlug(categorySlug: string): string {
       return grp.id;
     }
   }
-  return 'excel-v2-1';
+  return '';
 }
 
 function toEnrichedAssignment(base: FamilyMenuAssignment): EnrichedFamilyMenuAssignment {
@@ -89,164 +89,12 @@ function toEnrichedAssignment(base: FamilyMenuAssignment): EnrichedFamilyMenuAss
   };
 }
 
-const VERIFIED_BELT_MENU_OVERRIDES: Record<string, FamilyMenuAssignment> = {
-  'FAM-10538': { categorySlug: 'excel-v2-1-1', submenuName: 'انواع گام و کدهای تایمینگ', leafName: 'H , XH , L , XL' },
-  'FAM-36103': { categorySlug: 'excel-v2-1-1', submenuName: 'انواع گام و کدهای تایمینگ', leafName: 'H , XH , L , XL' },
-  'FAM-10111': { categorySlug: 'excel-v2-1-1', submenuName: 'انواع گام و کدهای تایمینگ', leafName: 'H , XH , L , XL' },
-  'FAM-41349': { categorySlug: 'excel-v2-1-1', submenuName: 'انواع گام و کدهای تایمینگ', leafName: 'H , XH , L , XL' },
-  'FAM-41322': { categorySlug: 'excel-v2-1-1', submenuName: 'انواع گام و کدهای تایمینگ', leafName: 'H , XH , L , XL' },
-  'FAM-36468': { categorySlug: 'excel-v2-1-1', submenuName: 'انواع گام و کدهای تایمینگ', leafName: 'H , XH , L , XL' },
-  'FAM-22751': { categorySlug: 'excel-v2-1-2', submenuName: 'کلاسیک و دنده‌دار', leafName: 'Z (9.5) , M , A , B , C , D , E , 8V' },
-  'FAM-38906': { categorySlug: 'excel-v2-1-2', submenuName: 'کلاسیک و دنده‌دار', leafName: 'Z (9.5) , M , A , B , C , D , E , 8V' },
-  'FAM-36723': { categorySlug: 'excel-v2-1-3', submenuName: 'تسمه گرد (CRC)', leafName: 'انواع تسمه گرد جوشی' },
-  'FAM-32888': { categorySlug: 'excel-v2-1-3', submenuName: 'تسمه گرد (CRC)', leafName: 'انواع تسمه گرد جوشی' },
-  'FAM-31628': { categorySlug: 'excel-v2-1-3', submenuName: 'تسمه فلت', leafName: 'انواع تسمه تخت و فلت' },
-  'FAM-34064': { categorySlug: 'excel-v2-1-1', submenuName: 'انواع گام و کدهای تایمینگ', leafName: 'T5 , AT5 , AT10 , AT20' },
-  'FAM-35198': { categorySlug: 'excel-v2-1-2', submenuName: 'کلاسیک و دنده‌دار', leafName: 'Z (9.5) , M , A , B , C , D , E , 8V' },
-  'FAM-33126': { categorySlug: 'excel-v2-1-1', submenuName: 'انواع گام و کدهای تایمینگ', leafName: 'T5 , AT5 , AT10 , AT20' },
-  'FAM-37541': { categorySlug: 'excel-v2-1-2', submenuName: 'کلاسیک و دنده‌دار', leafName: 'Z (9.5) , M , A , B , C , D , E , 8V' },
-  'FAM-41121': { categorySlug: 'excel-v2-1-1', submenuName: 'انواع گام و کدهای تایمینگ', leafName: 'H , XH , L , XL' },
-  'FAM-38161': { categorySlug: 'excel-v2-1-1', submenuName: 'انواع گام و کدهای تایمینگ', leafName: 'T5 , AT5 , AT10 , AT20' },
-};
-
 export function getFamilyMenuAssignment(
   codeOrProduct: string | Product,
-  maybeProduct?: Product,
-): EnrichedFamilyMenuAssignment {
+): EnrichedFamilyMenuAssignment | null {
   const code = typeof codeOrProduct === 'string' ? codeOrProduct : codeOrProduct.code;
-  const product = typeof codeOrProduct === 'string' ? maybeProduct : codeOrProduct;
-
-  const beltOverride = VERIFIED_BELT_MENU_OVERRIDES[code];
-  if (beltOverride) return toEnrichedAssignment(beltOverride);
-
   const explicit = CATALOG_FAMILY_MENU_ASSIGNMENTS[code];
-  if (explicit) return toEnrichedAssignment(explicit);
-
-  if (!product) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-1-1',
-      submenuName: 'انواع گام و کدهای تایمینگ',
-      leafName: '5M , 8M , 11M , 14M',
-    });
-  }
-
-  // Check if product.categorySlug is already an excel-v2 slug
-  if (/^excel-v2-\d+-\d+$/.test(product.categorySlug || '')) {
-    return toEnrichedAssignment({
-      categorySlug: product.categorySlug,
-      submenuName: product.submenu || '',
-      leafName: product.subcategory || null,
-    });
-  }
-
-  const name = normalizeText(product.name);
-  const cat = normalizeText(product.categoryName);
-  const sub = normalizeText(product.submenu);
-
-  if (sub.includes('چندشیاری') || /PJ|PK|PL|PH|شیاری/i.test(name)) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-1-2',
-      submenuName: 'تسمه اسپشیال',
-      leafName: 'SPA , SPB , SPC و دندانه‌دار',
-    });
-  }
-  if (sub.includes('گریپ') || /گریپ|بارکش/.test(name)) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-1-4',
-      submenuName: 'تسمه بارکش',
-      leafName: 'انواع تسمه بارکش صنعتی',
-    });
-  }
-  if (cat.includes('تسمه') || sub.includes('تسمه') || /^(?:تسمه|تسه|سمه|نسمه)\b/.test(name)) {
-    if (/جوشی/.test(name)) {
-      const isRound = /گرد|CRC/i.test(name);
-      return toEnrichedAssignment({
-        categorySlug: 'excel-v2-1-3',
-        submenuName: isRound ? 'تسمه گرد (CRC)' : 'تسمه فلت',
-        leafName: isRound ? 'انواع تسمه گرد جوشی' : 'انواع تسمه تخت و فلت',
-      });
-    }
-    if (/\b\d{2,4}\s*(?:MXL|DXL|XL|DL|L|DH|H|XH)\b/i.test(name)) {
-      return toEnrichedAssignment({
-        categorySlug: 'excel-v2-1-1',
-        submenuName: 'انواع گام و کدهای تایمینگ',
-        leafName: 'H , XH , L , XL',
-      });
-    }
-    if (/\b(?:AT20|AT10|AT5|DT10|DT5|T20|T10|T5)\b/i.test(name)) {
-      return toEnrichedAssignment({
-        categorySlug: 'excel-v2-1-1',
-        submenuName: 'انواع گام و کدهای تایمینگ',
-        leafName: 'T5 , AT5 , AT10 , AT20',
-      });
-    }
-    if (sub.includes('کلاسیک') || /\b(AX|BX|CX|ZX|MX|AA|BB|A|B|C|D|E|Z|M|K|8V|8VX)\s*\d+/i.test(name)) {
-      return toEnrichedAssignment({
-        categorySlug: 'excel-v2-1-2',
-        submenuName: 'کلاسیک و دنده‌دار',
-        leafName: 'Z (9.5) , M , A , B , C , D , E , 8V',
-      });
-    }
-    if (sub.includes('پروفیل باریک') || /SPA|SPB|SPC|SPZ|XPA|XPB|XPC|XPZ|3V|3VX|5V|5VX/i.test(name)) {
-      return toEnrichedAssignment({
-        categorySlug: 'excel-v2-1-2',
-        submenuName: 'تسمه اسپشیال',
-        leafName: 'SPA , SPB , SPC و دندانه‌دار',
-      });
-    }
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-1-1',
-      submenuName: 'انواع گام و کدهای تایمینگ',
-      leafName: '5M , 8M , 11M , 14M',
-    });
-  }
-  if (cat.includes('پولی') || name.includes('پولی')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-4-1',
-      submenuName: 'پولی پلی‌اورتان',
-      leafName: 'در سایزها و گام‌های مختلف',
-    });
-  }
-  if (cat.includes('بلبرینگ') || name.includes('بلبرینگ')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-13-1',
-      submenuName: 'انواع بلبرینگ',
-      leafName: 'بلبرینگ‌های صنعتی در سایزهای مختلف',
-    });
-  }
-  if (cat.includes('یاتاقان') || name.includes('یاتاقان')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-13-2',
-      submenuName: 'انواع یاتاقان',
-      leafName: 'یاتاقان و انواع محافظ یاتاقان',
-    });
-  }
-  if (cat.includes('زنجیر') || name.includes('زنجیر')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-9-1',
-      submenuName: 'انواع زنجیر',
-      leafName: 'زنجیرهای انتقال حرکت صنعتی',
-    });
-  }
-  if (cat.includes('برس') || name.includes('برس')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-5-1',
-      submenuName: 'انواع برس‌های سیمی',
-      leafName: 'در ابعاد مختلف',
-    });
-  }
-  if (cat.includes('آب بندی') || name.includes('اورینگ') || name.includes('کاسه نمد')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-7-2',
-      submenuName: 'انواع اورینگ',
-      leafName: 'اورینگ در سایزها و متریال‌های مختلف',
-    });
-  }
-  return toEnrichedAssignment({
-    categorySlug: 'excel-v2-12-1',
-    submenuName: 'مطابق با نقشه فنی',
-    leafName: 'طراحی و تولید قطعات بر اساس نقشه یا نمونه فنی شما',
-  });
+  return explicit ? toEnrichedAssignment(explicit) : null;
 }
 
 export type EnrichedApprovedMenuGroup = ApprovedMenuGroup & {
@@ -283,6 +131,7 @@ export function resolveNavigationCategoriesAndGroups(): EnrichedNavigationData {
 
   for (const product of products) {
     const assignment = getFamilyMenuAssignment(product);
+    if (!assignment) continue;
     const slug = assignment.categorySlug;
     const skuCount = (product.variants || []).filter((v) => v.active !== false).length;
     totalFamilies += 1;
@@ -431,10 +280,6 @@ export function resolveMenuCategoryPayload(slug: string): ResolvedMenuCategoryPa
       category = categories.find((c) => c.slug === cleanSlug);
     }
   }
-  if (!category && categories.length > 0) {
-    category = categories[0];
-    cleanSlug = category.slug;
-  }
   if (!category) return null;
 
   const parentGroup = groupByCategorySlug.get(cleanSlug);
@@ -443,16 +288,11 @@ export function resolveMenuCategoryPayload(slug: string): ResolvedMenuCategoryPa
   const matchedFamilies: ResolvedMenuCategoryFamily[] = [];
   for (const product of allProducts) {
     const assignment = getFamilyMenuAssignment(product);
-    if (assignment.categorySlug !== cleanSlug) continue;
+    if (!assignment || assignment.categorySlug !== cleanSlug) continue;
 
     const activeVariants = (product.variants || []).filter((v) => v.active !== false);
-    const defaultSubmenu = category.children?.[0]?.name || '';
-    const resolvedSubmenu = assignment.submenuName || defaultSubmenu;
-    const resolvedLeaf =
-      assignment.leafName ||
-      category.children?.find((s) => normalizeText(s.name) === normalizeText(resolvedSubmenu))
-        ?.children?.[0]?.name ||
-      '';
+    const resolvedSubmenu = assignment.submenuName || '';
+    const resolvedLeaf = assignment.leafName || '';
 
     matchedFamilies.push({
       code: product.code,

@@ -62,10 +62,11 @@ test('blue/green publish rejects React SPA fallback for FORZA STT diagnostics',(
  assert.match(script,/NGINX_ROLLBACK_OK/);
 });
 
-test('production deploy applies every canonical family-menu assignment without overwriting admin-verified edits',()=>{
+test('production deploy keeps unverified families out of the bulk seed and applies only source-verified corrections',()=>{
  const sql=readFileSync('ops/sql/20261101_catalog_family_menu_assignments.sql','utf8');
  const singlePort=readFileSync('ops/deploy-single-port-vps.sh','utf8');
  const wrapper=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
+ const skuSql=readFileSync('ops/sql/20261114_catalog_sku_level_menu_assignments.sql','utf8');
  const source=CATALOG_FAMILY_MENU_ASSIGNMENTS;
  const rows=[...sql.matchAll(/\n\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\)/g)];
  const literal=(value:string)=>value==='NULL'?null:value.slice(1,-1).replace(/''/g,"'");
@@ -75,20 +76,39 @@ test('production deploy applies every canonical family-menu assignment without o
   leafName:literal(match[4]),
  }]));
  const sorted=(value:Record<string,unknown>)=>Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)));
- assert.equal(rows.length,1383);
- assert.equal(new Set(rows.map(match=>match[1])).size,1383);
+ assert.equal(rows.length,1286);
+ assert.equal(new Set(rows.map(match=>match[1])).size,1286);
+ assert.equal(Object.keys(source).length,1286);
+ assert.ok(Object.keys(source).every(familyCode=>familyCode.startsWith('FAM-')),'synthetic PFAM proposals must never enter the live family map');
  assert.deepEqual(sorted(actual),sorted(source));
- assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-1-4').length,21);
- assert.match(sql,/BEGIN;/);
- assert.match(sql,/ON CONFLICT\(family_code\) DO UPDATE SET/);
- assert.match(sql,/WHERE public\.catalog_family_menu_assignments\.method <> 'admin_verified'/);
- assert.match(sql,/COMMIT;/);
- assert.doesNotMatch(sql,/^\s*(DROP\s+|TRUNCATE\s+|DELETE\s+FROM\s+|UPDATE\s+)/gim);
- assert.match(singlePort,/20261101_catalog_family_menu_assignments\.sql/);
- assert.match(singlePort,/Expected at least 1383 family menu assignments/);
- assert.match(singlePort,/Expected 21 assignments for excel-v2-1-4/);
- assert.match(singlePort,/Expected all 34 approved categories to contain active families/);
- assert.match(singlePort,/PRODUCTION_APPROVED_CATEGORIES_WITH_FAMILIES_VERIFIED/);
+
+ // These 21 former hauling/welded-family guesses are now explicitly held in the 97-family review queue.
+ const unresolvedHaulingFamilies=[
+  'FAM-34280','FAM-54569','FAM-381961','FAM-36858','FAM-39853','FAM-31520','FAM-32174',
+  'FAM-39782','FAM-39852','FAM-41065','FAM-41498','FAM-33163','FAM-41601','FAM-38800',
+  'FAM-35310','FAM-35743','FAM-33996','FAM-32247','FAM-32246','FAM-39114','FAM-40601'
+ ];
+ for(const familyCode of unresolvedHaulingFamilies)assert.equal(source[familyCode],undefined,familyCode+' must remain in admin review');
+
+ const skuBlocks=[...skuSql.matchAll(/unnest\(ARRAY\[([\s\S]*?)\]::text\[\]\)/g)];
+ const skuCodes=skuBlocks.flatMap(block=>[...block[1].matchAll(/'(\d+)'/g)].map(match=>match[1]));
+ assert.equal(skuCodes.length,305);
+ assert.equal(new Set(skuCodes).size,305);
+ assert.match(skuSql,/ON CONFLICT\s*\(sku_code\)\s*DO NOTHING/);
+ assert.match(skuSql,/BEGIN;/);
+ assert.match(skuSql,/COMMIT;/);
+ assert.doesNotMatch(skuSql,/^\s*(DROP\s+|TRUNCATE\s+|DELETE\s+FROM\s+|UPDATE\s+)/gim);
+
+ // The 1,286 family seed is review-only; production applies only targeted verified corrections and SKU overrides.
+ assert.match(singlePort,/SKIP UNVERIFIED BULK FAMILY MENU SEED/);
+ assert.match(singlePort,/1,286-row family menu seed is intentionally not auto-applied/);
+ assert.match(singlePort,/APPLY TARGETED EXCEL-VERIFIED FAMILY MENU CORRECTIONS/);
+ assert.match(singlePort,/20261114_catalog_family_menu_audit_corrections\.sql/);
+ assert.match(singlePort,/APPLY SOURCE-VERIFIED SKU-LEVEL MENU ASSIGNMENTS/);
+ assert.match(singlePort,/20261114_catalog_sku_level_menu_assignments\.sql/);
+ assert.match(singlePort,/PRODUCTION_SOURCE_VERIFIED_FAMILY_ASSIGNMENTS_OR_ADMIN_LOCKED/);
+ assert.match(singlePort,/PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_VERIFIED/);
+ assert.doesNotMatch(singlePort,/20261116_belt_family_(?:menu|taxonomy)_corrections/,'review-only taxonomy proposals must never auto-run on production');
  assert.match(wrapper,/deploy-single-port-vps\.sh/);
- assert.ok(singlePort.indexOf('PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED') < singlePort.indexOf("echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='"));
+ assert.ok(singlePort.indexOf('SKIP UNVERIFIED BULK FAMILY MENU SEED')<singlePort.indexOf('PRIVATE CANARY WITHOUT A HOST PORT'));
 });
