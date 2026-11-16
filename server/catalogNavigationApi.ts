@@ -149,7 +149,7 @@ export function registerCatalogNavigationApi(app:Express){
           active:row.active===true,sortOrder:Number(row.sortOrder)||0,count:familyCount,familyCount,skuCount,
           children,subcategories,
           menuSource:typeof metadata.source==='string'?metadata.source:'',
-          routeSlug:row.slug,
+          routeSlug:typeof metadata.routeSlug==='string'?metadata.routeSlug:row.slug,
         };
       });
       res.setHeader('Cache-Control','no-store');
