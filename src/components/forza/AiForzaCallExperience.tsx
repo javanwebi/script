@@ -30,6 +30,7 @@ import { ForzaCallPlainText, forzaSpokenPlainText } from '../../utils/forzaCallP
 import { ForzaStopAcknowledgement } from '../../utils/forzaStopAcknowledgement';
 import { ForzaPlaybackEchoHistory, forzaTurnIntent, shouldIgnoreForzaSpeakerEcho } from '../../utils/forzaBargeIn';
 import { getForzaAudioContext } from '../../utils/forzaAudioUnlock';
+import { FORZA_CONVERSATION_HISTORY_LIMIT, prepareForzaConversationTurn } from '../../utils/forzaConversationHistory';
 const AiVisualPartSearchModal = lazy(() => import('../search/AiVisualPartSearchModal').then(module=>({default:module.AiVisualPartSearchModal})));
 type LazyParticleAvatarProps = ParticleAvatarProps & { ref?: React.Ref<ParticleAvatarRef> };
 const ParticleAvatar = lazy(async () => {
@@ -1222,7 +1223,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       let terminalIdleTimer:number|null=null;
       try {
         const payload: any = {
-          history: historyRef.current.slice(-8),
+          history: historyRef.current.slice(-FORZA_CONVERSATION_HISTORY_LIMIT),
           // First deliver the exact AI words; synthesize audio as a second step.
           deferAudio: true,
         };
@@ -1306,12 +1307,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // engine voices complete word groups before the LLM reply finishes.
         // Pocket fallback retains its one-request full-answer path.
         const turnStartedAt=performance.now();
-        const previousHistory=historyRef.current.slice(-8);
         const resolvedUserQuery=String(payload.query||q).trim();
-        if(resolvedUserQuery){
-          setUserText(resolvedUserQuery);
-          historyRef.current.push({role:'user',text:resolvedUserQuery});
-        }
+        // Keep the prior conversation snapshot separate from this new user
+        // turn. The API appends query as its final user message; including it
+        // in history too would make every customer utterance appear twice.
+        const {previousHistory,nextHistory}=prepareForzaConversationTurn(
+          historyRef.current,resolvedUserQuery,FORZA_CONVERSATION_HISTORY_LIMIT,
+        );
+        historyRef.current=nextHistory;
+        if(resolvedUserQuery)setUserText(resolvedUserQuery);
         let reply='';
         let firstTextDelivered=false;
         let firstPlaybackLogged=false;
