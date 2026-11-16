@@ -18,6 +18,7 @@ import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { attachForzaAudioEvidence } from '../../utils/forzaAudioEvidence';
 import { ForzaSpeechAdmission, ForzaRecognitionAdmission } from '../../utils/forzaSpeechAdmission';
+import { ForzaRecordingSafety } from '../../utils/forzaSttTurnSafety';
 import { ForzaVoiceActivity, rootMeanSquareFromFloatTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
 import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
@@ -241,6 +242,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // MediaRecorder audio capture refs (fallback & complementary for STT)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const audioSegmentsRef = useRef<Blob[]>([]);
   const hasSpeechSoundRef = useRef<boolean>(false);
 
   const audioElRef = useRef<HTMLAudioElement | null>(null);
@@ -348,6 +350,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         lastTranscriptChangedAtRef.current = 0;
         hasSpeechSoundRef.current = false;
         audioChunksRef.current = [];
+        audioSegmentsRef.current = [];
         recognitionSessionBaseRef.current='';
       }
     }
@@ -683,7 +686,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     stopAudio();
     // Preserve only the last 500ms of in-RAM mic pre-roll for the customer's
     // first syllables; older chunks may contain FORZA's own speaker output.
-    audioChunksRef.current=audioChunksRef.current.slice(-2);
     // Playback cancellation has now measured a partially played WAV.
     active.markInterrupted?.();
     isProcessingTurnRef.current=false;
@@ -1066,7 +1068,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Turn management: send speech/query to AI & worker
   const handleUserFinishedSpeaking = useCallback(
-    async (textToSend?: string, audioBlob?: Blob, audioMime?: string) => {
+    async (textToSend?: string, audioBlob?: Blob | Blob[], audioMime?: string) => {
       const q = (textToSend || '').trim();
       if(callClosedRef.current)return;
       if (!q && !audioBlob) return;
@@ -1202,42 +1204,50 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.warn('[FORZA_STT] source=server unavailable=1 browser_transcript='+(q?'1':'0'));
             if(!q)throw new Error('تشخیص گفتار سروری آماده نیست و مرورگر هم متنی تشخیص نداد. لطفاً سؤال را تایپ کنید.');
           }else{
-            const reader = new FileReader();
-            const base64Promise = new Promise<string>((resolve, reject) => {
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-            });
-            reader.readAsDataURL(audioBlob);
-            const audioBase64 = extractForzaAudioBase64(await base64Promise);
+            const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
             const sttStartedAt=performance.now();
             const sttAbort=new AbortController();
             const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید.')),10_500);
+            let serverTranscript='';
             try {
-              const sttResponse = await fetch('/api/ai/forza-live', {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({
-                  audioBase64,
-                  audioMimeType:audioMime || audioBlob.type || 'audio/webm',
-                  transcribeOnly:true,
-                }),
-                signal:AbortSignal.any([sttAbort.signal,pocketAbort.signal]),
-              });
-              const sttData:any=await sttResponse.json().catch(()=>null);
-              const serverTranscript=String(sttData?.userTranscript||sttData?.text||'').trim();
-              if(sttResponse.ok&&sttData?.success&&serverTranscript){
+              for(const segment of audioBlobs){
+                const reader = new FileReader();
+                const base64Promise = new Promise<string>((resolve, reject) => {
+                  reader.onloadend = () => resolve(reader.result as string);
+                  reader.onerror = reject;
+                });
+                reader.readAsDataURL(segment);
+                const audioBase64 = extractForzaAudioBase64(await base64Promise);
+                const sttResponse = await fetch('/api/ai/forza-live', {
+                  method:'POST',
+                  headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({
+                    audioBase64,
+                    audioMimeType:audioMime || segment.type || 'audio/webm',
+                    transcribeOnly:true,
+                  }),
+                  signal:AbortSignal.any([sttAbort.signal,pocketAbort.signal]),
+                });
+                const sttData:any=await sttResponse.json().catch(()=>null);
+                const segmentTranscript=String(sttData?.userTranscript||sttData?.text||'').trim();
+                if(sttResponse.ok&&sttData?.success&&segmentTranscript){
+                  serverTranscript=appendForzaSpeechSegment(serverTranscript,segmentTranscript);
+                }else{
+                  console.warn('[FORZA_STT] segment_final_unavailable status='+sttResponse.status+
+                    ' code='+String(sttData?.errorCode||'unknown').slice(0,48));
+                }
+              }
+              serverTranscript=serverTranscript.trim();
+              if(serverTranscript){
                 payload.query=chooseForzaFinalTranscript(q,serverTranscript);
                 console.info('[FORZA_STT] turn='+generation+' provider=diba-vosk duration_ms='+
-                  Math.round(performance.now()-sttStartedAt)+' source='+
+                  Math.round(performance.now()-sttStartedAt)+' segments='+audioBlobs.length+' source='+
                   (payload.query===q?'browser_guarded':'server_final')+
                   ' transcript_chars='+serverTranscript.length);
                 setUserText(payload.query);
                 setMicrophoneError(null);
-              }else{
-                console.warn('[FORZA_STT] server_final_unavailable status='+sttResponse.status+
-                  ' code='+String(sttData?.errorCode||'unknown').slice(0,48)+
-                  ' browser_fallback='+(q?'1':'0'));
-                if(!q)throw new Error(sttData?.error||'تشخیص گفتار سرور پاسخ نداد؛ لطفاً دوباره صحبت کنید.');
+              }else if(!q){
+                throw new Error('تشخیص گفتار سرور پاسخ نداد؛ لطفاً دوباره صحبت کنید.');
               }
             }catch(sttError:any){
               if(pocketAbort.signal.aborted)throw sttError;
@@ -1580,20 +1590,26 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const setupMediaRecorder = useCallback(
     (stream: MediaStream) => {
       try {
+        const recordingSafety=new ForzaRecordingSafety();
+        let rotateCapture=false;
         const mimeType = getSupportedAudioMimeType();
+        if(mediaRecorderRef.current?.state!=='recording')audioChunksRef.current = [];
         const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
         mr.ondataavailable = (e: BlobEvent) => {
           if (e.data && e.data.size > 0) {
             audioChunksRef.current.push(e.data);
-            // 2-second in-RAM pre-roll while FORZA is responding. No disk
-            // persistence; preserve the first user syllables after barge-in.
-            // Hard RAM cap also while the customer leaves the microphone
-            // open for hours. Keep 45s for optional post-recording STT and a
-            // 2s tail during model speech to reduce memory and self-echo.
-            const maxChunks=isProcessingTurnRef.current?8:180;
-            if(audioChunksRef.current.length>maxChunks)
-              audioChunksRef.current.splice(0,audioChunksRef.current.length-maxChunks);
+            recordingSafety.observe(
+              isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current,
+              lastForzaPlaybackAtRef.current>0&&Date.now()-lastForzaPlaybackAtRef.current<1500);
+            // Keep every WebM chunk in its original order. Once a container
+            // reaches its cap, stop and restart MediaRecorder so the next
+            // segment receives a fresh WebM header instead of slicing bytes.
+            const maxChunks=isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current?8:160;
+            if(audioChunksRef.current.length>=maxChunks&&mr.state==='recording'){
+              rotateCapture=true;
+              mr.stop();
+            }
           }
         };
 
@@ -1603,8 +1619,28 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const chunks = [...audioChunksRef.current];
           audioChunksRef.current = [];
           const hadSpeech = hasSpeechSoundRef.current;
-          const rejectedSpeech=rejectedRecordingRef.current;
+          const rejectedSpeech=rejectedRecordingRef.current||!recordingSafety.safe;
           rejectedRecordingRef.current=false;
+          const safeMime=mr.mimeType||mimeType||'audio/webm';
+          const wasRotation=rotateCapture;
+          rotateCapture=false;
+          recordingSafety.reset();
+
+          if(wasRotation){
+            if(hadSpeech&&!rejectedSpeech&&chunks.length){
+              const completedSegment=new Blob(chunks,{type:safeMime});
+              if(completedSegment.size>1200){
+                audioSegmentsRef.current.push(completedSegment);
+                if(audioSegmentsRef.current.length>4)audioSegmentsRef.current.shift();
+              }
+            }
+            // A rotation is not a user turn boundary. Keep the live transcript
+            // and VAD state, and restart with a clean container header.
+            if(!callClosedRef.current&&!micMutedRef.current&&streamRef.current?.active&&mr.state==='inactive'){
+              try{mr.start(250);}catch{}
+            }
+            return;
+          }
           hasSpeechSoundRef.current = false;
 
           if (isProcessingTurnRef.current || isAiSpeakingRef.current || statusRef.current === 'thinking') {
@@ -1623,9 +1659,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if (currentTranscript) {
             activeTranscriptRef.current='';
             const finalMime=mr.mimeType||mimeType||'audio/webm';
-            const audioBlob=chunks.length?new Blob(chunks,{type:finalMime}):null;
-            if(audioBlob&&audioBlob.size>1200&&!rejectedSpeech){
-              void handleUserFinishedSpeaking(currentTranscript,audioBlob,finalMime);
+            const finalBlob=chunks.length?new Blob(chunks,{type:finalMime}):null;
+            const audioBlobs=[...audioSegmentsRef.current];
+            if(finalBlob&&finalBlob.size>1200&&!rejectedSpeech)audioBlobs.push(finalBlob);
+            audioSegmentsRef.current=[];
+            if(audioBlobs.length){
+              void handleUserFinishedSpeaking(currentTranscript,audioBlobs,finalMime);
             }else{
               hasSpeechSoundRef.current=false;
               void handleUserFinishedSpeaking(currentTranscript);
@@ -1636,6 +1675,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // With no server ASR, empty VAD segments are not failed requests.
           // Retain browser recognition and restart only the RAM recorder.
           if(serverSttConfiguredRef.current===false||rejectedSpeech){
+            audioSegmentsRef.current=[];
             vadRef.current.reset();
             if(!callClosedRef.current&&!micMutedRef.current&&streamRef.current?.active&&mr.state==='inactive'){
               try{mr.start(250);}catch{}
@@ -1643,14 +1683,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             return;
           }
           // 2. Otherwise convert recorded audio Blob and send to /api/ai/forza-live
-          if (chunks.length > 0 && hadSpeech) {
-            const finalMime = mr.mimeType || mimeType || 'audio/webm';
-            const audioBlob = new Blob(chunks, { type: finalMime });
-            if (audioBlob.size > 1200) {
-              void handleUserFinishedSpeaking('', audioBlob, finalMime);
-            } else {
-              setMicrophoneError('صدای ضبط‌شده خیلی کوتاه است؛ میکروفون را نزدیک‌تر کنید و دوباره صحبت کنید.');
-            }
+          const finalMime = mr.mimeType || mimeType || 'audio/webm';
+          const audioBlobs=[...audioSegmentsRef.current];
+          const finalBlob=chunks.length?new Blob(chunks,{type:finalMime}):null;
+          if(finalBlob&&finalBlob.size>1200&&!rejectedSpeech)audioBlobs.push(finalBlob);
+          audioSegmentsRef.current=[];
+          if(audioBlobs.length>0&&hadSpeech&&!rejectedSpeech){
+            void handleUserFinishedSpeaking('',audioBlobs,finalMime);
+          }else if(hadSpeech){
+            setMicrophoneError('صدای ضبط‌شده قابل استفاده نبود؛ لطفاً دوباره نزدیک میکروفون صحبت کنید.');
           }
         };
 
