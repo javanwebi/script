@@ -28,7 +28,7 @@ export const MainBrandsBanner: React.FC = () => {
       id: 'fittings',
       title: 'اتصالات صنعتی',
       image: STORE_ASSETS.forzaSubFittings || STORE_ASSETS.products.ceramicParts,
-      link: '/category/production-fittings',
+      link: '/categories',
     },
   ];
 
@@ -66,25 +66,25 @@ export const MainBrandsBanner: React.FC = () => {
       id: 'valves',
       title: 'شیرآلات',
       image: STORE_ASSETS.swrSubValve || STORE_ASSETS.products.valve,
-      link: '/category/industrial-valves',
+      link: '/categories',
     },
     {
       id: 'elbows',
       title: 'اتصالات',
       image: STORE_ASSETS.swrSubElbow || STORE_ASSETS.products.ceramicParts,
-      link: '/category/production-fittings',
+      link: '/categories',
     },
     {
       id: 'pipes',
       title: 'لوله‌ها',
       image: STORE_ASSETS.swrSubPipes || STORE_ASSETS.products.pipes,
-      link: '/category/pipes-flanges',
+      link: '/categories',
     },
     {
       id: 'flanges',
       title: 'فلنج‌ها',
       image: STORE_ASSETS.swrSubFlanges || STORE_ASSETS.products.flange,
-      link: '/category/pipes-flanges',
+      link: '/categories',
     },
   ];
 
