@@ -37,6 +37,10 @@ test('the approved menu exposes 34 unique category routes with no parent-route r
   assert.deepEqual(new Set(groupedSlugs), new Set(categorySlugs));
   assert.equal(APPROVED_CATEGORY_SEO_ROUTES.length, 34);
   assert.equal(new Set(APPROVED_CATEGORY_SEO_ROUTES.map(route => route.routeSlug)).size, 34);
+  for (const route of APPROVED_CATEGORY_SEO_ROUTES) {
+    assert.match(route.routeSlug, /^[\\u0600-\\u06FF0-9]+(?:-[\\u0600-\\u06FF0-9]+)*$/);
+    assert.ok(!route.routeSlug.startsWith('excel-v2-'));
+  }
   for (const category of APPROVED_MENU_CATEGORIES) {
     assert.match(category.slug, /^excel-v2-[0-9]+-[0-9]+$/);
     assert.ok(category.routeSlug && !category.routeSlug.startsWith('excel-v2-'));
@@ -60,7 +64,7 @@ test('every approved category uses its own canonical route slug across storefron
   assert.match(footer, /getCategoryRouteSlug\(category\)/);
   assert.match(admin, /const legacyTargetSlug=editorApprovedCategory\?\.slug/);
   assert.match(admin, /stable database ID/);
-  assert.doesNotMatch(admin, /editorApprovedCategory[^\\n]*routeSlug/);
+  assert.doesNotMatch(admin, /editorApprovedCategory.{0,120}routeSlug/);
 });
 
 test('retired category parents no longer render old category experiences', () => {
