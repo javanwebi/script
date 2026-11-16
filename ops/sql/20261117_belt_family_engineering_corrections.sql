@@ -485,6 +485,75 @@ SET submenu='کلاسیک و دنده‌دار',
     updated_at=now()
 WHERE sku_code IN ('31315','32280');
 
+-- Keep the technical review path aligned with the same approved category/submenu decision.
+UPDATE public.catalog_variants
+SET technical_review=jsonb_set(
+      coalesce(technical_review,'{}'::jsonb),
+      '{categoryPath}',
+      to_jsonb(ARRAY['تسمه و انتقال نیرو','تسمه بارکش و تجهیزات جوشی','تسمه بارکش','انواع تسمه بارکش صنعتی']::text[]),
+      true
+    )
+WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc';
+
+UPDATE public.catalog_variants v
+SET technical_review=jsonb_set(
+      coalesce(v.technical_review,'{}'::jsonb),
+      '{categoryPath}',
+      to_jsonb(
+        CASE
+          WHEN upper(coalesce(v.identity_specs->>'profile','')) IN ('3VX-BANDED','SPC-BANDED')
+            THEN ARRAY['تسمه و انتقال نیرو','تسمه وی‌بلت (V-Belt)','تسمه اسپشیال']::text[]
+          ELSE ARRAY['تسمه و انتقال نیرو','تسمه وی‌بلت (V-Belt)','کلاسیک و دنده‌دار']::text[]
+        END
+      ),
+      true
+    )
+WHERE v.variable_specs->>'beltDivision'='vbelt-banded';
+
+UPDATE public.catalog_variants
+SET technical_review=jsonb_set(
+      jsonb_set(
+        coalesce(technical_review,'{}'::jsonb),
+        '{categoryPath}',
+        to_jsonb(ARRAY['تسمه و انتقال نیرو','تسمه وی‌بلت (V-Belt)','تسمه اسپشیال']::text[]),
+        true
+      ),
+      '{originalTechnicalType}',
+      to_jsonb('تسمه V گوه‌ای آمریکایی (3V / 5V / 8V)'::text),
+      true
+    )
+WHERE upper(coalesce(identity_specs->>'profile','')) IN ('3V','3VX','5V','5VX','8V','8VX');
+
+UPDATE public.catalog_variants
+SET technical_review=jsonb_set(
+      jsonb_set(
+        coalesce(technical_review,'{}'::jsonb),
+        '{categoryPath}',
+        to_jsonb(ARRAY['تسمه و انتقال نیرو','تسمه وی‌بلت (V-Belt)','تسمه اسپشیال','SPA , SPB , SPC و دندانه‌دار']::text[]),
+        true
+      ),
+      '{originalTechnicalType}',
+      to_jsonb('تسمه V باریک دنده‌ای لبه‌خام (XPZ / XPA / XPB / XPC)'::text),
+      true
+    )
+WHERE upper(coalesce(brand,''))='SWR'
+  AND upper(coalesce(identity_specs->>'profile','')) IN ('XPZ','XPA','XPB','XPC');
+
+UPDATE public.catalog_variants
+SET technical_review=jsonb_set(
+      jsonb_set(
+        coalesce(technical_review,'{}'::jsonb),
+        '{categoryPath}',
+        to_jsonb(ARRAY['تسمه و انتقال نیرو','نیازمند تعیین تکلیف','تسمه V دوطرفه شش‌ضلعی AA (Double V)']::text[]),
+        true
+      ),
+      '{originalTechnicalType}',
+      to_jsonb('تسمه V دوطرفه شش‌ضلعی AA (Double V-Belt)'::text),
+      true
+    )
+WHERE upper(coalesce(brand,''))='SWR'
+  AND upper(coalesce(identity_specs->>'profile',''))='AA';
+
 -- 11) Keep the exact SKU evidence honest: series-level catalogue evidence is not an exact model match.
 -- The official SWR catalogue confirms the series and construction families, while exact local SKU/length matching remains open.
 DO $$
