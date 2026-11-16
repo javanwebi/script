@@ -2051,7 +2051,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const dibaDeviceMemory=Number((navigator as any).deviceMemory||0);
       const dibaSaveData=Boolean((navigator as any).connection?.saveData);
       // Keep the WASM model off low-end phones and memory-constrained browsers.
-      const dibaHasHeadroom=dibaCpuCount>=6&&(dibaDeviceMemory>=4||(!dibaDeviceMemory&&dibaCpuCount>=8));
+      const dibaHasHeadroom=dibaCpuCount>=4&&(dibaDeviceMemory>=4||(!dibaDeviceMemory&&dibaCpuCount>=8));
       if(dibaHasHeadroom&&!dibaSaveData&&!localSttModelRef.current&&!localSttModelLoadingRef.current){
         localSttModelLoadingRef.current=true;
         setLocalSttStatus('loading');
