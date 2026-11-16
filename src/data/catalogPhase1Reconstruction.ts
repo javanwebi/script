@@ -307,7 +307,7 @@ export interface WeldingVsBeltAuditRecord {
   proposedCategorySlug: string;
   proposedCategoryName: string;
   proposedSubmenu: string;
-  proposedLeaf: string;
+  proposedLeaf: string | null;
   familyDecision: Phase1FamilyDecision;
   proposedFamilyId: string | null;
   separatedFromBeltFamily: boolean;
