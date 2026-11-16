@@ -69,8 +69,7 @@ ZRK handling:
 
 Primary sources:
 
-- [Megadyne V-Belts Technical Handbook](https://megadynegroup.com/files/resources/attachments/md_manu_en_v-belts_web.pdf)
-- [Megadyne MEGASYNC technical handbook](https://megadynegroup.com/files/resources/attachments/md_manu_en_product_guide_web_0.pdf)
+- [Megadyne Corporate Product Guide](https://megadynegroup.com/files/resources/attachments/md_manu_en_product_guide_web_0.pdf) — includes MEGASYNC timing belts, V-belts, multi-rib belts, MEGAPOWER, MEGAFLEX and MEGALINEAR.
 - [Megadyne MEGALINEAR product range](https://megadynegroup.com/en/products/timing-belts/polyurethane-open-end/megalinear/)
 - [Megadyne PV Rubber Ribbed](https://megadynegroup.com/de-de/products/multi-rib-belts/pv-rubber-ribbed/)
 - [Megadyne technical resources](https://megadynegroup.com/en/resources/?type=8)
