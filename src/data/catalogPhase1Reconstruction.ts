@@ -502,7 +502,7 @@ export function resolveEngineeringFamilyType(input: {
   }
   // CRC is ambiguous unless its engineering division is read: crowned ridge-top
   // ceramic transport belts are not the same product as heat-welded PU round belts.
-  if (div === 'vbelt-crowned-crc' || /گرده.?ماهی|ridge.?top|crowned/i.test(`${pt} ${prof}`)) {
+  if (div === 'conveyor-crowned-crc' || /گرده.?ماهی|ridge.?top|crowned/i.test(`${pt} ${prof}`)) {
     return {
       familyTypeId: 'FT-BELT-CROWNED-CRC',
       familyTypeName: 'تسمه گرده‌ماهی / تاج‌دار مداربسته (CRC / TRC)',
