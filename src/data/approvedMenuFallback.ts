@@ -1,4 +1,5 @@
 import type { EnhancedCategory } from './categories';
+import { getCategorySeoRouteSlug } from './categorySeoRoutes';
 
 /** Read-only last-known-good names from the user's four-level menu. */
 export type ApprovedMenuGroup = { id:string; title:string; iconKey:string; imageUrl:string|null; categorySlugs:string[]; sortOrder:number; active?:boolean };
@@ -1390,4 +1391,4 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     "count": 0,
     "routeSlug": "excel-v2-14-3"
   }
-] as unknown as EnhancedCategory[];
+].map(category => ({ ...category, routeSlug: getCategorySeoRouteSlug(category.slug) })) as unknown as EnhancedCategory[];
