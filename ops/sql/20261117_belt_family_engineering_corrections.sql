@@ -602,6 +602,14 @@ SET submenu='تسمه اسپشیال',
             CASE WHEN p.profile IN ('3VX','5VX','8VX') THEN 'دنده‌ای لبه‌خام ' ELSE '' END ||
             'پروفیل ' || p.profile
           ),true)
+          WHEN e->>'key'='جنس و متریال' OR e->>'key'='material' THEN jsonb_set(e,'{value}',to_jsonb(
+            CASE WHEN p.profile IN ('3VX','5VX','8VX')
+              THEN 'لاستیک دنده‌ای لبه‌خام (Raw-Edge Cogged Rubber); ترکیب دقیق نیازمند دیتاشیت سازنده'
+              ELSE 'لاستیک با روکش پارچه‌ای (Wrapped V-Belt); ترکیب دقیق نیازمند دیتاشیت سازنده'
+            END
+          ),true)
+          WHEN e->>'key'='ساختار و مکانیزم' OR e->>'key'='ساختار مهندسی' OR e->>'key'='construction'
+            THEN jsonb_set(e,'{value}',to_jsonb('عضو کششی داخلی؛ جنس و آرایش دقیق کورد باید از دیتاشیت همان سازنده تأیید شود'::text),true)
           ELSE e
         END ORDER BY x.ord
       ),'[]'::jsonb)
@@ -612,11 +620,23 @@ FROM direct_profiles p
 WHERE d.sku_code=p.sku_code
   AND p.profile IN ('3V','3VX','5V','5VX','8V','8VX');
 
-UPDATE public.catalog_direct_skus
+UPDATE public.catalog_direct_skus d
 SET submenu='کلاسیک و دنده‌دار',
     subcategory='',
+    technical_specs=(
+      SELECT coalesce(jsonb_agg(
+        CASE
+          WHEN e->>'key'='جنس و متریال' OR e->>'key'='material'
+            THEN jsonb_set(e,'{value}',to_jsonb('بدنه لاستیکی با نوار پیونددهنده فوقانی (Tie-Band / Banded V-Belt); ترکیب دقیق لاستیک نیازمند دیتاشیت سازنده است'::text),true)
+          WHEN e->>'key'='ساختار و مکانیزم' OR e->>'key'='ساختار مهندسی' OR e->>'key'='construction'
+            THEN jsonb_set(e,'{value}',to_jsonb('چند شاخه V متصل به نوار پشتی مشترک؛ جنس و آرایش دقیق عضو کششی نیازمند دیتاشیت سازنده است'::text),true)
+          ELSE e
+        END ORDER BY x.ord
+      ),'[]'::jsonb)
+      FROM jsonb_array_elements(coalesce(d.technical_specs,'[]'::jsonb)) WITH ORDINALITY AS x(e,ord)
+    ),
     updated_at=now()
-WHERE sku_code IN ('31315','32280');
+WHERE d.sku_code IN ('31315','32280');
 
 -- Keep the technical review path aligned with the same approved category/submenu decision.
 UPDATE public.catalog_variants
