@@ -1,6 +1,7 @@
 -- Follow-up engineering corrections from the full 373-family semantic guard audit.
 -- 31 valid families receive approved parent/leaf paths; 22 families remain in the catalog but are quarantined from the belt menu.
--- No family or SKU is deleted.
+-- The 18 PU-welded families removed by the preceding correction also have stale V-Belt metadata cleared.
+-- No family or SKU is deleted; all 138 affected family/assignment/direct-SKU rows are backed up for exact rollback.
 
 begin;
 
