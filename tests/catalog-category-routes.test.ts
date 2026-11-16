@@ -13,6 +13,7 @@ const megaMenu = source('src/components/catalog/ReferenceMegaMenu.tsx');
 const mobileExplorer = source('src/components/catalog/MobileCategoryExplorer.tsx');
 const header = source('src/components/layout/Header.tsx');
 const categoryPage = source('src/pages/CategoryPage.tsx');
+const excelPage = source('src/pages/ExcelMenuCategoryPage.tsx');
 const categoryNavigation = source('src/components/catalog/CategoryNavigation.tsx');
 const admin = source('src/admin/modules/ProductsModule.tsx');
 const api = source('server/catalogNavigationApi.ts');
