@@ -416,7 +416,7 @@ with urllib.request.urlopen('https://127.0.0.1/api/ai/forza-stt-info',timeout=15
 assert stt_info.get('serverSttConfigured') is True, ('FORZA_STT_PUBLIC_NOT_CONFIGURED',stt_info)
 assert stt_info.get('serverSttProvider') == 'diba', ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
 assert stt_info.get('serverSttReady') is True, ('FORZA_STT_PUBLIC_NOT_READY',stt_info)
-print('PUBLIC_FORZA_STT_DIBA_READY_OK')
+print('PUBLIC_FORZA_STT_API_JSON_OK provider=diba ready=true')
 print('PUBLIC_HTTPS_AND_DATABASE_OK')
 PY
 echo '===== VERIFY DOMAIN AND IP ROUTE TO SAME RELEASE ====='
