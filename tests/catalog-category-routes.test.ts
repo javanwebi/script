@@ -12,6 +12,11 @@ const categoryPage = source('src/pages/CategoryPage.tsx');
 const admin = source('src/admin/modules/ProductsModule.tsx');
 const api = source('server/catalogNavigationApi.ts');
 const industry = source('src/pages/TileCeramicIndustryPage.tsx');
+const searchPage = source('src/pages/SearchPage.tsx');
+const productsPage = source('src/pages/ProductsPage.tsx');
+const footer = source('src/components/layout/Footer.tsx');
+const brandBanner = source('src/components/home/MainBrandsBanner.tsx');
+const clubPage = source('src/pages/ClubPage.tsx');
 const migration = source('supabase/migrations/20261116163011_canonical_category_routes.sql');
 
 test('every approved category uses its own canonical route slug across storefront and admin', () => {
@@ -22,6 +27,8 @@ test('every approved category uses its own canonical route slug across storefron
   assert.match(megaMenu, /getCategoryRouteSlug\(category\)/);
   assert.match(mobileExplorer, /getCategoryRouteSlug\(category\)/);
   assert.match(header, /getCategoryRouteSlug\(category\)/);
+  assert.match(searchPage, /getCategoryRouteSlug\(cat\)/);
+  assert.match(footer, /getCategoryRouteSlug\(category\)/);
   assert.match(admin, /routeSlug\?:string/);
   assert.match(admin, /editorApprovedCategory\?\.slug/);
 });
@@ -36,6 +43,12 @@ test('retired category parents no longer render old category experiences', () =>
 
 test('industry category shortcuts open the new industrial-belts group instead of the retired parent page', () => {
   assert.match(industry, /link: '\/categories\?group=excel-v2-1'/);
+  assert.match(productsPage, /categories\?\$\{destinationParams\.toString\(\)\}/);
+  assert.match(productsPage, /group: 'excel-v2-1'/);
+  assert.match(brandBanner, /categories\?group=excel-v2-1/);
+  assert.doesNotMatch(brandBanner, /category\/(?:industrial-belts|power-transmission)/);
+  assert.doesNotMatch(clubPage, /category\/industrial-belts/);
+  assert.doesNotMatch(footer, /category\/industrial-belts/);
 });
 
 test('database migration assigns all approved categories their own route and safely retires empty legacy categories', () => {
