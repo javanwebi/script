@@ -40,7 +40,8 @@ export const registerCategorySeoRoutes = (app: Express): void => {
 
     if (Object.prototype.hasOwnProperty.call(LEGACY_CATEGORY_ROUTE_GROUPS, slug)) {
       const group = LEGACY_CATEGORY_ROUTE_GROUPS[slug];
-      return res.redirect(301, group ? '/categories?group=' + encodeURIComponent(group) : '/categories');
+      const destination = group ? '/categories?group=' + encodeURIComponent(group) : '/categories';
+      return res.redirect(301, destination + querySuffix(req.originalUrl));
     }
     return next();
   });
