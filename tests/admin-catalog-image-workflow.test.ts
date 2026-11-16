@@ -54,8 +54,11 @@ test('direct SKU image links are loaded and refreshed in the audit list',async()
 
 test('production deploy gate runs admin catalog and image assignment regressions',async()=>{
   const deploy=await read('../ops/deploy-single-port-vps.sh');
+  const workflow=await read('../.github/workflows/unified-main-bluegreen.yml');
   const packageJson=JSON.parse(await read('../package.json')) as {scripts?:Record<string,string>};
   assert.match(deploy,/npm run test:portal/);
   assert.match(deploy,/tests\/image-assignments\.test\.ts/);
+  assert.match(workflow,/npm run test:portal/);
+  assert.match(workflow,/tests\/image-assignments\.test\.ts/);
   assert.ok(packageJson.scripts?.['test:portal']?.includes('tests/admin-catalog-image-workflow.test.ts'));
 });
