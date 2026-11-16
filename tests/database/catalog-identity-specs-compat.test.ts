@@ -71,7 +71,7 @@ test('production deploy applies catalog identity schema before the private canar
     'catalog identity columns must be migrated and verified before canary startup');
 
   assert.match(baseline, /identity_specs JSONB NOT NULL DEFAULT '\{\}'::jsonb/);
-  assert.match(baseline, /variable_specs JSONB NOT NULL DEFAULT '\\{\\}'::jsonb/);
+  assert.match(baseline, /variable_specs JSONB NOT NULL DEFAULT '\{\}'::jsonb/);
   assert.match(canary, /response\.clone\(\)\.text\(\)/,
     'failed canary API requests must include a bounded response body for diagnosis');
 });
