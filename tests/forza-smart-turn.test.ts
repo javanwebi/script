@@ -25,10 +25,9 @@ test('unfinished Persian intent must not be submitted as a complete request', ()
 test('a two-second pause never finalizes even a linguistically complete question', () => {
   for (const phrase of [
     'قیمتش چنده',
-    'تسمه SPA 1250 موجود دارید؟',
+    'تسمه SPA 1250 موجود دارید',
     'بلبرینگ 6202ZZ موجوده',
-    'آیا بلبرینگ 6203 موجود است؟',
-    'مدل چند است؟',
+    'آیا بلبرینگ 6203 موجود است',
   ]) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
@@ -43,7 +42,7 @@ test('a fixed word count or an unclosed question is NOT proof of completion', ()
   assert.equal(analyzePersianSentenceCompletion('آیا این تسمه مناسب').isComplete, false);
 });
 
-test('explicit stop commands stay fast while ordinary greetings keep the continuation grace', () => {
+test('explicit stop commands and standalone greetings stay fast', () => {
   for (const phrase of ['صبر کن', 'بس کن', 'ادامه بده']) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
@@ -51,7 +50,10 @@ test('explicit stop commands stay fast while ordinary greetings keep the continu
   }
   for (const phrase of ['سلام', 'ممنون']) {
     assert.equal(analyzePersianSentenceCompletion(phrase).isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 2500, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 950, phrase);
+  }
+  for(const phrase of ['مدل چند است؟','آیا بلبرینگ 6203 موجود است؟']){
+    assert.ok(forzaEndOfTurnPauseMs(phrase,false)<=950,phrase);
   }
   assert.equal(analyzePersianSentenceCompletion('صبر کن تا').isComplete, false);
 });
