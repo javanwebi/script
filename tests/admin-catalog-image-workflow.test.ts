@@ -36,3 +36,21 @@ test('gallery deletion and admin shell isolation are explicit',async()=>{
   assert.match(storage,/const familyBaseImages=\[\.\.\.new Set/);
   assert.match(layout,/isAdminIsolatedRoute\(location\.pathname\)/);
 });
+
+test('direct SKU image links are loaded and refreshed in the audit list',async()=>{
+  const audit=await read('../src/admin/modules/ProductImageAudit.tsx');
+  const assignments=await read('../src/data/imageAssignments.ts');
+  const module=await read('../src/admin/modules/ProductsModule.tsx');
+  assert.match(audit,/fetch\('\/api\/catalog\/direct-skus'/);
+  assert.match(audit,/catalog-direct-skus-updated/);
+  assert.match(audit,/getImageAssignmentAudit\(products,records,directSkus\)/);
+  assert.match(audit,/row\.directSkus/);
+  assert.match(assignments,/directBindings/);
+  assert.match(module,/catalog-direct-skus-updated/);
+});
+
+test('production deploy gate runs admin catalog and image assignment regressions',async()=>{
+  const deploy=await read('../ops/deploy-single-port-vps.sh');
+  assert.match(deploy,/tests\/admin-catalog-image-workflow\.test\.ts/);
+  assert.match(deploy,/tests\/image-assignments\.test\.ts/);
+});
