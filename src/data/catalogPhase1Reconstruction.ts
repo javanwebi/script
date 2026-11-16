@@ -653,11 +653,7 @@ export function resolveStrictApprovedMenuPath(
 ): CanonicalMenuPath {
   // Only explicit legacy aliases are remapped. Unknown categories and incomplete
   // paths fail closed instead of falling back to the first leaf in an unrelated menu.
-  let slug = rawCategorySlug;
-  if (slug === 'excel-v2-7-4') slug = 'excel-v2-7-1';
-  else if (slug === 'excel-v2-10-3') slug = 'excel-v2-9-3';
-  else if (slug === 'excel-v2-10-4') slug = 'excel-v2-12-1';
-
+  const slug = rawCategorySlug;
   if (!CANONICAL_BY_CATEGORY.has(slug)) return UNRESOLVED_MENU_PATH;
 
   const normSub = normalizeFa(rawSubmenu);
@@ -2970,22 +2966,45 @@ export function classifyNonBeltSku(
     leaf = directOverride.subcategory;
   }
 
-  // Strictly validate and normalize to one of the 67 approved leaf paths
+  // Strictly validate the exact category > submenu > leaf path, then validate
+  // its engineering meaning against the SKU/family identity. A syntactically valid
+  // leaf is not enough if the component itself belongs to another engineering domain.
   const resolvedMenu = resolveStrictApprovedMenuPath(categorySlug, submenu, leaf);
   categorySlug = resolvedMenu.categorySlug;
   submenu = resolvedMenu.submenu;
   leaf = resolvedMenu.leaf;
 
-  // Detect any taxonomy gap where a specialized industrial product uses the closest approved leaf
-  if (/شیلنگ|لوله/.test(productType) && categorySlug === 'excel-v2-7-1') {
-    taxonomyGap = 'PROPOSED_LEAF: شیلنگ و لوله‌های صنعتی (تخصیص به نزدیک‌ترین برگ مصوب: قطعات لاستیکی عمومی و تخصصی)';
-  } else if (/ورق|میلگرد و بوشن پلیمر|زلامید/.test(productType) && categorySlug === 'excel-v2-7-1') {
-    taxonomyGap = 'PROPOSED_LEAF: ورق و مقاطع پلیمری مهندسی PTFE/PU/PA (تخصیص به نزدیک‌ترین برگ مصوب: قطعات لاستیکی عمومی و تخصصی)';
-  } else if (rawFam.technicalType === 'قاشقک صنعتی') {
-    taxonomyGap = 'PROPOSED_LEAF: قاشقک و باکت الواتور (تخصیص به نزدیک‌ترین برگ مصوب)';
+  if (categorySlug === 'UNRESOLVED') {
+    taxonomyGap = taxonomyGap || `GAP-APPROVED-MENU-PATH-MISSING: مسیر دقیق «${rawFam.technicalType}» در منوی مصوب وجود ندارد یا ورودی دسته/زیر‌دسته/برگ دقیق نیست.`;
+  } else {
+    const semantic = validateFamilyMenuAssignment({
+      familyCode: rawFam.code,
+      familyName: rawFam.name,
+      productType,
+      material,
+      profile,
+      categorySlug,
+      submenuName: submenu,
+      leafName: leaf,
+    });
+    if (!semantic.valid) {
+      taxonomyGap = `GAP-SEMANTIC-MENU-CONFLICT: ${semantic.reason}; هویت خانواده حفظ می‌شود اما تا ایجاد/تأیید برگ صحیح نباید در این مسیر نمایش داده شود.`;
+      categorySlug = 'UNRESOLVED';
+      submenu = UNRESOLVED_MENU_PATH.submenu;
+      leaf = UNRESOLVED_MENU_PATH.leaf;
+    }
   }
 
-  const proposedCategoryName = getApprovedCategoryName(categorySlug, rawFam.categoryName);
+  if (rawFam.technicalType === 'قاشقک صنعتی') {
+    taxonomyGap = 'GAP-APPROVED-MENU-PATH-MISSING: قاشقک و باکت الواتور در برگ مصوب مستقلی ثبت نشده است.';
+    categorySlug = 'UNRESOLVED';
+    submenu = UNRESOLVED_MENU_PATH.submenu;
+    leaf = UNRESOLVED_MENU_PATH.leaf;
+  }
+
+  const proposedCategoryName = categorySlug === 'UNRESOLVED'
+    ? UNRESOLVED_MENU_PATH.categoryName
+    : getApprovedCategoryName(categorySlug, rawFam.categoryName);
 
   const invariantKey = [
     'NONBELT',
