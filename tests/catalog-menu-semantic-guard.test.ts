@@ -95,6 +95,8 @@ test('V-belt families use profile-specific leaves and never enter timing or Poly
   assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه جوشی V روکش گریپ‌دار (پروفیل B)', 'لاستیک کلروپرن', 'Z (9.5) , M , A , B , C , D , E , 8V', 'B').valid, true);
   assert.equal(check('excel-v2-1-1', 'سیم‌دار فابریک', 'تسمه جوشی V روکش گریپ‌دار (پروفیل B)', 'لاستیک کلروپرن', 'APL دار', 'B').valid, false);
   assert.equal(check('excel-v2-1-2', 'وی‌بلت متری', 'تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل A (صاف)', 'TPU پلی‌یورتان', 'تسمه A و B و C وی‌بلت متری', 'A').valid, false);
+  assert.equal(check('excel-v2-1-2', 'وی‌بلت متری', 'تسمه جوشی پلی‌یورتان A', 'TPU پلی‌یورتان', 'تسمه A و B و C وی‌بلت متری', 'A').valid, false);
+  assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه جوشی پلی‌یورتان BRB', 'TPU پلی‌یورتان', 'Z (9.5) , M , A , B , C , D , E , 8V', 'BRB').valid, false);
   assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل B (صاف)', 'TPU پلی‌یورتان', 'Z (9.5) , M , A , B , C , D , E , 8V', 'B').valid, false);
   assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه چندشیاری Poly-V پروفیل PJ', 'لاستیک', 'SPA , SPB , SPC و دندانه‌دار', 'PJ').valid, false);
   assert.equal(check('excel-v2-1-2', 'وی‌بلت متری', 'تسمه V شکل پروفیل AA', 'لاستیک', 'تسمه A و B و C وی‌بلت متری', 'AA').valid, false);
