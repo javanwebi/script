@@ -2438,7 +2438,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       taxonomyGap = `GAP-VBELT-HEXAGONAL-LEAF-MISSING: تسمه شش‌ضلعی دوطرفه ${vProfile} خانواده فنی مستقلی است، اما برگ مصوب آن در اکسل وجود ندارد.`;
     } else if (isUnlistedK) {
       taxonomyGap = 'GAP-VBELT-K-LEAF-MISSING: پروفیل K در برگ‌های مصوب کلاسیک/اسپشیال/متری درج نشده است.';
-    } else if (['3V', '3VX', '5V', '5VX', '8V', '8VX', 'MX', 'SPZ', 'XPZ'].includes(vProfile)) {
+    } else if (isHeavyWedgeProfile) {
+      taxonomyGap = `GAP-VBELT-HEAVY-WEDGE-LEAF-MISSING: پروفیل گوه‌ای سنگین ${vProfile} زیرمنوی اسپشیال را می‌گیرد، اما برگ مصوب اختصاصی 8V/8VX در اکسل وجود ندارد.`;
+    } else if (['3V', '3VX', '5V', '5VX', 'MX', 'SPZ', 'XPZ'].includes(vProfile)) {
       taxonomyGap = `GAP-VBELT-PROFILE-LABEL: پروفیل ${vProfile} در نام برگ اکسل صریحاً ذکر نشده؛ هویت آن به‌عنوان تسمه V حفظ می‌شود و باید در بازنگری منبع اکسل تأیید شود.`;
     } else if (hasCoating) {
       taxonomyGap =
