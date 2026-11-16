@@ -260,6 +260,7 @@ docker run --rm --pull=never "$STT_IMAGE" sh -ec '
   /opt/forza-pocket/bin/python -c "import vosk"
   test -d /opt/diba-stt/model/am
   test -d /opt/diba-stt/model/conf
+  test -s /opt/diba-stt/diba-stt-fa-small.tar.gz
 '
 echo "FORZA_STT_RUNTIME_IMAGE_READY=$STT_IMAGE"
 
