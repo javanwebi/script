@@ -2296,7 +2296,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedLeaf: isNarrow
         ? isSpecialLeaf ? 'SPA , SPB , SPC و دندانه‌دار' : null
         : isClassicalLeaf ? 'Z (9.5) , M , A , B , C , D , E , 8V' : null,
-      taxonomyGap: `GAP-VBELT-BANDED: تسمه به‌پشت‌پیوسته (Banded Powerband) پروفیل ${baseProf} (سری‌های چندردیفه) در زیربرگ پروفیل پایه قرار می‌گیرد زیرا زیربرگ مستقل تسمه‌های Banded (چندردیفه پشت‌دار) در اکسل وجود ندارد.`,
+      taxonomyGap: `GAP-VBELT-BANDED: تسمه به‌پشت‌پیوسته (Banded Powerband) پروفیل ${baseProf} در زیرمنوی پروفیل پایه قرار می‌گیرد؛ فقط پروفیل‌هایی که برگ مصوب دقیق دارند به برگ فرعی متصل می‌شوند.`,
       proposedFamilyId: `FAM-VBELT-BANDED-${baseProf}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
       proposedFamilyNameFa: `تسمه V شکل به‌پشت‌پیوسته (پاورباند) پروفیل ${baseProf} (${brand})`,
       proposedFamilyNameEn: `${brand} Banded V-Belt (Powerband) Profile ${baseProf}`,
@@ -2334,7 +2334,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   }
 
   // 12. Classical, Narrow/Wedge, and Hexagonal V-Belts
-  const explicitWeldedVProfileMatch = upperName.match(/تسمه\s*جوشی\s*V\b.*?پروفیل\s*(A|B|C)\b/);
+  const productUpperName = normalize(product.name).toUpperCase();
+  const explicitWeldedVProfileMatch = `${upperName} ${productUpperName}`.match(/تسمه\s*جوشی\s*V\b.*?پروفیل\s*(A|B|C)\b/);
   const stdVMatch =
     upperName.match(/\b(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\s*[-*× ]?\s*(\d{2,5}(?:[./]\d+)?)\b/) ||
     upperName.match(/\b(\d{2,5}(?:[./]\d+)?)\s*(?:[*×]\s*)?(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|M|K)\b/);
