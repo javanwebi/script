@@ -51,6 +51,7 @@ import sharp from 'sharp';
 import type { OverlayOptions } from 'sharp';
 import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, ThinkingLevel, type LiveServerMessage } from '@google/genai';
 import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
+import { FORZA_CONVERSATION_HISTORY_LIMIT } from './src/utils/forzaConversationHistory';
 import { normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from './src/utils/forzaSpeechPipeline';
 import { classifyForzaAudio } from './src/utils/forzaTtsFormat';
 import { forzaUnbrokenSpokenText } from './src/utils/forzaUnbrokenText';
@@ -5355,7 +5356,7 @@ function consultantCatalogContext(query:string){
 }
 async function consultantCustomerPricingContext(req:express.Request,query:string,history:unknown):Promise<string>{
  const historyText=Array.isArray(history)
-  ? history.slice(-8).filter((item:any)=>item?.sender==='user'||item?.role==='user')
+  ? history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT).filter((item:any)=>item?.sender==='user'||item?.role==='user')
     .map((item:any)=>String(item?.text||'').slice(0,240)).join(' ')
   : '';
  const searchText=(String(query||'')+' '+historyText).trim();
@@ -5436,7 +5437,7 @@ app.post('/api/ai/consult', async (req, res) => {
       ];
 
       if (Array.isArray(history) && history.length > 0) {
-        for (const h of history.slice(-6)) {
+        for (const h of history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT)) {
           const role =
             h.sender === 'user' || h.role === 'user' ? 'user' : 'assistant';
           workerMessages.push({ role, content: h.text });
@@ -5473,7 +5474,7 @@ app.post('/api/ai/consult', async (req, res) => {
 
         const contents: any[] = [];
         if (Array.isArray(history) && history.length > 0) {
-          for (const h of history.slice(-6)) {
+          for (const h of history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT)) {
             if (h.sender === 'user' || h.role === 'user') {
               contents.push({ role: 'user', parts: [{ text: h.text }] });
             } else if (h.sender === 'ai' || h.role === 'model') {
@@ -6120,7 +6121,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
         },
       ];
       if (Array.isArray(history)) {
-        for (const h of history.slice(-6)) {
+        for (const h of history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT)) {
           workerMessages.push({
             role: h.sender === 'user' || h.role === 'user' ? 'user' : 'assistant',
             content: h.text,
@@ -6188,7 +6189,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
 
     const contents: any[] = [];
     if (Array.isArray(history) && history.length > 0) {
-      for (const h of history.slice(-6)) {
+      for (const h of history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT)) {
         if (h.sender === 'user' || h.role === 'user') {
           contents.push({ role: 'user', parts: [{ text: h.text }] });
         } else if (h.sender === 'ai' || h.role === 'model') {
