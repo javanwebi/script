@@ -24,6 +24,16 @@ assert.equal(stt.serverSttProvider, "diba");
 assert.equal(stt.serverSttReady, true);
 console.log("FORZA_STT_CANARY_DIBA_READY_OK provider=" + stt.serverSttProvider);
 
+const browserModel = await fetch(candidate + "/forza-runtime/stt/diba-stt-fa-small.tar.gz", {
+  method: "HEAD",
+  signal: AbortSignal.timeout(15000),
+});
+assert.equal(browserModel.status, 200, "DIBA_BROWSER_MODEL_HTTP_" + browserModel.status);
+assert.match(browserModel.headers.get("content-type") || "", /application\\/gzip/i);
+assert.ok(Number(browserModel.headers.get("content-length") || 0) > 0,
+  "DIBA_BROWSER_MODEL_CONTENT_LENGTH_MISSING");
+console.log("PRIVATE_CANARY_DIBA_BROWSER_MODEL_OK bytes=" + browserModel.headers.get("content-length"));
+
 // Probe real, protected mutation handlers without an authenticated session.
 // A correct endpoint rejects an anonymous write with JSON 401/403. An absent
 // endpoint typically returns 404 HTML, which previously broke CRM and image
