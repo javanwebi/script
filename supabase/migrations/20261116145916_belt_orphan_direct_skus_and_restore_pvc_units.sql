@@ -83,7 +83,15 @@ BEGIN
   IF unit_mismatches <> 14 THEN
     RAISE EXCEPTION 'Expected exactly 14 PVC/legacy unit mismatches from source backup; found %', unit_mismatches;
   END IF;
-END $$;
+END $;
+
+-- The real production backup must already exist (checked above). Empty isolated schema
+-- fixtures may not carry that production snapshot; create an empty compatible placeholder.
+CREATE TABLE IF NOT EXISTS public.backup_20261116_catalog_variants (
+  code text PRIMARY KEY,
+  family_code text,
+  unit text
+);
 
 CREATE TABLE internal.catalog_variants_unit_restore_backup_20261116 (
   code text PRIMARY KEY,
