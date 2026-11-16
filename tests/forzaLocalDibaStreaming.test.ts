@@ -26,6 +26,7 @@ test('local Diba streams partial and final hypotheses and falls back to browser 
  assert.match(ui,/loadDibaSttModel\(\)\.then\(model=>/);
  assert.match(ui,/dibaCpuCount>=6/);
  assert.match(ui,/dibaSaveData/);
+ assert.match(ui,/createScriptProcessor\(2048,1,1\)/,'small audio frames keep live partial latency low');
  assert.match(ui,/recognizer\.on\('partialresult'/);
  assert.match(ui,/recognizer\.on\('result'/);
  assert.match(ui,/recognizer\.on\('error'/);
