@@ -44,7 +44,7 @@ const pages = [
       await aboutLink.click();
       await page.locator("#about").waitFor({ timeout: 15000 });
       await page.locator("#about h1").waitFor();
-      const aboutHeading = (await page.locator("#about h1").innerText()).replace(/\\s+/g, " ").trim();
+      const aboutHeading = (await page.locator("#about h1").innerText()).replace(/\s+/g, " ").trim();
       assert.match(aboutHeading, /تأمین قطعات صنعتی/,
         "About hero must match the current approved About page content");
       assert.ok(await page.locator('#about a[href="/products"]').count() > 0,
