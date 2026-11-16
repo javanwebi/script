@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../src/data/approvedMenuFallback';
+import { APPROVED_CATEGORY_SEO_ROUTES, getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug } from '../src/data/categorySeoRoutes';
 
 const source = (file: string) => readFileSync(file, 'utf8');
 const categories = source('src/data/categories.ts');
@@ -28,16 +29,21 @@ test('the approved menu exposes 34 unique category routes with no parent-route r
   assert.equal(groupedSlugs.length, 34);
   assert.equal(new Set(groupedSlugs).size, 34);
   assert.deepEqual(new Set(groupedSlugs), new Set(categorySlugs));
+  assert.equal(APPROVED_CATEGORY_SEO_ROUTES.length, 34);
+  assert.equal(new Set(APPROVED_CATEGORY_SEO_ROUTES.map(route => route.routeSlug)).size, 34);
   for (const category of APPROVED_MENU_CATEGORIES) {
     assert.match(category.slug, /^excel-v2-[0-9]+-[0-9]+$/);
-    assert.equal(category.routeSlug, category.slug, category.name + ' must have its own canonical route');
+    assert.ok(category.routeSlug && !category.routeSlug.startsWith('excel-v2-'));
+    assert.equal(category.routeSlug, getCategorySeoRouteSlug(category.slug), category.name + ' must have its own Persian SEO route');
+    assert.equal(getInternalCategorySlugFromRouteSlug(category.routeSlug), category.slug);
   }
 });
 
 test('every approved category uses its own canonical route slug across storefront and admin', () => {
   assert.match(categories, /routeSlug\?: string/);
   assert.match(categories, /getCategoryRouteSlug/);
-  assert.match(api, /routeSlug:row\.slug/);
+  assert.match(categories, /getInternalCategorySlugFromRouteSlug/);
+  assert.match(api, /routeSlug:typeof metadata\.routeSlug==='string'\?metadata\.routeSlug:row\.slug/);
   assert.match(allCategories, /getCategoryRouteSlug\(category\)/);
   assert.match(megaMenu, /getCategoryRouteSlug\(category\)/);
   assert.match(mobileExplorer, /getCategoryRouteSlug\(category\)/);
@@ -51,6 +57,8 @@ test('every approved category uses its own canonical route slug across storefron
 test('retired category parents no longer render old category experiences', () => {
   assert.doesNotMatch(categoryPage, /BeltCategoryExperience/);
   assert.match(categoryPage, /LEGACY_CATEGORY_ROUTE_GROUPS/);
+  assert.match(categoryPage, /getInternalCategorySlugFromRouteSlug\(routeSlug\)/);
+  assert.match(categoryPage, /getCategorySeoRouteSlug\(internalCategorySlug\)/);
   assert.match(categoryPage, /'تسمه-و-انتقال-نیرو': 'excel-v2-1'/);
   assert.match(categoryPage, /'پولی-و-انتقال-نیرو': 'excel-v2-4'/);
   assert.match(categoryPage, /'تجهیزات-وکیوم': null/);
@@ -71,6 +79,9 @@ test('industry category shortcuts open the new industrial-belts group instead of
 test('database migration assigns all approved categories their own route and safely retires empty legacy categories', () => {
   assert.match(migration, /jsonb_set/);
   assert.match(migration, /metadata->>'routeSlug'/);
+  assert.match(migration, /تسمه-تایمینگ-صنعتی/);
+  assert.match(migration, /نوار-نقاله-صنعتی/);
+  assert.match(migration, /count\(distinct metadata->>'routeSlug'\)/);
   assert.match(migration, /SET is_active = false/);
   assert.match(migration, /catalog_family_menu_assignments/);
   assert.match(migration, /catalog_direct_skus/);
