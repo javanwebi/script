@@ -491,6 +491,20 @@ app.use('/api/ai', async (req,res,next)=>{
 });
 app.use('/api/auth', (_req, res) => res.status(410).json({ success: false, message: 'از مسیر ورود جدید استفاده کنید.' }));
 
+// Public, version-pinned Diba/Vosk browser model. This is an open model
+// archive, not customer audio or a credential; serve it from the same origin
+// so browsers never depend on a third-party model host during a live call.
+app.get('/forza-runtime/stt/diba-stt-fa-small.tar.gz',(_req,res)=>{
+  const archive=String(process.env.FORZA_STT_DIBA_BROWSER_ARCHIVE||
+    '/opt/diba-stt/diba-stt-fa-small.tar.gz');
+  if(!path.isAbsolute(archive)||!fs.existsSync(archive))
+    return res.status(404).end();
+  res.setHeader('Content-Type','application/gzip');
+  res.setHeader('Cache-Control','public, max-age=31536000, immutable');
+  res.setHeader('X-Content-Type-Options','nosniff');
+  return res.sendFile(archive);
+});
+
 // Fallback to disk folder if image existed prior
 app.use(
   ['/imageai', '/imagemoshtari'],
