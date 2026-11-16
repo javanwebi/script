@@ -140,8 +140,8 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
 }
 
 /** A two-second pause can be a natural breath, not the end of a Persian turn.
- * Keep a continuation grace above two seconds for ordinary unpunctuated speech.
- * Final punctuation and short standalone greetings/control phrases stay fast.
+ * Keep a continuation grace above two seconds even when ASR adds punctuation;
+ * only short standalone greetings/control phrases use a shorter endpoint.
  */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
   const normalized=normalizePersianTranscript(text);
@@ -149,7 +149,6 @@ export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number
   if(/^(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|یه لحظه|یک لحظه|توقف|بسه|ساکت|ساکت شو|ادامه بده|ادامه بدید|ادامه|سلام|درود|خداحافظ|ممنون|ممنونم|متشکرم|سپاس|مرسی|اوکی)$/.test(normalized))
     return 650;
   const analysis = analyzePersianSentenceCompletion(normalized);
-  if(/[.!؟?]$/.test(normalized)&&analysis.isComplete)return hasInterim?1200:850;
   if(analysis.isMidThought)return hasInterim?3100:2900;
   if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?2900:2600;
   return hasInterim?3000:2800;
