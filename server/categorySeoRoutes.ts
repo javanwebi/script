@@ -7,7 +7,7 @@ import {
   LEGACY_CATEGORY_ROUTE_GROUPS,
 } from '../src/data/categorySeoRoutes';
 
-const siteOrigin = () => (process.env.PUBLIC_SITE_URL || SANAT_PISH_CANONICAL_ORIGIN).replace(/\/+$/, '');
+const siteOrigin = () => SANAT_PISH_CANONICAL_ORIGIN;
 
 /** Register crawlable canonical category URLs, permanent legacy redirects and the category sitemap. */
 export const registerCategorySeoRoutes = (app: Express): void => {
