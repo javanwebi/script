@@ -17,7 +17,7 @@ test('catalog identity compatibility migration adds JSONB fields idempotently wi
       '  active boolean not null default true',
       ');',
       "insert into public.catalog_variants(code,family_code,name,technical_specs) values ('SKU-1','FAM-1','Existing belt','[{\"key\":\"profile\",\"value\":\"A\"}]'::jsonb);",
-    ].join('\\n'));
+    ].join('\n'));
 
     const migration = await readFile(migrationPath, 'utf8');
     await db.exec(migration);
@@ -70,8 +70,8 @@ test('production deploy applies catalog identity schema before the private canar
   assert.ok(migration >= 0 && ready > migration && canaryGate > ready,
     'catalog identity columns must be migrated and verified before canary startup');
 
-  assert.match(baseline, /identity_specs JSONB NOT NULL DEFAULT '\\{\\}'::jsonb/);
+  assert.match(baseline, /identity_specs JSONB NOT NULL DEFAULT '\{\}'::jsonb/);
   assert.match(baseline, /variable_specs JSONB NOT NULL DEFAULT '\\{\\}'::jsonb/);
-  assert.match(canary, /response\\.clone\\(\\)\\.text\\(\\)/,
+  assert.match(canary, /response\.clone\(\)\.text\(\)/,
     'failed canary API requests must include a bounded response body for diagnosis');
 });
