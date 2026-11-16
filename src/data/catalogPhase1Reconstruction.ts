@@ -1216,6 +1216,7 @@ function buildBeltPhase1SkuRecord(
   let proposedSubmenu = beltRec.proposedSubmenu;
   let proposedLeaf = beltRec.proposedLeaf;
   let proposedTechnicalType = beltRec.actualProductType;
+  let beltTaxonomyGap = beltRec.taxonomyGap;
 
   if (gripInfo.hasGripOrCoating) {
     proposedTechnicalType =
@@ -1236,6 +1237,28 @@ function buildBeltPhase1SkuRecord(
   proposedCategoryName = canonicalBeltPath.categoryName;
   proposedSubmenu = canonicalBeltPath.submenu;
   proposedLeaf = canonicalBeltPath.leaf;
+
+  if (proposedCategorySlug === 'UNRESOLVED') {
+    beltTaxonomyGap = beltTaxonomyGap || 'GAP-APPROVED-MENU-PATH-MISSING: مسیر دقیق این خانواده در منوی مصوب وجود ندارد.';
+  } else {
+    const semantic = validateFamilyMenuAssignment({
+      familyCode: rawFam.code,
+      familyName: rawFam.name,
+      productType: proposedTechnicalType,
+      material: beltRec.technical.bodyMaterial,
+      profile: beltRec.technical.profile,
+      categorySlug: proposedCategorySlug,
+      submenuName: proposedSubmenu,
+      leafName: proposedLeaf,
+    });
+    if (!semantic.valid) {
+      beltTaxonomyGap = 'GAP-SEMANTIC-MENU-CONFLICT: ' + semantic.reason;
+      proposedCategorySlug = 'UNRESOLVED';
+      proposedCategoryName = UNRESOLVED_MENU_PATH.categoryName;
+      proposedSubmenu = UNRESOLVED_MENU_PATH.submenu;
+      proposedLeaf = UNRESOLVED_MENU_PATH.leaf;
+    }
+  }
 
   const normalizedBrand =
     !beltRec.detectedBrand ||
@@ -1400,9 +1423,7 @@ function buildBeltPhase1SkuRecord(
     requiredAction: evidence === 'INVENTORY_DESCRIPTION'
       ? 'WAREHOUSE_PHYSICAL_INSPECTION_REQUIRED'
       : 'READY_FOR_MIGRATION',
-    taxonomyGap: proposedCategorySlug === 'UNRESOLVED'
-      ? (beltRec.taxonomyGap || 'GAP-APPROVED-MENU-PATH-MISSING: مسیر دقیق این خانواده در منوی مصوب وجود ندارد.')
-      : beltRec.taxonomyGap,
+    taxonomyGap: beltTaxonomyGap,
     similarProductCodes: [],
     sourceFamilyName: rawFam.name,
     sourceTechnicalType: rawFam.technicalType,
@@ -1615,7 +1636,9 @@ export function classifyNonBeltSku(
       confidenceScore: 35,
       verificationStatus: 'REQUIRES_PHYSICAL_VERIFICATION',
       requiredAction: 'WAREHOUSE_PHYSICAL_INSPECTION_REQUIRED',
-      taxonomyGap: null,
+      taxonomyGap: canonical.categorySlug === 'UNRESOLVED'
+        ? 'GAP-APPROVED-MENU-PATH-MISSING: کالای unresolved مسیر دقیق در منوی مصوب ندارد.'
+        : null,
       similarProductCodes: [],
       sourceFamilyName: rawFam.name,
       sourceTechnicalType: rawFam.technicalType,
