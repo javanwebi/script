@@ -1,3 +1,5 @@
+import { APPROVED_MENU_CATEGORIES } from './approvedMenuFallback';
+
 export interface FamilyMenuSemanticContext {
   familyCode?: string;
   familyName?: string | null;
@@ -38,6 +40,21 @@ export function validateFamilyMenuAssignment(
   const fail = (reason: string): FamilyMenuSemanticValidation => ({ valid: false, reason });
   if (productType === 'mixed' || material === 'mixed' || profile === 'mixed') {
     return fail('family_contains_mixed_technical_identity');
+  }
+
+  // Every published family must point to a real approved Excel category and submenu.
+  // When a leaf is supplied it must be an exact child of that submenu.
+  const approvedCategory = APPROVED_MENU_CATEGORIES.find((item) => item.slug === context.categorySlug);
+  if (!approvedCategory) return fail('unapproved_category_slug');
+  const approvedSubmenu = (approvedCategory.children || []).find(
+    (item) => normalize(item.name) === submenu
+  );
+  if (!approvedSubmenu) return fail('unapproved_submenu');
+  if (leaf) {
+    const approvedLeaf = (approvedSubmenu.children || []).some(
+      (item) => normalize(item.name) === leaf
+    );
+    if (!approvedLeaf) return fail('unapproved_leaf');
   }
 
   // Wheels must contain a wheel, gear or sprocket identity. Couplings transmit torque
