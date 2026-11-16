@@ -6,6 +6,7 @@ const source = (file: string) => readFileSync(file, 'utf8');
 const categories = source('src/data/categories.ts');
 const allCategories = source('src/pages/AllCategoriesPage.tsx');
 const megaMenu = source('src/components/catalog/ReferenceMegaMenu.tsx');
+const mobileExplorer = source('src/components/catalog/MobileCategoryExplorer.tsx');
 const header = source('src/components/layout/Header.tsx');
 const categoryPage = source('src/pages/CategoryPage.tsx');
 const admin = source('src/admin/modules/ProductsModule.tsx');
@@ -19,6 +20,7 @@ test('every approved category uses its own canonical route slug across storefron
   assert.match(api, /routeSlug:row\.slug/);
   assert.match(allCategories, /getCategoryRouteSlug\(category\)/);
   assert.match(megaMenu, /getCategoryRouteSlug\(category\)/);
+  assert.match(mobileExplorer, /getCategoryRouteSlug\(category\)/);
   assert.match(header, /getCategoryRouteSlug\(category\)/);
   assert.match(admin, /routeSlug\?:string/);
   assert.match(admin, /editorApprovedCategory\?\.slug/);
