@@ -127,7 +127,9 @@ test('welded PU, ridge-top conveyor and welding equipment are three distinct ide
   assert.equal(check('excel-v2-1-3', 'تسمه گرد (CRC)', 'تسمه ذوزنقه‌ای تاج‌دار CRC', 'لاستیک کلروپرن', 'انواع تسمه گرد جوشی').valid, false);
   assert.equal(check('excel-v2-1-4', 'تسمه بارکش', 'تسمه ذوزنقه‌ای تاج‌دار CRC', 'لاستیک کلروپرن', 'انواع تسمه بارکش صنعتی').valid, true);
   assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'دستگاه جوش تسمه صنعتی', 'فولاد', 'دستگاه جوش تسمه صنعتی').valid, true);
-  assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'دستگاه پولیش APL', 'فولاد').valid, true);
-  assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'دستگاه تزریق APL', 'فولاد').valid, true);
+  assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'دستگاه پولیش APL', 'فولاد').valid, false);
+  assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'دستگاه تزریق APL', 'فولاد').valid, false);
+  assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'تسمه سفت‌کن صنعتی', 'فولاد').valid, false);
+  assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'دستگاه جوش تسمه صنعتی', 'فولاد').valid, true);
   assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'دستگاه پولیش APL', 'فولاد', 'دستگاه جوش تسمه صنعتی').valid, false);
 });
