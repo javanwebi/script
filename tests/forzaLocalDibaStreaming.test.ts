@@ -14,9 +14,9 @@ test('the Persian Diba browser recognizer is loaded from the same origin, never 
  assert.match(server,/FORZA_STT_DIBA_BROWSER_ARCHIVE/);
  assert.match(server,/Cache-Control','public, max-age=31536000, immutable/);
  assert.match(server,/sendFile\(archive,\{maxAge:'1y',immutable:true\}\)/);
- assert.match(docker,/cp \/tmp\/diba-stt-fa-small-c244182d\.tar\.gz \/opt\/diba-stt\/diba-stt-fa-small-c244182d\.tar\.gz/);
- assert.match(docker,/FORZA_STT_DIBA_BROWSER_ARCHIVE=\/opt\/diba-stt\/diba-stt-fa-small-c244182d\.tar\.gz/);
- assert.match(deploy,/test -s \/opt\/diba-stt\/diba-stt-fa-small-c244182d\.tar\.gz/);
+ assert.match(docker,/cp \/tmp\/diba-stt-fa-small\.tar\.gz \/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
+ assert.match(docker,/FORZA_STT_DIBA_BROWSER_ARCHIVE=\/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
+ assert.match(deploy,/test -s \/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
  assert.match(canary,/DIBA_BROWSER_MODEL_HTTP_/);
  assert.match(canary,/DIBA_BROWSER_MODEL_CONTENT_LENGTH_MISSING/);
 });
