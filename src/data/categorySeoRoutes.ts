@@ -40,6 +40,50 @@ export const APPROVED_CATEGORY_SEO_ROUTES: readonly ApprovedCategorySeoRoute[] =
   { categorySlug: 'excel-v2-14-3', routeSlug: 'اسکاج-صنعتی', title: 'اسکاج صنعتی' },
 ] as const;
 
+/** Old public category parents retained only as 301 redirect sources. */
+export const LEGACY_CATEGORY_ROUTE_GROUPS: Readonly<Record<string, string | null>> = {
+  'jjjjjjj': null,
+  'آب-بندی-و-درزگیری': null,
+  'آب-بندی-و-قطعات-لاستیکی': 'excel-v2-7',
+  'ابزار-و-ملزومات': null,
+  'اتصالات-و-نگهدارنده': null,
+  'اقلام-نیازمند-شناسایی': null,
+  'انتقال-قدرت-مکانیکی': null,
+  'برس-و-ابزار-پرداخت': 'excel-v2-5',
+  'بلبرینگ-و-یاتاقان': 'excel-v2-13',
+  'پولی-و-انتقال-نیرو': 'excel-v2-4',
+  'تجهیزات-تولید': null,
+  'تجهیزات-خطوط-کاشی-و-سرامیک': 'excel-v2-10',
+  'تجهیزات-وکیوم': null,
+  'تسمه-و-انتقال-نیرو': 'excel-v2-1',
+  'تسمه-و-انتقال-قدرت': 'excel-v2-1',
+  'تیغه-و-ابزار-برش': null,
+  'چرخ-و-رولر': null,
+  'ریل-و-تجهیزات-هدایت': 'excel-v2-6',
+  'زنجیر-و-چرخ-زنجیر': 'excel-v2-9',
+  'سیلندر-و-قطعات-پنوماتیک': null,
+  'شیلنگ-و-اتصالات': null,
+  'ضربه-گیر-و-لرزه-گیر': null,
+  'فیلتراسیون-و-توری': 'excel-v2-11',
+  'قطعات-الکتریکی': null,
+  'قطعات-پمپ-و-سیالات': 'excel-v2-9',
+  'قطعات-تولید-و-قالب': 'excel-v2-12',
+  'قطعات-مکانیکی': 'excel-v2-9',
+  'محور-و-شفت': null,
+  'مواد-و-ملزومات-صنعتی': null,
+  'مواد-و-ورق-صنعتی': null,
+  'نوار-و-تسمه-نقاله': 'excel-v2-2',
+  'production-fittings': null,
+  'industrial-valves': null,
+  'pipes-flanges': null,
+  'belts-power-transmission': 'excel-v2-1',
+  'industrial-belts': 'excel-v2-1',
+  'power-transmission': 'excel-v2-1',
+  'belts-timing': 'excel-v2-1',
+  'v-belts': 'excel-v2-1',
+  'timing-belts': 'excel-v2-1',
+};
+
 const routeByCategorySlug = new Map(APPROVED_CATEGORY_SEO_ROUTES.map(route => [route.categorySlug, route.routeSlug]));
 const categoryByRouteSlug = new Map(APPROVED_CATEGORY_SEO_ROUTES.map(route => [route.routeSlug, route.categorySlug]));
 
