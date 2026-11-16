@@ -137,7 +137,7 @@ test('production SEO routes issue permanent redirects and expose all approved UR
   try {
     const oldId = await fetch(origin + '/category/excel-v2-1-1?sub=پلی-یورتان', { redirect: 'manual' });
     assert.equal(oldId.status, 301);
-    assert.equal(oldId.headers.get('location'), '/category/' + encodeURIComponent('تسمه-تایمینگ-صنعتی') + '?sub=پلی-یورتان');
+    assert.equal(oldId.headers.get('location'), '/category/' + encodeURIComponent('تسمه-تایمینگ-صنعتی') + '?sub=' + encodeURIComponent('پلی-یورتان'));
 
     const oldParent = await fetch(origin + '/category/' + encodeURIComponent('تسمه-و-انتقال-نیرو'), { redirect: 'manual' });
     assert.equal(oldParent.status, 301);
