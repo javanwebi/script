@@ -4,24 +4,24 @@ export function imageFileName(url: string): string {
   try {
     const decoded=decodeURIComponent(url);
     let path=decoded;
-    if (/^https?:\\/\\//i.test(decoded)) {
+    if (/^https?:\/\//i.test(decoded)) {
       const parsed=new URL(decoded);
       const official=(parsed.origin==='https://raw.githubusercontent.com' && parsed.pathname.startsWith('/javanweb/imagesatlas/main/')) ||
         (parsed.origin==='https://cdn.jsdelivr.net' && parsed.pathname.startsWith('/gh/javanweb/imagesatlas@main/'));
       const ownStorage=['sanatpish.com','www.sanatpish.com'].includes(parsed.hostname.toLowerCase()) &&
-        /^\\/storage\\/(products|categories)\\//i.test(parsed.pathname);
+        /^\/storage\/(products|categories)\//i.test(parsed.pathname);
       if(!official&&!ownStorage)return '';
       path=parsed.pathname;
     }
     const cleanPath=path.split(/[?#]/,1)[0];
     if(cleanPath.includes('..'))return '';
-    const legacy=cleanPath.match(/e\\((\\d+)\\)\\.png$/i);
-    if(legacy)return `e(${Number(legacy[1])}).png`;
-    if(/^\\/storage\\/(products|categories)\\//i.test(cleanPath)){
+    const legacy=cleanPath.match(/e\((\d+)\)\.png$/i);
+    if(legacy)return \`e(\${Number(legacy[1])}).png\`;
+    if(/^\/storage\/(products|categories)\//i.test(cleanPath)){
       const filename=cleanPath.split('/').pop()||'';
-      return /^[A-Za-z0-9_.()-]+\\.(?:png|jpe?g|webp)$/i.test(filename)?filename:'';
+      return /^[A-Za-z0-9_.()-]+\.(?:png|jpe?g|webp)$/i.test(filename)?filename:'';
     }
-    return /^e\\(\\d+\\)\\.png$/i.test(cleanPath)?cleanPath:'';
+    return /^e\(\d+\)\.png$/i.test(cleanPath)?cleanPath:'';
   } catch { return ''; }
 }
 export interface DbImageAuditRow {
