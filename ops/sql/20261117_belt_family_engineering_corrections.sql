@@ -15,7 +15,7 @@ BEGIN
   END IF;
 
   IF (SELECT count(*) FROM public.catalog_variants WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc') <> 103 THEN
-    RAISE EXCEPTION 'Expected 101 crowned CRC variants';
+    RAISE EXCEPTION 'Expected 103 crowned CRC/TRC variants';
   END IF;
   IF (SELECT count(*) FROM public.catalog_variants WHERE variable_specs->>'beltDivision'='vbelt-banded') <> 15 THEN
     RAISE EXCEPTION 'Expected 15 banded V-belt variants';
@@ -734,8 +734,14 @@ DO $$
 BEGIN
   IF (SELECT count(*) FROM public.catalog_variants
       WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc'
-        AND family_type_id='FT-BELT-CROWNED-CRC') <> 101 THEN
+        AND family_type_id='FT-BELT-CROWNED-CRC') <> 103 THEN
     RAISE EXCEPTION 'Postcondition failed: crowned CRC type split';
+  END IF;
+  IF (SELECT count(*) FROM public.catalog_variants
+      WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc'
+        AND identity_specs->>'standard'='استاندارد رسمی CRC/TRC در منابع موجود تأیید نشده؛ دیتاشیت سازنده لازم است'
+        AND technical_review->>'standardStatus'='not-established') <> 103 THEN
+    RAISE EXCEPTION 'Postcondition failed: CRC/TRC must not retain an invented standard';
   END IF;
   IF (SELECT count(*) FROM public.catalog_variants
       WHERE variable_specs->>'beltDivision'='welded-pu-round-crc'
