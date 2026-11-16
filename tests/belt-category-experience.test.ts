@@ -43,7 +43,8 @@ const route = readFileSync(new URL('../src/pages/CategoryPage.tsx', import.meta.
 const directSkus = readFileSync(new URL('../src/components/catalog/DirectSkuProducts.tsx', import.meta.url), 'utf8');
 
 test('direct SKU records are rendered in the same belt collection as family cards', () => {
-  assert.match(route, /return <BeltCategoryExperience \/>/);
+  assert.match(route, /if \(resolveCategorySlug\(slug \|\| ''\) === canonicalBeltSlug\) \{\s*return <Navigate to=\{`\/categories\$\{location\.search\}\$\{location\.hash\}`\} replace \/>/);
+  assert.doesNotMatch(route, /return <BeltCategoryExperience \/>/);
   assert.doesNotMatch(route, /DirectSkuProducts categorySlug=\{canonicalBeltSlug\}/);
   assert.match(page, /const directSkuRecords = useDirectSkus\(BELT_SLUG, 'excel-v2-1-'\)/);
   assert.match(page, /const directSkuProducts = useMemo/);
