@@ -104,6 +104,7 @@ test('V-belt families use profile-specific leaves and never enter timing or Poly
   assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه جوشی V روکش گریپ‌دار پروفیل XPC', 'لاستیک کلروپرن با روکش بافت پارچه‌ای', 'SPA , SPB , SPC و دندانه‌دار', 'XPC').valid, true);
   assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه جوشی V روکش گریپ‌دار پروفیل B', 'TPU پلی‌یورتان', 'Z (9.5) , M , A , B , C , D , E , 8V', 'B').valid, false);
   assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه گریپ‌دار XPC6000', 'لاستیک کلروپرن با روکش بافت پارچه‌ای', 'SPA , SPB , SPC و دندانه‌دار', 'XPC').valid, true);
+  assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V گوه‌ای باریک دنده‌دار لبه‌خام پروفیل XPZ', 'لاستیک دنده‌ای لبه‌خام (Raw-Edge Cogged Rubber)', 'SPA , SPB , SPC و دندانه‌دار', 'XPZ').valid, true);
 });
 
 test('double-sided and non-listed profiles remain at their valid timing or V-belt parent submenu', () => {
