@@ -280,6 +280,31 @@ WHERE code IN (
   'PFAM-تسمه-V-شکل-به--DONGIL-C-BANDED-655'
 );
 
+UPDATE public.catalog_families f
+SET materials='بدنه لاستیکی با نوار پیونددهنده فوقانی (Tie-Band / Banded V-Belt); ترکیب دقیق لاستیک نیازمند دیتاشیت سازنده است',
+    name=replace(f.name,'لاستیک کلروپرن با نوار پشتی مسلح یکپارچه (Tie-Band Reinforced Neoprene)','بدنه لاستیکی با نوار پیونددهنده فوقانی (Tie-Band / Banded V-Belt)'),
+    description=replace(f.description,'لاستیک کلروپرن با نوار پشتی مسلح یکپارچه (Tie-Band Reinforced Neoprene)','بدنه لاستیکی با نوار پیونددهنده فوقانی (Tie-Band / Banded V-Belt)'),
+    technical_specs=(
+      SELECT coalesce(jsonb_agg(
+        CASE
+          WHEN e->>'key'='جنس و متریال' OR e->>'key'='material'
+            THEN jsonb_set(e,'{value}',to_jsonb('بدنه لاستیکی با نوار پیونددهنده فوقانی (Tie-Band / Banded V-Belt); ترکیب دقیق لاستیک نیازمند دیتاشیت سازنده است'::text),true)
+          WHEN e->>'key'='ساختار مهندسی' OR e->>'key'='construction'
+            THEN jsonb_set(e,'{value}',to_jsonb('چند شاخه V متصل به نوار پشتی مشترک؛ جنس و آرایش دقیق عضو کششی نیازمند دیتاشیت سازنده است'::text),true)
+          ELSE e
+        END ORDER BY x.ord
+      ),'[]'::jsonb)
+      FROM jsonb_array_elements(coalesce(f.technical_specs,'[]'::jsonb)) WITH ORDINALITY AS x(e,ord)
+    ),
+    updated_at=now()
+WHERE f.code IN (
+  'PFAM-تسمه-V-شکل-به--SWR-3VX-BANDED-395',
+  'PFAM-تسمه-V-شکل-به--SWR-SPC-BANDED-488',
+  'PFAM-تسمه-V-شکل-به--GENERIC--C-BANDED-654',
+  'PFAM-تسمه-V-شکل-به--GENERIC--3VX-BANDED-641',
+  'PFAM-تسمه-V-شکل-به--DONGIL-C-BANDED-655'
+);
+
 UPDATE public.catalog_family_menu_assignments
 SET leaf_name=NULL,
     method='engineering_audited',
