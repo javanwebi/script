@@ -97,10 +97,12 @@ test('fresh speech postpones dispatch even if text has stopped changing', () => 
   assert.equal(forzaTurnRemainingWaitMs(phrase,false,pause+200,pause+200),0);
 });
 
-test('missing VAD analyser can use text stabilization, not block transcription forever', () => {
+test('missing VAD analyser uses a longer text-only guard without blocking forever', () => {
   const phrase='قیمتش چنده';
   const pause=forzaEndOfTurnPauseMs(phrase,false);
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,pause+50,null),0);
+  assert.ok(forzaTurnRemainingWaitMs(phrase,false,pause+50,null)>0,
+    'a browser interim stall must not be mistaken for acoustic silence');
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,4550,null),0);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,0,null)>0);
 });
 
