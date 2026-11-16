@@ -80,6 +80,7 @@ test('retired category parents no longer render old category experiences', () =>
   assert.match(categoryPage, /LEGACY_CATEGORY_ROUTE_GROUPS/);
   assert.match(categoryPage, /getInternalCategorySlugFromRouteSlug\(routeSlug\)/);
   assert.match(categoryPage, /getCategorySeoRouteSlug\(internalCategorySlug\)/);
+  assert.match(categoryPage, /search: location\.search, hash: location\.hash/);
   assert.match(categoryPage, /LEGACY_CATEGORY_ROUTE_GROUPS/);
   assert.match(serverSeo, /res\.redirect\(301/);
   assert.match(serverEntry, /registerCategorySeoRoutes\(app\)/);
