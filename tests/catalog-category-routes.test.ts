@@ -58,8 +58,9 @@ test('every approved category uses its own canonical route slug across storefron
   assert.match(header, /getCategoryRouteSlug\(category\)/);
   assert.match(searchPage, /getCategoryRouteSlug\(cat\)/);
   assert.match(footer, /getCategoryRouteSlug\(category\)/);
-  assert.match(admin, /routeSlug\?:string/);
-  assert.match(admin, /editorApprovedCategory\?\.slug/);
+  assert.match(admin, /const legacyTargetSlug=editorApprovedCategory\?\.slug/);
+  assert.match(admin, /stable database ID/);
+  assert.doesNotMatch(admin, /editorApprovedCategory[^\\n]*routeSlug/);
 });
 
 test('retired category parents no longer render old category experiences', () => {
