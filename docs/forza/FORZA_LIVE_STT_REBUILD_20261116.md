@@ -6,12 +6,17 @@ This change improves the existing FORZA call without replacing the approved part
 
 ## Changes
 
-- Browser interim/final hypotheses remain the primary low-latency transcript and continue to render in the existing customer subtitle surface.
+- Browser interim/final hypotheses remain the immediate fallback and continue to render in the existing customer subtitle surface while the local model warms.
+- On devices with at least four logical CPUs and 4 GB of device memory (or eight CPUs when memory reporting is unavailable), and without Save-Data enabled, the pinned Persian Diba/Vosk WASM model is loaded in the background from the same Sanat Pish origin. Once ready, it becomes the streaming partial-result recognizer; low-power devices stay on browser STT.
+- The Diba browser archive is retained in the private STT runtime image and served with immutable caching from `/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz`. No third-party model host or paid speech API is used by the browser path.
+- Browser audio is explicitly low-pass resampled from the device's actual 44.1/48 kHz capture rate to the Diba model's required 16 kHz mono PCM before each Vosk frame. This avoids configuring the 16 kHz Persian model with the browser's often-48 kHz output rate and keeps each audio frame around 42–46 ms.
 - The current customer utterance is now carried across browser SpeechRecognition restarts. A new recognition session appends only its new suffix instead of replacing the already visible words; overlapping words and split technical-code tokens are merged.
-- Ordinary speech requires a 2.6–3.1 second quiet/stability window before dispatch, even if the browser adds punctuation during a pause. A two-second breath therefore does not split the same thought into a second AI turn. Only explicit stop/continue control phrases retain a faster endpoint; greetings and acknowledgements use the same continuation window as ordinary speech.
+- Ordinary speech requires a 2.6–3.1 second acoustic quiet window before dispatch. If VAD is unavailable, text-only fallback waits at least 4.5 seconds so a temporary browser interim stall cannot prematurely submit a long sentence. A two-second breath therefore does not split the same thought into a second AI turn. Only explicit stop/continue control phrases retain a faster endpoint; greetings and acknowledgements use the same continuation window as ordinary speech.
+- Near-field acoustic floor is latched only after recognized customer words pass admission, so loudspeaker echo cannot become a customer utterance. The accepted utterance survives short word gaps, but the latch expires after 300 ms of quiet. Fresh near-field PCM resets a pending endpoint immediately, even before the full 160 ms admission window is reached. Strict final-result freshness remains bounded; late finals preserve already admitted interim words rather than admitting stale background speech.
 - If acoustic speech is detected before browser text arrives, the recorder waits through the same continuation window instead of stopping after one second with an empty hypothesis.
 - MediaRecorder rotates at a bounded chunk count instead of slicing or splicing the beginning off a WebM container. Each rotated segment keeps its own header; the Diba fallback transcribes complete segments and merges overlapping words.
-- Server Diba is used as a final fallback only when the browser has no usable transcript. A successful live browser transcript no longer waits for a second full-audio ASR request before the LLM request.
+- Server Diba is used as a final fallback only when no live browser/local transcript is usable. A successful live transcript no longer waits for a second full-audio ASR request before the LLM request.
+- Transient browser network errors now retry for the life of the call with a capped backoff; a third temporary error no longer permanently disables STT. A start watchdog also recovers recognizers that accept `start()` but never emit `onstart`.
 - The particle avatar's crown/hair keeps a subtle audio-reactive motion during greeting and TTS even when browser echo cancellation suppresses the speaker loopback.
 
 ## Validation
@@ -20,4 +25,4 @@ The smart-turn tests cover the two-second pause, final/interim endpointing, SKU 
 
 ## Operational note
 
-Web Speech interim delivery is controlled by the browser/OS speech service; the application can render each partial result immediately but cannot force the browser to emit one event per spoken word. Diba remains the server fallback after the utterance is captured; this change does not claim that the current Diba worker is a continuous streaming recognizer.
+Web Speech interim delivery is controlled by the browser/OS speech service; the application can render each partial result immediately but cannot force the browser to emit one event per spoken word. On capable devices the same-origin local Diba/Vosk recognizer supplies streaming partials instead. The server Diba worker remains the final full-audio fallback.

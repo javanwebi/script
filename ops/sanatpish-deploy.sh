@@ -111,12 +111,17 @@ fi
 
 docker run --rm --pull=never --network "$DOCKER_NETWORK" \
   --mount "type=bind,source=$stage,target=/app" -w /app \
+  "$NODE_IMAGE" sh -ec 'npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8 && mkdir -p public/forza-runtime/stt && cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js'
+
+docker run --rm --pull=never --network "$DOCKER_NETWORK" \
+  --mount "type=bind,source=$stage,target=/app" -w /app \
   "$NODE_IMAGE" npm run lint
 
 docker run --rm --pull=never --network "$DOCKER_NETWORK" \
   --mount "type=bind,source=$stage,target=/app" -w /app \
   "$NODE_IMAGE" npm run build
 [ -f "$stage/dist/index.html" ] || { echo 'Candidate build output missing'; exit 1; }
+[ -s "$stage/dist/forza-runtime/stt/vosk.js" ] || { echo 'Candidate Diba browser runtime missing'; exit 1; }
 
 echo 'Candidate validated; switching live revision (brief restart).'
 promoting=1

@@ -224,8 +224,9 @@ docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memor
  -e npm_config_maxsockets=4 \
  -e npm_config_fetch_retries=2 \
  -e npm_config_fetch_retry_maxtimeout=60000 \
- node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm run lint && npm run test:portal && node --import tsx --test tests/admin-catalog-image-workflow.test.ts tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/image-assignments.test.ts tests/catalog-menu-assignment-audit.test.ts && npm run build' 2>&1 | tee "$BUILD_LOG"
+ node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8 && mkdir -p public/forza-runtime/stt && cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js && npm run lint && npm run test:portal && node --import tsx --test tests/admin-catalog-image-workflow.test.ts tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/image-assignments.test.ts tests/catalog-menu-assignment-audit.test.ts && npm run build && test -s dist/forza-runtime/stt/vosk.js' 2>&1 | tee "$BUILD_LOG"
 test -s "$STAGE/dist/index.html"
+test -s "$STAGE/dist/forza-runtime/stt/vosk.js"
 
 echo '===== VERIFY / BUILD PINNED DIBA STT RUNTIME IMAGE ====='
 # The STT toolchain is independent from the storefront source revision.
@@ -260,6 +261,7 @@ docker run --rm --pull=never "$STT_IMAGE" sh -ec '
   /opt/forza-pocket/bin/python -c "import vosk"
   test -d /opt/diba-stt/model/am
   test -d /opt/diba-stt/model/conf
+  test -s /opt/diba-stt/diba-stt-fa-small.tar.gz
 '
 echo "FORZA_STT_RUNTIME_IMAGE_READY=$STT_IMAGE"
 
@@ -605,7 +607,7 @@ fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
- "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_DIBA_BROWSER_ARCHIVE=/opt/diba-stt/diba-stt-fa-small.tar.gz -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
  "${MOUNTS[@]}" "$STT_IMAGE" node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do

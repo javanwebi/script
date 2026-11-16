@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {streamXkiroConsult,completeXkiroConsult} from '../server/ai/baiConsult';
+import {buildForzaConsultSystemMessage,streamXkiroConsult,completeXkiroConsult} from '../server/ai/baiConsult';
 
 test('stream and JSON verification use identical consultation context and keep user correction as latest turn',async()=>{
  const payloads:any[]=[];
@@ -23,4 +23,17 @@ test('stream and JSON verification use identical consultation context and keep u
   assert.ok(payloads[offset].messages[0].content.includes('6203ZZ: مشخصات تأییدشده'));
  }
  assert.notEqual(payloads[0].messages[0].content,payloads[2].messages[0].content);
+});
+
+
+test('voice prompt behaves like a continuous Persian conversation, not isolated Q&A',()=>{
+ const prompt=buildForzaConsultSystemMessage(true);
+ for(const phrase of [
+  'هر تماس را یک گفت‌وگوی پیوسته ببینید',
+  'دوباره سلام',
+  'همونه',
+  'فقط همان بخش اصلاح‌شده',
+  'از آخرین بخش واقعاً شنیده‌شده ادامه دهید',
+  'معمولاً یک تا سه جمله کوتاه',
+ ])assert.ok(prompt.includes(phrase),'missing dialogue behavior: '+phrase);
 });

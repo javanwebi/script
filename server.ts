@@ -51,6 +51,7 @@ import sharp from 'sharp';
 import type { OverlayOptions } from 'sharp';
 import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, ThinkingLevel, type LiveServerMessage } from '@google/genai';
 import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
+import { FORZA_CONVERSATION_HISTORY_LIMIT } from './src/utils/forzaConversationHistory';
 import { normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from './src/utils/forzaSpeechPipeline';
 import { classifyForzaAudio } from './src/utils/forzaTtsFormat';
 import { forzaUnbrokenSpokenText } from './src/utils/forzaUnbrokenText';
@@ -490,6 +491,20 @@ app.use('/api/ai', async (req,res,next)=>{
   next();
 });
 app.use('/api/auth', (_req, res) => res.status(410).json({ success: false, message: 'از مسیر ورود جدید استفاده کنید.' }));
+
+// Public, version-pinned Diba/Vosk browser model. This is an open model
+// archive, not customer audio or a credential; serve it from the same origin
+// so browsers never depend on a third-party model host during a live call.
+app.get('/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz',(_req,res)=>{
+  const archive=String(process.env.FORZA_STT_DIBA_BROWSER_ARCHIVE||
+    '/opt/diba-stt/diba-stt-fa-small.tar.gz');
+  if(!path.isAbsolute(archive)||!fs.existsSync(archive))
+    return res.status(404).end();
+  res.setHeader('Content-Type','application/gzip');
+  res.setHeader('Cache-Control','public, max-age=31536000, immutable');
+  res.setHeader('X-Content-Type-Options','nosniff');
+  return res.sendFile(archive,{maxAge:'1y',immutable:true});
+});
 
 // Fallback to disk folder if image existed prior
 app.use(
@@ -5341,7 +5356,7 @@ function consultantCatalogContext(query:string){
 }
 async function consultantCustomerPricingContext(req:express.Request,query:string,history:unknown):Promise<string>{
  const historyText=Array.isArray(history)
-  ? history.slice(-8).filter((item:any)=>item?.sender==='user'||item?.role==='user')
+  ? history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT).filter((item:any)=>item?.sender==='user'||item?.role==='user')
     .map((item:any)=>String(item?.text||'').slice(0,240)).join(' ')
   : '';
  const searchText=(String(query||'')+' '+historyText).trim();
@@ -5422,7 +5437,7 @@ app.post('/api/ai/consult', async (req, res) => {
       ];
 
       if (Array.isArray(history) && history.length > 0) {
-        for (const h of history.slice(-6)) {
+        for (const h of history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT)) {
           const role =
             h.sender === 'user' || h.role === 'user' ? 'user' : 'assistant';
           workerMessages.push({ role, content: h.text });
@@ -5459,7 +5474,7 @@ app.post('/api/ai/consult', async (req, res) => {
 
         const contents: any[] = [];
         if (Array.isArray(history) && history.length > 0) {
-          for (const h of history.slice(-6)) {
+          for (const h of history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT)) {
             if (h.sender === 'user' || h.role === 'user') {
               contents.push({ role: 'user', parts: [{ text: h.text }] });
             } else if (h.sender === 'ai' || h.role === 'model') {
@@ -6106,7 +6121,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
         },
       ];
       if (Array.isArray(history)) {
-        for (const h of history.slice(-6)) {
+        for (const h of history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT)) {
           workerMessages.push({
             role: h.sender === 'user' || h.role === 'user' ? 'user' : 'assistant',
             content: h.text,
@@ -6174,7 +6189,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
 
     const contents: any[] = [];
     if (Array.isArray(history) && history.length > 0) {
-      for (const h of history.slice(-6)) {
+      for (const h of history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT)) {
         if (h.sender === 'user' || h.role === 'user') {
           contents.push({ role: 'user', parts: [{ text: h.text }] });
         } else if (h.sender === 'ai' || h.role === 'model') {

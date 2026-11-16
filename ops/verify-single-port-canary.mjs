@@ -29,6 +29,26 @@ assert.equal(stt.serverSttProvider, "diba");
 assert.equal(stt.serverSttReady, true);
 console.log("FORZA_STT_CANARY_DIBA_READY_OK provider=" + stt.serverSttProvider);
 
+const browserModel = await fetch(candidate + "/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz", {
+  method: "HEAD",
+  signal: AbortSignal.timeout(15000),
+});
+assert.equal(browserModel.status, 200, "DIBA_BROWSER_MODEL_HTTP_" + browserModel.status);
+assert.match(browserModel.headers.get("content-type") || "", /application\/gzip/i);
+assert.ok(Number(browserModel.headers.get("content-length") || 0) > 0,
+  "DIBA_BROWSER_MODEL_CONTENT_LENGTH_MISSING");
+console.log("PRIVATE_CANARY_DIBA_BROWSER_MODEL_OK bytes=" + browserModel.headers.get("content-length"));
+
+const voskScript = await fetch(candidate + "/forza-runtime/stt/vosk.js", {
+  method: "HEAD",
+  signal: AbortSignal.timeout(15000),
+});
+assert.equal(voskScript.status, 200, "DIBA_BROWSER_VOSK_SCRIPT_HTTP_" + voskScript.status);
+assert.match(voskScript.headers.get("content-type") || "", /javascript/i);
+assert.ok(Number(voskScript.headers.get("content-length") || 0) > 1_000_000,
+  "DIBA_BROWSER_VOSK_SCRIPT_CONTENT_LENGTH_MISSING");
+console.log("PRIVATE_CANARY_DIBA_BROWSER_VOSK_SCRIPT_OK bytes=" + voskScript.headers.get("content-length"));
+
 // Probe real, protected mutation handlers without an authenticated session.
 // A correct endpoint rejects an anonymous write with JSON 401/403. An absent
 // endpoint typically returns 404 HTML, which previously broke CRM and image
@@ -68,6 +88,31 @@ console.log("API_NOT_FOUND_JSON_CONTRACT_OK");
 
 const groups = await json(candidate, "/api/catalog/navigation-groups");
 assert.ok(groups.success && Array.isArray(groups.groups) && groups.groups.length >= 6);
+
+const categoryCatalog = await json(candidate, "/api/catalog/categories");
+assert.ok(
+  categoryCatalog.success && Array.isArray(categoryCatalog.categories),
+  "PUBLIC_CATALOG_CATEGORIES_RESPONSE_INVALID",
+);
+const approvedCategories = categoryCatalog.categories.filter(category =>
+  category?.active === true &&
+  category?.menuSource === "industrial_megamenu_hierarchy_v2" &&
+  /^excel-v2-[0-9]+-[0-9]+$/.test(String(category?.slug || "")),
+);
+assert.ok(
+  approvedCategories.length >= 34,
+  "PUBLIC_CATALOG_CATEGORIES_INCOMPLETE: expected at least 34 approved categories, received " + approvedCategories.length,
+);
+const approvedCategorySlugs = new Set(approvedCategories.map(category => category.slug));
+assert.equal(approvedCategorySlugs.size, approvedCategories.length,
+  "PUBLIC_CATALOG_CATEGORIES_DUPLICATE_SLUG");
+assert.ok(approvedCategories.every(category =>
+  typeof category.name === "string" && category.name.trim().length > 0 &&
+  Number.isInteger(category.familyCount) && category.familyCount >= 0 &&
+  Number.isInteger(category.skuCount) && category.skuCount >= 0
+), "PUBLIC_CATALOG_CATEGORIES_INVALID_FIELDS");
+console.log("PUBLIC_CATALOG_CATEGORIES_API_OK", approvedCategories.length);
+
 
 // excel-v2-1-4 is a valid approved category, but the reviewed family map
 // currently contains no source-confirmed families for it. Empty is valid here:

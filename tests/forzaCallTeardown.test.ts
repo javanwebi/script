@@ -17,9 +17,12 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
   playbackEchoHistoryRef:ref({clear(){}}),stopAcknowledgementRef:ref(null),callClosedRef:ref(false),microphoneGenerationRef:ref(1),micAutoStartedRef:ref(true),
   activeTurnRef:ref({abort:{abort(){calls.push('request');}}}),
   silenceTimerRef:ref(null),recognitionRetryTimerRef:ref(null),
+  recognitionStartWatchdogRef:ref(null),recognitionStartPendingRef:ref(false),recognitionStartRef:ref(()=>{}),
   recognitionRef:ref(recognition),isRecognitionActiveRef:ref(true),
   mediaRecorderRef:ref(recorder),streamRef:ref({getTracks:()=>[track]}),
   localSttRecognizerRef:ref({remove(){calls.push('local-stt');}}),
+  localSttModelRef:ref({terminate(){calls.push('local-stt-model');}}),
+  localSttModelLoadingRef:ref(true),
   animFrameAudioRef:ref(10),ctxRef:ref({state:'running',async close(){calls.push('context');}}),
   historyRef:ref(['private']),audioChunksRef:ref(['audio']),audioSegmentsRef:ref(['audio-segment']),isProcessingTurnRef:ref(true),
   stopAudio:()=>calls.push('playback'),cancelAnimationFrame:()=>calls.push('animation'),
@@ -27,7 +30,9 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
  for(const name of ['localSttNodeRef','localSttSinkRef','micSourceNodeRef','micAnalyserRef','audioSourceNodeRef','analyserRef','gainNodeRef'])values[name]=ref({disconnect(){calls.push('disconnect');}});
  const teardown=new Function(...Object.keys(values),body).bind(null,...Object.values(values));
  teardown();teardown();await Promise.resolve();
- for(const resource of ['recognition','recorder','track','request','context','local-stt','animation','audio-evidence'])assert.equal(calls.filter(x=>x===resource).length,1,resource);
+ for(const resource of ['recognition','recorder','track','request','context','local-stt','local-stt-model','animation','audio-evidence'])assert.equal(calls.filter(x=>x===resource).length,1,resource);
+ assert.equal(values.localSttModelRef.current,null);
+ assert.equal(values.localSttModelLoadingRef.current,false);
  assert.equal(values.callClosedRef.current,true);
  assert.equal(values.microphoneGenerationRef.current,3);
  assert.equal(values.ctxRef.current,null);
@@ -48,4 +53,10 @@ test('late microphone permission result is stopped before attaching to a closed 
   assert.equal(stopped,1);
  }
  assert.equal(accept({current:false},1,{current:1},{getTracks:()=>{throw Error('must keep valid stream');}}),true);
+});
+
+
+test('a Diba model that resolves after hangup is terminated instead of retained',()=>{
+ assert.match(source,/if\(callClosedRef\.current\)\{model\.terminate\?\.\(\);return;\}/);
+ assert.match(source,/if\(callClosedRef\.current\)return;[\s\S]*?finally\(\(\)=>\{localSttModelLoadingRef\.current=false;\}\)/);
 });

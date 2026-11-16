@@ -51,6 +51,26 @@ on:
       - "supabase/adopted/migrations/20261116010000_catalog_identity_specs_compat.sql"
       - "tests/database/catalog-identity-specs-compat.test.ts"
       - "scripts/tests/belt-category-responsive-smoke.cjs"
+      - "src/components/forza/AiForzaCallExperience.tsx"
+      - "src/utils/forzaLocalSpeech.ts"
+      - "src/utils/forzaSpeechAdmission.ts"
+      - "src/utils/forzaSpeechPipeline.ts"
+      - "src/utils/forzaRecognitionRecovery.ts"
+      - "src/utils/forzaConversationHistory.ts"
+      - "server/ai/baiConsult.ts"
+      - "tests/forzaConversationHistory.test.ts"
+      - "tests/forzaConsultContract.test.ts"
+      - "tests/forzaLocalDibaStreaming.test.ts"
+      - "tests/forzaRecognitionRecovery.test.ts"
+      - "tests/forza-smart-turn.test.ts"
+      - "tests/forzaSpeechAdmission.test.ts"
+      - "tests/forzaBrowserRecognitionLifecycle.test.ts"
+      - "tests/forzaCallTeardown.test.ts"
+      - "ops/Dockerfile.forza-stt-runtime"
+      - "server.ts"
+      - "ops/deploy-single-port-vps.sh"
+      - "ops/sanatpish-deploy.sh"
+      - "ops/verify-single-port-canary.mjs"
       - ".github/workflows/verify-vps-build.yml"
   push:
     branches: [main, feature/textile-industry-page]
@@ -80,6 +100,14 @@ jobs:
           cache: npm
       - name: Install exactly as VPS candidate
         run: npm ci --no-audit --no-fund
+      - name: Stage pinned same-origin Diba browser runtime
+        run: |
+          npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8
+          mkdir -p public/forza-runtime/stt
+          cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js
+          test -s public/forza-runtime/stt/vosk.js
+      - name: Validate candidate deploy shell syntax
+        run: bash -n ops/deploy-single-port-vps.sh ops/sanatpish-deploy.sh
       - name: TypeScript
         run: npm run lint
       - name: Products catalogue regression suite
@@ -90,12 +118,16 @@ jobs:
         run: node --import tsx --test tests/all-categories-page-premium.test.ts
       - name: Excel menu category regression suite
         run: node --import tsx --test tests/excel-menu-category-premium.test.ts
+      - name: Catalog navigation API contract regression suite
+        run: node --import tsx --test tests/home-approved-category-strip.test.ts tests/home-fast-preview.test.ts
       - name: Textile industry regression suite
         run: node --import tsx --test tests/textile-industry-premium.test.ts
       - name: Industry page regression suite
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
       - name: Belt category reference and regression suite
         run: node --import tsx --test tests/belt-category-experience.test.ts
+      - name: FORZA local Diba and speech-turn recovery regression suite
+        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
       - name: PVC conveyor Phase 1 classification regression suite
         run: node --import tsx --test tests/pvc-conveyor-phase1-classification.test.ts
       - name: PVC conveyor database split and rollback integration test
@@ -109,7 +141,9 @@ jobs:
       - name: Mobile camera capture and confirmation flow
         run: node --import tsx --test tests/mobile-scan-ui.test.ts
       - name: Build as VPS
-        run: npm run build 2>&1 | tee /tmp/forza-vps-build.log; exit ${PIPESTATUS[0]}
+        run: |
+          npm run build 2>&1 | tee /tmp/forza-vps-build.log
+          test -s dist/forza-runtime/stt/vosk.js
       - name: Install Chromium for belt category responsive smoke
         run: |
           npm install --no-save --ignore-scripts --no-package-lock playwright@1.56.1

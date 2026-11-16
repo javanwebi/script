@@ -8,11 +8,25 @@ const endBody=source.split('      rec.onend = () => {')[1].split('\n      };')[0
 function recognizerHarness(){
  const ref=(current:any)=>({current});let scheduled:(()=>void)|null=null,starts=0;
  const rec={start(){starts++;}};
+ const retryTimer=ref(null);
  const scope:Record<string,any>={admissionRetry:null,rec,recognitionRef:ref(rec),isRecognitionActiveRef:ref(true),
+  recognitionStartPendingRef:ref(false),recognitionStartWatchdogRef:ref(null),
   callClosedRef:ref(false),micMutedRef:ref(false),isCallActive:true,greetingFinishedRef:ref(true),
   recognitionFailedRef:ref(false),webSpeechFailedRef:ref(false),localSttRecognizerRef:ref(null),
-  recognitionRetryTimerRef:ref(null),setMicrophoneError:()=>{},
-  window:{setTimeout(fn:()=>void,delay:number){assert.equal(delay,200);scheduled=fn;return 1;}}};
+  recognitionRetryTimerRef:retryTimer,setMicrophoneError:()=>{},
+  canRestart:()=>!scope.callClosedRef.current&&!scope.micMutedRef.current&&scope.isCallActive&&
+    scope.greetingFinishedRef.current&&!scope.recognitionFailedRef.current&&
+    !scope.localSttRecognizerRef.current&&scope.recognitionRef.current===rec,
+  scheduleRestart:(delay:number)=>{
+    assert.equal(delay,200);
+    if(retryTimer.current!==null||!scope.canRestart())return;
+    retryTimer.current=1;
+    scheduled=()=>{
+      retryTimer.current=null;
+      if(!scope.canRestart())return;
+      starts++;
+    };
+  }};
  const end=new Function(...Object.keys(scope),endBody).bind(null,...Object.values(scope));
  return {scope,rec,end,fire:()=>scheduled?.(),starts:()=>starts};
 }
@@ -68,7 +82,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
   admission:new ForzaRecognitionAdmission(),speechAdmissionRef:ref({decide:()=> 'accept'}),rejectedRecordingRef:ref(false),
   rec,callClosedRef:ref(false),micMutedRef:ref(false),recognitionRef:ref(rec),
   recognitionConsumedCountRef:ref(0),recognitionResultCountRef:ref(0),recognitionSessionBaseRef:ref(''),appendForzaSpeechSegment,
-  extractPersianSpeechSince,checkpointForzaRecognition,recognitionCheckpointRef:ref({count:0,interim:{}}),recognitionConsumedInterimRef:ref({}),recognitionRetryRef:ref(0),
+  extractPersianSpeechSince,checkpointForzaRecognition,recognitionCheckpointRef:ref({count:0,interim:{}}),recognitionConsumedInterimRef:ref({}),recognitionRetryRef:ref(0),recognitionRetryTimerRef:ref(null),
   recognitionFailedRef:ref(false),webSpeechFailedRef:ref(false),
   setMicrophoneError:()=>{},setErrorNotice:()=>{},
   isProcessingTurnRef:ref(true),isAiSpeakingRef:ref(true),
@@ -90,7 +104,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
  assert.equal(interrupted,1);
 });
 test('return to listening preserves a customer sentence arriving at playback completion',()=>{
- const body=source.split('    if(!monitorOnly){')[1].split('    // Prefer Chrome')[0];
+ const body=source.split('    if(!monitorOnly){')[1].split('    // Prefer the on-device Diba/Vosk partial recognizer')[0];
  const execute=new Function('activeTranscriptRef','lastTranscriptChangedAtRef','hasSpeechSoundRef','audioChunksRef','setStatus','setTurn','if(true){'+body);
  const transcript={current:'ده عدد از همان می خواهم'};
  const changed={current:123},speech={current:true},chunks={current:['audio']};
@@ -99,4 +113,15 @@ test('return to listening preserves a customer sentence arriving at playback com
  assert.equal(changed.current,123);
  assert.equal(speech.current,true);
  assert.deepEqual(chunks.current,['audio']);
+});
+
+test('the start watchdog retries a recognizer that accepts start() but never emits onstart',()=>{
+ assert.match(source,/recognitionStartWatchdogRef\.current=window\.setTimeout/);
+ assert.match(source,/recognitionStartPendingRef\.current=false;\s*scheduleRestart\(450\)/);
+ assert.match(source,/recognitionStartRef\.current=\(\)=>startWithWatchdog\(\)/);
+});
+test('a network failure uses capped recovery instead of permanently disabling later turns',()=>{
+ assert.match(source,/const retryDelay=forzaRecognitionRetryDelay\(String\(error\),recognitionRetryRef\.current\)/);
+ assert.match(source,/recognitionRetryRef\.current\+\+/);
+ assert.match(source,/startWithWatchdog\(\)/);
 });

@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import {ForzaSpeechAdmission,ForzaRecognitionAdmission} from '../src/utils/forzaSpeechAdmission';
 import {extractPersianSpeechSince} from '../src/utils/forzaSpeechPipeline';
 import {forzaTurnIntent} from '../src/utils/forzaBargeIn';
+import { ForzaVoiceActivity } from '../src/utils/forzaVoiceActivity';
 function calibrated(playback=false,noise=0.003){
  const gate=new ForzaSpeechAdmission();
- for(let t=0;t<=1000;t+=50)gate.sample(noise,t,playback);
+ // Learn the room before playback; TTS energy must never calibrate the mic floor.
+ for(let t=0;t<=1000;t+=50)gate.sample(noise,t,false);
+ if(playback)gate.sample(noise,1050,true);
  return gate;
 }
 function speak(gate:ForzaSpeechAdmission,from:number,to:number,level:number,playback=false){
@@ -37,7 +40,8 @@ test('quiet near speech works in quiet rooms and stale VAD cannot admit a bystan
  assert.equal(gate.decide('بلبرینگ',false,false,1350),'accept');
  speak(gate,1400,1800,0.001);
  assert.equal(gate.decide('کلام دور',false,false,1800),'reject');
- assert.equal(gate.decide('بلبرینگ',true,false,1800),'accept','bounded late final');
+ assert.equal(gate.decide('بلبرینگ',true,false,1800),'reject',
+  'a late final without an already-admitted interim must not reuse stale acoustic evidence');
  speak(gate,1850,2400,0.001);
  assert.equal(gate.decide('کلام دور',true,false,2400),'reject');
 });
@@ -85,9 +89,31 @@ test('a filtered interim finalizes without duplicating its admitted suffix',()=>
  assert.equal(extractPersianSpeechSince(final.results,0).text,'بلبرینگ 6203');
 });
 
-test('continuing speech survives the transition out of playback',()=>{
+test('assistant playback cannot raise the noise floor and suppress the next customer turn',()=>{
+ const gate=calibrated(false,0.001);
+ const roomFloor=gate.diagnostics(1000).floor;
+ for(let t=1050;t<=3500;t+=50)gate.sample(0.06,t,true);
+ assert.equal(gate.diagnostics(3500).floor,roomFloor,'TTS energy must not become ambient noise');
+ assert.equal(gate.diagnostics(3500).utteranceLatched,false,
+  'unrecognized loudspeaker echo must not latch as an admitted customer utterance');
+ assert.equal(gate.acousticSpeech,false,
+  'raw loudspeaker RMS must not start the VAD turn');
+ assert.equal(gate.hasRecentNearFieldEvidence(3500),false,
+  'assistant playback leakage must not cancel an endpoint timer');
+ gate.sample(0.0005,3550,false);
+ gate.sample(0.0005,3700,false);
+ speak(gate,3750,4000,0.006,false);
+ assert.equal(gate.decide('برای دستگاه تسمه PU می خواهم',false,false,4000),'accept',
+  'the next customer turn must be admitted after assistant playback');
+});
+
+test('only an admitted customer barge-in becomes VAD evidence during playback',()=>{
  const gate=calibrated(true);speak(gate,1050,1400,0.06,true);
+ assert.equal(gate.acousticSpeech,false,'raw playback energy is not enough to authorize VAD');
+ assert.equal(gate.hasRecentNearFieldEvidence(1400),false);
  assert.equal(gate.decide('وایسا',false,true,1400),'accept');
+ assert.equal(gate.acousticSpeech,true,'a recognized stop command enables barge-in VAD');
+ assert.equal(gate.hasRecentNearFieldEvidence(1400),true);
  assert.equal(gate.decide('وایسا منظورم',false,false,1400),'accept');
  gate.sample(0.06,1450,false);
  assert.equal(gate.decide('وایسا منظورم 6203',false,false,1450),'accept');
@@ -129,4 +155,89 @@ test('an emerging quiet utterance does not raise its own ambient threshold',()=>
  const gate=calibrated(false,0.001);
  for(let t=1050;t<6000;t+=50)gate.sample(0.003,t,false);
  assert.equal(gate.decide('مشخصات تسمه را می خواهم',false,false,5950),'accept');
+});
+
+test('long speech does not relearn its own voice level as ambient noise between words',()=>{
+ const gate=calibrated(false,0.003);
+ // First phrase establishes the utterance latch only after its words pass admission.
+ speak(gate,1050,1300,0.006);
+ assert.equal(gate.decide('بخش اول مشخصات تسمه',false,false,1300),'accept');
+ assert.equal(gate.acousticSpeech,true);
+ // Simulate several natural 120ms word gaps. The room floor must stay frozen
+ // while the same utterance continues, even when the mic level is modest.
+ for(let start=1450;start<5600;start+=550){
+  speak(gate,start,start+300,0.006);
+  for(let t=start+350;t<start+500;t+=50)gate.sample(0.003,t,false);
+ }
+ // Continue speaking after the last natural gap; the floor must remain frozen
+ // at the room level and fresh near-field samples must admit the resumed words.
+ speak(gate,5850,6050,0.006);
+ assert.equal(gate.decide('مشخصات تسمه را می خواهم',false,false,6050),'accept');
+ assert.equal(gate.acousticSpeech,true);
+});
+
+test('final hypotheses are accepted only while near-field evidence is fresh',()=>{
+ const gate=calibrated(false,0.001);
+ speak(gate,1050,1350,0.006);
+ assert.equal(gate.decide('تسمه SPA 1250',true,false,1350),'accept',
+  'a final received with fresh microphone evidence must be accepted');
+ speak(gate,1400,2400,0.001);
+ assert.equal(gate.decide('تسمه SPA 1250',true,false,2400),'reject',
+  'a new final after sustained silence must not borrow old near-field evidence');
+});
+
+test('a late final hypothesis preserves words already admitted as live interim text',()=>{
+ const gate=calibrated(false,0.001);
+ speak(gate,1050,1350,0.006);
+ const admission=new ForzaRecognitionAdmission();
+ const interim=admission.filter([result('بلبرینگ 6203',false)],
+  (text,final)=>gate.decide(text,final,false,1350));
+ assert.equal(extractPersianSpeechSince(interim.results,0).text,'بلبرینگ 6203');
+ const final=admission.filter([result('بلبرینگ 6203',true)],
+  (text,isFinal)=>gate.decide(text,isFinal,false,2400));
+ assert.equal(extractPersianSpeechSince(final.results,0).text,'بلبرینگ 6203');
+ assert.equal(final.results[0].isFinal,true);
+});
+
+test('near-field admission survives short Persian word gaps but expires after sustained silence',()=>{
+ const gate=calibrated(false,0.001);
+ speak(gate,1050,1300,0.006);
+ assert.equal(gate.decide('بلبرینگ',false,false,1300),'accept');
+ for(let t=1350;t<=1450;t+=50)gate.sample(0.0005,t,false);
+ assert.equal(gate.acousticSpeech,false,'the immediate onset detector may reset during a word gap');
+ assert.equal(gate.hasRecentNearFieldEvidence(1450),true);
+ assert.equal(gate.decide('بلبرینگ 6203',false,false,1450),'accept',
+  'the already-admitted utterance must survive a short inter-word gap');
+ for(let t=1500;t<=1650;t+=50)gate.sample(0.0005,t,false);
+ assert.equal(gate.hasRecentNearFieldEvidence(1650),false);
+ assert.equal(gate.decide('صدای دور',false,false,1650),'reject',
+  'a stale near-field latch must not authorize a later speaker');
+});
+
+test('fresh near-field PCM resets the VAD endpoint before the full admission window',()=>{
+ const gate=calibrated(false,0.001);
+ const vad=new ForzaVoiceActivity();
+ for(let t=1050;t<=1300;t+=50){
+  gate.sample(0.006,t,false);
+  const evidence=gate.acousticSpeech||gate.hasRecentNearFieldEvidence(t);
+  vad.sample(0.006,t,evidence);
+ }
+ assert.equal(vad.heardSpeech,true);
+ for(let t=1350;t<=3700;t+=50){
+  gate.sample(0.0005,t,false);
+  const evidence=gate.acousticSpeech||gate.hasRecentNearFieldEvidence(t);
+  vad.sample(0.0005,t,evidence);
+ }
+ assert.ok(vad.silenceDuration(3700)>=2100,'the bounded 250 ms word-gap grace must not mask sustained silence');
+ gate.sample(0.006,3750,false);
+ assert.equal(gate.acousticSpeech,false,'the resumed syllable has not completed the full evidence window');
+ const resumed=vad.sample(0.006,3750,
+  gate.acousticSpeech||gate.hasRecentNearFieldEvidence(3750));
+ assert.equal(resumed.speaking,true);
+ assert.equal(resumed.silenceMs,0,'the pending endpoint must see resumed near-field PCM immediately');
+});
+test('ordinary speech at moderate mic gain remains admitted over an ambient floor',()=>{
+ const gate=calibrated(false,0.003);
+ speak(gate,1050,1450,0.006);
+ assert.equal(gate.decide('تسمه صنعتی می خواهم',false,false,1450),'accept');
 });

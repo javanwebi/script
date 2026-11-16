@@ -1,10 +1,43 @@
-/** Browser-based Persian STT fallback for FORZA.
+/** On-device Persian streaming STT for FORZA, with Web Speech fallback.
  * Text-to-speech is exclusively Pocket Farsi v2 on /api/ai/forza-speech.
  * The former unused Piper/Amir browser TTS was removed because the VPS
  * build cannot resolve its optional, intentionally uninstalled dependency.
  * Keeping it here silently bundled a second, unwanted voice engine.
  */
-export const FORZA_DIBA_MODEL_URL='https://huggingface.co/Dibachain/Diba-STT/resolve/c244182debe853f83a00a03642830e7507a55d1d/browser/diba-stt-fa-small.tar.gz';
+export const FORZA_DIBA_MODEL_URL='/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz';
+export const FORZA_DIBA_SAMPLE_RATE=16000;
+
+/** Resample microphone PCM to the 16 kHz rate used by the Persian Vosk model.
+ * A short windowed-sinc low-pass prevents frequencies above the new Nyquist
+ * limit from aliasing into speech when browsers capture at 44.1/48 kHz.
+ */
+export function resampleDibaPcm(input:Float32Array,inputRate:number):Float32Array{
+  if(!Number.isFinite(inputRate)||inputRate<8000||!input.length)return new Float32Array(0);
+  if(inputRate===FORZA_DIBA_SAMPLE_RATE)return input.slice();
+  const ratio=inputRate/FORZA_DIBA_SAMPLE_RATE;
+  const outputLength=Math.max(1,Math.round(input.length/ratio));
+  const output=new Float32Array(outputLength);
+  const radius=12;
+  const cutoff=Math.min(1,FORZA_DIBA_SAMPLE_RATE/inputRate)*0.94;
+  for(let outIndex=0;outIndex<outputLength;outIndex++){
+    const center=outIndex*ratio;
+    const centerIndex=Math.floor(center);
+    let weighted=0,weightSum=0;
+    for(let inputIndex=Math.max(0,centerIndex-radius+1);
+        inputIndex<=Math.min(input.length-1,centerIndex+radius);inputIndex++){
+      const distance=center-inputIndex;
+      if(Math.abs(distance)>=radius)continue;
+      const phase=Math.PI*cutoff*distance;
+      const sinc=Math.abs(phase)<1e-8?1:Math.sin(phase)/phase;
+      const window=0.5+0.5*Math.cos(Math.PI*distance/radius);
+      const weight=cutoff*sinc*window;
+      weighted+=input[inputIndex]*weight;
+      weightSum+=weight;
+    }
+    output[outIndex]=weightSum!==0?weighted/weightSum:input[Math.min(input.length-1,Math.round(center))]||0;
+  }
+  return output;
+}
 const VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.js';
 
 export interface LocalRecognizer {
@@ -13,18 +46,24 @@ export interface LocalRecognizer {
   remove?():void;
 }
 export interface LocalSttModel {
-  KaldiRecognizer:new(sampleRate?:number)=>LocalRecognizer;
+  KaldiRecognizer:new(sampleRate:number)=>LocalRecognizer;
   terminate?():void;
 }
 type BrowserVosk={createModel(url:string):Promise<LocalSttModel>};
 let dibaPromise:Promise<LocalSttModel>|undefined;
 let voskPromise:Promise<void>|undefined;
 
-function within<T>(promise:Promise<T>,ms:number,label:string):Promise<T>{
+function within<T>(promise:Promise<T>,ms:number,label:string,onLateResolve?:(value:T)=>void):Promise<T>{
   return new Promise((resolve,reject)=>{
-    const id=window.setTimeout(()=>reject(new Error(label)),ms);
-    promise.then(value=>{clearTimeout(id);resolve(value);},
-      error=>{clearTimeout(id);reject(error);});
+    let expired=false;
+    const id=window.setTimeout(()=>{expired=true;reject(new Error(label));},ms);
+    promise.then(value=>{
+      if(expired){try{onLateResolve?.(value);}catch{};return;}
+      clearTimeout(id);resolve(value);
+    },error=>{
+      if(expired)return;
+      clearTimeout(id);reject(error);
+    });
   });
 }
 
@@ -45,9 +84,8 @@ export async function loadDibaSttModel():Promise<LocalSttModel>{
   if(!dibaPromise){
     dibaPromise=(async()=>{
       await within(loadVoskScript(),15000,'vosk_runtime_timeout');
-      return await within(
-        ((window as any).Vosk as BrowserVosk).createModel(FORZA_DIBA_MODEL_URL),
-        90000,'diba_model_timeout');
+      const modelPromise=((window as any).Vosk as BrowserVosk).createModel(FORZA_DIBA_MODEL_URL);
+      return await within(modelPromise,90000,'diba_model_timeout',model=>model.terminate?.());
     })().catch(error=>{dibaPromise=undefined;throw error;});
   }
   return dibaPromise;

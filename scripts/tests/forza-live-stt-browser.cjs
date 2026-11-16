@@ -24,6 +24,10 @@ function wav(){
   let externalModelDownloads=0;
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
+    // Keep this suite on the browser-native fallback path. The separate local
+    // Diba suite exercises the on-device Vosk engine on capable hardware.
+    Object.defineProperty(navigator,'hardwareConcurrency',{configurable:true,value:2});
+    Object.defineProperty(navigator,'deviceMemory',{configurable:true,value:2});
     // Calibrate room silence, then model a nearby speaker explicitly.
     window.__forzaMicSample=0.0005;
     // Exercise the older-browser analyser fallback independently of the worklet test.
@@ -72,8 +76,14 @@ function wav(){
   const partialMs=Date.now()-started;
   assert.ok(partialMs<1000,'interim words must be visible immediately');
   assert.equal(serverTranscriptions,0,'the live transcript must not wait for an uploaded WAV');
-  assert.equal(externalModelDownloads,0,'existing STT must not download Diba automatically');
+  assert.equal(externalModelDownloads,0,'low-power browser fallback must not download the local Diba model');
   assert.equal((await page.locator('body').innerText()).includes('در حال تبدیل صدای شما به متن و ارسال به سرور'),false);
+
+  // Chrome may pause interim callbacks during a long sentence. Acoustic
+  // microphone evidence must keep the turn open even when text is unchanged.
+  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
+  await page.waitForTimeout(4200);
+  assert.equal(consultRequests,0,'continuous speech energy must block a text-only early dispatch');
 
   // A 2-second pause is not a turn boundary. The next browser recognition
   // session must append to the same visible customer sentence.

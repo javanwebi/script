@@ -13,6 +13,20 @@ on:
       - 'src/utils/forzaBootPolicy.ts'
       - 'src/utils/forzaBrowserSpeech.ts'
       - 'src/utils/forzaLocalSpeech.ts'
+      - 'src/utils/forzaSpeechPipeline.ts'
+      - 'src/utils/forzaRecognitionRecovery.ts'
+      - 'src/utils/forzaConversationHistory.ts'
+      - 'server/ai/baiConsult.ts'
+      - 'tests/forzaConversationHistory.test.ts'
+      - 'tests/forzaConsultContract.test.ts'
+      - 'tests/forzaLocalDibaStreaming.test.ts'
+      - 'tests/forzaRecognitionRecovery.test.ts'
+      - 'tests/forza-smart-turn.test.ts'
+      - 'tests/forzaSpeechAdmission.test.ts'
+      - 'tests/forzaBrowserRecognitionLifecycle.test.ts'
+      - 'tests/forzaCallTeardown.test.ts'
+      - 'scripts/tests/forza-local-diba-browser.cjs'
+      - 'ops/Dockerfile.forza-stt-runtime'
       - 'scripts/download-forza-amir.mjs'
       - 'scripts/generate-forza-greeting.mjs'
       - 'scripts/tests/forza-greeting-fallback.cjs'
@@ -55,6 +69,8 @@ jobs:
       - run: npm ci
       - name: Validate Persian voice text normalization and WAV leveling
         run: node --import tsx --test tests/forzaPersianVoiceQuality.test.ts
+      - name: Validate live STT admission, endpointing, and recognizer recovery
+        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
       - name: Verify self-hosted Amir weights and generate original Piper greeting
         run: |
           node scripts/download-forza-amir.mjs
@@ -87,6 +103,7 @@ jobs:
           cat /tmp/forza-preview.log
           exit 1
       - run: node scripts/tests/forza-live-stt-browser.cjs
+      - run: node scripts/tests/forza-local-diba-browser.cjs
       - run: node scripts/tests/forza-exhibition-noise.cjs
       - run: node scripts/tests/forza-audio-chunks.cjs
       - run: node scripts/tests/forza-voice-outage.cjs

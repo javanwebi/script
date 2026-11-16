@@ -30,3 +30,18 @@ test('small homepage endpoint returns active mega-menu category members in admin
  assert.match(handler,/order by group_sort,member_sort,name/);
  assert.doesNotMatch(handler,/public\.catalog_families/);
 });
+
+
+test('public category list API exposes approved hierarchy counts and is verified before promotion',()=>{
+ const code=source('server/catalogNavigationApi.ts');
+ const route=code.split("app.get('/api/catalog/categories'")[1].split("app.get('/api/catalog/menu-family-index'")[0];
+ assert.match(route,/c\.is_active=true/);
+ assert.match(route,/industrial_megamenu_hierarchy_v2/);
+ assert.match(route,/familyCount/);
+ assert.match(route,/skuCount/);
+ assert.match(route,/menuSource/);
+ const canary=source('ops/verify-single-port-canary.mjs');
+ assert.match(canary,/json\(candidate, "\/api\/catalog\/categories"\)/);
+ assert.match(canary,/approvedCategories\.length >= 34/);
+ assert.match(canary,/PUBLIC_CATALOG_CATEGORIES_API_OK/);
+});

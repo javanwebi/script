@@ -168,7 +168,12 @@ export function forzaTurnRemainingWaitMs(
   vadSilenceMs: number | null,
 ): number {
   if (!text.trim()) return 0;
-  const requiredMs = forzaEndOfTurnPauseMs(text, hasInterim);
+  const baseRequiredMs = forzaEndOfTurnPauseMs(text, hasInterim);
+  // If microphone VAD is unavailable, browser ASR can temporarily stop
+  // emitting interim hypotheses while the customer is still speaking. A
+  // longer text-only guard is safer than treating that transport stall as
+  // acoustic silence. When VAD is available, retain the normal fast endpoint.
+  const requiredMs = vadSilenceMs === null ? Math.max(baseRequiredMs, 4500) : baseRequiredMs;
   // Late final ASR hypotheses must not restart the entire acoustic endpoint
   // window. Preserve the full pause for unfinished thoughts and when no VAD
   // is available; allow a short revision guard only for completed final text.
