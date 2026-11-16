@@ -124,7 +124,7 @@ export interface BeltTechnicalParameters {
     | 'vbelt-wedge'
     | 'vbelt-hexagonal'
     | 'vbelt-banded'
-    | 'vbelt-crowned-crc'
+    | 'conveyor-crowned-crc'
     | 'ribbed-poly-v'
     | 'welded-pu-round-crc'
     | 'welded-pu-v-flat'
@@ -2255,7 +2255,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       actualProductType: `تسمه انتقال مداربسته تاج‌دار (گرده‌ماهی / Ridge-Top ${profile})`,
       technical: {
         operatingPrinciple: 'conveying',
-        beltDivision: 'vbelt-crowned-crc',
+        beltDivision: 'conveyor-crowned-crc',
         supplyForm: 'endless-loop',
         sidedness: 'single-sided',
         profile,
@@ -3475,11 +3475,10 @@ export function runBeltCatalogAudit(products: Product[], refs?: AuditReferenceTa
       r.technical.operatingPrinciple === 'synchronous' ||
       r.technical.operatingPrinciple === 'friction-v' ||
       r.technical.operatingPrinciple === 'friction-ribbed' ||
-      r.technical.operatingPrinciple === 'friction-round-welded' ||
-      r.technical.beltDivision === 'vbelt-crowned-crc'
+      r.technical.operatingPrinciple === 'friction-round-welded'
   );
   const trueConveyor = skuRecords.filter(
-    (r) => r.technical.beltDivision === 'conveyor-pvc-pu' || r.technical.beltDivision === 'conveyor-grip'
+    (r) => r.technical.beltDivision === 'conveyor-crowned-crc' || r.technical.beltDivision === 'conveyor-pvc-pu' || r.technical.beltDivision === 'conveyor-grip'
   );
   const beltEquipment = skuRecords.filter((r) => r.technical.operatingPrinciple === 'equipment');
 
