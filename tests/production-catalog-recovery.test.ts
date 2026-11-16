@@ -108,6 +108,7 @@ test('production deploy keeps unverified families out of the bulk seed and appli
  assert.match(singlePort,/20261114_catalog_sku_level_menu_assignments\.sql/);
  assert.match(singlePort,/PRODUCTION_SOURCE_VERIFIED_FAMILY_ASSIGNMENTS_OR_ADMIN_LOCKED/);
  assert.match(singlePort,/PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_VERIFIED/);
+ assert.doesNotMatch(singlePort,/20261116_belt_family_(?:menu|taxonomy)_corrections/,'review-only taxonomy proposals must never auto-run on production');
  assert.match(wrapper,/deploy-single-port-vps\.sh/);
  assert.ok(singlePort.indexOf('SKIP UNVERIFIED BULK FAMILY MENU SEED')<singlePort.indexOf('PRIVATE CANARY WITHOUT A HOST PORT'));
 });
