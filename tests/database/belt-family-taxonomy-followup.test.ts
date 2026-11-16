@@ -36,7 +36,7 @@ const readReviewedLists = async (migration: string, menuCorrection: string) => {
   const unresolvedCodes = quotedValues(familyCodeBlocks[1][1]);
   const staleBlock = menuCorrection.split('INSERT INTO _belt_family_unassign VALUES')[1]
     .split('CREATE TEMP TABLE _belt_direct_unassign')[0];
-  const staleCodes = [...new Set([...staleBlock.matchAll(/\\('([^']+)'/g)].map((match) => match[1]))];
+  const staleCodes = [...new Set([...staleBlock.matchAll(/\('([^']+)'/g)].map((match) => match[1]))];
   const directBlock = migration.split('-- Direct SKU: XPC is a narrow V-belt')[1].split('do $$')[0];
   const directCodes = [...new Set([...directBlock.matchAll(/'([0-9]{4,7})'/g)].map((match) => match[1]))];
 
