@@ -379,12 +379,10 @@ export function resolveManufacturerSeriesEvidence(
   }
 
   if (manufacturer === 'BANDO') {
-    const classical = ['Z', 'A', 'B', 'C', 'D', 'E', 'AX', 'BX', 'CX'];
+    const classical = ['A', 'B', 'C', 'D', 'E', 'AX', 'BX', 'CX'];
     const wedge = ['SPZ', 'SPA', 'SPB', 'SPC', '3V', '5V', '8V'];
     const coggedNarrow = ['XPZ', 'XPA', 'XPB', 'XPC', '3VX', '5VX'];
-    const banded = [
-      'A', 'B', 'C', 'D', 'SPZ', 'SPA', 'SPB', 'SPC', '3V', '5V', '8V', '3VX', '5VX',
-    ];
+    const banded = ['B', 'C', 'D', '3V', '5V', '8V', '3VX', '5VX', '8VK'];
 
     if (division === 'vbelt-classical' && inSet(profile, classical)) {
       return seriesEvidence(
@@ -421,7 +419,7 @@ export function resolveManufacturerSeriesEvidence(
         originalName,
       );
     }
-    if (division === 'ribbed-poly-v' && inSet(profile, ['J', 'L', 'M', 'PJ', 'PL', 'PM'])) {
+    if (division === 'ribbed-poly-v' && inSet(profile, ['J', 'L', 'M'])) {
       return seriesEvidence(
         manufacturer,
         BANDO_INDUSTRIAL_CATALOG_URL,
@@ -436,7 +434,7 @@ export function resolveManufacturerSeriesEvidence(
       return seriesEvidence(
         manufacturer,
         BANDO_INDUSTRIAL_CATALOG_URL,
-        'The official Bando catalog documents Synchro-Link imperial single- and double-sided timing-belt profiles.',
+        'The official Bando catalog documents Synchro-Link imperial single- and double-sided timing-belt profiles. Its part-number example includes a width/construction suffix (for example, 200G); the inventory labels omit that full suffix, so this is series/profile evidence, not an exact manufacturer-article match.',
         originalName,
       );
     }
@@ -454,7 +452,15 @@ export function resolveManufacturerSeriesEvidence(
         originalName,
       );
     }
-    if (division === 'timing-metric-single' && inSet(profile, ['T2.5', 'T5', 'T10', 'DT5', 'DT10'])) {
+    if (division === 'timing-metric-double' && inSet(profile, ['DT5', 'DT10'])) {
+      return seriesEvidence(
+        manufacturer,
+        BANDO_INDUSTRIAL_CATALOG_URL,
+        'The official Bando catalog lists double-sided polyurethane metric timing-belt profiles DT5 and DT10.',
+        originalName,
+      );
+    }
+    if (division === 'timing-metric-single' && inSet(profile, ['T2.5', 'T5', 'T10'])) {
       return seriesEvidence(
         manufacturer,
         BANDO_INDUSTRIAL_CATALOG_URL,
