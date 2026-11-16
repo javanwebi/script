@@ -79,6 +79,7 @@ test('production deploy keeps unverified families out of the bulk seed and appli
  assert.equal(rows.length,1286);
  assert.equal(new Set(rows.map(match=>match[1])).size,1286);
  assert.equal(Object.keys(source).length,1286);
+ assert.ok(Object.keys(source).every(familyCode=>familyCode.startsWith('FAM-')),'synthetic PFAM proposals must never enter the live family map');
  assert.deepEqual(sorted(actual),sorted(source));
 
  // These 21 former hauling/welded-family guesses are now explicitly held in the 97-family review queue.
