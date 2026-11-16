@@ -20,9 +20,9 @@ const quotedValues = (source: string) => [...source.matchAll(/'([^']+)'/g)].map(
 const readReviewedLists = async (migration: string, menuCorrection: string) => {
   const mappingBlock = migration
     .split('with mapping(family_code,category_slug,category_name,submenu_name,leaf_name) as (')[1]
-    .split(')\\nupdate public.catalog_family_menu_assignments')[0];
+    .split(')\nupdate public.catalog_family_menu_assignments')[0];
   const mappingRows = [...mappingBlock.matchAll(
-    /\\('([^']+)',\\s*'([^']+)',\\s*'([^']+)',\\s*'([^']+)',\\s*(null|'[^']*')\\)/g
+    /\('([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*(null|'[^']*')\)/g
   )].map((match) => ({
     code: match[1],
     categorySlug: match[2],
@@ -32,7 +32,7 @@ const readReviewedLists = async (migration: string, menuCorrection: string) => {
   }));
 
   const preconditionBlock = migration.split('do $$')[1].split('end $$')[0];
-  const familyCodeBlocks = [...preconditionBlock.matchAll(/where code in \\(([\\s\\S]*?)\\)\\s*and is_active=true/g)];
+  const familyCodeBlocks = [...preconditionBlock.matchAll(/where code in \(([\s\S]*?)\)\s*and is_active=true/g)];
   const unresolvedCodes = quotedValues(familyCodeBlocks[1][1]);
   const staleCodes = quotedValues(
     menuCorrection.split('INSERT INTO _belt_family_unassign VALUES')[1]
