@@ -6,6 +6,8 @@ test('the Persian Diba browser recognizer is loaded from the same origin, never 
  const local=readFileSync('src/utils/forzaLocalSpeech.ts','utf8');
  const server=readFileSync('server.ts','utf8');
  const docker=readFileSync('ops/Dockerfile.forza-stt-runtime','utf8');
+ const deploy=readFileSync('ops/deploy-single-port-vps.sh','utf8');
+ const canary=readFileSync('ops/verify-single-port-canary.mjs','utf8');
  assert.match(local,/FORZA_DIBA_MODEL_URL='\/forza-runtime\/stt\/diba-stt-fa-small\.tar\.gz'/);
  assert.doesNotMatch(local,/https:\/\/huggingface\.co/);
  assert.match(server,/app\.get\('\/forza-runtime\/stt\/diba-stt-fa-small\.tar\.gz'/);
@@ -13,6 +15,9 @@ test('the Persian Diba browser recognizer is loaded from the same origin, never 
  assert.match(server,/Cache-Control','public, max-age=31536000, immutable/);
  assert.match(docker,/cp \/tmp\/diba-stt-fa-small\.tar\.gz \/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
  assert.match(docker,/FORZA_STT_DIBA_BROWSER_ARCHIVE=\/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
+ assert.match(deploy,/test -s \/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
+ assert.match(canary,/DIBA_BROWSER_MODEL_HTTP_/);
+ assert.match(canary,/DIBA_BROWSER_MODEL_CONTENT_LENGTH_MISSING/);
 });
 
 test('local Diba streams partial and final hypotheses and falls back to browser recognition on model errors',()=>{
