@@ -1,4 +1,4 @@
-// Auto-generated audited family-to-menu assignments: 1,322 retained mappings. The 97 ambiguous families are intentionally omitted for admin review.
+// Auto-generated audited family-to-menu assignments: 1,349 retained mappings. The 97 ambiguous families are intentionally omitted for admin review.
 export interface FamilyMenuAssignment {
   categorySlug: string;
   submenuName: string;
@@ -6446,6 +6446,11 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "submenuName": "تسمه اسپشیال",
     "leafName": null
   },
+  "PFAM-تسمه-V-شکل-پرو-DONGIL-XPZ-594": {
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "تسمه اسپشیال",
+    "leafName": null
+  },
   "PFAM-تسمه-V-شکل-پرو-GENERIC--M-051": {
     "categorySlug": "excel-v2-1-2",
     "submenuName": "کلاسیک و دنده‌دار",
@@ -6454,6 +6459,11 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   "PFAM-تسمه-V-شکل-پرو-GENERIC--MX-660": {
     "categorySlug": "excel-v2-1-2",
     "submenuName": "کلاسیک و دنده‌دار",
+    "leafName": null
+  },
+  "PFAM-تسمه-V-شکل-پرو-GENERIC--SPZ-121": {
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "تسمه اسپشیال",
     "leafName": null
   },
   "PFAM-تسمه-V-شکل-پرو-GENERIC--Z-045": {
@@ -6476,6 +6486,121 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "submenuName": "کلاسیک و دنده‌دار",
     "leafName": "Z (9.5) , M , A , B , C , D , E , 8V"
   },
+  "PFAM-تسمه-V-شکل-پرو-SWR-5V-489": {
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "تسمه اسپشیال",
+    "leafName": null
+  },
+  "PFAM-تسمه-V-شکل-پرو-SWR-SPZ-080": {
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "تسمه اسپشیال",
+    "leafName": null
+  },
+  "PFAM-تسمه-V-شکل-پرو-SWR-XPZ-105": {
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "تسمه اسپشیال",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-BANDO-DH-287": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-BANDO-DH-474": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-BERAVO-DH-226": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-BERAVO-DH-290": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-GENERIC--DH-223": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-GENERIC--DH-472": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-GENERIC--DL-473": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-GENERIC--H-483": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "سیم‌دار فابریک",
+    "leafName": "پلی‌یورتان"
+  },
+  "PFAM-تسمه-تایمینگ-ذ-MARSHAL-DH-087": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-MARSHAL-DH-126": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-MARSHAL-DL-650": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-MEGADYNE-DH-289": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-MEGADYNE-DH-329": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-UNITECH-DH-258": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-ذ-UNITECH-DH-326": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
+  },
+  "PFAM-تسمه-تایمینگ-م-FORZA-AT20-015": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "سیم‌دار فابریک",
+    "leafName": "پلی‌یورتان"
+  },
+  "PFAM-تسمه-تایمینگ-م-FORZA-AT20-054": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "سیم‌دار فابریک",
+    "leafName": "پلی‌یورتان"
+  },
+  "PFAM-تسمه-تایمینگ-م-GENERIC--AT10-468": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "سیم‌دار فابریک",
+    "leafName": "پلی‌یورتان"
+  },
+  "PFAM-تسمه-تایمینگ-م-GENERIC--AT20-262": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "سیم‌دار فابریک",
+    "leafName": "پلی‌یورتان"
+  },
+  "PFAM-تسمه-تایمینگ-م-GENERIC--AT20-632": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "سیم‌دار فابریک",
+    "leafName": "پلی‌یورتان"
+  },
   "PFAM-تسمه-تایمینگ-م-GENERIC--T10-036": {
     "categorySlug": "excel-v2-1-1",
     "submenuName": "سیم‌دار فابریک",
@@ -6490,6 +6615,11 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "categorySlug": "excel-v2-1-1",
     "submenuName": "لاستیکی فابریک",
     "leafName": "لاستیکی فابریک ساده و دنده‌دار"
+  },
+  "PFAM-تسمه-تایمینگ-م-POWER-D8M-484": {
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": null
   },
   "PFAM-تسمه-جوشی-V-رو-FORZA-A-633": {
     "categorySlug": "excel-v2-1-2",
@@ -6615,5 +6745,10 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "categorySlug": "excel-v2-1-4",
     "submenuName": "تسمه بارکش",
     "leafName": "انواع تسمه بارکش صنعتی"
+  },
+  "PFAM-دستگاه-صنعتی-GENERIC--دستگاه-صنعتی-576": {
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "تسمه اسپشیال",
+    "leafName": null
   }
 };
