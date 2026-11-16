@@ -198,8 +198,10 @@ export function registerCatalogNavigationApi(app:Express){
 
   // Read-only four-level menu taxonomy; original family categories remain untouched.
   app.get('/api/catalog/menu-category/:slug',async(req,res)=>{
+    let stage='category_lookup';
+    let slug='';
     try{
-      const slug=clean(req.params.slug,90);
+      slug=clean(req.params.slug,90);
       if(!/^excel-v2-[0-9]+-[0-9]+$/.test(slug))return res.status(404).json({success:false,message:'دسته موجود نیست.'});
       if(!databaseEnabled())return res.status(503).json({success:false,message:'پایگاه داده در دسترس نیست.'});
       const category=await database().query(
@@ -208,6 +210,7 @@ export function registerCatalogNavigationApi(app:Express){
          where c.slug=$1 and c.is_active=true and c.metadata->>'source'='industrial_megamenu_hierarchy_v2'
          limit 1`,[slug]);
       if(!category.rows.length)return res.status(404).json({success:false,message:'دسته موجود نیست.'});
+      stage='family_query';
       const familyRows=await database().query(
         `select f.code,f.name,f.name as "familyName",coalesce(f.brand,'') as brand,
            coalesce(identity.product_type,f.name) as "productType",
@@ -230,6 +233,7 @@ export function registerCatalogNavigationApi(app:Express){
           ) identity on true
           where f.is_active=true and f.is_deleted=false
           order by f.name,f.code limit 10000`);
+      stage='family_resolution';
       const families=familyRows.rows.flatMap((row)=>{
         const assignment=resolveFamilyMenuAssignment(row);
         if(!assignment||assignment.categorySlug!==slug)return [];
@@ -245,7 +249,10 @@ export function registerCatalogNavigationApi(app:Express){
         slug:record.slug,name:record.name,description:record.description||'',
         image:record.image||null,children:Array.isArray(record.metadata?.children)?record.metadata.children:[]
       },families});
-    }catch(error){return fail(res,error);}
+    }catch(error){
+      console.error('[Catalog menu category failure]',{slug,stage});
+      return fail(res,error);
+    }
   });
 
 
