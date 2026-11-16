@@ -192,10 +192,37 @@ begin
   if exists (select 1 from public.catalog_family_menu_assignments where family_code in ('PFAM-تسمه-V-شکل-پرو-GENERIC--AA-658', 'PFAM-تسمه-V-شکل-پرو-GENERIC--K-659', 'PFAM-تسمه-تایمینگ-د-OPTIBELT-AUTO-RU-222')) then
     raise exception 'Belt taxonomy postcondition failed: unresolved families still have menu assignments';
   end if;
-  if (select count(*) from public.catalog_direct_skus
-      where category_slug='excel-v2-1-2' and submenu='وی‌بلت متری'
-        and sku_code in ('10410','10553','31845','32072','32328','33838','33839','34774','35361','35623','37221','37820','37840','38340','38334','38756','38786','39859','39986','40003','41297','41717','41809','41811','41857','51279','52640')) < 1 then
-    raise exception 'Belt taxonomy postcondition failed: direct V-belt meter move missing';
+  if (select count(*) from (
+      select s.sku_code,
+        max(x.value) filter (where x.key='پروفیل / مدل') as profile,
+        max(x.value) filter (where x.key='نوع محصول') as product_type
+      from public.catalog_direct_skus s
+      left join lateral jsonb_to_recordset(s.technical_specs) as x(key text,value text) on true
+      where s.is_active=true and s.category_slug='excel-v2-1-2'
+        and s.submenu in ('وی‌بلت متری','کلاسیک و دنده‌دار')
+      group by s.sku_code
+    ) moved
+    where profile in ('A','B','C') and product_type ~* 'تسمه جوشی') <> 33 then
+    raise exception 'Belt taxonomy postcondition failed: expected 33 welded A/B/C direct SKUs in V-belt menu';
+  end if;
+  if not exists (select 1 from public.catalog_direct_skus
+      where sku_code='31997' and category_slug='excel-v2-1-4'
+        and submenu='تسمه بارکش' and subcategory='انواع تسمه بارکش صنعتی') then
+    raise exception 'Belt taxonomy postcondition failed: direct ridge-top SKU not moved';
+  end if;
+  if not exists (select 1 from public.catalog_direct_skus
+      where sku_code='38048' and submenu='سیم‌دار فابریک' and subcategory='پلی‌یورتان') then
+    raise exception 'Belt taxonomy postcondition failed: direct steel-cord T10 timing SKU not moved';
+  end if;
+  if not exists (select 1 from public.catalog_direct_skus
+      where sku_code='41314' and submenu='لاستیکی فابریک'
+        and subcategory='لاستیکی فابریک ساده و دنده‌دار') then
+    raise exception 'Belt taxonomy postcondition failed: direct rubber 3M timing SKU not moved';
+  end if;
+  if exists (select 1 from public.catalog_direct_skus
+      where sku_code in ('35023','42209','35236','38510')
+        and (submenu<>'' or subcategory<>'')) then
+    raise exception 'Belt taxonomy postcondition failed: unapproved automotive/hexagonal SKUs still have menu leaves';
   end if;
 end $$;
 
