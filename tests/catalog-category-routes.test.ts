@@ -156,6 +156,10 @@ test('production SEO routes issue permanent redirects and expose all approved UR
     assert.equal(oldEnglishAlias.status, 301);
     assert.equal(oldEnglishAlias.headers.get('location'), '/categories?group=excel-v2-1');
 
+    const oldParentId = await fetch(origin + '/category/excel-v2-1', { redirect: 'manual' });
+    assert.equal(oldParentId.status, 301);
+    assert.equal(oldParentId.headers.get('location'), '/categories?group=excel-v2-1');
+
     const sitemap = await fetch(origin + '/sitemap.xml');
     assert.equal(sitemap.status, 200);
     const xml = await sitemap.text();
