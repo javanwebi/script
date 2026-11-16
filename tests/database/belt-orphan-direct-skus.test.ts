@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 
-const migrationPath = 'supabase/migrations/20261116145916_belt_orphan_direct_skus_and_restore_pvc_units.sql';
+const migrationPath = 'ops/sql/20261116_belt_orphan_direct_skus_and_restore_pvc_units.sql';
 const rollbackPath = 'ops/sql/20261116_belt_orphan_direct_skus_and_restore_pvc_units_rollback.sql';
 
 test('familyless belt SKUs become standalone direct products and PVC units restore reversibly', async () => {
