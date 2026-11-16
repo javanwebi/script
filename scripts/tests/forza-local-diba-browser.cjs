@@ -70,7 +70,7 @@ function wav(){
     headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav()});
   });
   await page.route('**/api/ai/consult-stream',async route=>{
-   const query=route.request().postDataJSON().query;queries.push(query);
+   const query=route.request().postDataJSON().query;queries.push(query);\n   await page.evaluate(count=>{window.__forzaConsultRequestCount=count;},queries.length).catch(()=>{});
    const answer='برای انتخاب تسمه مناسب، کد فنی و ابعاد قطعه را بررسی می‌کنیم.';
    const frame=value=>'data: '+JSON.stringify(value)+'\\n\\n';
    await route.fulfill({status:200,contentType:'text/event-stream',
@@ -82,8 +82,8 @@ function wav(){
 
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
-  await page.waitForFunction(()=>!!window.__forzaVoskRecognizer,{timeout:15000});
-  await page.waitForFunction(()=>window.__forzaVoskFrames>0,{timeout:5000});
+  await page.waitForFunction(()=>!!window.__forzaVoskRecognizer,null,{timeout:15000});
+  await page.waitForFunction(()=>window.__forzaVoskFrames>0,null,{timeout:5000});
   assert.equal(await page.evaluate(()=>window.__forzaDibaModelUrl),
    '/forza-runtime/stt/diba-stt-fa-small.tar.gz','model must load from the same origin');
   await page.waitForTimeout(450);
@@ -94,19 +94,19 @@ function wav(){
   assert.ok(await page.evaluate(()=>window.__forzaVoskFrames||0)>0,'local recognizer must receive live PCM frames');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('تسمه تایمینگ چیست؟'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
-  await page.waitForFunction(()=>window.__forzaVoskCreated>=2,{timeout:10000});
+  await page.waitForFunction(()=>window.__forzaVoskCreated>=2,null,{timeout:10000});
   await page.waitForFunction(()=>window.document.body.innerText.includes('برای انتخاب تسمه مناسب'),null,{timeout:12000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:12000});
   assert.equal(queries.length,1,'first local Diba turn must be submitted exactly once');
 
-  await page.waitForFunction(()=>window.__forzaVoskCreated>=3,{timeout:8000});
+  await page.waitForFunction(()=>window.__forzaVoskCreated>=3,null,{timeout:8000});
   await page.evaluate(()=>{window.__forzaMicSample=0.003;});
   await page.waitForTimeout(450);
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('برای دستگاه بسته بندی تسمه PU می خواهم'));
   await page.getByText('برای دستگاه بسته بندی تسمه PU می خواهم',{exact:true}).waitFor({timeout:1500});
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('برای دستگاه بسته بندی تسمه PU می خواهم'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
-  await page.waitForFunction(()=>queries.length===2,{timeout:12000});
+  await page.waitForFunction(()=>window.__forzaConsultRequestCount===2,null,{timeout:12000});
   assert.equal(queries.length,2,'second local Diba turn must also reach the AI');
   assert.ok(queries[0].includes('تسمه تایمینگ'));
   assert.ok(queries[1].includes('تسمه PU'));
