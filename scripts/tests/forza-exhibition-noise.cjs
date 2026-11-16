@@ -16,6 +16,8 @@ function wav(seconds){
   page.on('pageerror',e=>errors.push(e.message));
   page.on('console',m=>{if(m.text().includes('[FORZA_'))diagnostics.push(m.text());});
   await page.addInitScript(()=>{
+   Object.defineProperty(navigator,'hardwareConcurrency',{configurable:true,value:2});
+   Object.defineProperty(navigator,'deviceMemory',{configurable:true,value:2});
    window.__results=[];
    AudioContext.prototype.createMediaStreamSource=function(){
     const osc=this.createOscillator(),gain=this.createGain();
