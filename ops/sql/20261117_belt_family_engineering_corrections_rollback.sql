@@ -10,7 +10,8 @@ BEGIN
   IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_variants') <> 292
      OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_families') <> 19
      OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_family_menu_assignments') <> 8
-     OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_direct_skus') <> 14 THEN
+     OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_direct_skus') <> 14
+     OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_categories') <> 5 THEN
     RAISE EXCEPTION 'Backup row counts do not match the expected engineering correction snapshot';
   END IF;
 END $$;
@@ -56,12 +57,20 @@ SET submenu=b.row_data->>'submenu',
 FROM internal.catalog_belt_family_engineering_backup_20261117 b
 WHERE b.table_name='catalog_direct_skus' AND b.row_key=d.sku_code;
 
-DO $$
+UPDATE public.catalog_categories c
+SET metadata=b.row_data->'metadata',
+    is_active=(b.row_data->>'is_active')::boolean,
+    updated_at=(b.row_data->>'updated_at')::timestamptz
+FROM internal.catalog_belt_family_engineering_backup_20261117 b
+WHERE b.table_name='catalog_categories' AND b.row_key=c.slug;
+
+DO $
 BEGIN
   IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_variants') <> 290
      OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_families') <> 18
      OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_family_menu_assignments') <> 7
-     OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_direct_skus') <> 14 THEN
+     OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_direct_skus') <> 14
+     OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_categories') <> 5 THEN
     RAISE EXCEPTION 'Rollback verification failed: snapshot rows were not preserved';
   END IF;
 END $$;
