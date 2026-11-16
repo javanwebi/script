@@ -79,7 +79,7 @@ function wav(){
    const query=request.query;queries.push(query);requests.push(request);
    await page.evaluate(count=>{window.__forzaConsultRequestCount=count;},queries.length).catch(()=>{});
    const answer='برای انتخاب تسمه مناسب، کد فنی و ابعاد قطعه را بررسی می‌کنیم.';
-   const frame=value=>'data: '+JSON.stringify(value)+'\\n\\n';
+   const frame=value=>'data: '+JSON.stringify(value)+'\n\n';
    await route.fulfill({status:200,contentType:'text/event-stream',
     headers:{'cache-control':'no-cache'},
     body:frame({type:'start',responseId:'local-diba-'+queries.length})+
