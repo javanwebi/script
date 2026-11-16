@@ -621,14 +621,13 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       };
     });
 
-    const legacyTargetSlug=(editorApprovedCategory as (typeof editorApprovedCategory & {routeSlug?:string}))?.routeSlug;
+    const legacyTargetSlug=(editorApprovedCategory as (typeof editorApprovedCategory & {routeSlug?:string}))?.routeSlug || editorApprovedCategory?.slug;
     const legacyDestination=categories.find(item=>item.slug===legacyTargetSlug);
     const payload: Product = {
       ...draftFamily,
       code: draftFamily.code.trim(),
       name: draftFamily.name.trim(),
-      // The original family hierarchy is kept for old product links. New families also
-      // get their proper legacy category route; their visible taxonomy lives in the mapping table.
+      // Preserve existing family links; new families use the selected approved category's canonical route.
       categoryName:isCreatingNewFamily ? (legacyDestination?.name||draftFamily.categoryName) : draftFamily.categoryName,
       categorySlug:isCreatingNewFamily
         ? (legacyTargetSlug || draftFamily.categorySlug)
