@@ -70,7 +70,7 @@ export function getImageAssignmentAudit(
   };
   for(const family of products){
     const gallery=family.galleryImages?.length ? family.galleryImages : (family.images||[]).map(url=>({url,scope:'family' as const,variantCode:undefined}));
-    for(const image of gallery)rememberImage(image.url,image.title||`تصویر خانواده ${family.name}`,'تصویر ذخیره‌شده در گالری کاتالوگ');
+    for(const image of gallery)rememberImage(image.url,('title' in image&&image.title)||`تصویر خانواده ${family.name}`,'تصویر ذخیره‌شده در گالری کاتالوگ');
     for(const variant of family.variants||[])for(const url of variant.images||[])
       rememberImage(url,`تصویر کد ${variant.code}`,'تصویر اختصاصی ذخیره‌شده برای کد کالا');
   }
