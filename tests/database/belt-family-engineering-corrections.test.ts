@@ -99,7 +99,24 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
         category_name text, submenu text, subcategory text, technical_specs jsonb,
         updated_at timestamptz not null default now()
       );
+      create table public.catalog_categories (
+        slug text primary key, parent_id text, is_active boolean not null default true,
+        metadata jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now()
+      );
     `);
+
+    for (const slug of ['excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4']) {
+      await db.query(
+        `insert into public.catalog_categories (slug,parent_id,is_active,metadata)
+         values($1,null,true,$2::jsonb)`,
+        [slug, JSON.stringify({ source: 'industrial_megamenu_hierarchy_v2', routeSlug: 'تسمه-و-انتقال-نیرو' })],
+      );
+    }
+    await db.query(
+      `insert into public.catalog_categories (slug,parent_id,is_active,metadata)
+       values($1,null,true,$2::jsonb)`,
+      ['تسمه-و-انتقال-نیرو', JSON.stringify({ count: 611, skuCount: 7433, routeSlug: 'تسمه-و-انتقال-نیرو' })],
+    );
 
     const addFamily = async (
       code: string, profile: string, brand: string, material: string, standard: string,
@@ -306,9 +323,10 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
         (select count(*)::int from internal.catalog_belt_family_engineering_backup_20261117 where table_name='catalog_variants') variants,
         (select count(*)::int from internal.catalog_belt_family_engineering_backup_20261117 where table_name='catalog_families') families,
         (select count(*)::int from internal.catalog_belt_family_engineering_backup_20261117 where table_name='catalog_family_menu_assignments') assignments,
-        (select count(*)::int from internal.catalog_belt_family_engineering_backup_20261117 where table_name='catalog_direct_skus') direct`,
+        (select count(*)::int from internal.catalog_belt_family_engineering_backup_20261117 where table_name='catalog_direct_skus') direct,
+        (select count(*)::int from internal.catalog_belt_family_engineering_backup_20261117 where table_name='catalog_categories') categories`,
     );
-    assert.deepEqual(backup.rows[0], { variants: 292, families: 19, assignments: 8, direct: 14 });
+    assert.deepEqual(backup.rows[0], { variants: 292, families: 19, assignments: 8, direct: 14, categories: 5 });
 
     const checks = await db.query(
       `select
@@ -364,6 +382,17 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
     );
     assert.deepEqual(direct.rows[0], { wedge: 12, banded: 2 });
 
+    const categoryRoutes = await db.query(
+      `select
+        (select count(*)::int from public.catalog_categories
+         where slug in ('excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4')
+           and metadata->>'routeSlug'=slug and is_active=true) canonical,
+        (select count(*)::int from public.catalog_categories
+         where slug='تسمه-و-انتقال-نیرو' and is_active=false
+           and metadata->>'legacyRedirectTo'='/categories') legacy`,
+    );
+    assert.deepEqual(categoryRoutes.rows[0], { canonical: 4, legacy: 1 });
+
     await db.exec(rollback);
 
     const restored = await db.query(
@@ -393,6 +422,17 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
       `select submenu,subcategory from public.catalog_direct_skus where sku_code='39861'`,
     );
     assert.deepEqual(directRestored.rows[0], { submenu: 'کلاسیک و دنده‌دار', subcategory: 'old leaf' });
+
+    const categoryRoutesRestored = await db.query(
+      `select
+        (select count(*)::int from public.catalog_categories
+         where slug in ('excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4')
+           and metadata->>'routeSlug'='تسمه-و-انتقال-نیرو' and is_active=true) canonical,
+        (select count(*)::int from public.catalog_categories
+         where slug='تسمه-و-انتقال-نیرو' and is_active=true
+           and metadata->>'legacyRedirectTo' is null) legacy`,
+    );
+    assert.deepEqual(categoryRoutesRestored.rows[0], { canonical: 4, legacy: 1 });
 
     const familyRestored = await db.query(
       `select leaf_name from public.catalog_family_menu_assignments where family_code=$1`,
