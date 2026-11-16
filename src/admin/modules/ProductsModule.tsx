@@ -110,6 +110,22 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     }
   };
 
+  const hasFamilyImage = (product:Product|undefined,imageUrl:string) => {
+    if(!product||!imageUrl)return false;
+    const expected=getProductImageUrl(imageUrl)||imageUrl;
+    const matches=(value:string)=>Boolean(value)&&(getProductImageUrl(value)||value)===expected;
+    return (product.images||[]).some(matches) ||
+      (product.galleryImages||[]).some(image=>image.scope==='family'&&matches(image.url));
+  };
+
+  const hasSkuImage = (product:Product|undefined,skuCode:string,imageUrl:string) => {
+    if(!product||!skuCode||!imageUrl)return false;
+    const expected=getProductImageUrl(imageUrl)||imageUrl;
+    const matches=(value:string)=>Boolean(value)&&(getProductImageUrl(value)||value)===expected;
+    return (product.galleryImages||[]).some(image=>image.scope==='variant'&&image.variantCode===skuCode&&matches(image.url)) ||
+      (product.variants||[]).some(variant=>variant.code===skuCode&&(variant.images||[]).some(matches));
+  };
+
   // Categories & Brands state
   const [categories, setCategories] = useState<Category[]>(() => adminService.getCategories());
   const [brands, setBrands] = useState<Brand[]>(() => adminService.getBrands());
@@ -1145,21 +1161,26 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             body:JSON.stringify({family:normalized}),signal:AbortSignal.timeout(30000)
           });
           await requireAdminApiJson(response,'ایجاد کد کالا و ذخیره خانواده');
+          let persistedImageUrl=imageUrl;
           if(input.upload){
             try{
-              await uploadProductImage(input.upload,{familyCode:family.code,variantCode:skuCode,title:input.title||input.upload.name});
+              const stored=await uploadProductImage(input.upload,{familyCode:family.code,variantCode:skuCode,title:input.title||input.upload.name});
+              persistedImageUrl=stored.url;
             }catch(error){
               const refreshWarning=await refreshCatalogAfterSave();
-              setImageAssignmentFeedback(`کد ${skuCode} در خانواده «${family.name}» ذخیره شد، اما تصویر آن ذخیره نشد. کد را دوباره ایجاد نکنید؛ از حالت «کد موجود» برای اتصال مجدد تصویر استفاده کنید. ${error instanceof Error?error.message:''}${refreshWarning?'؛ تازه‌سازی پنل: '+refreshWarning:''}`);
-              return;
+              const message=`کد ${skuCode} در خانواده «${family.name}» ذخیره شد، اما تصویر ذخیره نشد. کد را دوباره ایجاد نکنید؛ از حالت «کد موجود» برای اتصال مجدد تصویر استفاده کنید. ${error instanceof Error?error.message:''}${refreshWarning?'؛ تازه‌سازی پنل: '+refreshWarning:''}`;
+              setImageAssignmentFeedback(message);
+              window.setTimeout(()=>setImageAssignmentFeedback(null),6000);
+              throw new Error(message);
             }
           }
           const refreshWarning=await refreshCatalogAfterSave();
           window.dispatchEvent(new CustomEvent('atlas-image-assignment-hierarchy-saved',{detail:{
-            familyCode:family.code,imageUrl:imageUrl||undefined,imageFileName:input.fileName
+            familyCode:family.code,imageUrl:persistedImageUrl||undefined,imageFileName:input.fileName
           }}));
           setImageAssignmentFeedback(refreshWarning?`کد ${skuCode} و تصویر آن در دیتابیس ذخیره شد؛ اما تازه‌سازی نمایش پنل کامل نشد: ${refreshWarning}`:`کد ${skuCode} و تصویر اختصاصی آن در خانواده «${family.name}» ذخیره شد و در کاتالوگ قابل نمایش است.`);
           window.setTimeout(()=>setImageAssignmentFeedback(null),6000);
+          return persistedImageUrl||undefined;
         }}
         onAssignFamilyImage={async input=>{
           if(forbid('images'))throw new Error('مجوز مدیریت تصاویر کاتالوگ ندارید.');
@@ -1188,12 +1209,18 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           });
           await requireAdminApiJson(response,'ذخیره تصویر خانواده');
           const refreshWarning=await refreshCatalogAfterSave();
-          setImageAssignmentFeedback(refreshWarning?`تصویر خانواده در دیتابیس ذخیره شد؛ اما تازه‌سازی پنل کامل نشد: ${refreshWarning}`:`تصویر مشترک خانواده «${family.name}» ذخیره شد و برای کدهای عضو خانواده نمایش داده می‌شود.`);
+          if(refreshWarning)throw new Error('تصویر در دیتابیس ذخیره شد، اما تازه‌سازی پنل کامل نشد: '+refreshWarning);
+          const refreshedFamily=adminService.getProducts().find(product=>product.code===input.familyCode);
+          if(!hasFamilyImage(refreshedFamily,imageUrl))throw new Error('تصویر روی سرور ثبت شد، اما در کاتالوگ تازه‌شده تأیید نشد. پنجره را باز نگه دارید و وضعیت را دوباره بررسی کنید.');
+          setImageAssignmentFeedback(`تصویر مشترک خانواده «${family.name}» ذخیره و در کاتالوگ تأیید شد؛ برای کدهای عضو خانواده نمایش داده می‌شود.`);
           window.setTimeout(()=>setImageAssignmentFeedback(null),6000);
         }}
         onImageSaved={async input=>{
           const refreshWarning=await refreshCatalogAfterSave();
-          setImageAssignmentFeedback(refreshWarning?`تصویر خانواده ${input.familyCode} روی سرور و در دیتابیس ذخیره شد؛ اما تازه‌سازی پنل کامل نشد: ${refreshWarning}`:`تصویر مشترک خانواده ${input.familyCode} روی سرور و در دیتابیس ذخیره شد.`);
+          if(refreshWarning)throw new Error('تصویر در فضای دائمی و دیتابیس ذخیره شد، اما تازه‌سازی پنل کامل نشد: '+refreshWarning);
+          const refreshedFamily=adminService.getProducts().find(product=>product.code===input.familyCode);
+          if(!hasFamilyImage(refreshedFamily,input.imageUrl))throw new Error('تصویر ذخیره شد، اما در کاتالوگ تازه‌شده تأیید نشد. دوباره آپلود نکنید؛ وضعیت خانواده را بررسی کنید.');
+          setImageAssignmentFeedback(`تصویر خانواده ${input.familyCode} در فضای دائمی و کاتالوگ تأیید شد.`);
           window.setTimeout(()=>setImageAssignmentFeedback(null),6000);
         }}
         onAssignDirectSku={async input=>{
@@ -1203,7 +1230,12 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             body:JSON.stringify(input),signal:AbortSignal.timeout(20000)
           });
           await requireAdminApiJson(response,'ثبت کد کالا بدون خانواده');
-          setSaveFeedback('کد '+input.skuCode+' بدون نیاز به خانواده در زیرمنو ثبت شد.');
+          const verifyUrl='/api/catalog/direct-skus?categorySlug='+encodeURIComponent(input.categorySlug);
+          const verifyResponse=await fetch(verifyUrl,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(20000)});
+          const verified=await requireAdminApiJson<{items?:Array<{skuCode:string;imageUrl?:string|null}>}>(verifyResponse,'تأیید اتصال تصویر به کد مستقیم');
+          const stored=verified.items?.find(item=>item.skuCode===input.skuCode);
+          if(!stored||stored.imageUrl!==input.imageUrl)throw new Error('کد ثبت شد، اما اتصال تصویر در بازخوانی دیتابیس تأیید نشد. فرم را باز نگه دارید و وضعیت را بررسی کنید.');
+          setSaveFeedback('کد '+input.skuCode+' و تصویر آن ذخیره و اتصال آن به کد کالا تأیید شد.');
           window.dispatchEvent(new Event('catalog-direct-skus-updated'));
         }}
         onAssignSku={async input=>{
@@ -1214,7 +1246,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           });
           await requireAdminApiJson(response,'انتقال کد کالا و اتصال تصویر');
           const refreshWarning=await refreshCatalogAfterSave();
-          setImageAssignmentFeedback(refreshWarning?`کد ${input.skuCode} و تصویر آن در دیتابیس ذخیره شد؛ اما تازه‌سازی پنل کامل نشد: ${refreshWarning}`:`کد ${input.skuCode} به خانواده ${input.targetFamilyCode} متصل شد و تصویر آن در دیتابیس ذخیره شد.`);
+          if(refreshWarning)throw new Error('اتصال در دیتابیس ذخیره شد، اما تازه‌سازی پنل کامل نشد: '+refreshWarning);
+          const refreshedFamily=adminService.getProducts().find(product=>product.code===input.targetFamilyCode);
+          if(!hasSkuImage(refreshedFamily,input.skuCode,input.imageUrl))throw new Error('اتصال تصویر به کد کالا در کاتالوگ تازه‌شده تأیید نشد. دوباره آپلود نکنید؛ وضعیت اتصال را بررسی کنید.');
+          setImageAssignmentFeedback(`کد ${input.skuCode} به خانواده ${input.targetFamilyCode} متصل شد و تصویر اختصاصی آن در کاتالوگ تأیید شد.`);
           window.setTimeout(()=>setImageAssignmentFeedback(null),6000);
         }}
 
