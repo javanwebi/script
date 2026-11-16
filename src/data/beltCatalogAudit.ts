@@ -2973,33 +2973,6 @@ function resolveProvenanceAndConfidence(
     };
   }
 
-  // Strict rule: Nominal reference tables NEVER upgrade to DATASHEET_VERIFIED even for known brands
-  if (isNominalRefMatched) {
-    const nominalUrl = inImperialRef && inMisumiRef
-      ? `${OPTIBELT_TM_PDF_URL} | ${MISUMI_H_URL}`
-      : inImperialRef
-        ? OPTIBELT_TM_PDF_URL
-        : MISUMI_H_URL;
-    return {
-      confidence: 'NOMINAL_TABLE_VERIFIED',
-      verification: {
-        tier: 'NOMINAL_DESIGNATION_REF_MATCHED',
-        evidenceClass7: '3_Standard_Table_Verified',
-        processedBySoftwareCode: true,
-        extractedFromDatabase: true,
-        manufacturerCodeIdentified: true,
-        officialManufacturerSiteChecked: false,
-        datasheetOrCatalogChecked: false,
-        matchedAgainstReliableSource: true,
-        familyConfirmedByEvidence: true,
-        sourceUrl: nominalUrl,
-        documentType: 'NOMINAL_REFERENCE_TABLE',
-        matchedManufacturer: null,
-        evidenceBasis: `تطبیق کد طول اسمی ${imperialBaseKey} با جدول مرجع نامینال (${inImperialRef ? 'Optibelt TM PDF' : 'MISUMI H Table'})؛ دیتاشیت SKU اختصاصی برند ${rec.detectedBrand} چک نشده است`,
-      },
-    };
-  }
-
   if (rec.technical.operatingPrinciple === 'non-belt' || rec.technical.operatingPrinciple === 'equipment') {
     const isWeldingTool = rec.technical.operatingPrinciple === 'equipment';
     return {
@@ -3049,6 +3022,33 @@ function resolveProvenanceAndConfidence(
         documentType: 'SERIES_CATALOG',
         matchedManufacturer: seriesEvidence.manufacturer,
         evidenceBasis: seriesEvidence.evidenceBasis,
+      },
+    };
+  }
+
+  // Strict rule: Nominal reference tables NEVER upgrade to DATASHEET_VERIFIED even for known brands
+  if (isNominalRefMatched) {
+    const nominalUrl = inImperialRef && inMisumiRef
+      ? `${OPTIBELT_TM_PDF_URL} | ${MISUMI_H_URL}`
+      : inImperialRef
+        ? OPTIBELT_TM_PDF_URL
+        : MISUMI_H_URL;
+    return {
+      confidence: 'NOMINAL_TABLE_VERIFIED',
+      verification: {
+        tier: 'NOMINAL_DESIGNATION_REF_MATCHED',
+        evidenceClass7: '3_Standard_Table_Verified',
+        processedBySoftwareCode: true,
+        extractedFromDatabase: true,
+        manufacturerCodeIdentified: true,
+        officialManufacturerSiteChecked: false,
+        datasheetOrCatalogChecked: false,
+        matchedAgainstReliableSource: true,
+        familyConfirmedByEvidence: true,
+        sourceUrl: nominalUrl,
+        documentType: 'NOMINAL_REFERENCE_TABLE',
+        matchedManufacturer: null,
+        evidenceBasis: `تطبیق کد طول اسمی ${imperialBaseKey} با جدول مرجع نامینال (${inImperialRef ? 'Optibelt TM PDF' : 'MISUMI H Table'})؛ دیتاشیت SKU اختصاصی برند ${rec.detectedBrand} چک نشده است`,
       },
     };
   }
