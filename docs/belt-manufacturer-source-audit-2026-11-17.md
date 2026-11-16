@@ -44,14 +44,15 @@ Do **not** extend this evidence to 8VX, AX-BANDED, CRC/TRC, or unrelated product
 
 Primary source:
 
-- [Optibelt Power Transmission Product Range](https://www.optibelt.com/fileadmin/pdf/kataloge/Optibelt-Power-Transmission-product-range-belts.pdf)
+- [Optibelt Power Transmission Product Range](https://www.optibelt.com/fileadmin/pdf/produkte/keilriemen/Optibelt-product-range.pdf)
+- [Optibelt Technical Manual — Rubber Timing Belts](https://www.optibelt.com/fileadmin/pdf/produkte/zahnriemen-gummi/Optibelt-TM-Rubber-Timing-Belt-Drives.pdf)
 
-This is an official Optibelt catalog (effective 2017-02-01). It documents, among other lines:
+These official Optibelt catalogs document, among other lines:
 
 - Classical V-belts and wedge belts.
 - Raw-edge cogged V-belts and narrow wedge belts.
 - KB/KBX banded belts.
-- ZR, OMEGA, OMEGA HP/HL, STD and related timing families.
+- ZR imperial timing profiles MXL/XL/L/H/XH/XXH and double-sided DXL/DL/DH; OMEGA 2M/3M/5M/8M/14M, STD S5M/S8M/S14M and double-sided D5M/D8M/D14M/DS8M.
 - ALPHA polyurethane timing families.
 - RB ribbed belts and DK double-V belts.
 - ZRK automotive timing-belt family.
