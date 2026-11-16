@@ -65,6 +65,8 @@ test('the Persian Diba browser recognizer is loaded from the same origin, never 
  assert.match(workflow,/test -s dist\/forza-runtime\/stt\/vosk\.js/);
  assert.match(canary,/DIBA_BROWSER_MODEL_HTTP_/);
  assert.match(canary,/DIBA_BROWSER_MODEL_CONTENT_LENGTH_MISSING/);
+ assert.match(canary,/DIBA_BROWSER_VOSK_SCRIPT_HTTP_/);
+ assert.match(canary,/DIBA_BROWSER_VOSK_SCRIPT_CONTENT_LENGTH_MISSING/);
 });
 
 test('local Diba streams partial and final hypotheses and falls back to browser recognition on model errors',()=>{
