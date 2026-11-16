@@ -80,6 +80,9 @@ test('retired category parents no longer render old category experiences', () =>
   assert.match(routeMap, /'پولی-و-انتقال-نیرو': 'excel-v2-4'/);
   assert.match(routeMap, /'تجهیزات-وکیوم': null/);
   assert.match(routeMap, /'production-fittings': null/);
+  assert.match(routeMap, /'timing-belts': 'excel-v2-1'/);
+  assert.match(routeMap, /'conveyors-industrial-chains': 'excel-v2-2'/);
+  assert.match(routeMap, /'production-ceramic-equipment': 'excel-v2-10'/);
   assert.match(categoryPage, /<Navigate to=\{destination\} replace \/>/);
 });
 
