@@ -2,6 +2,7 @@ import {durableStorage,databaseStorageEnabled} from "../services/durableStorage"
 import { BELT_MENU, matchesBeltSelection } from "./beltNavigation";
 import type { Category, Product } from '../types';
 import { USER_PRODUCTS, USER_PRODUCTS_RAW, categorySlugFor } from './userProducts';
+import { getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug } from './categorySeoRoutes';
 
 export interface CategoryNode { name: string; value?: string; hidden?: boolean; children?: CategoryNode[]; }
 export interface EnhancedCategory extends Category {
@@ -53,10 +54,11 @@ export const resolveCategorySlug = (slug: string) => {
 
 /** Resolve the stable, category-specific route returned by the approved menu API. */
 export const getCategoryRouteSlug = (category: Pick<EnhancedCategory, 'slug' | 'routeSlug'>): string =>
-  resolveCategorySlug(String(category.routeSlug || category.slug || '').trim());
+  getCategorySeoRouteSlug(String(category.slug || category.routeSlug || '').trim());
 
 export function matchesCatalogCategory(product: Product, slug: string, selection = 'all'): boolean {
-  if (product.categorySlug !== resolveCategorySlug(slug)) return false;
+  const internalSlug = getInternalCategorySlugFromRouteSlug(slug) || resolveCategorySlug(slug);
+  if (product.categorySlug !== internalSlug) return false;
   if (selection === 'all') return true;
   const beltMatch = product.categoryName === 'تسمه و انتقال نیرو' ? matchesBeltSelection(product, selection) : undefined;
   return beltMatch ?? (product.submenu === selection || product.subcategory === selection);
@@ -136,5 +138,7 @@ export function getManagedCategories(): EnhancedCategory[] {
   return [];
 }
 
-export const findCatalogCategory = (slug: string) =>
-  getManagedCategories().find(category => resolveCategorySlug(category.slug) === resolveCategorySlug(slug));
+export const findCatalogCategory = (slug: string) => {
+  const internalSlug = getInternalCategorySlugFromRouteSlug(slug) || resolveCategorySlug(slug);
+  return getManagedCategories().find(category => category.slug === internalSlug || resolveCategorySlug(category.slug) === internalSlug);
+};
