@@ -6,7 +6,7 @@ import {
   LEGACY_CATEGORY_ROUTE_GROUPS,
 } from '../src/data/categorySeoRoutes';
 
-const siteOrigin = () => (process.env.PUBLIC_SITE_URL || 'https://sanatpish.com').replace(/\\/+$/, '');
+const siteOrigin = () => (process.env.PUBLIC_SITE_URL || 'https://sanatpish.com').replace(/\/+$/, '');
 
 /** Register crawlable canonical category URLs, permanent legacy redirects and the category sitemap. */
 export const registerCategorySeoRoutes = (app: Express): void => {
@@ -41,6 +41,6 @@ export const registerCategorySeoRoutes = (app: Express): void => {
   app.get('/robots.txt', (_req, res) => {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=3600');
-    return res.send('User-agent: *\\nAllow: /\\nSitemap: ' + siteOrigin() + '/sitemap.xml\\n');
+    return res.send('User-agent: *\nAllow: /\nSitemap: ' + siteOrigin() + '/sitemap.xml\n');
   });
 };
