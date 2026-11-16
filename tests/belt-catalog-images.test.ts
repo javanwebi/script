@@ -3,7 +3,7 @@ import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import manifestRaw from '../src/data/beltCatalogManifest.json';
+import manifestRaw from '../src/generated/beltCatalogManifest';
 import {
   buildBeltGalleryImages,
   getBeltFamilyMedia,
@@ -36,8 +36,8 @@ const EXCLUDED_PURE_FAMILIES = [
   'FAM-40601',
 ] as const;
 
-test('beltCatalogManifest.json records exact inventory counts and contains zero external URLs', () => {
-  const rawText = fs.readFileSync(path.resolve('src/data/beltCatalogManifest.json'), 'utf8');
+test('generated belt media manifest records exact inventory counts and contains zero external URLs', () => {
+  const rawText = JSON.stringify(manifest);
   assert.equal(/https?:\/\//i.test(rawText), false, 'Manifest must never contain external http(s) URLs');
 
   const totals = getBeltManifestTotals();
