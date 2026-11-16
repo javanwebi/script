@@ -5,6 +5,7 @@ export type BeltConfidenceLevel =
   | 'NOMINAL_TABLE_VERIFIED'
   | 'SERIES_VERIFIED'
   | 'ALGORITHMIC_STANDARD_ONLY'
+  | 'INVENTORY_DESCRIPTION_ONLY'
   | 'REQUIRES_REVIEW';
 
 export type VerificationSourceTier =
@@ -144,8 +145,9 @@ export interface BeltTechnicalParameters {
     | 'heat-weldable-meter'
     | 'perforated-meter'
     | 'roll-strip'
-    | 'hardware-unit';
-  sidedness: 'single-sided' | 'double-sided' | 'symmetric-round-hex' | 'not-applicable';
+    | 'hardware-unit'
+    | 'unspecified';
+  sidedness: 'single-sided' | 'double-sided' | 'symmetric-round-hex' | 'not-applicable' | 'unknown';
   profile: string;
   pitchMm: number | null;
   toothAngleDeg: number | null;
@@ -305,6 +307,55 @@ const normalize = (value = '') =>
     .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
     .replace(/[\u200b-\u200f\ufeff\s]+/g, ' ')
     .trim();
+
+export interface ConveyorSurfaceProfile {
+  profile: string;
+  label: string;
+  requiresReview: boolean;
+}
+
+/**
+ * Read only explicit surface wording from the inventory title.
+ * Persian trade labels are preserved as labels; no unsupported ISO/manufacturer
+ * equivalence is inferred from them.
+ */
+export function detectConveyorSurfaceProfile(rawName: string): ConveyorSurfaceProfile {
+  const name = normalize(rawName);
+  if (/کله\s*قندی/.test(name)) {
+    const perforated = /سوراخ\s*دار/.test(name);
+    return {
+      profile: perforated ? 'PVC_CONICAL_CLEAT_PERFORATED' : 'PVC_CONICAL_CLEAT',
+      label: perforated ? 'کله‌قندی سوراخ‌دار' : 'کله‌قندی',
+      requiresReview: false,
+    };
+  }
+  if (/پامرغی|پا\s*مرغی/.test(name)) {
+    return { profile: 'PVC_PAMARGHI_PATTERN', label: 'پامرغی', requiresReview: false };
+  }
+  if (/سنگی/.test(name)) {
+    return { profile: 'PVC_STONE_SURFACE', label: 'سنگی', requiresReview: false };
+  }
+  if (/چمنی/.test(name)) {
+    return { profile: 'PVC_GRASS_PATTERN', label: 'چمنی', requiresReview: false };
+  }
+  if (/لوزی/.test(name)) {
+    return { profile: 'PVC_DIAMOND_PATTERN', label: 'لوزی', requiresReview: false };
+  }
+  if (/آجدار|rough\s*top/.test(name)) {
+    return { profile: 'PVC_ROUGH_TOP', label: 'آجدار', requiresReview: false };
+  }
+  if (/صاف|ساده/.test(name)) {
+    return { profile: 'PVC_SMOOTH', label: 'صاف / ساده', requiresReview: false };
+  }
+  if (/شفاف/.test(name)) {
+    return { profile: 'PVC_TRANSPARENT', label: 'شفاف', requiresReview: false };
+  }
+  return {
+    profile: 'PVC_SURFACE_UNSPECIFIED',
+    label: 'الگوی سطح نامشخص',
+    requiresReview: true,
+  };
+}
 
 const IMPERIAL_TIMING_SPECS: Record<
   string,
