@@ -1652,8 +1652,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             return;
           }
 
-          // Preserve the live browser interim, but also send this exact
-          // utterance to the server Diba recognizer for a final transcript.
+          // Preserve the live browser interim. Complete WebM segments are
+          // available to Diba only when the browser did not produce usable text.
           const currentTranscript=(pendingTranscriptRef.current||activeTranscriptRef.current||'').trim();
           pendingTranscriptRef.current='';
           if (currentTranscript) {
@@ -1674,7 +1674,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
           // With no server ASR, empty VAD segments are not failed requests.
           // Retain browser recognition and restart only the RAM recorder.
-          if(serverSttConfiguredRef.current===false||rejectedSpeech){
+          if(serverSttConfiguredRef.current===false){
             audioSegmentsRef.current=[];
             vadRef.current.reset();
             if(!callClosedRef.current&&!micMutedRef.current&&streamRef.current?.active&&mr.state==='inactive'){
@@ -1688,7 +1688,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const finalBlob=chunks.length?new Blob(chunks,{type:finalMime}):null;
           if(finalBlob&&finalBlob.size>1200&&!rejectedSpeech)audioBlobs.push(finalBlob);
           audioSegmentsRef.current=[];
-          if(audioBlobs.length>0&&hadSpeech&&!rejectedSpeech){
+          if(audioBlobs.length>0&&hadSpeech){
             void handleUserFinishedSpeaking('',audioBlobs,finalMime);
           }else if(hadSpeech){
             setMicrophoneError('صدای ضبط‌شده قابل استفاده نبود؛ لطفاً دوباره نزدیک میکروفون صحبت کنید.');
