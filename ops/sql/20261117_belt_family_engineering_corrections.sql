@@ -516,13 +516,17 @@ WHERE f.code IN (
 
 -- 8) Family display names now distinguish American wedge and Double-V from generic V-belts.
 UPDATE public.catalog_families f
-SET name=replace(f.name,'تسمه V شکل پروفیل 5V','تسمه V گوه‌ای آمریکایی پروفیل 5V'),
-    description=replace(f.description,'تسمه V شکل پروفیل 5V','تسمه V گوه‌ای آمریکایی پروفیل 5V'),
+SET materials='لاستیک با روکش پارچه‌ای (Wrapped V-Belt); ترکیب دقیق نیازمند دیتاشیت سازنده',
+    name=replace(replace(f.name,'تسمه V شکل پروفیل 5V','تسمه V گوه‌ای آمریکایی پروفیل 5V'),'لاستیک کلروپرن با روکش بافت پارچه‌ای (Wrapped V-Belt)','لاستیک با روکش پارچه‌ای (Wrapped V-Belt)'),
+    description=replace(replace(f.description,'تسمه V شکل پروفیل 5V','تسمه V گوه‌ای آمریکایی پروفیل 5V'),'لاستیک کلروپرن با روکش بافت پارچه‌ای (Wrapped V-Belt)','لاستیک با روکش پارچه‌ای (Wrapped V-Belt)'),
     technical_specs=(
       SELECT coalesce(jsonb_agg(
-        CASE WHEN e->>'key'='نوع محصول'
-          THEN jsonb_set(e,'{value}',to_jsonb('تسمه V گوه‌ای آمریکایی پروفیل 5V'::text),true)
-          ELSE e END ORDER BY x.ord
+        CASE
+          WHEN e->>'key'='نوع محصول' THEN jsonb_set(e,'{value}',to_jsonb('تسمه V گوه‌ای آمریکایی پروفیل 5V'::text),true)
+          WHEN e->>'key'='جنس و متریال' OR e->>'key'='material' THEN jsonb_set(e,'{value}',to_jsonb('لاستیک با روکش پارچه‌ای (Wrapped V-Belt); ترکیب دقیق نیازمند دیتاشیت سازنده'::text),true)
+          WHEN e->>'key'='ساختار مهندسی' OR e->>'key'='ساختار و مکانیزم' OR e->>'key'='construction' THEN jsonb_set(e,'{value}',to_jsonb('عضو کششی داخلی؛ جنس و آرایش دقیق کورد نیازمند دیتاشیت سازنده است'::text),true)
+          ELSE e
+        END ORDER BY x.ord
       ),'[]'::jsonb)
       FROM jsonb_array_elements(coalesce(f.technical_specs,'[]'::jsonb)) WITH ORDINALITY AS x(e,ord)
     ),
@@ -530,15 +534,19 @@ SET name=replace(f.name,'تسمه V شکل پروفیل 5V','تسمه V گوه�
 WHERE f.code='PFAM-تسمه-V-شکل-پرو-SWR-5V-489';
 
 UPDATE public.catalog_families f
-SET name=replace(f.name,'تسمه V شکل پروفیل 8V','تسمه V گوه‌ای آمریکایی پروفیل 8V'),
-    description=replace(f.description,'تسمه V شکل پروفیل 8V','تسمه V گوه‌ای آمریکایی پروفیل 8V'),
+SET materials='لاستیک با روکش پارچه‌ای (Wrapped V-Belt); ترکیب دقیق نیازمند دیتاشیت سازنده',
+    name=replace(replace(f.name,'تسمه V شکل پروفیل 8V','تسمه V گوه‌ای آمریکایی پروفیل 8V'),'لاستیک کلروپرن با روکش بافت پارچه‌ای (Wrapped V-Belt)','لاستیک با روکش پارچه‌ای (Wrapped V-Belt)'),
+    description=replace(replace(f.description,'تسمه V شکل پروفیل 8V','تسمه V گوه‌ای آمریکایی پروفیل 8V'),'لاستیک کلروپرن با روکش بافت پارچه‌ای (Wrapped V-Belt)','لاستیک با روکش پارچه‌ای (Wrapped V-Belt)'),
     submenu='تسمه اسپشیال',
     subcategory=NULL,
     technical_specs=(
       SELECT coalesce(jsonb_agg(
-        CASE WHEN e->>'key'='نوع محصول'
-          THEN jsonb_set(e,'{value}',to_jsonb('تسمه V گوه‌ای آمریکایی پروفیل 8V'::text),true)
-          ELSE e END ORDER BY x.ord
+        CASE
+          WHEN e->>'key'='نوع محصول' THEN jsonb_set(e,'{value}',to_jsonb('تسمه V گوه‌ای آمریکایی پروفیل 8V'::text),true)
+          WHEN e->>'key'='جنس و متریال' OR e->>'key'='material' THEN jsonb_set(e,'{value}',to_jsonb('لاستیک با روکش پارچه‌ای (Wrapped V-Belt); ترکیب دقیق نیازمند دیتاشیت سازنده'::text),true)
+          WHEN e->>'key'='ساختار مهندسی' OR e->>'key'='ساختار و مکانیزم' OR e->>'key'='construction' THEN jsonb_set(e,'{value}',to_jsonb('عضو کششی داخلی؛ جنس و آرایش دقیق کورد نیازمند دیتاشیت سازنده است'::text),true)
+          ELSE e
+        END ORDER BY x.ord
       ),'[]'::jsonb)
       FROM jsonb_array_elements(coalesce(f.technical_specs,'[]'::jsonb)) WITH ORDINALITY AS x(e,ord)
     ),
