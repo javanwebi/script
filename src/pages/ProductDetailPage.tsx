@@ -19,6 +19,7 @@ import {
   buildDefaultGalleryImages,
   subscribeCatalogChanges,
 } from "../data/mockGenerator";
+import { getCategoryRoutePath } from "../data/categories";
 import type { TechnicalReview } from "../data/productTechnicalData";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
@@ -574,7 +575,7 @@ export const ProductDetailPage: React.FC = () => {
           </Link>
           <ChevronLeft className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <Link
-            to={`/category/${encodeURIComponent(product.categorySlug)}`}
+            to={getCategoryRoutePath(product.categorySlug)}
             className="hover:text-[#E06518] transition-colors shrink-0 max-w-[140px] sm:max-w-none truncate"
           >
             {product.categoryName}
@@ -958,7 +959,7 @@ export const ProductDetailPage: React.FC = () => {
                 <div className="flex items-center justify-between sm:justify-start gap-2 border-b sm:border-b-0 sm:border-l border-slate-200/70 pb-2 sm:pb-0 sm:pl-3">
                   <span className="text-slate-500">گروه فنی:</span>
                   <Link
-                    to={`/category/${encodeURIComponent(product.categorySlug)}`}
+                    to={getCategoryRoutePath(product.categorySlug)}
                     className="font-bold text-slate-700 hover:text-[#E06518] truncate transition-colors"
                   >
                     {product.subcategory || product.categoryName}
@@ -1662,7 +1663,7 @@ export const ProductDetailPage: React.FC = () => {
               محصولات مشابه در این دسته‌بندی
             </h2>
             <Link
-              to={`/category/${encodeURIComponent(product.categorySlug)}`}
+              to={getCategoryRoutePath(product.categorySlug)}
               className="text-xs font-bold text-[#E06518] hover:text-[#C95210] flex items-center gap-1 transition-colors"
             >
               <span>مشاهده تمام قطعات</span>
