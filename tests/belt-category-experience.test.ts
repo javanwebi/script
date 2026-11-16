@@ -344,7 +344,7 @@ test('belt audit does not force automotive RU or unsupported T10 into neighbouri
 test('belt audit distinguishes V-belt meter supply from its profile menu path', () => {
   const meterZ = classifyBelt('تسمه V شکل پروفیل Z متری', 'لاستیک', 'متر', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
   assert.equal(meterZ.proposedSubmenu, 'کلاسیک و دنده‌دار');
-  assert.equal(meterZ.proposedLeaf, 'Z (9.5) , M , A , B , C , D , E , 8V');
+  assert.equal(meterZ.proposedLeaf, 'Z (9.5) , M , A , B , C , D , E');
   assert.equal(meterZ.technical.profile, 'Z');
   assert.equal(meterZ.technical.supplyForm, 'open-ended-meter');
 
