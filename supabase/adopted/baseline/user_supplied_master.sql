@@ -481,6 +481,8 @@ CREATE TABLE IF NOT EXISTS public.catalog_variants (
     images JSONB NOT NULL DEFAULT '[]'::jsonb,
     technical_specs JSONB NOT NULL DEFAULT '[]'::jsonb,
     technical_review JSONB NOT NULL DEFAULT '{}'::jsonb,
+    identity_specs JSONB NOT NULL DEFAULT '{}'::jsonb,
+    variable_specs JSONB NOT NULL DEFAULT '{}'::jsonb,
     in_research_cohort BOOLEAN NOT NULL DEFAULT FALSE,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
