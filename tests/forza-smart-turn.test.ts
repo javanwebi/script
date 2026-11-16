@@ -43,15 +43,14 @@ test('a fixed word count or an unclosed question is NOT proof of completion', ()
   assert.equal(analyzePersianSentenceCompletion('آیا این تسمه مناسب').isComplete, false);
 });
 
-test('explicit stop commands and standalone greetings stay fast', () => {
-  for (const phrase of ['صبر کن', 'بس کن', 'ادامه بده']) {
-    const analysis = analyzePersianSentenceCompletion(phrase);
-    assert.equal(analysis.isComplete, true, phrase);
+test('only explicit control commands bypass the two-second continuation window', () => {
+  for (const phrase of ['وایسا', 'صبر کن', 'بس کن', 'توقف', 'ساکت شو', 'ادامه بده']) {
     assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 850, phrase);
   }
-  for (const phrase of ['سلام', 'ممنون']) {
-    assert.equal(analyzePersianSentenceCompletion(phrase).isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 950, phrase);
+  for (const phrase of ['سلام', 'درود', 'ممنون', 'اوکی']) {
+    const required = forzaEndOfTurnPauseMs(phrase, false);
+    assert.ok(required > 2000, phrase);
+    assert.ok(forzaTurnRemainingWaitMs(phrase, false, 2100, 2100) > 0, phrase);
   }
   for(const phrase of ['مدل چند است؟','آیا بلبرینگ 6203 موجود است؟']){
     assert.ok(forzaEndOfTurnPauseMs(phrase,false)>=2500,phrase);

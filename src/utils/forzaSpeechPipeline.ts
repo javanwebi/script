@@ -141,12 +141,13 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
 
 /** A two-second pause can be a natural breath, not the end of a Persian turn.
  * Keep a continuation grace above two seconds even when ASR adds punctuation;
- * only short standalone greetings/control phrases use a shorter endpoint.
+ * only explicit stop/continue control phrases use a shorter endpoint.
  */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
   const normalized=normalizePersianTranscript(text);
   if(!normalized)return 2600;
-  if(/^(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|یه لحظه|یک لحظه|توقف|بسه|ساکت|ساکت شو|ادامه بده|ادامه بدید|ادامه|سلام|درود|خداحافظ|ممنون|ممنونم|متشکرم|سپاس|مرسی|اوکی)$/.test(normalized))
+  // Only explicit control commands bypass the natural-pause continuation window.
+  if(/^(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|توقف|بسه|ساکت|ساکت شو|ادامه بده|ادامه بدید|ادامه)$/.test(normalized))
     return 650;
   const analysis = analyzePersianSentenceCompletion(normalized);
   if(analysis.isMidThought)return hasInterim?3100:2900;
