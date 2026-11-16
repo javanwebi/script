@@ -57,7 +57,7 @@ test('first paint prefetches SQL-light categories and small product previews',()
  const server=readFileSync('server.ts','utf8');
  const nav=readFileSync('server/catalogNavigationApi.ts','utf8');
  assert.match(main,/prefetchHomeFirstPaint\(\)/);
- assert.match(main,/prefetchHomeFirstPaint\(\)[\s\S]*?await import\('\.\/App\.tsx'\)/);
+ assert.match(main,/prefetchHomeFirstPaint\(\)[\s\S]*?await importWithRetry\(\(\)=>import\('\.\/App\.tsx'\)/);
  assert.match(boot,/\x2fapi\x2fcatalog\x2fhome-categories/);
  assert.match(boot,/\x2fapi\x2fcatalog\x2fhome-preview/);
  assert.match(home,/homeCategories\(\)/);
