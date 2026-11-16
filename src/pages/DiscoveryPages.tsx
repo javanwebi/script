@@ -34,6 +34,7 @@ import {
 import { INDUSTRIES, ARTICLES } from "../data/siteContent";
 import { getManagedBrands } from "../data/brands";
 import { getManagedCategories } from "../data/categories";
+import { SANAT_PISH_CANONICAL_ORIGIN } from "../data/categorySeoRoutes";
 import type { Brand } from "../types";
 import { databaseStorageEnabled } from "../services/durableStorage";
 import { STORE_ASSETS as A } from "../assets/images";
@@ -465,7 +466,45 @@ export function KnowledgePage() {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const article = ARTICLES.find((a) => a.slug === slug);
-  useEffect(() => title(article?.title || "دانشنامه کاربردی صنعت پیش"), [article]);
+  useEffect(() => {
+    const previousTitle = document.title;
+    const pageTitle = article
+      ? `${article.title} | راهنمای صنعتی | صنعت پیش`
+      : "دانشنامه کاربردی صنعت پیش | راهنمای قطعات و تجهیزات صنعتی";
+    document.title = pageTitle;
+
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    const createdMeta = !meta;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "description";
+      document.head.appendChild(meta);
+    }
+    const previousDescription = meta.content;
+    meta.content = (article?.summary || "راهنماهای فنی صنعت پیش برای شناخت قطعات صنعتی، آماده‌سازی اطلاعات فنی و انتخاب آگاهانه تجهیزات خطوط تولید.").slice(0, 155);
+
+    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    const createdCanonical = !canonical;
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.rel = "canonical";
+      document.head.appendChild(canonical);
+    }
+    const previousCanonical = canonical.href;
+    canonical.href = SANAT_PISH_CANONICAL_ORIGIN + (article ? "/knowledge/" + encodeURIComponent(article.slug) : "/knowledge");
+
+    return () => {
+      document.title = previousTitle;
+      if (meta) {
+        if (createdMeta) meta.remove();
+        else meta.content = previousDescription;
+      }
+      if (canonical) {
+        if (createdCanonical) canonical.remove();
+        else canonical.href = previousCanonical;
+      }
+    };
+  }, [article]);
 
   const categories = useMemo(
     () => Array.from(new Set(ARTICLES.map((item) => item.category))),
