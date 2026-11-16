@@ -1,7 +1,13 @@
 -- Canonical, category-specific routes for the approved 34-category catalogue.
 -- Retire legacy categories only when no active families, direct SKUs or menu assignments remain.
+-- Some isolated PGlite tests intentionally omit the production catalogue tables; safely skip there.
 DO $$
 BEGIN
+  IF to_regclass('public.catalog_categories') IS NULL THEN
+    RAISE NOTICE 'Skipping canonical category routes: public.catalog_categories is not installed in this database';
+    RETURN;
+  END IF;
+
   IF EXISTS (
     SELECT 1
     FROM public.catalog_categories c
@@ -29,19 +35,16 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Cannot retire legacy categories while menu assignments remain';
   END IF;
-END $$;
 
-UPDATE public.catalog_categories c
-SET is_active = false
-WHERE c.is_active = true AND c.slug NOT LIKE 'excel-v2-%';
+  UPDATE public.catalog_categories c
+  SET is_active = false
+  WHERE c.is_active = true AND c.slug NOT LIKE 'excel-v2-%';
 
-UPDATE public.catalog_categories c
-SET metadata = jsonb_set(coalesce(c.metadata, '{}'::jsonb), '{routeSlug}', to_jsonb(c.slug), true)
-WHERE c.slug LIKE 'excel-v2-%'
-  AND c.metadata->>'routeSlug' IS DISTINCT FROM c.slug;
+  UPDATE public.catalog_categories c
+  SET metadata = jsonb_set(coalesce(c.metadata, '{}'::jsonb), '{routeSlug}', to_jsonb(c.slug), true)
+  WHERE c.slug LIKE 'excel-v2-%'
+    AND c.metadata->>'routeSlug' IS DISTINCT FROM c.slug;
 
-DO $$
-BEGIN
   IF EXISTS (
     SELECT 1 FROM public.catalog_categories
     WHERE slug LIKE 'excel-v2-%' AND metadata->>'routeSlug' IS DISTINCT FROM slug
