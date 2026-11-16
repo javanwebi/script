@@ -18,6 +18,8 @@ on:
       - "src/components/layout/Header.tsx"
       - "src/data/categories.ts"
       - "src/data/categorySeoRoutes.ts"
+      - "server/categorySeoRoutes.ts"
+      - "server.ts"
       - "src/data/approvedMenuFallback.ts"
       - "src/pages/ExcelMenuCategoryPage.tsx"
       - "src/admin/modules/ProductsModule.tsx"
