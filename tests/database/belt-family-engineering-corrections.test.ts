@@ -330,13 +330,19 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
 
     const checks = await db.query(
       `select
-        (select count(*)::int from public.catalog_variants where variable_specs->>'beltDivision'='vbelt-crowned-crc' and family_type_id='FT-BELT-CROWNED-CRC') crc,
+        (select count(*)::int from public.catalog_variants where variable_specs->>'beltDivision'='conveyor-crowned-crc' and family_type_id='FT-BELT-CROWNED-CRC') crc,
         (select count(*)::int from public.catalog_variants where variable_specs->>'beltDivision'='welded-pu-round-crc' and family_type_id='FT-BELT-ROUND-CRC') welded,
         (select count(*)::int from public.catalog_variants where variable_specs->>'beltDivision'='vbelt-banded' and family_type_id='FT-VBELT-BANDED' and proposed_leaf is null) banded,
         (select count(*)::int from public.catalog_variants where upper(identity_specs->>'profile') in ('3V','5V','8V') and family_type_id='FT-VBELT-WEDGE' and variable_specs->>'beltDivision'='vbelt-wedge' and proposed_submenu='تسمه اسپشیال' and proposed_leaf is null) wedge,
         (select count(*)::int from public.catalog_variants where upper(identity_specs->>'profile') in ('3VX','5VX','8VX') and family_type_id='FT-VBELT-COGGED' and variable_specs->>'beltDivision'='vbelt-wedge' and proposed_submenu='تسمه اسپشیال' and proposed_leaf is null) cogged`,
     );
     assert.deepEqual(checks.rows[0], { crc: 103, welded: 121, banded: 15, wedge: 29, cogged: 2 });
+    const crcDivision = await db.query(
+      `select count(*)::int count from public.catalog_variants
+       where variable_specs->>'beltDivision'='conveyor-crowned-crc'
+         and technical_specs @> '[{"key":"beltDivision","value":"conveyor-crowned-crc"}]'::jsonb`,
+    );
+    assert.equal(crcDivision.rows[0].count, 103);
 
     const aa = await db.query(
       `select count(*)::int count from public.catalog_variants
