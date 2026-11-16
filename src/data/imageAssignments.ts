@@ -16,7 +16,7 @@ export function imageFileName(url: string): string {
     const cleanPath=path.split(/[?#]/,1)[0];
     if(cleanPath.includes('..'))return '';
     const legacy=cleanPath.match(/e\((\d+)\)\.png$/i);
-    if(legacy)return \`e(\${Number(legacy[1])}).png\`;
+    if(legacy)return 'e(' + Number(legacy[1]) + ').png';
     if(/^\/storage\/(products|categories)\//i.test(cleanPath)){
       const filename=cleanPath.split('/').pop()||'';
       return /^[A-Za-z0-9_.()-]+\.(?:png|jpe?g|webp)$/i.test(filename)?filename:'';
