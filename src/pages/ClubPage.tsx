@@ -286,7 +286,7 @@ export const ClubPage: React.FC = () => {
 
               {rule.id === 'purchase' && (
                 <Link
-                  to="/category/industrial-belts"
+                  to="/categories"
                   className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-[#55565A] text-xs font-bold rounded-xl transition-colors text-center border border-slate-200"
                 >
                   مشاهده کاتالوگ و خرید
@@ -521,7 +521,7 @@ export const ClubPage: React.FC = () => {
             </p>
 
             <Link
-              to="/category/industrial-belts"
+              to="/categories"
               className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold rounded-xl transition-all shadow-md"
             >
               <ShoppingBag className="w-4 h-4" />
