@@ -43,7 +43,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { STORE_ASSETS } from '../../assets/images';
-import { CATEGORIES, PRIMARY_CATALOG_CATEGORIES, getCategoryRouteSlug } from '../../data/categories';
+import { CATEGORIES, PRIMARY_CATALOG_CATEGORIES, getCategoryRoutePath } from '../../data/categories';
 import { CategoryNavigation } from '../catalog/CategoryNavigation';
 import { BRANDS } from '../../data/brands';
 import { getInstantSearchResults } from '../../data/mockGenerator';
@@ -52,11 +52,8 @@ import { Product } from '../../types';
 const LazyVisualPartSearchModal = React.lazy(() => import('../search/AiVisualPartSearchModal').then(m => ({default: m.AiVisualPartSearchModal})));
 const LazyAiConsultModal = React.lazy(() => import('../search/AiConsultModal').then(m => ({default: m.AiConsultModal})));
 
-const categoryHref = (category: { slug: string; routeSlug?: string; name?: string }) => {
-  const routeSlug = getCategoryRouteSlug(category);
-  const isLegacyBelt = routeSlug === 'تسمه-و-انتقال-نیرو' || category.name === 'تسمه و انتقال نیرو' || category.name === 'تسمه و انتقال قدرت';
-  return isLegacyBelt ? '/categories?group=excel-v2-1' : '/category/' + encodeURIComponent(routeSlug);
-};
+const categoryHref = (category: { slug: string; routeSlug?: string; name?: string }) =>
+  getCategoryRoutePath(category.slug);
 
 import {
   portalContentService,
