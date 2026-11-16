@@ -96,6 +96,9 @@ export function validateFamilyMenuAssignment(
     }
 
     if (submenu === normalize('انواع گام و کدهای تایمینگ')) {
+      if (profileCode === '3m' && isRubberMaterial) {
+        return fail('rubber_3m_timing_must_use_rubber_submenu');
+      }
       if (leaf && ['t10', 't20', '3m', 'mxl'].includes(profileCode)) {
         return fail('timing_profile_without_exact_approved_leaf');
       }
