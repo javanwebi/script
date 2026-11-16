@@ -4,6 +4,8 @@
  * No cross-provider or paid retry. xKiro's free path may make one bounded,
  * same-model non-stream verification after an incomplete SSE response.
  */
+import { FORZA_CONVERSATION_HISTORY_LIMIT } from '../../src/utils/forzaConversationHistory';
+
 export type BaiConsultOptions = {
   apiKey: string;
   model: string;
@@ -128,7 +130,7 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   let lastTokenMs = -1;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let idleAfterDelta = false;
-  const historyMessages = history.slice(-6)
+  const historyMessages = history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT)
     .filter(item => typeof item?.text === 'string' && !!item.text.trim())
     .map(item => ({
       role: item.role === 'user' || item.sender === 'user' ? 'user' : 'assistant',
@@ -311,7 +313,7 @@ export async function completeXkiroConsult(
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(new Error('xkiro_nonstream_timeout')),timeoutMs);
   const requestSignal=signal?AbortSignal.any([signal,controller.signal]):controller.signal;
-  const historyMessages=history.slice(-6)
+  const historyMessages=history.slice(-FORZA_CONVERSATION_HISTORY_LIMIT)
     .filter(item=>typeof item?.text==='string'&&!!item.text.trim())
     .map(item=>({
       role:item.role==='user'||item.sender==='user'?'user':'assistant',
