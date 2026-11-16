@@ -151,3 +151,12 @@ test('a two-second pause preserves the same live transcript across browser recog
 test('FORZA hair animation remains visible during the spoken greeting despite microphone echo cancellation',()=>{
   assert.match(avatar,/Math\.max\(audioLvl, 0\.28\)/);
 });
+
+test('ending a call clears buffered audio segments from memory',()=>{
+  const from=ui.indexOf('const releaseCallResources = useCallback');
+  const to=ui.indexOf('useEffect(()=>()=>releaseCallResources()',from);
+  assert.ok(from>0&&to>from);
+  const teardown=ui.slice(from,to);
+  assert.match(teardown,/audioChunksRef\\.current=\\[\\]/);
+  assert.match(teardown,/audioSegmentsRef\\.current=\\[\\]/);
+});

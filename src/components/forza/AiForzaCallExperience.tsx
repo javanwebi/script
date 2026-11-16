@@ -2145,6 +2145,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(context && context.state!=='closed')void context.close().catch(()=>{});
     historyRef.current=[];
     audioChunksRef.current=[];
+    audioSegmentsRef.current=[];
     isProcessingTurnRef.current=false;
   },[stopAudio]);
 
