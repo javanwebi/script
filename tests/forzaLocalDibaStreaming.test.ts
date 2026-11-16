@@ -56,6 +56,8 @@ test('local Diba streams partial and final hypotheses and falls back to browser 
  assert.match(ui,/createScriptProcessor\(2048,1,1\)/,'small audio frames keep live partial latency low');
  assert.match(ui,/resampleDibaPcm\(mono,input\.sampleRate\)/,'browser capture must be resampled to the model rate');
  assert.match(ui,/new model\.KaldiRecognizer\(FORZA_DIBA_SAMPLE_RATE\)/);
+ assert.match(ui,/hasRecentNearFieldEvidence\(micNow\)/,'resumed speech must reset the endpoint before the full admission latch');
+ assert.match(ui,/hasRecentNearFieldEvidence\(Date\.now\(\)\)/,'fresh near-field PCM cancels pending turn dispatch');
  assert.match(ui,/recognizer\.on\('partialresult'/);
  assert.match(ui,/recognizer\.on\('result'/);
  assert.match(ui,/recognizer\.on\('error'/);
