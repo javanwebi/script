@@ -591,6 +591,8 @@ SET materials='بدنه لاستیکی تسمه V دوطرفه؛ ترکیب دق
         CASE
           WHEN e->>'key'='نوع محصول' THEN jsonb_set(e,'{value}',to_jsonb('تسمه V دوطرفه شش‌ضلعی پروفیل AA (Double V-Belt)'::text),true)
           WHEN e->>'key'='استاندارد مرجع' THEN jsonb_set(e,'{value}',to_jsonb('ISO 5289 / DIN 7722 (Double V / Hexagonal AA / HAA)'::text),true)
+          WHEN e->>'key'='جنس و متریال' OR e->>'key'='material' THEN jsonb_set(e,'{value}',to_jsonb('بدنه لاستیکی تسمه V دوطرفه؛ ترکیب دقیق لاستیک نیازمند دیتاشیت سازنده است'::text),true)
+          WHEN e->>'key'='ساختار مهندسی' OR e->>'key'='ساختار و مکانیزم' OR e->>'key'='construction' THEN jsonb_set(e,'{value}',to_jsonb('مقطع متقارن دوطرفه AA؛ نوع و آرایش عضو کششی نیازمند دیتاشیت سازنده است'::text),true)
           ELSE e
         END ORDER BY x.ord
       ),'[]'::jsonb)
