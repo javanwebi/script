@@ -216,10 +216,17 @@ test("private FORZA provider credentials are mounted read-only into each release
 
 test("industrial belt taxonomy migration is applied once and requires its complete private backup on later deploys", () => {
   assert.match(one, /BELT_TAXONOMY_SQL="\$STAGE\/ops\/sql\/20261116_belt_family_taxonomy_followup\.sql"/);
-  assert.match(one, /PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138/);
-  assert.match(one, /PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138/);
-  assert.match(one, /Existing belt taxonomy backup is incomplete/);
-  assert.match(one, /count\(\*\)::int as rows from internal\.catalog_belt_taxonomy_followup_backup_20261116/);
+  assert.match(one, /PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138 invariants=verified/);
+  assert.match(one, /PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138 invariants=verified/);
+  assert.match(one, /Belt taxonomy private backup is incomplete/);
+  assert.match(one, /catalog_family_menu_assignments!==32/);
+  assert.match(one, /catalog_families!==71/);
+  assert.match(one, /catalog_direct_skus!==35/);
+  assert.match(one, /apl_assignments/);
+  assert.match(one, /stale_families/);
+  assert.match(one, /stale_assignments/);
+  assert.match(one, /metadata_mismatches/);
+  assert.match(one, /catalog_belt_taxonomy_followup_backup_20261116/);
   const sku = one.indexOf('===== APPLY SOURCE-VERIFIED SKU-LEVEL MENU ASSIGNMENTS =====');
   const belt = one.indexOf('===== APPLY GUARDED INDUSTRIAL BELT TAXONOMY RECONCILIATION =====');
   const customer360 = one.indexOf('===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA =====');
