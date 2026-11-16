@@ -99,7 +99,7 @@ test('belt product cards do not invent technical dimensions, material or stock c
 
 test('direct SKU cards do not borrow inferred product imagery or placeholder manufacturer names', () => {
   assert.match(page, /disableFallbackImage=\{directSkuCodes\.has\(p\.code\)\}/);
-  assert.match(page, /disableFallback=\{disableFallbackImage\}/);
+  assert.match(page, /disableFallback=\{disableFallbackImage\s*\|\|\s*Boolean\(beltMedia\)\}/);
   assert.match(page, /تصویر تأییدشده ثبت نشده/);
   assert.doesNotMatch(page, /product\.brand \|\| 'قطعات صنعتی'/);
 });
