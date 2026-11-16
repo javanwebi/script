@@ -19,7 +19,7 @@ SELECT EXISTS (
   WHERE code IN ('10077','10265','10695','32929','34483','34854','38910','41630','58288','58304')
 );
 
-DO $
+DO $$
 DECLARE
   missing_skus integer;
   unit_mismatches integer;
@@ -164,7 +164,7 @@ FROM public.catalog_direct_skus d
 WHERE d.sku_code IN ('10077','10265','10695','32929','34483','34854','38910','41630','58288','58304')
   AND d.source_family_code IS NULL;
 
-DO $
+DO $$
 BEGIN
   IF NOT (SELECT apply_production_data FROM _belt_orphan_migration_context) THEN
     RETURN;
