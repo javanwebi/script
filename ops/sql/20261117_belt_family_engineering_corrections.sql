@@ -93,7 +93,7 @@ WHERE v.variable_specs->>'beltDivision' IN ('vbelt-crowned-crc','vbelt-banded')
        AND upper(coalesce(v.identity_specs->>'profile','')) IN ('XPZ','XPA','XPB','XPC','AA'))
    OR upper(coalesce(v.identity_specs->>'profile','')) IN ('3V','3VX','5V','5VX','8V','8VX');
 
--- Snapshot the 13 pure engineering family records whose labels or approved menu path change.
+-- Snapshot the 18 pure engineering family records whose labels or approved menu path change.
 INSERT INTO internal.catalog_belt_family_engineering_backup_20261117(table_name,row_key,row_data)
 SELECT 'catalog_families',f.code,to_jsonb(f)
 FROM public.catalog_families f
