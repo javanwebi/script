@@ -1,4 +1,4 @@
--- Guarded rollback for 20261116150000_belt_orphan_direct_skus_and_restore_pvc_units.
+-- Guarded rollback for 20261116145916_belt_orphan_direct_skus_and_restore_pvc_units.
 -- Deletes only the ten direct rows inserted by that migration and restores only the 14
 -- unit values changed by it. It never deletes or rewrites catalog variants/families.
 
