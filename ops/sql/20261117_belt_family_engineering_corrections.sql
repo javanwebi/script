@@ -324,14 +324,29 @@ SET family_type_id=CASE
       ELSE 'FT-VBELT-COGGED'
     END,
     identity_specs=jsonb_set(
-      coalesce(v.identity_specs,'{}'::jsonb),
-      '{productType}',
-      to_jsonb(
-        'تسمه V گوه‌ای آمریکایی ' ||
-        CASE WHEN upper(coalesce(v.identity_specs->>'profile','')) IN ('3VX','5VX','8VX')
-          THEN 'دنده‌ای لبه‌خام ' ELSE '' END ||
-        'پروفیل ' || upper(coalesce(v.identity_specs->>'profile',''))
+      jsonb_set(
+        jsonb_set(
+          coalesce(v.identity_specs,'{}'::jsonb),
+          '{productType}',
+          to_jsonb(
+            'تسمه V گوه‌ای آمریکایی ' ||
+            CASE WHEN upper(coalesce(v.identity_specs->>'profile','')) IN ('3VX','5VX','8VX')
+              THEN 'دنده‌ای لبه‌خام ' ELSE '' END ||
+            'پروفیل ' || upper(coalesce(v.identity_specs->>'profile',''))
+          ),
+          true
+        ),
+        '{material}',
+        to_jsonb(
+          CASE WHEN upper(coalesce(v.identity_specs->>'profile','')) IN ('3VX','5VX','8VX')
+            THEN 'لاستیک دنده‌ای لبه‌خام (Raw-Edge Cogged Rubber); ترکیب دقیق نیازمند دیتاشیت سازنده'
+            ELSE 'لاستیک با روکش پارچه‌ای (Wrapped V-Belt); ترکیب دقیق نیازمند دیتاشیت سازنده'
+          END
+        ),
+        true
       ),
+      '{construction}',
+      to_jsonb('عضو کششی داخلی؛ جنس و آرایش دقیق کورد باید از دیتاشیت همان سازنده تأیید شود'::text),
       true
     ),
     variable_specs=jsonb_set(
@@ -353,6 +368,13 @@ SET family_type_id=CASE
               THEN 'دنده‌ای لبه‌خام ' ELSE '' END ||
             'پروفیل ' || upper(coalesce(v.identity_specs->>'profile',''))
           ),true)
+          WHEN e->>'key'='جنس و متریال' OR e->>'key'='material' THEN jsonb_set(e,'{value}',to_jsonb(
+            CASE WHEN upper(coalesce(v.identity_specs->>'profile','')) IN ('3VX','5VX','8VX')
+              THEN 'لاستیک دنده‌ای لبه‌خام (Raw-Edge Cogged Rubber); ترکیب دقیق نیازمند دیتاشیت سازنده'
+              ELSE 'لاستیک با روکش پارچه‌ای (Wrapped V-Belt); ترکیب دقیق نیازمند دیتاشیت سازنده'
+            END
+          ),true)
+          WHEN e->>'key'='ساختار مهندسی' OR e->>'key'='ساختار و مکانیزم' OR e->>'key'='construction' THEN jsonb_set(e,'{value}',to_jsonb('عضو کششی داخلی؛ جنس و آرایش دقیق کورد باید از دیتاشیت همان سازنده تأیید شود'::text),true)
           ELSE e
         END ORDER BY x.ord
       ),'[]'::jsonb)
