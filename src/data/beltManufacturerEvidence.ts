@@ -15,7 +15,9 @@ export interface ManufacturerSeriesEvidence {
 const SWR_BROCHURE_URL =
   'https://www.swr-europe.de/download/SWR_Imagebroschuere_en.pdf';
 const OPTIBELT_PRODUCT_RANGE_URL =
-  'https://www.optibelt.com/fileadmin/pdf/kataloge/Optibelt-Power-Transmission-product-range-belts.pdf';
+  'https://www.optibelt.com/fileadmin/pdf/produkte/keilriemen/Optibelt-product-range.pdf';
+const OPTIBELT_TIMING_MANUAL_URL =
+  'https://www.optibelt.com/fileadmin/pdf/produkte/zahnriemen-gummi/Optibelt-TM-Rubber-Timing-Belt-Drives.pdf';
 const MEGADYNE_VBELT_MANUAL_URL =
   'https://megadynegroup.com/files/resources/attachments/md_manu_en_product_guide_web_0.pdf';
 const MEGADYNE_MEGASYNC_MANUAL_URL =
@@ -171,7 +173,7 @@ export function resolveManufacturerSeriesEvidence(
         originalName,
       );
     }
-    if (division === 'ribbed-poly-v' && inSet(profile, ['PJ', 'PK', 'PL'])) {
+    if (division === 'ribbed-poly-v' && inSet(profile, ['PH', 'PJ', 'PK', 'PL', 'PM', 'DPK', 'EPK'])) {
       return seriesEvidence(
         manufacturer,
         OPTIBELT_PRODUCT_RANGE_URL,
@@ -185,19 +187,19 @@ export function resolveManufacturerSeriesEvidence(
     ) {
       return seriesEvidence(
         manufacturer,
-        OPTIBELT_PRODUCT_RANGE_URL,
-        'The official Optibelt catalog lists ZR imperial timing-belt profiles MXL/XL/L/H/XH/XXH.',
+        OPTIBELT_TIMING_MANUAL_URL,
+        'The official Optibelt rubber-timing technical manual lists ZR imperial timing-belt profiles MXL/XL/L/H/XH/XXH.',
         originalName,
       );
     }
     if (
       division === 'timing-htd-rpp-single' &&
-      inSet(profile, ['2M', '3M', '5M', '8M', '14M', 'HTD3M', 'HTD5M', 'HTD8M', 'HTD14M', 'STD5M', 'STD8M', 'STD14M'])
+      inSet(profile, ['2M', '3M', '5M', '8M', '14M', 'S5M', 'S8M', 'S14M'])
     ) {
       return seriesEvidence(
         manufacturer,
-        OPTIBELT_PRODUCT_RANGE_URL,
-        'The official Optibelt catalog lists OMEGA/HTD/STD metric timing-belt families and their pitch series.',
+        OPTIBELT_TIMING_MANUAL_URL,
+        'The official Optibelt rubber-timing technical manual lists its proprietary OMEGA profile 2M/3M/5M/8M/14M and STD S5M/S8M/S14M families. The manual notes pulley compatibility with HTD/RPP systems; this does not mean the tooth profiles are identical.',
         originalName,
       );
     }
