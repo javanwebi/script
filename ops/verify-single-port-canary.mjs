@@ -24,7 +24,7 @@ assert.equal(stt.serverSttProvider, "diba");
 assert.equal(stt.serverSttReady, true);
 console.log("FORZA_STT_CANARY_DIBA_READY_OK provider=" + stt.serverSttProvider);
 
-const browserModel = await fetch(candidate + "/forza-runtime/stt/diba-stt-fa-small.tar.gz", {
+const browserModel = await fetch(candidate + "/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz", {
   method: "HEAD",
   signal: AbortSignal.timeout(15000),
 });
