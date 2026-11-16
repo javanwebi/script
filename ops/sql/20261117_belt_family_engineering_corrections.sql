@@ -161,6 +161,22 @@ SET family_type_id='FT-BELT-CROWNED-CRC',
     proposed_category_slug='excel-v2-1-4',
     proposed_submenu='تسمه بارکش',
     proposed_leaf='انواع تسمه بارکش صنعتی',
+    identity_specs=jsonb_set(
+      jsonb_set(
+        jsonb_set(
+          coalesce(identity_specs,'{}'::jsonb),
+          '{material}',
+          to_jsonb('لاستیک/الاستومر با سطح تاج‌دار (Crowned / Ridge-Top); ترکیب دقیق نیازمند دیتاشیت سازنده است'::text),
+          true
+        ),
+        '{construction}',
+        to_jsonb('تسمه مداربسته با سطح فوقانی تاج‌دار؛ نوع لایه‌ها و عضو کششی نیازمند دیتاشیت سازنده است'::text),
+        true
+      ),
+      '{standard}',
+      to_jsonb('استاندارد رسمی CRC/TRC در منابع موجود تأیید نشده؛ دیتاشیت سازنده لازم است'::text),
+      true
+    ),
     technical_review=jsonb_set(
       jsonb_set(
         coalesce(technical_review,'{}'::jsonb),
@@ -175,7 +191,7 @@ SET family_type_id='FT-BELT-CROWNED-CRC',
         true
       ),
       '{note}',
-      to_jsonb('ساختار تاج‌دار/گرده‌ماهی CRC از تسمه گرد پلی‌یورتان جوشی جداست. مسیر بارکش فقط طبقه‌بندی کاربردی است؛ برند، کد کامل و دیتاشیت همین SKU هنوز باید تطبیق شود.'::text),
+      to_jsonb('ساختار تاج‌دار/گرده‌ماهی CRC از تسمه گرد پلی‌یورتان جوشی جداست. منبع Esbelt فقط کاربرد Ridge-Top در خطوط سرامیک را پشتیبانی می‌کند؛ استاندارد، ترکیب لاستیک، کورد و ابعاد دقیق این SKU هنوز با دیتاشیت همان سازنده تطبیق نشده است.'::text),
       true
     ),
     updated_at=now()
