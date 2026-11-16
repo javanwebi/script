@@ -148,7 +148,7 @@ export function validateFamilyMenuAssignment(
       return fail('vbelt_special_leaf_profile_mismatch');
     }
     if (leaf && submenu === normalize('تسمه اسپشیال') &&
-      !['spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc'].includes(profileCode)) {
+      !['xpz', 'spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc'].includes(profileCode)) {
       return fail('vbelt_special_leaf_profile_mismatch');
     }
   }
