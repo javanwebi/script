@@ -510,11 +510,11 @@ function getDivisionTitleFa(div: string, isCogged: boolean, isCoated: boolean): 
         ? { fa: 'تسمه وی‌بلت باریک دنده‌دار پرفشار (XPZ/XPA/XPB/XPC)', en: 'COGGED NARROW WEDGE V-BELT' }
         : { fa: 'تسمه وی‌بلت باریک (Wedge) روکش‌دار (SPZ/SPA/SPB/SPC)', en: 'WRAPPED NARROW WEDGE V-BELT' };
     case 'vbelt-banded':
-      return { fa: 'تسمه وی‌بلت پشت‌چسبیده / دبل‌رول (Banded Kraftband)', en: 'MULTI-RIB BANDED V-BELT' };
+      return { fa: 'تسمه V شکل پشت‌پیوسته / پاورباند (Banded V-Belt)', en: 'BANDED / POWERBAND V-BELT' };
     case 'vbelt-hexagonal':
-      return { fa: 'تسمه شش‌ضلعی دوطرفه صنعتی (AA / BB / CC)', en: 'HEXAGONAL DOUBLE V-BELT' };
+      return { fa: 'تسمه V دوطرفه شش‌ضلعی (AA / BB / CC)', en: 'DOUBLE V / HEXAGONAL BELT' };
     case 'vbelt-crowned-crc':
-      return { fa: 'تسمه گرده‌ماهی سرامیکی / ریج‌تاپ (CRC)', en: 'CROWNED RIDGE-TOP CERAMIC BELT' };
+      return { fa: 'تسمه انتقال تاج‌دار / گرده‌ماهی (CRC / TRC)', en: 'CROWNED / RIDGE-TOP TRANSPORT BELT' };
     case 'perforated-open-v':
       return { fa: 'تسمه وی‌بلت سوراخ‌دار متری با بست مفصلی', en: 'PERFORATED OPEN-END V-BELT' };
     case 'ribbed-poly-v':
