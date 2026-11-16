@@ -5,6 +5,7 @@ import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
+import {registerCategorySeoRoutes} from './server/categorySeoRoutes';
 import {registerAdminStaffApi} from './server/db/adminStaffApi';
 import {registerAdminSecurityApi} from './server/db/adminSecurityApi';
 import {registerAdminCustomersApi} from './server/db/adminCustomersApi';
@@ -7918,6 +7919,8 @@ async function start() {
           'پردازش درخواست در سرور ناموفق بود.'
     });
   });
+
+  registerCategorySeoRoutes(app);
 
   const serveBuiltFrontend = process.env.NODE_ENV === 'production' || (
     process.env.SANATPISH_SERVE_DIST === '1' &&
