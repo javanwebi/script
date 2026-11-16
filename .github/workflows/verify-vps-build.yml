@@ -123,6 +123,8 @@ jobs:
         run: node --import tsx --test tests/all-categories-page-premium.test.ts
       - name: Excel menu category regression suite
         run: node --import tsx --test tests/excel-menu-category-premium.test.ts
+      - name: Catalog navigation API contract regression suite
+        run: node --import tsx --test tests/home-approved-category-strip.test.ts tests/home-fast-preview.test.ts
       - name: Textile industry regression suite
         run: node --import tsx --test tests/textile-industry-premium.test.ts
       - name: Industry page regression suite
