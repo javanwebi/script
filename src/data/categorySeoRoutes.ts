@@ -1,6 +1,8 @@
 /** Stable Persian SEO URLs for the approved industrial catalogue categories.
  * Internal Excel IDs remain unchanged; only public storefront URLs use these slugs.
  */
+export const SANAT_PISH_CANONICAL_ORIGIN = 'https://sanatpish.com';
+
 export type ApprovedCategorySeoRoute = { categorySlug: string; routeSlug: string; title: string };
 
 export const APPROVED_CATEGORY_SEO_ROUTES: readonly ApprovedCategorySeoRoute[] = [
