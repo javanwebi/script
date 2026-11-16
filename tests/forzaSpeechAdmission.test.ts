@@ -40,7 +40,8 @@ test('quiet near speech works in quiet rooms and stale VAD cannot admit a bystan
  assert.equal(gate.decide('بلبرینگ',false,false,1350),'accept');
  speak(gate,1400,1800,0.001);
  assert.equal(gate.decide('کلام دور',false,false,1800),'reject');
- assert.equal(gate.decide('بلبرینگ',true,false,1800),'accept','bounded late final');
+ assert.equal(gate.decide('بلبرینگ',true,false,1800),'reject',
+  'a late final without an already-admitted interim must not reuse stale acoustic evidence');
  speak(gate,1850,2400,0.001);
  assert.equal(gate.decide('کلام دور',true,false,2400),'reject');
 });
@@ -178,10 +179,11 @@ test('long speech does not relearn its own voice level as ambient noise between 
 test('final hypotheses are accepted only while near-field evidence is fresh',()=>{
  const gate=calibrated(false,0.001);
  speak(gate,1050,1350,0.006);
- speak(gate,1400,2100,0.001);
- assert.equal(gate.decide('تسمه SPA 1250',true,false,2100),'accept');
- speak(gate,2150,2400,0.001);
- assert.equal(gate.decide('تسمه SPA 1250',true,false,2400),'reject');
+ assert.equal(gate.decide('تسمه SPA 1250',true,false,1350),'accept',
+  'a final received with fresh microphone evidence must be accepted');
+ speak(gate,1400,2400,0.001);
+ assert.equal(gate.decide('تسمه SPA 1250',true,false,2400),'reject',
+  'a new final after sustained silence must not borrow old near-field evidence');
 });
 
 test('a late final hypothesis preserves words already admitted as live interim text',()=>{
@@ -226,7 +228,7 @@ test('fresh near-field PCM resets the VAD endpoint before the full admission win
   const evidence=gate.acousticSpeech||gate.hasRecentNearFieldEvidence(t);
   vad.sample(0.0005,t,evidence);
  }
- assert.ok(vad.silenceDuration(3700)>=2300);
+ assert.ok(vad.silenceDuration(3700)>=2100,'the bounded 250 ms word-gap grace must not mask sustained silence');
  gate.sample(0.006,3750,false);
  assert.equal(gate.acousticSpeech,false,'the resumed syllable has not completed the full evidence window');
  const resumed=vad.sample(0.006,3750,
