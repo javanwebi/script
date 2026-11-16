@@ -56,6 +56,10 @@ on:
       - "src/utils/forzaSpeechAdmission.ts"
       - "src/utils/forzaSpeechPipeline.ts"
       - "src/utils/forzaRecognitionRecovery.ts"
+      - "src/utils/forzaConversationHistory.ts"
+      - "server/ai/baiConsult.ts"
+      - "tests/forzaConversationHistory.test.ts"
+      - "tests/forzaConsultContract.test.ts"
       - "tests/forzaLocalDibaStreaming.test.ts"
       - "tests/forzaRecognitionRecovery.test.ts"
       - "tests/forza-smart-turn.test.ts"
@@ -126,7 +130,7 @@ jobs:
       - name: Belt category reference and regression suite
         run: node --import tsx --test tests/belt-category-experience.test.ts
       - name: FORZA local Diba and speech-turn recovery regression suite
-        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts
+        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
       - name: PVC conveyor Phase 1 classification regression suite
         run: node --import tsx --test tests/pvc-conveyor-phase1-classification.test.ts
       - name: PVC conveyor database split and rollback integration test
