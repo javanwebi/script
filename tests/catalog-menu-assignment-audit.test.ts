@@ -361,3 +361,23 @@ test('the 90-type Excel audit matrix reconciles all source family and SKU totals
  assert.ok(haulingReviewCodes.every(code=>reviewCodes.includes(code)&&!(code in CATALOG_FAMILY_MENU_ASSIGNMENTS)));
  assert.equal(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).length+reviewCodes.length,1383);
 });
+
+
+test('familyless industrial belt SKUs are exposed individually without synthetic families and PVC units restore from source backup',()=>{
+ const migration=readFileSync('supabase/migrations/20261116150000_belt_orphan_direct_skus_and_restore_pvc_units.sql','utf8');
+ const rollback=readFileSync('ops/sql/20261116_belt_orphan_direct_skus_and_restore_pvc_units_rollback.sql','utf8');
+ const expected=['10077','10265','10695','32929','34483','34854','38910','41630','58288','58304'];
+ const inserted=[...migration.matchAll(/\('([0-9]{4,7})','excel-v2-1-1'|'([0-9]{4,7})'\)/g)].flatMap(m=>[m[1],m[2]].filter(Boolean));
+ for(const code of expected) assert.ok(migration.includes(code),`missing standalone SKU ${code}`);
+ assert.ok(migration.includes('INSERT INTO public.catalog_direct_skus'));
+ assert.ok(migration.includes('source_family_code'));
+ assert.ok(migration.includes("'UNRESOLVED','نیازمند تعیین تکلیف'"));
+ assert.ok(migration.includes('backup_20261116_catalog_variants'));
+ assert.ok(migration.includes('catalog_variants_unit_restore_backup_20261116'));
+ assert.ok(migration.includes('<> 10'));
+ assert.ok(migration.includes('<> 14'));
+ assert.match(rollback,/catalog_orphan_belt_direct_backup_20261116/);
+ assert.match(rollback,/catalog_variants_unit_restore_backup_20261116/);
+ assert.doesNotMatch(migration,/INSERT\s+INTO\s+public\.catalog_families/i);
+ assert.doesNotMatch(migration,/UPDATE\s+public\.catalog_variants\s+v\s+SET\s+family_code/i);
+});
