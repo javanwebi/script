@@ -1304,7 +1304,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedLeaf = 'لاستیکی فابریک ساده و دنده‌دار';
     } else if (profile === '3M' || profile === 'T10' || profile === 'T20') {
       proposedSubmenu = 'انواع گام و کدهای تایمینگ';
-      proposedLeaf = `${profile} (فاقد برگ مصوب)`;
+      proposedLeaf = null;
+    }
+    if (spec.sidedness === 'double-sided' && proposedSubmenu === 'انواع گام و کدهای تایمینگ') {
+      proposedLeaf = null;
     }
 
     const familyKey = [
@@ -1317,7 +1320,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
 
     let taxonomyGap: string | null = null;
     if (spec.sidedness === 'double-sided') {
-      taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${profile} در برگ «${proposedLeaf}» قرار می‌گیرد (برگ مستقل دوطرفه در اکسل وجود ندارد).`;
+      taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${profile} فعلاً فقط در سطح زیرمنوی گام‌های تایمینگ نمایش داده می‌شود؛ برگ مصوب مستقلی برای آن وجود ندارد.`;
     } else if ((profile === 'T10' || profile === 'T20') && proposedSubmenu === 'انواع گام و کدهای تایمینگ') {
       taxonomyGap = `GAP-TIMING-${profile}-LEAF-MISSING: پروفیل ${profile} در برگ مصوب «T5 , AT5 , AT10 , AT20» وجود ندارد؛ تا افزودن برگ دقیق نباید به آن مسیر منتسب شود.`;
     }
@@ -1515,7 +1518,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     if (hasCoating) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'APL دار';
-    } else if (isSteelCordHtd && isPolyurethaneMaterial && supplyForm === 'open-ended-meter') {
+    } else if (isSteelCordHtd && isPolyurethaneMaterial) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'پلی‌یورتان';
     } else if (baseCode === '3M' && isRubberMaterial) {
@@ -1523,7 +1526,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedLeaf = 'لاستیکی فابریک ساده و دنده‌دار';
     } else if (baseCode === '3M') {
       proposedSubmenu = 'انواع گام و کدهای تایمینگ';
-      proposedLeaf = '3M (فاقد برگ مصوب)';
+      proposedLeaf = null;
+    }
+    if (spec.sidedness === 'double-sided' && proposedSubmenu === 'انواع گام و کدهای تایمینگ') {
+      proposedLeaf = null;
     }
 
     return {
@@ -1670,17 +1676,20 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     if (hasCoating) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'APL دار';
-    } else if (isSteelCordTiming && isPolyurethaneMaterial && supplyForm === 'open-ended-meter') {
+    } else if (isSteelCordTiming && isPolyurethaneMaterial) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'پلی‌یورتان';
     } else if (profile === 'MXL') {
       proposedSubmenu = 'انواع گام و کدهای تایمینگ';
-      proposedLeaf = 'MXL (فاقد برگ مصوب)';
+      proposedLeaf = null;
+    }
+    if (spec.sidedness === 'double-sided' && proposedSubmenu === 'انواع گام و کدهای تایمینگ') {
+      proposedLeaf = null;
     }
 
     let taxonomyGap: string | null = null;
     if (spec.sidedness === 'double-sided') {
-      taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${profile} (گام ${spec.pitchMm} میلی‌متر) در زیربرگ «H , XH , L , XL» قرار می‌گیرد؛ پیشنهاد می‌شود زیربرگ مستقل «DL , DH , DXL (دوطرفه)» در بازنگری اکسل اضافه شود.`;
+      taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${profile} (گام ${spec.pitchMm} میلی‌متر) فعلاً در سطح زیرمنوی گام‌های تایمینگ نمایش داده می‌شود؛ پیشنهاد می‌شود برگ مستقل «DL , DH , DXL (دوطرفه)» به اکسل اضافه شود.`;
     } else if (profile === 'MXL') {
       taxonomyGap = 'GAP-TIMING-MXL-LEAF-MISSING: پروفیل MXL در برگ مصوب H/XH/L/XL وجود ندارد و نباید در آن نمایش داده شود.';
     }
@@ -2255,13 +2264,15 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   }
 
   // 11. Banded V-Belts (2RAX, 2RC, 3RC, 4RC, 4RSPC, 5RSPC, 1R3VX, 6R3VX, 8R3VX, 10R3VX)
-  const bandedMatch = upperName.match(/\b(\d+)R\s*(3VX|3V|5VX|5V|8VX|8V|SPZ|SPA|SPB|SPC|AX|BX|CX|A|B|C)\s*(\d{2,5})\b/);
+  const bandedMatch = upperName.match(/\b(\d+)R\s*(3VX|3V|5VX|5V|8VX|8V|SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|AX|BX|CX|A|B|C)\s*(\d{2,5})\b/);
   if (bandedMatch) {
     const bandCount = Number(bandedMatch[1]);
     const baseProf = bandedMatch[2];
     const lenCode = Number(bandedMatch[3]);
     const vSpec = VBELT_SPECS[baseProf] || VBELT_SPECS.C;
-    const isNarrow = ['3V', '3VX', '5V', '5VX', 'SPZ', 'SPA', 'SPB', 'SPC'].includes(baseProf);
+    const isNarrow = ['3V', '3VX', '5V', '5VX', 'SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(baseProf);
+    const isSpecialLeaf = ['SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(baseProf);
+    const isClassicalLeaf = ['Z', 'ZX', 'M', 'A', 'AX', 'B', 'BX', 'C', 'CX', 'D', 'E', '8V', '8VX'].includes(baseProf);
 
     return {
       sku: variant.code,
@@ -2279,8 +2290,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedCategoryName: 'تسمه وی‌بلت (V-Belt)',
       proposedSubmenu: isNarrow ? 'تسمه اسپشیال' : 'کلاسیک و دنده‌دار',
       proposedLeaf: isNarrow
-        ? 'SPA , SPB , SPC و دندانه‌دار'
-        : 'Z (9.5) , M , A , B , C , D , E , 8V',
+        ? isSpecialLeaf ? 'SPA , SPB , SPC و دندانه‌دار' : null
+        : isClassicalLeaf ? 'Z (9.5) , M , A , B , C , D , E , 8V' : null,
       taxonomyGap: `GAP-VBELT-BANDED: تسمه به‌پشت‌پیوسته (Banded Powerband) پروفیل ${baseProf} (سری‌های چندردیفه) در زیربرگ پروفیل پایه قرار می‌گیرد زیرا زیربرگ مستقل تسمه‌های Banded (چندردیفه پشت‌دار) در اکسل وجود ندارد.`,
       proposedFamilyId: `FAM-VBELT-BANDED-${baseProf}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
       proposedFamilyNameFa: `تسمه V شکل به‌پشت‌پیوسته (پاورباند) پروفیل ${baseProf} (${brand})`,
@@ -2319,9 +2330,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   }
 
   // 12. Classical, Narrow/Wedge, and Hexagonal V-Belts
+  const explicitWeldedVProfileMatch = upperName.match(/تسمه\s*جوشی\s*V\b.*?پروفیل\s*(A|B|C)\b/);
   const stdVMatch =
     upperName.match(/\b(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\s*[-*× ]?\s*(\d{2,5}(?:[./]\d+)?)\b/) ||
-    upperName.match(/\b(\d{2,5}(?:[./]\d+)?)\s*(?:[*×]\s*)?(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|M|K)\b/);
+    upperName.match(/\b(\d{2,5}(?:[./]\]\s*)?(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|M|K)\b/);
 
   const isExplicitTiming = /تایم|تایمینگ/.test(normName);
   const numericVMatch =
@@ -2330,11 +2342,14 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         normName.match(/\b(\d{3,5})\.?\s*\*\s*(9[./]5|10|12[./]5|13|17|22)\b/)
       : null;
 
-  if (stdVMatch || numericVMatch) {
+  if (stdVMatch || numericVMatch || explicitWeldedVProfileMatch) {
     let vProfile = 'A';
     let rawLen = 0;
 
-    if (stdVMatch) {
+    if (explicitWeldedVProfileMatch && !stdVMatch) {
+      vProfile = explicitWeldedVProfileMatch[1];
+      rawLen = 0;
+    } else if (stdVMatch) {
       if (VBELT_SPECS[stdVMatch[1]]) {
         vProfile = stdVMatch[1];
         rawLen = Number(stdVMatch[2].replace('/', '.'));
@@ -2356,7 +2371,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     }
 
     const vSpec = VBELT_SPECS[vProfile] || VBELT_SPECS.A;
-    const isNarrowLeaf = ['SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC', '3V', '3VX', '5V', '5VX'].includes(vProfile);
+    const isNarrowProfile = ['SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC', '3V', '3VX', '5V', '5VX'].includes(vProfile);
+    const isSpecialLeaf = ['SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(vProfile);
+    const isClassicalLeaf = ['Z', 'ZX', 'M', 'A', 'AX', 'B', 'BX', 'C', 'CX', 'D', 'E', '8V', '8VX'].includes(vProfile);
     const isOpenEndedSupply = !isMixedFamilyUnit && rawUnit === 'متر';
     const isMeterLeaf = isOpenEndedSupply && ['A', 'B', 'C'].includes(vProfile);
     const isHexagonal = ['AA', 'BB'].includes(vProfile);
@@ -2369,19 +2386,21 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         ? 'پروفیل K'
         : isMeterLeaf
           ? 'وی‌بلت متری'
-          : isNarrowLeaf
+          : isNarrowProfile
             ? 'تسمه اسپشیال'
             : 'کلاسیک و دنده‌دار';
 
-    const proposedLeaf = isHexagonal
-      ? `پروفیل ${vProfile} دوطرفه (فاقد برگ مصوب)`
-      : isUnlistedK
-        ? 'پروفیل K (فاقد برگ مصوب)'
-        : isMeterLeaf
-          ? 'تسمه A و B و C وی‌بلت متری'
-          : isNarrowLeaf
-            ? 'SPA , SPB , SPC و دندانه‌دار'
-            : 'Z (9.5) , M , A , B , C , D , E , 8V';
+    const proposedLeaf = isHexagonal || isUnlistedK
+      ? null
+      : isMeterLeaf
+        ? 'تسمه A و B و C وی‌بلت متری'
+        : isSpecialLeaf
+          ? 'SPA , SPB , SPC و دندانه‌دار'
+          : isNarrowProfile
+            ? null
+            : isClassicalLeaf
+              ? 'Z (9.5) , M , A , B , C , D , E , 8V'
+              : null;
 
     let taxonomyGap: string | null = null;
     if (isHexagonal) {
