@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ForzaRecognitionAdmission} from '../src/utils/forzaSpeechAdmission';
+import {appendForzaSpeechSegment} from '../src/utils/forzaSpeechPipeline';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const endBody=source.split('      rec.onend = () => {')[1].split('\n      };')[0].replace('catch(error:any)','catch(error)');
@@ -15,6 +16,10 @@ function recognizerHarness(){
  const end=new Function(...Object.keys(scope),endBody).bind(null,...Object.values(scope));
  return {scope,rec,end,fire:()=>scheduled?.(),starts:()=>starts};
 }
+test('recognizer restart snapshots the current transcript as the next session merge base',()=>{
+  const body=source.split('      rec.onstart = () => {')[1].split('\n      };')[0];
+  assert.match(body,/recognitionSessionBaseRef\.current=activeTranscriptRef\.current\.trim\(\)/);
+});
 test('normal recognizer end restarts once during playback as well as listening',()=>{
  const h=recognizerHarness();h.end();h.end();assert.equal(h.starts(),0);
  assert.equal(h.scope.recognitionRetryTimerRef.current,1);h.fire();assert.equal(h.starts(),1);
@@ -62,7 +67,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
   window:{location:{search:''}},admissionRetry:null,admissionSession:0,
   admission:new ForzaRecognitionAdmission(),speechAdmissionRef:ref({decide:()=> 'accept'}),rejectedRecordingRef:ref(false),
   rec,callClosedRef:ref(false),micMutedRef:ref(false),recognitionRef:ref(rec),
-  recognitionConsumedCountRef:ref(0),recognitionResultCountRef:ref(0),
+  recognitionConsumedCountRef:ref(0),recognitionResultCountRef:ref(0),recognitionSessionBaseRef:ref(''),appendForzaSpeechSegment,
   extractPersianSpeechSince,checkpointForzaRecognition,recognitionCheckpointRef:ref({count:0,interim:{}}),recognitionConsumedInterimRef:ref({}),recognitionRetryRef:ref(0),
   recognitionFailedRef:ref(false),webSpeechFailedRef:ref(false),
   setMicrophoneError:()=>{},setErrorNotice:()=>{},

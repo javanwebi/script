@@ -21,7 +21,7 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
   mediaRecorderRef:ref(recorder),streamRef:ref({getTracks:()=>[track]}),
   localSttRecognizerRef:ref({remove(){calls.push('local-stt');}}),
   animFrameAudioRef:ref(10),ctxRef:ref({state:'running',async close(){calls.push('context');}}),
-  historyRef:ref(['private']),audioChunksRef:ref(['audio']),isProcessingTurnRef:ref(true),
+  historyRef:ref(['private']),audioChunksRef:ref(['audio']),audioSegmentsRef:ref(['audio-segment']),isProcessingTurnRef:ref(true),
   stopAudio:()=>calls.push('playback'),cancelAnimationFrame:()=>calls.push('animation'),
  };
  for(const name of ['localSttNodeRef','localSttSinkRef','micSourceNodeRef','micAnalyserRef','audioSourceNodeRef','analyserRef','gainNodeRef'])values[name]=ref({disconnect(){calls.push('disconnect');}});
@@ -33,6 +33,7 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
  assert.equal(values.ctxRef.current,null);
  assert.deepEqual(values.historyRef.current,[]);
  assert.deepEqual(values.audioChunksRef.current,[]);
+ assert.deepEqual(values.audioSegmentsRef.current,[]);
  assert.equal(values.isProcessingTurnRef.current,false);
 });
 

@@ -20,6 +20,7 @@ function wav(){
   const page=await browser.newPage({permissions:['microphone'],viewport:{width:1180,height:750}});
   const errors=[];
   let serverTranscriptions=0;
+  let consultRequests=0;
   let externalModelDownloads=0;
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
@@ -48,6 +49,7 @@ function wav(){
   await page.route('**/api/portal',r=>r.fulfill({status:200,contentType:'application/json',body:'{"success":true,"user":null}'}));
   await page.route('**/forza-greeting-bootstrap.wav',r=>r.fulfill({status:200,contentType:'audio/wav',body:wav()}));
   await page.route('**/api/ai/forza-live',r=>{serverTranscriptions++;return r.fulfill({status:503,body:'{}'});});
+  await page.route('**/api/ai/consult-stream',r=>{consultRequests++;return r.abort();});
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
   await page.waitForFunction(()=>!!window.__forzaMockRecognition,null,{timeout:6000});
@@ -72,6 +74,23 @@ function wav(){
   assert.equal(serverTranscriptions,0,'the live transcript must not wait for an uploaded WAV');
   assert.equal(externalModelDownloads,0,'existing STT must not download Diba automatically');
   assert.equal((await page.locator('body').innerText()).includes('در حال تبدیل صدای شما به متن و ارسال به سرور'),false);
+
+  // A 2-second pause is not a turn boundary. The next browser recognition
+  // session must append to the same visible customer sentence.
+  await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
+  await page.waitForTimeout(2100);
+  assert.equal(consultRequests,0,'a two-second natural pause must not submit the turn');
+  const beforeRestart=await page.evaluate(()=>window.__forzaRecognitionStarts);
+  await page.evaluate(()=>window.__forzaMockRecognition.onend());
+  await page.waitForFunction(n=>window.__forzaRecognitionStarts===n+1,beforeRestart,{timeout:2500});
+  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
+  await page.waitForTimeout(450);
+  await page.evaluate(()=>window.__forzaMockRecognition.onresult({resultIndex:0,results:[
+    Object.assign([{transcript:'تایمینگ با پروفیل SPA'}],{isFinal:false}),
+  ]}));
+  await page.getByText('می خواهم مشخصات تسمه صنعتی را تایمینگ با پروفیل SPA',{exact:false}).waitFor({timeout:1000});
+  assert.equal(consultRequests,0,'resumed words must reset the same turn endpoint timer');
+
   const starts=await page.evaluate(()=>window.__forzaRecognitionStarts);
   await page.evaluate(()=>window.__forzaMockRecognition.onerror({error:'network'}));
   await page.waitForFunction(n=>window.__forzaRecognitionStarts===n+1,starts,{timeout:2500});
@@ -81,6 +100,6 @@ function wav(){
   await page.evaluate(()=>{window.__forzaMockRecognition.onerror({error:'not-allowed'});window.__forzaMockRecognition.onend();});
   await page.waitForTimeout(600);assert.equal(await page.evaluate(()=>window.__forzaRecognitionStarts),recoveredStarts,'permission rejection must not restart the recognizer');
   assert.deepEqual(errors,[]);
-  console.log('FORZA_LIVE_STT_BROWSER_PASS partial_appeared_ms='+partialMs+' transient_network_recovered=1 permissions_do_not_loop=1');
+  console.log('FORZA_LIVE_STT_BROWSER_PASS partial_appeared_ms='+partialMs+' two_second_pause_preserved=1 recognizer_restart_appended=1 transient_network_recovered=1 permissions_do_not_loop=1');
  }finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_LIVE_STT_BROWSER_FAIL',e);process.exitCode=1;});

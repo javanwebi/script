@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 
 const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const audio=readFileSync(new URL('../src/utils/forzaContinuousWav.ts',import.meta.url),'utf8');
+const speechPipeline=readFileSync(new URL('../src/utils/forzaSpeechPipeline.ts',import.meta.url),'utf8');
 const avatar=readFileSync(new URL('../src/components/forza/ParticleAvatar.tsx',import.meta.url),'utf8');
 const styles=readFileSync(new URL('../src/components/forza/style.css',import.meta.url),'utf8');
 const routePreload=readFileSync(new URL('../src/components/layout/RouteIntentPreload.tsx',import.meta.url),'utf8');
@@ -128,8 +129,8 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 });
 
 
-test('server Diba STT verifies captured speech only when local Diba is ready and never falls back to Gemini',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) && serverSttConfiguredRef\.current === true/);
+test('server Diba remains a fallback when browser recognition has no transcript',()=>{
+  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) && serverSttConfiguredRef\.current === true && !q/);
   assert.match(ui,/transcribeOnly:true/);
   assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
   assert.match(ui,/info\.serverSttProvider==='diba'/);
@@ -137,4 +138,25 @@ test('server Diba STT verifies captured speech only when local Diba is ready and
   assert.match(ui,/دایبا تنظیم نشده؛ متن زنده مرورگر/);
   assert.match(ui,/serverSttConfiguredRef=useRef\(false\)/);
   assert.match(ui,/تشخیص گفتار: \{serverSttLabel\}/);
+});
+
+test('a two-second pause preserves the same live transcript across browser recognizer restarts',()=>{
+  assert.match(ui,/recognitionSessionBaseRef=useRef<string>\(''\)/);
+  assert.match(ui,/recognitionSessionBaseRef\.current=activeTranscriptRef\.current\.trim\(\)/);
+  assert.match(ui,/appendForzaSpeechSegment\(recognitionSessionBaseRef\.current,currentSpeech\)/);
+  assert.match(ui,/: 2800;/);
+  assert.match(speechPipeline,/hasInterim\?2900:2600/);
+});
+
+test('FORZA hair animation remains visible during the spoken greeting despite microphone echo cancellation',()=>{
+  assert.match(avatar,/Math\.max\(audioLvl, 0\.28\)/);
+});
+
+test('ending a call clears buffered audio segments from memory',()=>{
+  const from=ui.indexOf('const releaseCallResources = useCallback');
+  const to=ui.indexOf('useEffect(()=>()=>releaseCallResources()',from);
+  assert.ok(from>0&&to>from);
+  const teardown=ui.slice(from,to);
+  assert.ok(teardown.includes('audioChunksRef.current=[]'));
+  assert.ok(teardown.includes('audioSegmentsRef.current=[]'));
 });
