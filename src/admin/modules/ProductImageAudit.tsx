@@ -7,6 +7,7 @@ import {getProductImageUrl} from '../../assets/imagesproducts';
 import {ProductImage} from '../../components/product/ProductImage';
 import {uploadProductImage} from '../../services/productImageUpload';
 import {normalizeCatalogueText} from '../../data/userProducts';
+import {readImageAssignmentDraft,writeImageAssignmentDraft} from '../../data/imageAssignmentDraft';
 import {useApprovedMenuTaxonomy,saveApprovedFamilyAssignment} from '../useApprovedMenuTaxonomy';
 
 type AuditRow=ReturnType<typeof getImageAssignmentAudit>[number];
@@ -14,7 +15,7 @@ type Filter='all'|'sku-linked'|'family-example'|'unassigned'|'catalogue-photo';
 type StorageChoice='family'|'sku'|'new-sku';
 type Source='existing'|'upload'|'url';
 const fa=(n:number)=>n.toLocaleString('fa-IR');
-const statusLabel=(r:AuditRow)=>r.status==='sku-linked'?'کد متصل':r.status==='family-example'?'فقط خانواده':'تصویر بدون اتصال';
+const statusLabel=(r:AuditRow)=>r.status==='sku-linked'?'متصل به کد کالا':r.status==='family-example'?'متصل به خانواده':'تصویر بدون اتصال';
 const statusColor=(r:AuditRow)=>r.status==='sku-linked'?'bg-emerald-50 text-emerald-700':r.status==='family-example'?'bg-amber-50 text-amber-700':'bg-rose-50 text-rose-700';
 const card='rounded-xl border border-[#E7E8EA] bg-white';
 export function ProductImageAudit({products,categories,onCreateFamily,onCreateCategory,onEditCategory,onEditFamily,onCreateSku,onAssignFamilyImage,onImageSaved,onAssignSku,onAssignDirectSku}:{
@@ -25,12 +26,13 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
   onCreateCategory:(imageUrl?:string)=>void;
   onEditCategory:(categoryName:string,imageUrl?:string)=>void;
   onEditFamily:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string,upload?:File,tab?:'family'|'variants',categorySlug?:string,categoryName?:string,submenu?:string,subcategory?:string)=>void;
-  onCreateSku:(input:{familyCode:string;skuCode:string;skuName?:string;size?:string;imageUrl?:string;fileName:string;title?:string;upload?:File;categorySlug:string;categoryName:string;submenu:string;subcategory:string})=>Promise<void>;
+  onCreateSku:(input:{familyCode:string;skuCode:string;skuName?:string;size?:string;imageUrl?:string;fileName:string;title?:string;upload?:File;categorySlug:string;categoryName:string;submenu:string;subcategory:string})=>Promise<string|void>;
   onAssignFamilyImage:(input:{familyCode:string;imageUrl:string;fileName:string;title?:string;categorySlug:string;categoryName:string;submenu:string;subcategory:string})=>Promise<void>;
   onImageSaved:(input:{familyCode:string;scope:'family';imageUrl:string;fileName:string})=>Promise<void>;
   onAssignSku:(input:{targetFamilyCode:string;skuCode:string;imageUrl:string;fileName:string;title?:string;persistedId?:string})=>Promise<void>;
   onAssignDirectSku:(input:{skuCode:string;categorySlug:string;submenu:string;subcategory:string;imageUrl:string})=>Promise<void>;
 }){
+  const [restoredDraft]=useState(()=>readImageAssignmentDraft());
   const [records,setRecords]=useState<DbImageAuditRow[]>([]);
   const [directSkus,setDirectSkus]=useState<DbDirectSkuImageBinding[]>([]);
   const [directSkuLoadError,setDirectSkuLoadError]=useState('');
@@ -74,30 +76,37 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
   const [page,setPage]=useState(0);
   const [familyFilter,setFamilyFilter]=useState('all');
   const [moreFilters,setMoreFilters]=useState(false);
-  const [file,setFile]=useState('');
-  const [url,setUrl]=useState('');
-  const [source,setSource]=useState<Source>('existing');
+  const [file,setFile]=useState(restoredDraft?.file||'');
+  const [url,setUrl]=useState(restoredDraft?.url||'');
+  const [source,setSource]=useState<Source>(restoredDraft?.source||'existing');
   const [selectedUpload,setSelectedUpload]=useState<File|null>(null);
   const [savingUpload,setSavingUpload]=useState(false);
   const [urlInput,setUrlInput]=useState('');
   const [sourceError,setSourceError]=useState('');
-  const [title,setTitle]=useState('');
-  const [menuGroup,setMenuGroup]=useState('');
-  const [category,setCategory]=useState('');
-  const [submenu,setSubmenu]=useState('');
-  const [subcategory,setSubcategory]=useState('');
-  const [familyCode,setFamilyCode]=useState('');
-  const [familySearch,setFamilySearch]=useState('');
-  const [searchAllFamilies,setSearchAllFamilies]=useState(false);
-  const [directMode,setDirectMode]=useState(false);
-  const [sku,setSku]=useState('');
-  const [skuSearch,setSkuSearch]=useState('');
-  const [newSkuCode,setNewSkuCode]=useState('');
-  const [newSkuName,setNewSkuName]=useState('');
-  const [newSkuSize,setNewSkuSize]=useState('');
-  const [placement,setPlacement]=useState<StorageChoice>('family');
+  const [title,setTitle]=useState(restoredDraft?.title||'');
+  const [menuGroup,setMenuGroup]=useState(restoredDraft?.menuGroup||'');
+  const [category,setCategory]=useState(restoredDraft?.category||'');
+  const [submenu,setSubmenu]=useState(restoredDraft?.submenu||'');
+  const [subcategory,setSubcategory]=useState(restoredDraft?.subcategory||'');
+  const [familyCode,setFamilyCode]=useState(restoredDraft?.familyCode||'');
+  const [familySearch,setFamilySearch]=useState(restoredDraft?.familySearch||'');
+  const [searchAllFamilies,setSearchAllFamilies]=useState(restoredDraft?.searchAllFamilies||false);
+  const [directMode,setDirectMode]=useState(restoredDraft?.directMode||false);
+  const [sku,setSku]=useState(restoredDraft?.sku||'');
+  const [skuSearch,setSkuSearch]=useState(restoredDraft?.skuSearch||'');
+  const [newSkuCode,setNewSkuCode]=useState(restoredDraft?.newSkuCode||'');
+  const [newSkuName,setNewSkuName]=useState(restoredDraft?.newSkuName||'');
+  const [newSkuSize,setNewSkuSize]=useState(restoredDraft?.newSkuSize||'');
+  const [placement,setPlacement]=useState<StorageChoice>(restoredDraft?.placement||'family');
   const [showEvidence,setShowEvidence]=useState(false);
   const [mobileEditor,setMobileEditor]=useState(false);
+  useEffect(()=>{
+    writeImageAssignmentDraft({
+      file,url,source,title,menuGroup,category,submenu,subcategory,familyCode,familySearch,
+      searchAllFamilies,directMode,sku,skuSearch,newSkuCode,newSkuName,newSkuSize,placement
+    });
+  },[file,url,source,title,menuGroup,category,submenu,subcategory,familyCode,familySearch,
+    searchAllFamilies,directMode,sku,skuSearch,newSkuCode,newSkuName,newSkuSize,placement]);
   const taxonomy=useApprovedMenuTaxonomy();
   const approvedCategories=taxonomy.categories;
   const approvedGroups=taxonomy.groups;
@@ -189,9 +198,9 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
   const choose=(f:string)=>{
     const found=audit.find(x=>x.file===f);
     setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSelectedUpload(null);setSourceError('');setTitle(found?.observed||'');
-    setFamilySearch('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setSku('');setSkuSearch('');setNewSkuCode('');setNewSkuName('');setNewSkuSize('');setPlacement('family');setDirectMode(false);setShowEvidence(false);setMobileEditor(true);
+    setShowEvidence(false);setMobileEditor(true);
   };
-  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setTitle('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setSkuSearch('');setNewSkuCode('');setNewSkuName('');setNewSkuSize('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
+  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setTitle('');setShowEvidence(false);setMobileEditor(true)};
   const chooseFile=(upload?:File)=>{
     if(!upload)return;
     if(!['image/png','image/jpeg','image/webp'].includes(upload.type)){setSourceError('فقط PNG، JPG یا WebP مجاز است.');return}
@@ -206,7 +215,15 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
     try{const value=new URL(urlInput.trim());if(!['https:','http:'].includes(value.protocol))throw Error('invalid');setFile(value.pathname.split('/').pop()||'تصویر جدید');setUrl(value.href);setTitle('');setSourceError('')}
     catch{setSourceError('لینک معتبر تصویر با https یا http وارد کنید.')}
   };
-  const closeSelection=()=>{if(url.startsWith('blob:'))URL.revokeObjectURL(url);setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null);setSku('');setSkuSearch('');setNewSkuCode('');setNewSkuName('');setNewSkuSize('');setPlacement('family')};
+  const closeSelection=(persistedImage?:{url:string;fileName:string})=>{
+    if(url.startsWith('blob:'))URL.revokeObjectURL(url);
+    if(persistedImage){
+      setUrl(persistedImage.url);setFile(persistedImage.fileName);setSource('existing');setSelectedUpload(null);
+    }else if(url.startsWith('blob:')){
+      setFile('');setUrl('');setSource('upload');setSelectedUpload(null);
+    }
+    setSourceError('');setMobileEditor(false);
+  };
   const chooseFamily=(code:string)=>{
     setFamilyCode(code);setSku('');setNewSkuCode('');setNewSkuName('');setNewSkuSize('');
     const assigned=taxonomy.byFamily.get(code);
@@ -239,8 +256,12 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
           if(!payload.url)throw new Error('آپلود تصویر: آدرس فایل در پاسخ سرور وجود ندارد.');
           imageUrl=payload.url;
         }
+        const imageFileName=selectedUpload?.name||file;
+        if(source==='upload'){
+          setUrl(imageUrl);setFile(imageFileName);setSource('existing');setSelectedUpload(null);
+        }
         await onAssignDirectSku({skuCode:sku,categorySlug:destination.slug,submenu,subcategory,imageUrl});
-        closeSelection();
+        closeSelection({url:imageUrl,fileName:imageFileName});
       }catch(error:any){setSourceError(error.message||'ثبت کد مستقیم انجام نشد.');}
       finally{setSavingUpload(false);}
       return;
@@ -260,14 +281,15 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
       setSavingUpload(true);setSourceError('');
       try{
         await saveSelectedPath(familyCode);
-        await onCreateSku({
+        const createdImageUrl=await onCreateSku({
           familyCode,skuCode:code,skuName:newSkuName.trim()||undefined,size:newSkuSize.trim()||undefined,
           imageUrl:source==='upload'?undefined:url,fileName:file,title:title||undefined,
           upload:source==='upload'?selectedUpload||undefined:undefined,
           categorySlug:category,categoryName:approvedCategories.find(item=>item.slug===category)?.name||'',
           submenu,subcategory
         });
-        closeSelection();
+        if(createdImageUrl)closeSelection({url:createdImageUrl,fileName:file});
+        else closeSelection();
       }catch(error:any){setSourceError(error instanceof Error?error.message:'ایجاد کد جدید و اتصال تصویر انجام نشد.');}
       finally{setSavingUpload(false);}
       return;
@@ -286,12 +308,13 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
           // to the exact SKU in one database-backed transfer operation.
           const saved=await uploadProductImage(selectedUpload,{familyCode,title:title||selectedUpload.name});
           assignedUrl=saved.url;assignedFile=saved.fileName;persistedId=saved.id;
+          setUrl(assignedUrl);setFile(assignedFile);setSource('existing');setSelectedUpload(null);
         }
         await onAssignSku({
           targetFamilyCode:familyCode,skuCode:sku,imageUrl:assignedUrl,
           fileName:assignedFile,title:title||undefined,persistedId
         });
-        closeSelection();
+        closeSelection({url:assignedUrl,fileName:assignedFile});
       }catch(error:any){
         setSourceError((persistedId
           ? 'تصویر روی سرور ذخیره شد، اما اتصال نهایی به کد کالا تأیید نشد؛ قبل از تکرار، وضعیت را بررسی کنید. '
@@ -308,8 +331,9 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
       try{
         await saveSelectedPath(familyCode);
         const saved=await uploadProductImage(selectedUpload,{familyCode,title:title||selectedUpload.name});
+        setUrl(saved.url);setFile(saved.fileName);setSource('existing');setSelectedUpload(null);
         await onImageSaved({familyCode,scope:'family',imageUrl:saved.url,fileName:saved.fileName});
-        closeSelection();
+        closeSelection({url:saved.url,fileName:saved.fileName});
       }catch(error:any){setSourceError(error instanceof Error?error.message:'ذخیره تصویر خانواده در Storage و دیتابیس انجام نشد.');}
       finally{setSavingUpload(false);}
       return;
@@ -319,7 +343,7 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
     try{
       await saveSelectedPath(familyCode);
       await onAssignFamilyImage({familyCode,imageUrl:url,fileName:file,title:title||undefined,categorySlug:category,categoryName:approvedCategories.find(item=>item.slug===category)?.name||'',submenu,subcategory});
-      closeSelection();
+      closeSelection({url,fileName:file});
     }catch(error:any){setSourceError(error instanceof Error?error.message:'ذخیره تصویر خانواده در دیتابیس انجام نشد.');}
     finally{setSavingUpload(false);}
   };
