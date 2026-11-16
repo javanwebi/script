@@ -9,6 +9,11 @@ select a.*, now() as backed_up_at
 from public.catalog_family_menu_assignments a
 where false;
 
+alter table public.catalog_family_menu_assignment_semantic_backup_20261116 enable row level security;
+revoke all on table public.catalog_family_menu_assignment_semantic_backup_20261116 from public, anon, authenticated;
+create index if not exists idx_catalog_family_menu_semantic_backup_family
+  on public.catalog_family_menu_assignment_semantic_backup_20261116(family_code);
+
 create temporary table catalog_menu_semantic_conflicts_20261116
 on commit drop
 as
