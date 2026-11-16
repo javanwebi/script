@@ -25,6 +25,12 @@ const querySuffix = (originalUrl: string): string => {
   return queryIndex >= 0 ? originalUrl.slice(queryIndex) : '';
 };
 
+const appendQuerySuffix = (destination: string, originalUrl: string): string => {
+  const suffix = querySuffix(originalUrl);
+  if (!suffix) return destination;
+  return destination + (destination.includes('?') ? '&' : '?') + suffix.slice(1);
+};
+
 /** Register crawlable canonical category URLs, permanent legacy redirects and the category sitemap. */
 export const registerCategorySeoRoutes = (app: Express): void => {
   app.get('/category/:slug', (req, res, next) => {
@@ -41,7 +47,7 @@ export const registerCategorySeoRoutes = (app: Express): void => {
     if (Object.prototype.hasOwnProperty.call(LEGACY_CATEGORY_ROUTE_GROUPS, slug)) {
       const group = LEGACY_CATEGORY_ROUTE_GROUPS[slug];
       const destination = group ? '/categories?group=' + encodeURIComponent(group) : '/categories';
-      return res.redirect(301, destination + querySuffix(req.originalUrl));
+      return res.redirect(301, appendQuerySuffix(destination, req.originalUrl));
     }
     return next();
   });
