@@ -132,6 +132,10 @@ BEGIN
     RAISE EXCEPTION 'Approved category SEO routes must be unique';
   END IF;
 
+  CREATE UNIQUE INDEX IF NOT EXISTS catalog_categories_active_seo_route_slug_unique
+    ON public.catalog_categories ((metadata->>'routeSlug'))
+    WHERE is_active = true AND slug LIKE 'excel-v2-%';
+
   IF EXISTS (
     SELECT 1 FROM public.catalog_categories
     WHERE slug NOT LIKE 'excel-v2-%' AND is_active = true
