@@ -185,7 +185,7 @@ export interface BeltSkuAuditRecord {
   proposedCategorySlug: string;
   proposedCategoryName: string;
   proposedSubmenu: string;
-  proposedLeaf: string;
+  proposedLeaf: string | null;
   taxonomyGap: string | null;
   proposedFamilyId: string;
   proposedFamilyNameFa: string;
@@ -205,7 +205,7 @@ export interface ProposedBeltFamilyRecord {
   categorySlug: string;
   categoryName: string;
   submenu: string;
-  leaf: string;
+  leaf: string | null;
   taxonomyGap: string | null;
   brand: string;
   beltDivision: BeltTechnicalParameters['beltDivision'];
@@ -1295,7 +1295,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     const teeth = lengthMm && spec.pitchMm ? Math.round(lengthMm / spec.pitchMm) : null;
 
     let proposedSubmenu = 'انواع گام و کدهای تایمینگ';
-    let proposedLeaf = 'T5 , AT5 , AT10 , AT20';
+    let proposedLeaf: string | null = 'T5 , AT5 , AT10 , AT20';
 
     if (hasCoating && !isCeramicPrint) {
       proposedSubmenu = 'سیم‌دار فابریک';
@@ -1518,7 +1518,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     const familyId = famParts.join('-').replace(/[^A-Z0-9-]/g, '');
 
     let proposedSubmenu = 'انواع گام و کدهای تایمینگ';
-    let proposedLeaf = '5M , 8M , 11M , 14M';
+    let proposedLeaf: string | null = '5M , 8M , 11M , 14M';
     if (hasCoating) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'APL دار';
@@ -1676,7 +1676,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
           : 'حلقه';
 
     let proposedSubmenu = 'انواع گام و کدهای تایمینگ';
-    let proposedLeaf = 'H , XH , L , XL';
+    let proposedLeaf: string | null = 'H , XH , L , XL';
     if (hasCoating) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'APL دار';
@@ -2593,7 +2593,7 @@ function buildNonBeltRecord(
     proposedCategorySlug: string;
     proposedCategoryName: string;
     proposedSubmenu: string;
-    proposedLeaf: string;
+    proposedLeaf: string | null;
     proposedFamilyId: string;
     proposedFamilyNameFa: string;
     proposedFamilyNameEn: string;
