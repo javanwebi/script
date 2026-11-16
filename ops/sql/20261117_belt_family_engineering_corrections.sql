@@ -525,7 +525,7 @@ BEGIN
       WHERE upper(coalesce(brand,''))='SWR'
         AND upper(coalesce(identity_specs->>'profile','')) IN ('XPZ','XPA','XPB','XPC')
         AND identity_specs->>'material'='لاستیک دنده‌ای لبه‌خام (Raw-Edge Cogged Rubber)'
-        AND technical_review->>'status'='needs-identification') <> 139 THEN
+        AND technical_review->>'status'='catalog-extracted') <> 139 THEN
     RAISE EXCEPTION 'Postcondition failed: SWR XP raw-edge evidence/material or uncertainty status';
   END IF;
   IF EXISTS (
