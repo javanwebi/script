@@ -8,6 +8,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Navigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
 import { CATEGORIES, findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
+import { getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug } from '../data/categorySeoRoutes';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { toDirectSkuProduct, useDirectSkus } from '../components/catalog/DirectSkuProducts';
 import { getProductDisplayBrands, productHasDisplayBrand, resolveDisplayBrand } from '../utils/catalogBrands';
@@ -75,10 +76,16 @@ const LEGACY_CATEGORY_ROUTE_GROUPS: Record<string, string | null> = {
 
 export const CategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const canonicalSlug = resolveCategorySlug(slug || '');
-  if (/^excel-v2-[0-9]+-[0-9]+$/.test(canonicalSlug)) {
+  const routeSlug = String(slug || '');
+  const internalCategorySlug = getInternalCategorySlugFromRouteSlug(routeSlug);
+  if (internalCategorySlug) {
+    const seoSlug = getCategorySeoRouteSlug(internalCategorySlug);
+    if (routeSlug !== seoSlug) {
+      return <Navigate to={'/category/' + encodeURIComponent(seoSlug)} replace />;
+    }
     return <ExcelMenuCategoryPage />;
   }
+  const canonicalSlug = resolveCategorySlug(routeSlug);
   if (Object.prototype.hasOwnProperty.call(LEGACY_CATEGORY_ROUTE_GROUPS, canonicalSlug)) {
     const group = LEGACY_CATEGORY_ROUTE_GROUPS[canonicalSlug];
     const destination = group ? `/categories?group=${encodeURIComponent(group)}` : '/categories';
