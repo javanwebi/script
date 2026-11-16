@@ -10,6 +10,7 @@ on:
       - "src/pages/CategoryPage.tsx"
       - "src/components/catalog/ReferenceMegaMenu.tsx"
       - "src/components/catalog/MobileCategoryExplorer.tsx"
+      - "src/components/catalog/CategoryNavigation.tsx"
       - "src/pages/SearchPage.tsx"
       - "src/pages/ProductsPage.tsx"
       - "src/components/layout/Footer.tsx"
