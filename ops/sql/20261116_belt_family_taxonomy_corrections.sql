@@ -202,8 +202,8 @@ begin
         and s.submenu in ('وی‌بلت متری','کلاسیک و دنده‌دار')
       group by s.sku_code
     ) moved
-    where profile in ('A','B','C') and product_type ~* 'تسمه جوشی') <> 33 then
-    raise exception 'Belt taxonomy postcondition failed: expected 33 welded A/B/C direct SKUs in V-belt menu';
+    where profile in ('A','B','C') and product_type ~* 'تسمه جوشی') <> 34 then
+    raise exception 'Belt taxonomy postcondition failed: expected 34 welded A/B/C direct SKUs in V-belt menu (33 moved plus one already correctly placed)';
   end if;
   if not exists (select 1 from public.catalog_direct_skus
       where sku_code='31997' and category_slug='excel-v2-1-4'
