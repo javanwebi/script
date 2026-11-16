@@ -157,6 +157,6 @@ test('ending a call clears buffered audio segments from memory',()=>{
   const to=ui.indexOf('useEffect(()=>()=>releaseCallResources()',from);
   assert.ok(from>0&&to>from);
   const teardown=ui.slice(from,to);
-  assert.match(teardown,/audioChunksRef\\.current=\\[\\]/);
-  assert.match(teardown,/audioSegmentsRef\\.current=\\[\\]/);
+  assert.ok(teardown.includes('audioChunksRef.current=[]'));
+  assert.ok(teardown.includes('audioSegmentsRef.current=[]'));
 });
