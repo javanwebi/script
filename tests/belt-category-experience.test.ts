@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { classifyBeltSku, detectConveyorSurfaceProfile } from '../src/data/beltCatalogAudit';
+import { resolveEngineeringFamilyType } from '../src/data/catalogPhase1Reconstruction';
 import type { Product, ProductVariant } from '../src/types';
 
 const page = readFileSync(new URL('../src/pages/BeltCategoryExperience.tsx', import.meta.url), 'utf8');
@@ -207,6 +208,77 @@ test('belt audit routes crowned CRC/TRC to hauling belts, not welded PU round be
   assert.equal(ridge.proposedCategorySlug, 'excel-v2-1-4');
   assert.equal(ridge.proposedSubmenu, 'تسمه بارکش');
   assert.equal(ridge.proposedLeaf, 'انواع تسمه بارکش صنعتی');
+});
+
+test('SWR XP wedge profiles are raw-edge cogged, not wrapped V-belts', () => {
+  for (const profile of ['XPZ', 'XPA', 'XPB', 'XPC']) {
+    const result = classifyBelt(`تسمه V شکل پروفیل ${profile} 1980 SWR`, 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+    assert.match(result.technical.bodyMaterial, /Raw-Edge Cogged/);
+    assert.match(result.proposedFamilyNameFa, /دنده‌ای لبه‌خام/);
+    assert.match(result.proposedFamilyNameEn, /Raw-Edge Cogged/);
+    assert.doesNotMatch(result.technical.bodyMaterial, /Wrapped V-Belt/);
+  }
+});
+
+test('8V and 8VX are heavy-duty wedge profiles, not classical V-belt leaf members', () => {
+  const wrapped = classifyBelt('تسمه V شکل پروفیل 8V 2500 SWR', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  const cogged = classifyBelt('تسمه V شکل پروفیل 8VX 2500 SWR', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  for (const result of [wrapped, cogged]) {
+    assert.equal(result.proposedSubmenu, 'تسمه اسپشیال');
+    assert.equal(result.proposedLeaf, null);
+    assert.match(result.taxonomyGap || '', /HEAVY-WEDGE-LEAF-MISSING/);
+  }
+  assert.match(cogged.technical.bodyMaterial, /Raw-Edge Cogged/);
+});
+
+test('CC is parsed as a double-sided hexagonal V-belt using its standard section dimensions', () => {
+  const result = classifyBelt('تسمه V شکل پروفیل CC 1950 SWR', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  assert.equal(result.technical.profile, 'CC');
+  assert.equal(result.technical.sidedness, 'double-sided');
+  assert.equal(result.technical.nominalWidthMm, 22);
+  assert.equal(result.technical.beltThicknessMm, 17);
+  assert.equal(result.proposedSubmenu, 'پروفیل شش‌ضلعی دوطرفه');
+  assert.equal(result.proposedLeaf, null);
+});
+
+test('engineering family types keep crowned CRC, welded PU round, and banded V-belts separate', () => {
+  const crowned = resolveEngineeringFamilyType({
+    productType: 'تسمه گرده‌ماهی تاج‌دار CRC مداربسته',
+    profile: 'CRC',
+    material: 'لاستیک',
+    construction: 'crowned top',
+    proposedCategorySlug: 'excel-v2-1-4',
+    engineeringSpecifications: { beltDivision: 'vbelt-crowned-crc', sidedness: 'single-sided' },
+  });
+  const welded = resolveEngineeringFamilyType({
+    productType: 'تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل CRC',
+    profile: 'CRC',
+    material: 'TPU پلی‌یورتان',
+    construction: 'heat-welded',
+    proposedCategorySlug: 'excel-v2-1-3',
+    engineeringSpecifications: { beltDivision: 'welded-pu-round-crc', sidedness: 'symmetric-round-hex' },
+  });
+  const banded = resolveEngineeringFamilyType({
+    productType: 'تسمه V شکل به‌پشت‌پیوسته Banded V-Belt',
+    profile: '3VX-BANDED',
+    material: 'لاستیک',
+    construction: 'tie-band',
+    proposedCategorySlug: 'excel-v2-1-2',
+    engineeringSpecifications: { beltDivision: 'vbelt-banded', sidedness: 'single-sided' },
+  });
+  const doubleV = resolveEngineeringFamilyType({
+    productType: 'تسمه V دوطرفه AA',
+    profile: 'AA',
+    material: 'لاستیک',
+    construction: 'wrapped',
+    proposedCategorySlug: 'excel-v2-1-2',
+    engineeringSpecifications: { beltDivision: 'vbelt-hexagonal', sidedness: 'double-sided' },
+  });
+  assert.equal(crowned.familyTypeId, 'FT-BELT-CROWNED-CRC');
+  assert.equal(welded.familyTypeId, 'FT-BELT-ROUND-CRC');
+  assert.equal(banded.familyTypeId, 'FT-VBELT-BANDED');
+  assert.equal(doubleV.familyTypeId, 'FT-VBELT-HEXAGONAL');
+  assert.match(doubleV.familyTypeName, /Double V/);
 });
 
 test('belt audit does not force automotive RU or unsupported T10 into neighbouring timing leaves', () => {
