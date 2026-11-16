@@ -57,3 +57,18 @@ test('all unresolved images have detailed visual research without fabricated SKU
  assert.equal(audit.filter(row=>!row.research).length,1,'one additional photo is unassigned without verified research');
  for(const row of researched){assert.equal(row.research!.sourceSha256,row.sha256);assert.equal(row.research!.exactSku,null);assert.equal(row.research!.standardStatus,'not-established');assert.ok(row.research!.requiredChecks.length>=3);}
 });
+
+test('direct SKU image assignments count as linked without requiring a family row',()=>{
+ const record={file:'e(900).png',sha256:'direct-image-hash',observed:'تصویر کد مستقیم',reason:''};
+ const direct=[{
+  skuCode:'DIRECT-900',name:'کالای مستقیم',imageUrl:'/storage/products/catalog/e(900).png',
+  categorySlug:'excel-v2-1-1',categoryName:'تسمه تایمینگ',submenu:'لاستیکی فابریک',
+  subcategory:'لاستیکی فابریک ساده و دنده‌دار',sourceFamilyCode:null,active:true
+ }];
+ const row=getImageAssignmentAudit([], [record], direct)[0];
+ assert.equal(row.status,'sku-linked');
+ assert.equal(row.directSkus.length,1);
+ assert.equal(row.directSkus[0].skuCode,'DIRECT-900');
+ assert.equal(row.families.length,0);
+ assert.equal(row.requiresCodeEvidence,false);
+});

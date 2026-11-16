@@ -32,8 +32,23 @@ export interface DbImageAuditRow {
     matchRatio: number;
   };
 }
+export interface DbDirectSkuImageBinding {
+  skuCode: string;
+  name?: string;
+  imageUrl?: string|null;
+  categorySlug?: string;
+  categoryName?: string;
+  submenu?: string;
+  subcategory?: string;
+  sourceFamilyCode?: string|null;
+  active?: boolean;
+}
 /** Source records are loaded from PostgreSQL by the authenticated admin endpoint, never from bundled JSON. */
-export function getImageAssignmentAudit(products: Product[], records: DbImageAuditRow[]) {
+export function getImageAssignmentAudit(
+  products: Product[],
+  records: DbImageAuditRow[],
+  directSkus: DbDirectSkuImageBinding[] = [],
+) {
   const bindings=new Map<string,{family:Product; codes:string[]}[]>();
   for(const family of products) {
     const gallery=family.galleryImages?.length ? family.galleryImages : (family.images||[]).map(url=>({url,scope:'family' as const,variantCode:undefined}));
@@ -53,11 +68,21 @@ export function getImageAssignmentAudit(products: Product[], records: DbImageAud
       binding.codes.push(variant.code);bindings.set(file,list);
     }
   }
+  const directBindings=new Map<string,DbDirectSkuImageBinding[]>();
+  for(const direct of directSkus){
+    if(direct.active===false)continue;
+    const file=imageFileName(direct.imageUrl||'');
+    if(!file)continue;
+    const list=directBindings.get(file)||[];
+    if(!list.some(existing=>existing.skuCode===direct.skuCode))list.push(direct);
+    directBindings.set(file,list);
+  }
   const duplicates=new Map<string,string[]>();
   for(const item of records){if(!item.sha256)continue;const files=duplicates.get(item.sha256)||[];files.push(item.file);duplicates.set(item.sha256,files);}
   return records.map(item=>{
     const linked=(bindings.get(item.file)||[]).map(x=>({...x,codes:[...new Set(x.codes)]}));
-    const codeCount=linked.reduce((n,x)=>n+x.codes.length,0);
+    const direct=(directBindings.get(item.file)||[]);
+    const codeCount=linked.reduce((n,x)=>n+x.codes.length,0)+direct.length;
     const ownerCatalogue=item.ownerCatalogue;
     const research=item.research;
     return {file:item.file,observed:ownerCatalogue?.catalogueGroup||item.observed,reason:item.reason,sha256:item.sha256,
@@ -66,6 +91,7 @@ export function getImageAssignmentAudit(products: Product[], records: DbImageAud
       status:codeCount ? 'sku-linked' as const : linked.length ? 'family-example' as const : 'unassigned' as const,
       families:linked.map(({family,codes})=>({code:family.code,name:family.name,category:family.categoryName,
         skus:codes.map(code=>family.variants!.find(v=>v.code===code)!),candidateSkuCount:family.variants?.length||0})),
+      directSkus:direct,
       duplicateFiles:(duplicates.get(item.sha256)||[]).filter(file=>file!==item.file),
       // A singleton family still does NOT prove that the photograph is that SKU.
       requiresCodeEvidence:codeCount===0,

@@ -6,10 +6,10 @@ const out = process.env.SCREENSHOT_DIR || "/tmp";
 const base = process.env.PREVIEW_URL || "http://127.0.0.1:4173";
 
 const pages = [
-  { path: "/about", selector: ".company-page--about .sp-about-hero", heading: /بازار تخصصی قطعات صنعتی با پشتوانه اطلس/ },
+  { path: "/about", selector: "#about", heading: /تأمین قطعات صنعتی/ },
   { path: "/services", selector: ".company-page--services", heading: /از شناخت قطعه تا/ },
   { path: "/industries", selector: ".company-page--industries", heading: /هر صنعت، نیاز فنی خودش را دارد/ },
-  { path: "/industries/textile", selector: ".textile-page .textile-hero", heading: /نساجی/ },
+  { path: "/industries/textile", selector: ".industry-template--textile .ipt-hero", heading: /نساجی/ },
   { path: "/brands", selector: ".company-page--brands", heading: /برند را بشناسید/ },
   { path: "/knowledge", selector: ".company-page--knowledge .sp-knowledge-hero", heading: /شناخت بهتر قطعه/ },
   { path: "/contact", selector: "#contact-workspace-main", heading: /تماس با/ },
@@ -42,28 +42,26 @@ const pages = [
       const aboutLink = page.locator('.home-about-preview a[href="/about"]').first();
       await aboutLink.waitFor({ state: "visible" });
       await aboutLink.click();
-      await page.locator(".company-page--about .sp-about-hero").waitFor({ timeout: 15000 });
-      await page.getByRole("heading", { level: 1 }).first().waitFor();
-
-      const requiredAboutLinks = ["/services", "/industries", "/brands", "/knowledge", "/contact"];
-      for (const href of requiredAboutLinks) {
-        assert.ok(await page.locator(`.company-page--about a[href="${href}"]`).count() > 0,
-          `About page is missing its ${href} navigation link`);
+      await page.locator("#about").waitFor({ timeout: 15000 });
+      await page.locator("#about h1").waitFor();
+      const aboutHeading = (await page.locator("#about h1").innerText()).replace(/\s+/g, " ").trim();
+      assert.match(aboutHeading, /تأمین قطعات صنعتی/,
+        "About hero must match the current approved About page content");
+      assert.ok(await page.locator('#about a[href="/products"]').count() > 0,
+        "About hero must link to the real products catalogue");
+      assert.ok(await page.locator('#about a[href="/services"]').count() > 0,
+        "About hero must link to the services page");
+      for (const selector of ["#story", "#capabilities", "#contact"]) {
+        assert.equal(await page.locator(selector).count(), 1,
+          `current About page is missing its ${selector} section`);
       }
-      assert.equal(await page.locator(".sp-about-capability").count(), 4,
-        "approved About page must show its four visual capabilities");
-      const timelineYears = await page.locator(".sp-about-timeline-year").allTextContents();
-      assert.deepEqual(timelineYears.map(value => value.trim()), ["۱۳۸۴", "۱۳۹۰", "۱۴۰۱", "امروز"],
-        "approved About page must show the four Atlas-to-Sanat Pish milestones");
-      assert.equal(await page.locator(".sp-about-destination").count(), 5,
-        "approved About page must link to its five next destinations");
       const aboutBounds = await page.evaluate(() => ({
         viewport: document.documentElement.clientWidth,
         page: document.documentElement.scrollWidth,
       }));
       assert.ok(aboutBounds.page <= aboutBounds.viewport + 3,
         `horizontal overflow on About at ${width}px: ${JSON.stringify(aboutBounds)}`);
-      const heroImageLoaded = await page.locator(".sp-about-hero-visual img").evaluate(
+      const heroImageLoaded = await page.locator("#about img").evaluate(
         image => image.complete && image.naturalWidth > 0
       );
       assert.ok(heroImageLoaded, "About hero industrial image did not load");
@@ -74,18 +72,18 @@ const pages = [
         await page.locator(item.selector).waitFor({ timeout: 20000 });
         const heading = (await page.locator("h1").first().innerText()).replace(/\s+/g, " ").trim();
         if (item.path === "/industries/textile") {
-          const textileHeroImage = page.locator(".textile-hero-image");
+          const textileHeroImage = page.locator(".ipt-hero-visual img");
           await textileHeroImage.waitFor({ state: "attached" });
           const heroImageLoaded = await textileHeroImage.evaluate(image =>
             image.complete && image.naturalWidth > 0
           );
           assert.ok(heroImageLoaded, "Textile hero industrial image did not load");
-          const stages = page.locator(".textile-stage-list button");
-          assert.equal(await stages.count(), 5, "Textile page must expose all five production stages");
-          await stages.nth(1).click();
-          assert.equal(await stages.nth(1).getAttribute("aria-pressed"), "true",
+          const stages = page.locator('.ipt-stage-tabs button[role="tab"]');
+          assert.equal(await stages.count(), 6, "Textile page must expose all six production stages");
+          await stages.nth(2).click();
+          assert.equal(await stages.nth(2).getAttribute("aria-selected"), "true",
             "Textile production stage selection did not update");
-          assert.equal((await page.locator("#textile-stage-panel h3").innerText()).trim(), "بافندگی",
+          assert.equal((await page.locator("#ipt-stage-panel h3").innerText()).trim(), "بافندگی",
             "Textile stage details did not update after selection");
         }
         assert.match(heading, item.heading, `incorrect heading on ${item.path}: ${heading}`);

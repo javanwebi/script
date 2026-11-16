@@ -224,7 +224,7 @@ docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memor
  -e npm_config_maxsockets=4 \
  -e npm_config_fetch_retries=2 \
  -e npm_config_fetch_retry_maxtimeout=60000 \
- node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm run lint && node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts && npm run build' 2>&1 | tee "$BUILD_LOG"
+ node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm run lint && npm run test:portal && node --import tsx --test tests/admin-catalog-image-workflow.test.ts tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/image-assignments.test.ts tests/catalog-menu-assignment-audit.test.ts && npm run build' 2>&1 | tee "$BUILD_LOG"
 test -s "$STAGE/dist/index.html"
 
 echo '===== VERIFY / BUILD PINNED DIBA STT RUNTIME IMAGE ====='
