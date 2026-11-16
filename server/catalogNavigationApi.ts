@@ -160,7 +160,7 @@ export function registerCatalogNavigationApi(app:Express){
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,assignments:[]});
       const result=await database().query(
-        `select f.code as "familyCode",f.name as "familyName",
+        `select a.family_code as "familyCode",f.code as code,f.name as "familyName",
             coalesce(identity.product_type,f.name) as "productType",
             coalesce(identity.material,f.materials,'') as material,identity.profile as profile,
             a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
@@ -181,9 +181,10 @@ export function registerCatalogNavigationApi(app:Express){
           order by a.category_slug,a.submenu_name,a.leaf_name,f.code
           limit 10000`);
       const assignments=result.rows.flatMap((row:any)=>{
-        const assignment=resolveFamilyMenuAssignment({...row,code:row.familyCode});
+        const familyCode=row.code||row.familyCode;
+        const assignment=resolveFamilyMenuAssignment({...row,code:familyCode});
         if(!assignment)return [];
-        return [{familyCode:row.familyCode,categorySlug:assignment.categorySlug,
+        return [{familyCode,categorySlug:assignment.categorySlug,
           submenuName:assignment.submenuName,leafName:assignment.leafName,method:assignment.method||row.method||'static_audited'}];
       });
       res.setHeader('Cache-Control','no-store');
