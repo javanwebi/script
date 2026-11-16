@@ -1,4 +1,4 @@
-// Auto-generated audited family-to-menu assignments: 1,318 retained mappings. The 97 ambiguous families are intentionally omitted for admin review.
+// Auto-generated audited family-to-menu assignments: 1,322 retained mappings. The 97 ambiguous families are intentionally omitted for admin review.
 export interface FamilyMenuAssignment {
   categorySlug: string;
   submenuName: string;
@@ -6436,6 +6436,16 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "submenuName": "بر اساس جنس",
     "leafName": null
   },
+  "PFAM-تسمه-V-شکل-به--GENERIC--3VX-BANDED-641": {
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "تسمه اسپشیال",
+    "leafName": null
+  },
+  "PFAM-تسمه-V-شکل-به--SWR-3VX-BANDED-395": {
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "تسمه اسپشیال",
+    "leafName": null
+  },
   "PFAM-تسمه-V-شکل-پرو-GENERIC--M-051": {
     "categorySlug": "excel-v2-1-2",
     "submenuName": "کلاسیک و دنده‌دار",
@@ -6444,7 +6454,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   "PFAM-تسمه-V-شکل-پرو-GENERIC--MX-660": {
     "categorySlug": "excel-v2-1-2",
     "submenuName": "کلاسیک و دنده‌دار",
-    "leafName": "Z (9.5) , M , A , B , C , D , E , 8V"
+    "leafName": null
   },
   "PFAM-تسمه-V-شکل-پرو-GENERIC--Z-045": {
     "categorySlug": "excel-v2-1-2",
@@ -6454,7 +6464,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   "PFAM-تسمه-V-شکل-پرو-GENERIC--ZX-109": {
     "categorySlug": "excel-v2-1-2",
     "submenuName": "کلاسیک و دنده‌دار",
-    "leafName": "Z (9.5) , M , A , B , C , D , E , 8V"
+    "leafName": null
   },
   "PFAM-تسمه-V-شکل-پرو-HANKOOK-Z-657": {
     "categorySlug": "excel-v2-1-2",
@@ -6505,6 +6515,16 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "categorySlug": "excel-v2-1-2",
     "submenuName": "وی‌بلت متری",
     "leafName": "تسمه A و B و C وی‌بلت متری"
+  },
+  "PFAM-تسمه-جوشی-V-رو-GENERIC--B-050": {
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "کلاسیک و دنده‌دار",
+    "leafName": "Z (9.5) , M , A , B , C , D , E , 8V"
+  },
+  "PFAM-تسمه-جوشی-V-رو-GENERIC--C-108": {
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "کلاسیک و دنده‌دار",
+    "leafName": "Z (9.5) , M , A , B , C , D , E , 8V"
   },
   "PFAM-تسمه-جوشی-V-رو-T-B-B-635": {
     "categorySlug": "excel-v2-1-2",
