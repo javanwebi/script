@@ -166,9 +166,12 @@ test('production SEO routes issue permanent redirects and expose all approved UR
     const sitemap = await fetch(origin + '/sitemap.xml');
     assert.equal(sitemap.status, 200);
     const xml = await sitemap.text();
-    assert.equal((xml.match(/<url>/g) || []).length, 42);
+    assert.equal((xml.match(/<url>/g) || []).length, 54);
     assert.ok(xml.includes(encodeURIComponent('تسمه-تایمینگ-صنعتی')));
     assert.ok(xml.includes(encodeURIComponent('اسکاج-صنعتی')));
+    assert.ok(xml.includes('/industries/ceramic'));
+    assert.ok(xml.includes('/knowledge/identify-belt'));
+    assert.ok(xml.includes('/brands'));
     assert.ok(!xml.includes('/category/excel-v2-'), 'sitemap must not publish internal category IDs');
 
     const robots = await fetch(origin + '/robots.txt');
