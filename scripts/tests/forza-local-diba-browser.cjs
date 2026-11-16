@@ -70,7 +70,8 @@ function wav(){
     headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav()});
   });
   await page.route('**/api/ai/consult-stream',async route=>{
-   const query=route.request().postDataJSON().query;queries.push(query);\n   await page.evaluate(count=>{window.__forzaConsultRequestCount=count;},queries.length).catch(()=>{});
+   const query=route.request().postDataJSON().query;queries.push(query);
+   await page.evaluate(count=>{window.__forzaConsultRequestCount=count;},queries.length).catch(()=>{});
    const answer='برای انتخاب تسمه مناسب، کد فنی و ابعاد قطعه را بررسی می‌کنیم.';
    const frame=value=>'data: '+JSON.stringify(value)+'\\n\\n';
    await route.fulfill({status:200,contentType:'text/event-stream',
