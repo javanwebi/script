@@ -492,9 +492,12 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           let targetSpeech = 0;
           let targetGain = 1.55;
           if (currentMode === 'speak') {
-            // When speaking, hair movement directly tracks audio sound & noise amplitude with natural responsiveness
-            targetSpeech = Math.min(1.0, audioLvl * 1.0) * currentIntensity;
-            targetGain = 1.6 + audioLvl * 0.45;
+            // The microphone's echo cancellation may suppress FORZA's own
+            // speaker output. Keep a gentle voice-energy floor so the hair
+            // still moves during the greeting and TTS, then add live mic level.
+            const speechDrive = Math.max(audioLvl, 0.28);
+            targetSpeech = Math.min(1.0, speechDrive) * currentIntensity;
+            targetGain = 1.6 + speechDrive * 0.45;
           } else {
             targetSpeech = 0;
             if (currentMode === 'listen') {

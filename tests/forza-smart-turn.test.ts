@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzePersianSentenceCompletion } from '../src/utils/silenceDetector.ts';
-import { forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs } from '../src/utils/forzaSpeechPipeline.ts';
+import { appendForzaSpeechSegment, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs } from '../src/utils/forzaSpeechPipeline.ts';
 
 test('unfinished Persian intent must not be submitted as a complete request', () => {
   for (const phrase of [
@@ -18,11 +18,11 @@ test('unfinished Persian intent must not be submitted as a complete request', ()
   ]) {
     const result = analyzePersianSentenceCompletion(phrase);
     assert.equal(result.isComplete, false, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 1450, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 2700, phrase);
   }
 });
 
-test('common short questions and completed industrial inquiries respond promptly', () => {
+test('a two-second pause never finalizes even a linguistically complete question', () => {
   for (const phrase of [
     'قیمتش چنده',
     'تسمه SPA 1250 موجود دارید؟',
@@ -32,7 +32,7 @@ test('common short questions and completed industrial inquiries respond promptly
   ]) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 900, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 2500, phrase);
   }
 });
 
@@ -43,11 +43,15 @@ test('a fixed word count or an unclosed question is NOT proof of completion', ()
   assert.equal(analyzePersianSentenceCompletion('آیا این تسمه مناسب').isComplete, false);
 });
 
-test('standalone turn control words are recognized without a long timeout', () => {
-  for (const phrase of ['صبر کن', 'بس کن', 'ادامه بده', 'سلام', 'ممنون']) {
+test('explicit stop commands stay fast while ordinary greetings keep the continuation grace', () => {
+  for (const phrase of ['صبر کن', 'بس کن', 'ادامه بده']) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
     assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 850, phrase);
+  }
+  for (const phrase of ['سلام', 'ممنون']) {
+    assert.equal(analyzePersianSentenceCompletion(phrase).isComplete, true, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 2500, phrase);
   }
   assert.equal(analyzePersianSentenceCompletion('صبر کن تا').isComplete, false);
 });
@@ -55,7 +59,22 @@ test('standalone turn control words are recognized without a long timeout', () =
 test('provisional WebSpeech requires more time than a stable finalized hypothesis', () => {
   const phrase='تسمه SPA 1250 موجود دارید';
   assert.ok(forzaEndOfTurnPauseMs(phrase, true)>forzaEndOfTurnPauseMs(phrase, false));
-  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=1800);
+  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=2800);
+});
+
+test('two-second acoustic pauses leave the customer turn open for more words', () => {
+  const phrase='قیمتش چنده';
+  const required=forzaEndOfTurnPauseMs(phrase,false);
+  assert.ok(required>2000);
+  assert.ok(forzaTurnRemainingWaitMs(phrase,false,2100,2100)>0);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,required+20,required+20),0);
+});
+
+test('recognition restarts append the next partial segment without losing or duplicating words', () => {
+  assert.equal(appendForzaSpeechSegment('من دنبال تسمه','تایمینگ هستم'),'من دنبال تسمه تایمینگ هستم');
+  assert.equal(appendForzaSpeechSegment('من دنبال تسمه تایمینگ','تسمه تایمینگ هستم'),'من دنبال تسمه تایمینگ هستم');
+  assert.equal(appendForzaSpeechSegment('تسمه تایم','تایمینگ SPA'),'تسمه تایمینگ SPA');
+  assert.equal(appendForzaSpeechSegment('بلبرینگ 6202','نه، 6203 می‌خواهم'),'بلبرینگ 6202 نه، 6203 می‌خواهم');
 });
 
 test('late final STT revision has a short stability guard after acoustic silence, not a second full pause', () => {

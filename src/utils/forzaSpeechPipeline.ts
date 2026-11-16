@@ -85,6 +85,32 @@ export function normalizePersianTranscript(value: string): string {
     .trim();
 }
 
+/**
+ * Join a new browser-recognition session to the same customer turn.
+ * Web Speech may end/restart its recognition session during a natural pause;
+ * the next session then starts its result list from zero. Keep the previous
+ * session's words and merge only the new suffix, including split SKU tokens.
+ */
+export function appendForzaSpeechSegment(previousValue:string, incomingValue:string):string {
+  const previous=normalizePersianTranscript(previousValue);
+  const incoming=normalizePersianTranscript(incomingValue);
+  if(!previous)return incoming;
+  if(!incoming)return previous;
+  if(incoming===previous||previous.endsWith(incoming))return previous;
+  if(incoming.startsWith(previous))return incoming;
+  if(/^[،؛؟.!?,:]/.test(incoming))return previous+incoming;
+
+  const maximum=Math.min(previous.length,incoming.length);
+  for(let length=maximum;length>=2;length--){
+    if(previous.slice(-length)===incoming.slice(0,length)){
+      // Preserve the incoming boundary exactly: no space means the browser
+      // completed a partial word (e.g. "تایم" + "تایمینگ").
+      return previous+incoming.slice(length);
+    }
+  }
+  return previous+' '+incoming;
+}
+
 /** Combine live browser interim/final text with the server's final Diba result.
  * Keep browser-recognized industrial part codes when the acoustic model drops
  * them, but otherwise prefer the server transcript as the final authority.
@@ -110,18 +136,19 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
   return server;
 }
 
-/** Finish complete questions quickly, but preserve natural mid-thought pauses.
- * No fixed 2.3s delay after every recognition event.
+/** A two-second pause can be a natural breath, not the end of a Persian turn.
+ * Keep a continuation grace above two seconds for every ordinary utterance;
+ * explicit stop commands are handled immediately by the call controller.
  */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
-  const analysis = analyzePersianSentenceCompletion(text);
-  // A provisional browser hypothesis can still gain another word or SKU.
-  if (analysis.isMidThought) return hasInterim ? 2400 : Math.max(1900, analysis.recommendedPauseMs);
-  if (analysis.isComplete && analysis.confidence >= 0.9) {
-    return hasInterim ? 1100 : Math.max(550, Math.min(850, analysis.recommendedPauseMs - 150));
-  }
-  if (analysis.isComplete) return hasInterim ? 1450 : Math.max(1000, analysis.recommendedPauseMs);
-  return hasInterim ? 1950 : Math.max(1450, analysis.recommendedPauseMs);
+  const normalized=normalizePersianTranscript(text);
+  if(!normalized)return 2600;
+  if(/^(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|یه لحظه|یک لحظه|توقف|بسه|ساکت|ساکت شو|ادامه بده|ادامه بدید|ادامه)$/.test(normalized))
+    return 650;
+  const analysis = analyzePersianSentenceCompletion(normalized);
+  if(analysis.isMidThought)return hasInterim?3100:2900;
+  if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?2900:2600;
+  return hasInterim?3000:2800;
 }
 
 /**

@@ -13,7 +13,7 @@ import {
   Square,
 } from 'lucide-react';
 import type { ParticleAvatarProps, ParticleAvatarRef } from './ParticleAvatar';
-import { checkpointForzaRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
+import { checkpointForzaRecognition, extractPersianSpeechSince, appendForzaSpeechSegment, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { attachForzaAudioEvidence } from '../../utils/forzaAudioEvidence';
@@ -221,6 +221,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recognitionConsumedCountRef=useRef(0);
   const recognitionCheckpointRef=useRef({count:0,interim:{} as Record<number,string>});
   const recognitionConsumedInterimRef=useRef<Record<number,string>>({});
+  // The browser may restart SpeechRecognition after a pause. Keep the current
+  // utterance as the base for the next recognition session instead of losing it.
+  const recognitionSessionBaseRef=useRef<string>('');
   // Compare only to speech entering the WebAudio player, not the LLM's
   // unspoken answer. Acoustic echo suppression is NOT diarization.
   const heardSpeechEchoRef=useRef('');
@@ -345,6 +348,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         lastTranscriptChangedAtRef.current = 0;
         hasSpeechSoundRef.current = false;
         audioChunksRef.current = [];
+        recognitionSessionBaseRef.current='';
       }
     }
 
@@ -465,8 +469,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(!isProcessingTurnRef.current)setIsUserSpeaking(true);
           else console.info('[FORZA_TURN] phase=barge-in-vad-candidate');
         }
-        // 650-900ms after a clearly finished question, ~1.7s for an
-        // unfinished Persian thought. Worker audio STT is the safety net.
+        // Keep a 2.6-3.1s continuation window so a natural two-second pause
+        // does not split one customer sentence into separate AI turns.
         if(isProcessingTurnRef.current){
           if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
           return;
@@ -480,7 +484,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const transcript=activeTranscriptRef.current.trim();
           const pauseMs=transcript
             ? forzaEndOfTurnPauseMs(transcript,speechInterimRef.current)
-            : 1000;
+            : 2800;
           const remaining=Math.max(80,pauseMs-current.silenceMs);
           const tryFinalize=()=>{
             silenceTimerRef.current=null;
@@ -505,6 +509,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(candidate){
               pendingTranscriptRef.current=candidate;
               activeTranscriptRef.current='';
+              recognitionSessionBaseRef.current='';
               lastTranscriptChangedAtRef.current=0;
               vadRef.current.reset();
               const recorder=mediaRecorderRef.current;
@@ -1088,6 +1093,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setStatus('listening');
         setTurn('user');
         activeTranscriptRef.current='';
+        recognitionSessionBaseRef.current='';
         // Keep Chrome's cumulative recognition from replaying the stop words
         // as the next customer turn when the recognizer remains active.
         recognitionConsumedCountRef.current=recognitionCheckpointRef.current.count;
@@ -1133,6 +1139,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // and restarting the mic (which drops first syllables).
       recognitionConsumedCountRef.current=recognitionCheckpointRef.current.count;
         recognitionConsumedInterimRef.current={...recognitionCheckpointRef.current.interim};
+      recognitionSessionBaseRef.current='';
       localSttFinalRef.current='';
       heardSpeechEchoRef.current='';
       lastForzaPlaybackAtRef.current=0;
@@ -1153,6 +1160,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setAiText('');
       setDisplayedAi('');
       activeTranscriptRef.current = '';
+      recognitionSessionBaseRef.current='';
 
       if (q) {
         setUserText(q);
@@ -1185,10 +1193,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        // Browser speech is a low-latency live preview only. When the
-        // server Diba recognizer is enabled, its final transcript is verified
-        // on every recorded turn before the AI receives the query.
-        const needsServerFinal = Boolean(audioBlob) && serverSttConfiguredRef.current === true;
+        // Browser interim/final speech is the low-latency primary transcript.
+        // Run server Diba only when the browser produced no usable words; do
+        // not serialize every successful turn behind a second full-audio ASR request.
+        const needsServerFinal = Boolean(audioBlob) && serverSttConfiguredRef.current === true && !q;
         if (audioBlob && needsServerFinal) {
           if(serverSttConfiguredRef.current===false){
             console.warn('[FORZA_STT] source=server unavailable=1 browser_transcript='+(q?'1':'0'));
@@ -1672,6 +1680,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           try{rec.abort();}catch{}
           return;
         }
+        recognitionSessionBaseRef.current=activeTranscriptRef.current.trim();
         recognitionFailedRef.current=false;
         webSpeechFailedRef.current=false;
         setMicrophoneError(null);
@@ -1745,20 +1754,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
           interruptRequestRef.current();
         }
+        const mergedSpeech=appendForzaSpeechSegment(recognitionSessionBaseRef.current,currentSpeech);
         if(!recognized.hasInterim&&forzaTurnIntent(currentSpeech)==='stop'){
           void handleUserFinishedSpeaking(currentSpeech);
           return;
         }
         stopAcknowledgementRef.current?.cancel();
-        if (currentSpeech) {
-          if(currentSpeech!==activeTranscriptRef.current ||
+        if (mergedSpeech) {
+          if(mergedSpeech!==activeTranscriptRef.current ||
              speechInterimRef.current!==recognized.hasInterim){
             lastTranscriptChangedAtRef.current=Date.now();
           }
           speechInterimRef.current = recognized.hasInterim;
           hasSpeechSoundRef.current = true;
-          activeTranscriptRef.current = currentSpeech;
-          setUserText(currentSpeech);
+          activeTranscriptRef.current = mergedSpeech;
+          setUserText(mergedSpeech);
           setStatus('listening');
           setTurn('user');
           setIsUserSpeaking(true);
@@ -1785,6 +1795,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
             pendingTranscriptRef.current=candidate;
             activeTranscriptRef.current='';
+            recognitionSessionBaseRef.current='';
             lastTranscriptChangedAtRef.current=0;
             setIsUserSpeaking(false);
             const recorder=mediaRecorderRef.current;
@@ -1797,7 +1808,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             }
           };
           silenceTimerRef.current=window.setTimeout(tryFinalize,Math.max(40,
-            forzaTurnRemainingWaitMs(currentSpeech,recognized.hasInterim,
+            forzaTurnRemainingWaitMs(mergedSpeech,recognized.hasInterim,
               Date.now()-lastTranscriptChangedAtRef.current,
               vadRef.current.heardSpeech?vadRef.current.silenceDuration(Date.now()):null)));
         }
