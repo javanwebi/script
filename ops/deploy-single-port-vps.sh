@@ -408,7 +408,8 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
 echo '===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA ====='
 for MIGRATION in \
   "$STAGE/supabase/adopted/migrations/20261109010000_customer_360_local_vault.sql" \
-  "$STAGE/supabase/adopted/migrations/20261110010000_custom_part_requests.sql"; do
+  "$STAGE/supabase/adopted/migrations/20261110010000_custom_part_requests.sql" \
+  "$STAGE/supabase/adopted/migrations/20261116010000_catalog_identity_specs_compat.sql"; do
   test -s "$MIGRATION" || { echo "REQUIRED_MIGRATION_MISSING=$MIGRATION"; exit 1; }
   docker exec -i "$OLD" node --import tsx --input-type=module -e '
     import {readFileSync} from "node:fs";
@@ -423,6 +424,7 @@ for MIGRATION in \
     } finally { await closeDatabase(); }
   ' < "$MIGRATION"
 done
+echo 'PRODUCTION_CATALOG_IDENTITY_SCHEMA_READY'
 
 echo '===== CONTINUE BLUE-GREEN DEPLOY ====='
 echo '===== BACK UP NGINX AND COPY LIVE CONTAINER SETTINGS ====='
@@ -625,7 +627,11 @@ if [[ -f "$APP/.env.forza-voice" ]]; then
     console.log("AVALAI_CANARY_CONFIG_OK desk=avalai voice=avalai key=SET");
   '
 fi
-docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs
+if ! docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs; then
+  echo '===== PRIVATE CANARY APPLICATION LOGS (LAST 160 LINES) =====' >&2
+  docker logs --tail 160 "$CANARY_NAME" >&2 || true
+  exit 1
+fi
 
 if [[ -f "$APP/.local-vision-enabled" ]]; then
  echo '===== RESUME PERSISTED LOCAL IMAGE INDEX BEFORE PROMOTION ====='

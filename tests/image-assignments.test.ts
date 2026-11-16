@@ -72,3 +72,35 @@ test('direct SKU image assignments count as linked without requiring a family ro
  assert.equal(row.families.length,0);
  assert.equal(row.requiresCodeEvidence,false);
 });
+
+
+test('newly uploaded family and SKU images appear in the audit with their exact persisted URL',()=>{
+ const base=USER_PRODUCTS.find(product=>product.variants?.length)!;
+ const skuCode=base.variants![0].code;
+ const familyUrl='/storage/products/assigned-family-image.webp';
+ const skuUrl='/storage/products/assigned-sku-image.webp';
+ const family={...base,images:[familyUrl],galleryImages:[{
+  id:'family-upload',url:familyUrl,fileName:'assigned-family-image.webp',scope:'family' as const,identityVerified:false
+ }]};
+ const skuProduct={...base,images:[],galleryImages:[{
+  id:'sku-upload',url:skuUrl,fileName:'assigned-sku-image.webp',scope:'variant' as const,variantCode:skuCode,identityVerified:false
+ }],variants:base.variants!.map(variant=>({...variant,images:variant.code===skuCode?[skuUrl]:[]}))};
+ const familyRow=getImageAssignmentAudit([family],[]).find(row=>row.file==='assigned-family-image.webp');
+ const skuRow=getImageAssignmentAudit([skuProduct],[]).find(row=>row.file==='assigned-sku-image.webp');
+ assert.equal(familyRow?.imageUrl,familyUrl);
+ assert.equal(familyRow?.status,'family-example');
+ assert.equal(skuRow?.imageUrl,skuUrl);
+ assert.equal(skuRow?.status,'sku-linked');
+ assert.equal(skuRow?.families[0].skus[0].code,skuCode);
+});
+
+test('new direct-SKU uploads appear in the audit as connected to their exact product code',()=>{
+ const imageUrl='/storage/categories/direct-sku-upload.webp';
+ const rows=getImageAssignmentAudit([],[],[{
+  skuCode:'DIRECT-UPLOAD-01',name:'کد مستقیم آپلودشده',imageUrl,categorySlug:'excel-v2-1-1',active:true
+ }]);
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].imageUrl,imageUrl);
+ assert.equal(rows[0].status,'sku-linked');
+ assert.equal(rows[0].directSkus[0].skuCode,'DIRECT-UPLOAD-01');
+});

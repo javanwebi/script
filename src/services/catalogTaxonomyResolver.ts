@@ -97,6 +97,13 @@ export function getFamilyMenuAssignment(
   return explicit ? toEnrichedAssignment(explicit) : null;
 }
 
+/** Static audited families that may need the read-only category resolver fallback. */
+export function getStaticFamilyCodesForCategory(categorySlug: string): string[] {
+  return Object.entries(CATALOG_FAMILY_MENU_ASSIGNMENTS)
+    .filter(([, assignment]) => assignment.categorySlug === categorySlug)
+    .map(([code]) => code);
+}
+
 export type EnrichedApprovedMenuGroup = ApprovedMenuGroup & {
   familyCount: number;
   skuCount: number;
