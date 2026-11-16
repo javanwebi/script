@@ -34,6 +34,16 @@ assert.ok(Number(browserModel.headers.get("content-length") || 0) > 0,
   "DIBA_BROWSER_MODEL_CONTENT_LENGTH_MISSING");
 console.log("PRIVATE_CANARY_DIBA_BROWSER_MODEL_OK bytes=" + browserModel.headers.get("content-length"));
 
+const voskScript = await fetch(candidate + "/forza-runtime/stt/vosk.js", {
+  method: "HEAD",
+  signal: AbortSignal.timeout(15000),
+});
+assert.equal(voskScript.status, 200, "DIBA_BROWSER_VOSK_SCRIPT_HTTP_" + voskScript.status);
+assert.match(voskScript.headers.get("content-type") || "", /javascript/i);
+assert.ok(Number(voskScript.headers.get("content-length") || 0) > 1_000_000,
+  "DIBA_BROWSER_VOSK_SCRIPT_CONTENT_LENGTH_MISSING");
+console.log("PRIVATE_CANARY_DIBA_BROWSER_VOSK_SCRIPT_OK bytes=" + voskScript.headers.get("content-length"));
+
 // Probe real, protected mutation handlers without an authenticated session.
 // A correct endpoint rejects an anonymous write with JSON 401/403. An absent
 // endpoint typically returns 404 HTML, which previously broke CRM and image
