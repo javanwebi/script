@@ -146,11 +146,24 @@ test('long speech does not relearn its own voice level as ambient noise between 
  assert.equal(gate.acousticSpeech,true);
 });
 
-test('delayed browser final hypotheses retain bounded near-field evidence',()=>{
+test('final hypotheses are accepted only while near-field evidence is fresh',()=>{
  const gate=calibrated(false,0.001);
  speak(gate,1050,1350,0.006);
- assert.equal(gate.decide('تسمه SPA 1250',true,false,2800),'accept');
- assert.equal(gate.decide('تسمه SPA 1250',true,false,3400),'reject');
+ assert.equal(gate.decide('تسمه SPA 1250',true,false,2100),'accept');
+ assert.equal(gate.decide('تسمه SPA 1250',true,false,2400),'reject');
+});
+
+test('a late final hypothesis preserves words already admitted as live interim text',()=>{
+ const gate=calibrated(false,0.001);
+ speak(gate,1050,1350,0.006);
+ const admission=new ForzaRecognitionAdmission();
+ const interim=admission.filter([result('بلبرینگ 6203',false)],
+  (text,final)=>gate.decide(text,final,false,1350));
+ assert.equal(extractPersianSpeechSince(interim.results,0).text,'بلبرینگ 6203');
+ const final=admission.filter([result('بلبرینگ 6203',true)],
+  (text,isFinal)=>gate.decide(text,isFinal,false,2400));
+ assert.equal(extractPersianSpeechSince(final.results,0).text,'بلبرینگ 6203');
+ assert.equal(final.results[0].isFinal,true);
 });
 
 test('ordinary speech at moderate mic gain remains admitted over an ambient floor',()=>{
