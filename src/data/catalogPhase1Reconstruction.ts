@@ -11,6 +11,7 @@ import {
   type AuditReferenceTables,
   type BeltSkuAuditRecord,
 } from './beltCatalogAudit';
+import { validateFamilyMenuAssignment } from './catalogMenuSemanticGuard';
 
 /**
  * 9-Level Technical Evidence Hierarchy (Phase 1 Mandatory Standard)
@@ -460,10 +461,13 @@ for (const grp of APPROVED_MENU_GROUPS) {
 }
 
 export function resolveMainGroupForCategory(categorySlug: string): { mainGroupId: string; mainGroupName: string } {
+  if (categorySlug === 'UNRESOLVED') {
+    return { mainGroupId: 'group-unassigned', mainGroupName: 'نیازمند تعیین گروه مصوب' };
+  }
   return (
     MAIN_GROUP_BY_CATEGORY_SLUG.get(categorySlug) || {
-      mainGroupId: 'group-9',
-      mainGroupName: 'زنجیر، پمپ، اتصالات و چرخ صنعتی',
+      mainGroupId: 'group-unassigned',
+      mainGroupName: 'نیازمند تعیین گروه مصوب',
     }
   );
 }
@@ -539,6 +543,9 @@ export function resolveEngineeringFamilyType(input: {
     if (mat.includes('آلومینیوم')) return { familyTypeId: 'FT-RAIL-ALUMINUM', familyTypeName: 'ریل و پروفیل راهنما آلومینیومی' };
     return { familyTypeId: 'FT-RAIL-METAL', familyTypeName: 'ریل راهنما فولادی و گالوانیزه' };
   }
+  if ((pt.includes('گاید') || pt.includes('راهنما')) && /فنری|spring/i.test(pt)) {
+    return { familyTypeId: 'FT-SPRING-GUIDE', familyTypeName: 'گاید راهنمای فنری صنعتی' };
+  }
   if (pt.includes('گاید') || pt.includes('سر ریل') || pt.includes('پایه نگهدارنده ریل') || pt.includes('بست، گیره و پایه نگهدارنده ریل')) {
     return { familyTypeId: 'FT-GUIDE-AND-MOUNT', familyTypeName: 'گاید خط انتقال و متعلقات نگهداری ریل' };
   }
@@ -554,8 +561,11 @@ export function resolveEngineeringFamilyType(input: {
   if (pt.includes('زنجیر') || pt.includes('قفل زنجیر') || pt.includes('نیم‌دانه زنجیر')) {
     return { familyTypeId: 'FT-CHAIN-TRANSMISSION', familyTypeName: 'زنجیر انتقال قدرت و قفل زنجیر' };
   }
-  if (pt.includes('چرخ‌زنجیر') || pt.includes('چرخ‌دنده') || pt.includes('چرخ صنعتی') || pt.includes('کوپلینگ')) {
-    return { familyTypeId: 'FT-SPROCKET-GEAR-WHEEL', familyTypeName: 'چرخ‌زنجیر، چرخ‌دنده، کوپلینگ و چرخ صنعتی' };
+  if (pt.includes('کوپلینگ') || pt.includes('کوبلینگ') || /shaft.?coupling/i.test(pt)) {
+    return { familyTypeId: 'FT-SHAFT-COUPLING', familyTypeName: 'کوپلینگ انتقال قدرت و اتصال شفت صنعتی' };
+  }
+  if (pt.includes('چرخ‌زنجیر') || pt.includes('چرخ‌دنده') || pt.includes('چرخ صنعتی')) {
+    return { familyTypeId: 'FT-SPROCKET-GEAR-WHEEL', familyTypeName: 'چرخ‌زنجیر، چرخ‌دنده و چرخ صنعتی' };
   }
   if (pt.includes('بلبرینگ')) {
     return { familyTypeId: 'FT-BEARING-BALL', familyTypeName: 'بلبرینگ صنعتی شیارعمیق' };
@@ -600,6 +610,13 @@ interface CanonicalMenuPath {
   leaf: string;
 }
 
+const UNRESOLVED_MENU_PATH: CanonicalMenuPath = {
+  categorySlug: 'UNRESOLVED',
+  categoryName: 'نیازمند تعیین مسیر مصوب',
+  submenu: 'نیازمند تعیین مسیر مصوب',
+  leaf: 'نیازمند تعیین مسیر مصوب',
+};
+
 const CANONICAL_MENU_PATHS: CanonicalMenuPath[] = [];
 const CANONICAL_BY_TRIPLET = new Map<string, CanonicalMenuPath>();
 const CANONICAL_BY_CATEGORY = new Map<string, CanonicalMenuPath[]>();
@@ -634,31 +651,19 @@ export function resolveStrictApprovedMenuPath(
   rawSubmenu: string,
   rawLeaf: string
 ): CanonicalMenuPath {
-  // 1. Remap legacy/non-existent category slugs to their true approved category slug
+  // Only explicit legacy aliases are remapped. Unknown categories and incomplete
+  // paths fail closed instead of falling back to the first leaf in an unrelated menu.
   let slug = rawCategorySlug;
   if (slug === 'excel-v2-7-4') slug = 'excel-v2-7-1';
   else if (slug === 'excel-v2-10-3') slug = 'excel-v2-9-3';
   else if (slug === 'excel-v2-10-4') slug = 'excel-v2-12-1';
-  else if (!CANONICAL_BY_CATEGORY.has(slug)) slug = 'excel-v2-9-3';
+
+  if (!CANONICAL_BY_CATEGORY.has(slug)) return UNRESOLVED_MENU_PATH;
 
   const normSub = normalizeFa(rawSubmenu);
   const normLeaf = normalizeFa(rawLeaf);
-
-  // 2. Exact match in the 67 approved leaves
   const exact = CANONICAL_BY_TRIPLET.get(`${slug}::${normSub}::${normLeaf}`);
-  if (exact) return exact;
-
-  // 3. Match by submenu or leaf within the target category
-  const candidates = CANONICAL_BY_CATEGORY.get(slug) || [];
-  if (candidates.length === 1) return candidates[0];
-
-  const byLeaf = candidates.find((c) => normalizeFa(c.leaf) === normLeaf);
-  if (byLeaf) return byLeaf;
-
-  const bySubmenu = candidates.find((c) => normalizeFa(c.submenu) === normSub);
-  if (bySubmenu) return bySubmenu;
-
-  return candidates[0] || CANONICAL_MENU_PATHS[0];
+  return exact || UNRESOLVED_MENU_PATH;
 }
 
 function getApprovedCategoryName(slug: string, fallback = ''): string {
