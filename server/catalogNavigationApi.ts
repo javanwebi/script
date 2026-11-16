@@ -1,7 +1,7 @@
 import type {Express,Request,Response} from 'express';
 import crypto from 'node:crypto';
 import {database,databaseEnabled} from './db/connection';
-import {getFamilyMenuAssignment} from '../src/services/catalogTaxonomyResolver';
+import {getFamilyMenuAssignment,getStaticFamilyCodesForCategory} from '../src/services/catalogTaxonomyResolver';
 import {validateFamilyMenuAssignment} from '../src/data/catalogMenuSemanticGuard';
 import {getPortalIdentity} from '../api/portal';
 import {canStaff} from './db/staffPermissions';
@@ -211,6 +211,7 @@ export function registerCatalogNavigationApi(app:Express){
          limit 1`,[slug]);
       if(!category.rows.length)return res.status(404).json({success:false,message:'دسته موجود نیست.'});
       stage='family_query';
+      const staticFamilyCodes=getStaticFamilyCodesForCategory(slug);
       const familyRows=await database().query(
         `select f.code,f.name,f.name as "familyName",coalesce(f.brand,'') as brand,
            coalesce(identity.product_type,f.name) as "productType",
@@ -232,7 +233,8 @@ export function registerCatalogNavigationApi(app:Express){
              from public.catalog_variants v where v.family_code=f.code and v.active=true
           ) identity on true
           where f.is_active=true and f.is_deleted=false
-          order by f.name,f.code limit 10000`);
+            and (a.category_slug=$1 or f.code=any($2::text[]))
+          order by f.name,f.code limit 10000`,[slug,staticFamilyCodes]);
       stage='family_resolution';
       const families=familyRows.rows.flatMap((row)=>{
         const assignment=resolveFamilyMenuAssignment(row);
