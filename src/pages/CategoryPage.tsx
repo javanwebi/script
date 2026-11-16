@@ -1,12 +1,11 @@
 import '../category-showcase.css';
 import { STORE_ASSETS } from '../assets/images';
 import { matchesProductSearch, categorySlugFor } from '../data/userProducts';
-import { BeltCategoryExperience } from './BeltCategoryExperience';
 import { ExcelMenuCategoryPage } from './ExcelMenuCategoryPage';
 import { PulleyCatalogPage } from './PulleyCatalogPage';
 import { subscribeCatalogChanges } from '../data/mockGenerator';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Navigate, useLocation, useParams, Link, useSearchParams } from 'react-router-dom';
+import { Navigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
 import { CATEGORIES, findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
@@ -38,27 +37,34 @@ import {
   ChevronDown
 } from 'lucide-react';
 
+const LEGACY_CATEGORY_ROUTE_GROUPS: Record<string, string | null> = {
+  'آب-بندی-و-قطعات-لاستیکی': 'excel-v2-7',
+  'برس-و-ابزار-پرداخت': 'excel-v2-5',
+  'بلبرینگ-و-یاتاقان': 'excel-v2-13',
+  'پولی-و-انتقال-نیرو': 'excel-v2-4',
+  'تجهیزات-خطوط-کاشی-و-سرامیک': 'excel-v2-10',
+  'تسمه-و-انتقال-نیرو': 'excel-v2-1',
+  'چرخ-و-رولر': null,
+  'ریل-و-تجهیزات-هدایت': 'excel-v2-6',
+  'زنجیر-و-چرخ-زنجیر': 'excel-v2-9',
+  'فیلتراسیون-و-توری': 'excel-v2-11',
+  'قطعات-پمپ-و-سیالات': 'excel-v2-9',
+  'قطعات-تولید-و-قالب': 'excel-v2-12',
+  'قطعات-مکانیکی': 'excel-v2-9',
+  'مواد-و-ملزومات-صنعتی': null,
+  'نوار-و-تسمه-نقاله': 'excel-v2-2',
+};
+
 export const CategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const location = useLocation();
-  // Keep original legacy category pages unchanged; approved Excel categories get their
-  // own real family listing instead of linking several menu categories to one old page.
-  if (/^excel-v2-[0-9]+-[0-9]+$/.test(slug || '')) {
+  const canonicalSlug = resolveCategorySlug(slug || '');
+  if (/^excel-v2-[0-9]+-[0-9]+$/.test(canonicalSlug)) {
     return <ExcelMenuCategoryPage />;
   }
-  const canonicalBeltSlug = categorySlugFor('تسمه و انتقال نیرو');
-  if (resolveCategorySlug(slug || '') === canonicalBeltSlug) {
-    if (slug !== canonicalBeltSlug) {
-      return <Navigate to={`/category/${canonicalBeltSlug}${location.search}${location.hash}`} replace />;
-    }
-    return <BeltCategoryExperience />;
-  }
-  const canonicalPulleySlug = categorySlugFor('پولی و انتقال نیرو');
-  if (resolveCategorySlug(slug || '') === canonicalPulleySlug) {
-    if (slug !== canonicalPulleySlug) {
-      return <Navigate to={`/category/${canonicalPulleySlug}${location.search}${location.hash}`} replace />;
-    }
-    return <PulleyCategoryRoute />;
+  if (Object.prototype.hasOwnProperty.call(LEGACY_CATEGORY_ROUTE_GROUPS, canonicalSlug)) {
+    const group = LEGACY_CATEGORY_ROUTE_GROUPS[canonicalSlug];
+    const destination = group ? `/categories?group=${encodeURIComponent(group)}` : '/categories';
+    return <Navigate to={destination} replace />;
   }
   return <LegacyCategoryPage />;
 };
