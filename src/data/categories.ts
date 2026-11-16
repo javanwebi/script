@@ -8,6 +8,8 @@ export interface EnhancedCategory extends Category {
   children: CategoryNode[]; image?: string; topModels?: string[]; brands?: string[]; featuredBadge?: string;
   /** Family count and exact SKU count are sourced from the catalog metadata in PostgreSQL. */
   familyCount?: number; skuCount?: number;
+  /** Canonical storefront route for this approved category. */
+  routeSlug?: string;
 }
 // Only columns A, B and C belong in navigation. Family names and SKU names never enter this tree.
 const definitions: EnhancedCategory[] = [];
@@ -48,6 +50,11 @@ export const resolveCategorySlug = (slug: string) => {
   if (/^تسمه(?:\s|\u200c|-)+و(?:\s|\u200c|-)+انتقال(?:\s|\u200c|-)+(?:نیرو|قدرت)$/.test(mapped)) return 'تسمه-و-انتقال-نیرو';
   return mapped;
 };
+
+/** Resolve the stable, category-specific route returned by the approved menu API. */
+export const getCategoryRouteSlug = (category: Pick<EnhancedCategory, 'slug' | 'routeSlug'>): string =>
+  resolveCategorySlug(String(category.routeSlug || category.slug || '').trim());
+
 export function matchesCatalogCategory(product: Product, slug: string, selection = 'all'): boolean {
   if (product.categorySlug !== resolveCategorySlug(slug)) return false;
   if (selection === 'all') return true;
