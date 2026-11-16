@@ -24,6 +24,10 @@ function wav(){
   let externalModelDownloads=0;
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
+    // Keep this suite on the browser-native fallback path. The separate local
+    // Diba suite exercises the on-device Vosk engine on capable hardware.
+    Object.defineProperty(navigator,'hardwareConcurrency',{configurable:true,value:2});
+    Object.defineProperty(navigator,'deviceMemory',{configurable:true,value:2});
     // Calibrate room silence, then model a nearby speaker explicitly.
     window.__forzaMicSample=0.0005;
     // Exercise the older-browser analyser fallback independently of the worklet test.
