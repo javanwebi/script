@@ -182,6 +182,20 @@ test('production SEO routes issue permanent redirects and expose all approved UR
     assert.equal(oldPluralIndustryAlias.status, 301);
     assert.equal(oldPluralIndustryAlias.headers.get('location'), '/industries/ceramic');
 
+    for (const [legacyPath, canonicalPath] of [
+      ['/category/textile-machinery', '/industries/textile'],
+      ['/category/packaging-carton', '/industries/packaging'],
+      ['/category/food-beverage', '/industries/food'],
+      ['/category/machinery-equipment', '/industries/machinery'],
+      ['/category/rubber-plastics', '/industries/rubber'],
+      ['/industry/ceramic', '/industries/ceramic'],
+      ['/industries/ceramic-tiles', '/industries/ceramic'],
+    ] as const) {
+      const response = await fetch(origin + legacyPath, { redirect: 'manual' });
+      assert.equal(response.status, 301, legacyPath);
+      assert.equal(response.headers.get('location'), canonicalPath, legacyPath);
+    }
+
     const sitemap = await fetch(origin + '/sitemap.xml');
     assert.equal(sitemap.status, 200);
     const xml = await sitemap.text();
