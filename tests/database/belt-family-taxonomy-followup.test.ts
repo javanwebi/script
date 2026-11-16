@@ -15,6 +15,30 @@ const unresolvedDirectCodes = [
   '37731','38075','41278','41807','41814','58129','35236','38510'
 ];
 
+const splitSqlValues = (line: string) => {
+  const raw = line.trim().slice(1, line.lastIndexOf(')'));
+  const fields: string[] = [];
+  let current = '';
+  let inQuote = false;
+  for (const char of raw) {
+    if (char === "'") {
+      inQuote = !inQuote;
+      current += char;
+    } else if (char === ',' && !inQuote) {
+      fields.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  fields.push(current.trim());
+  return fields.map((value) => value === 'null'
+    ? null
+    : value.startsWith("'") && value.endsWith("'")
+      ? value.slice(1, -1)
+      : value);
+};
+
 const readReviewedLists = async (migration: string, menuCorrection: string) => {
   const mappingEnd = ')' + String.fromCharCode(10) + 'update public.catalog_family_menu_assignments';
   const mappingBlock = migration
@@ -24,19 +48,8 @@ const readReviewedLists = async (migration: string, menuCorrection: string) => {
     .map((line) => line.trim())
     .filter((line) => line.startsWith("('"))
     .map((line) => {
-      const raw = line.slice(1, line.lastIndexOf(')'));
-      const parts = raw.split("','");
-      parts[0] = parts[0].slice(1);
-      if (parts[parts.length - 1].endsWith("'")) {
-        parts[parts.length - 1] = parts[parts.length - 1].slice(0, -1);
-      }
-      return {
-        code: parts[0],
-        categorySlug: parts[1],
-        categoryName: parts[2],
-        submenu: parts[3],
-        leaf: parts[4] === 'null' ? null : parts[4],
-      };
+      const [code, categorySlug, categoryName, submenu, leaf] = splitSqlValues(line);
+      return { code, categorySlug, categoryName, submenu, leaf };
     });
 
   const preconditionBlock = migration.split('do $$')[1].split('end $$')[0];
@@ -52,7 +65,7 @@ const readReviewedLists = async (migration: string, menuCorrection: string) => {
   const staleCodes = [...new Set(staleBlock.split(String.fromCharCode(10))
     .map((line) => line.trim())
     .filter((line) => line.startsWith("('"))
-    .map((line) => line.slice(2).split("','")[0]))];
+    .map((line) => splitSqlValues(line)[0] as string))];
 
   const directBlock = migration.split('-- Direct SKU: XPC is a narrow V-belt')[1].split('do $$')[0];
   const directCodes = [...new Set(directBlock.split("'")
