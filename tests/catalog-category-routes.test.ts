@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import express from 'express';
+import { registerCategorySeoRoutes } from '../server/categorySeoRoutes';
 import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../src/data/approvedMenuFallback';
 import { APPROVED_CATEGORY_SEO_ROUTES, getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug } from '../src/data/categorySeoRoutes';
 
@@ -95,4 +97,36 @@ test('database migration assigns all approved categories their own route and saf
   assert.match(migration, /catalog_family_menu_assignments/);
   assert.match(migration, /catalog_direct_skus/);
   assert.match(migration, /RAISE EXCEPTION/);
+});
+
+test('production SEO routes issue permanent redirects and expose all approved URLs in sitemap and robots', async () => {
+  const app = express();
+  registerCategorySeoRoutes(app);
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise<void>(resolve => server.once('listening', resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === 'object');
+  const origin = `http://127.0.0.1:${address.port}`;
+  try {
+    const oldId = await fetch(origin + '/category/excel-v2-1-1', { redirect: 'manual' });
+    assert.equal(oldId.status, 301);
+    assert.equal(oldId.headers.get('location'), '/category/' + encodeURIComponent('تسمه-تایمینگ-صنعتی'));
+
+    const oldParent = await fetch(origin + '/category/' + encodeURIComponent('تسمه-و-انتقال-نیرو'), { redirect: 'manual' });
+    assert.equal(oldParent.status, 301);
+    assert.equal(oldParent.headers.get('location'), '/categories?group=excel-v2-1');
+
+    const sitemap = await fetch(origin + '/sitemap.xml');
+    assert.equal(sitemap.status, 200);
+    const xml = await sitemap.text();
+    assert.equal((xml.match(/<url>/g) || []).length, 42);
+    assert.ok(xml.includes(encodeURIComponent('تسمه-تایمینگ-صنعتی')));
+    assert.ok(xml.includes(encodeURIComponent('اسکاج-صنعتی')));
+
+    const robots = await fetch(origin + '/robots.txt');
+    assert.equal(robots.status, 200);
+    assert.match(await robots.text(), /Sitemap: https:\/\/sanatpish\.com\/sitemap\.xml/);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
 });
