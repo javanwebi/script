@@ -58,11 +58,12 @@ test('catalog identity compatibility migration adds JSONB fields idempotently wi
 });
 
 test('production deploy applies catalog identity schema before the private canary and keeps diagnostics useful', async () => {
-  const [deploy, baseline, canary, api] = await Promise.all([
+  const [deploy, baseline, canary, api, resolver] = await Promise.all([
     readFile('ops/deploy-single-port-vps.sh', 'utf8'),
     readFile('supabase/adopted/baseline/user_supplied_master.sql', 'utf8'),
     readFile('ops/verify-single-port-canary.mjs', 'utf8'),
     readFile('server/catalogNavigationApi.ts', 'utf8'),
+    readFile('src/services/catalogTaxonomyResolver.ts', 'utf8'),
   ]);
 
   const migration = deploy.indexOf('20261116010000_catalog_identity_specs_compat.sql');
@@ -81,4 +82,8 @@ test('production deploy applies catalog identity schema before the private canar
   assert.match(api, /stage='family_resolution'/);
   assert.match(api, /Catalog menu category failure/,
     'category failures must identify whether the database query or resolver stage failed');
+  assert.match(resolver, /getStaticFamilyCodesForCategory/);
+  assert.match(api, /getStaticFamilyCodesForCategory\(slug\)/);
+  assert.match(api, /a\.category_slug=\$1 or f\.code=any\(\$2::text\[\]\)/,
+    'category requests must aggregate only database-assigned or audited static families for the requested category');
 });
