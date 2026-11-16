@@ -220,6 +220,7 @@ test("industrial belt PFAM reconciliation is guarded by the active production ca
   assert.match(one, /active_fam/);
   assert.match(one, /PRODUCTION_CATALOG_FAMILY_LINEAGE/);
   assert.match(one, /activePfam===0&&activeFam>0/);
+  assert.match(one, /if\(activeFam>0\)throw Error\("Mixed active FAM\/PFAM family lineage; refusing to apply PFAM-only belt taxonomy follow-up"\);/);
   assert.match(one, /PRODUCTION_BELT_PFAM_FOLLOWUP_SKIPPED reason=legacy_fam_catalog/);
   assert.match(one, /PRODUCTION_BELT_DIRECT_SKU_FOLLOWUP_DEFERRED/);
   assert.match(one, /PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138/);
@@ -228,8 +229,11 @@ test("industrial belt PFAM reconciliation is guarded by the active production ca
   assert.match(one, /count\(\*\)::int as rows from internal\.catalog_belt_taxonomy_followup_backup_20261116/);
   const lineage = one.indexOf("PRODUCTION_CATALOG_FAMILY_LINEAGE");
   const skip = one.indexOf("PRODUCTION_BELT_PFAM_FOLLOWUP_SKIPPED");
+  const mixed = one.indexOf("if(activeFam>0)throw Error");
   const apply = one.indexOf("await database().query(sql)", lineage);
-  assert.ok(lineage >= 0 && skip > lineage && apply > skip, "legacy FAM-only catalogs must skip the PFAM SQL before execution");
+  const alreadyApplied = one.indexOf("PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED", lineage);
+  assert.ok(lineage >= 0 && skip > lineage && mixed > skip && apply > mixed && alreadyApplied > mixed,
+    "legacy FAM-only catalogs skip PFAM SQL, while mixed FAM/PFAM catalogs fail closed before execution");
   const sku = one.indexOf('===== APPLY SOURCE-VERIFIED SKU-LEVEL MENU ASSIGNMENTS =====');
   const belt = one.indexOf('===== APPLY GUARDED INDUSTRIAL BELT TAXONOMY RECONCILIATION =====');
   const customer360 = one.indexOf('===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA =====');
