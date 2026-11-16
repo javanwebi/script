@@ -21,7 +21,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { flattenCategoryNodes, getCategoryRouteSlug } from '../data/categories';
+import { flattenCategoryNodes, getCategoryRoutePath } from '../data/categories';
 import type { EnhancedCategory } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { STORE_ASSETS } from '../assets/images';
@@ -150,9 +150,9 @@ const categoryDescription = (category: EnhancedCategory) => {
 };
 
 const categoryHref = (category: Pick<EnhancedCategory, 'slug' | 'routeSlug'>, subcategory?: string) => {
-  const path = '/category/' + encodeURIComponent(getCategoryRouteSlug(category));
+  const path = getCategoryRoutePath(category.slug);
   if (!subcategory) return path;
-  return path + '?' + new URLSearchParams({ sub: subcategory }).toString();
+  return path + (path.includes('?') ? '&' : '?') + new URLSearchParams({ sub: subcategory }).toString();
 };
 
 export const AllCategoriesPage: React.FC = () => {
