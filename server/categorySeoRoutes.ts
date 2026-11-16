@@ -9,22 +9,48 @@ import {
 
 const siteOrigin = () => SANAT_PISH_CANONICAL_ORIGIN;
 
+const INDUSTRY_ROUTE_ALIASES: Readonly<Record<string, string>> = {
+  'ceramic-tile': 'ceramic',
+  'tile-ceramic': 'ceramic',
+  'ceramic-tiles': 'ceramic',
+  'textile-machinery': 'textile',
+  'packaging-carton': 'packaging',
+  'food-beverage': 'food',
+  'machinery-equipment': 'machinery',
+  'rubber-plastics': 'rubber',
+};
+
+const querySuffix = (originalUrl: string): string => {
+  const queryIndex = originalUrl.indexOf('?');
+  return queryIndex >= 0 ? originalUrl.slice(queryIndex) : '';
+};
+
 /** Register crawlable canonical category URLs, permanent legacy redirects and the category sitemap. */
 export const registerCategorySeoRoutes = (app: Express): void => {
   app.get('/category/:slug', (req, res, next) => {
     const slug = String(req.params.slug || '');
+    const industryTarget = INDUSTRY_ROUTE_ALIASES[slug];
+    if (industryTarget) return res.redirect(301, '/industries/' + industryTarget + querySuffix(req.originalUrl));
     const internalSlug = getInternalCategorySlugFromRouteSlug(slug);
     if (internalSlug) {
       const canonicalSlug = getCategorySeoRouteSlug(internalSlug);
       if (slug === canonicalSlug) return next();
-      const queryIndex = req.originalUrl.indexOf('?');
-      const query = queryIndex >= 0 ? req.originalUrl.slice(queryIndex) : '';
-      return res.redirect(301, '/category/' + encodeURIComponent(canonicalSlug) + query);
+      return res.redirect(301, '/category/' + encodeURIComponent(canonicalSlug) + querySuffix(req.originalUrl));
     }
 
     if (Object.prototype.hasOwnProperty.call(LEGACY_CATEGORY_ROUTE_GROUPS, slug)) {
       const group = LEGACY_CATEGORY_ROUTE_GROUPS[slug];
       return res.redirect(301, group ? '/categories?group=' + encodeURIComponent(group) : '/categories');
+    }
+    return next();
+  });
+
+  app.get(['/industry/:slug', '/industries/:slug'], (req, res, next) => {
+    const slug = String(req.params.slug || '');
+    const canonicalSlug = INDUSTRY_ROUTE_ALIASES[slug] || slug;
+    const isLegacySingularPath = req.path.startsWith('/industry/');
+    if (canonicalSlug !== slug || isLegacySingularPath) {
+      return res.redirect(301, '/industries/' + encodeURIComponent(canonicalSlug) + querySuffix(req.originalUrl));
     }
     return next();
   });
