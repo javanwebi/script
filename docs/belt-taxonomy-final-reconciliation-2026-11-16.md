@@ -48,8 +48,22 @@ The production database already contains the PVC conveyor surface split: four di
 - `ops/sql/20261116_belt_family_taxonomy_followup.sql` contains the 31 reviewed family mappings, the 22-family quarantine, the 18 stale-metadata cleanup, and direct-SKU parent assignments.
 - Before changing rows, it snapshots 71 family rows, 32 menu-assignment rows, and 35 direct-SKU rows into a private RLS-enabled backup table.
 - `ops/sql/20261116_belt_family_taxonomy_followup_rollback.sql` restores those exact fields from that snapshot and retains the backup.
-- `ops/deploy-single-port-vps.sh` applies the guarded SQL after the earlier source-verified SKU corrections. It is idempotent: later deploys skip the migration only when the private backup marker exists with all 138 rows.
+- `ops/deploy-single-port-vps.sh` applies the guarded SQL after the earlier source-verified SKU corrections only when the production database contains the reviewed active `PFAM-*` family baseline. A legacy `FAM-*`-only catalog is detected and the PFAM-only family migration is skipped without touching its rows; the bundled direct-SKU follow-up is deferred for a separate FAM-specific review. The 138-row private backup remains the idempotency marker when the PFAM migration is applicable.
 - PGlite integration coverage verifies forward migration, SKU/commercial-row preservation, backup protection, and exact rollback.
 - The single-port deploy regression verifies that this one-time migration runs in the correct deployment order and cannot be silently skipped with an incomplete backup.
 
-**Production status:** this final follow-up is prepared for review and is not yet applied. After PR merge, run `sudo sanatpish-deploy-main`. The pinned deployment script applies the SQL migration once, validates its backup marker, and only then proceeds with canary/promotion. If a manual rollback is ever required, use `ops/sql/20261116_belt_family_taxonomy_followup_rollback.sql` after reviewing the incident and backup.
+## 2026-11-17 engineering correction layer
+
+The follow-on engineering migration is applied after the 2026-11-16 menu reconciliation and is independently snapshotted for rollback:
+
+- 103 crowned CRC/TRC variants are separated from the 121 heat-welded PU round-belt variants. The ridge-top application is documented; the exact CRC/TRC compound, cord, dimensions and formal standard remain explicitly unverified.
+- 15 banded V-belt variants are assigned the separate Banded / Powerband family type and removed from single-belt leaves.
+- 31 American wedge variants (3V/5V/8V and VX cogged variants) are separated from metric narrow wedge profiles.
+- 139 SWR XPZ/XPA/XPB/XPC variants are identified as raw-edge cogged; series-level catalogue evidence is retained without claiming exact local SKU/length verification. XPZ is assigned to the approved cogged leaf.
+- Four AA variants (two SWR and two generic) are identified as Double-V / hexagonal AA using the published AA section definition and DIN 7722 / ISO 5289 reference. The generic items do not inherit SWR-specific evidence.
+- 14 direct SKU menu paths are reconciled.
+- The migration snapshots 292 variant rows, 19 family rows, 8 menu assignments and 14 direct-SKU rows. Its paired rollback restores those exact rows and fields.
+
+The deploy script runs this engineering layer only after the 2026-11-16 PFAM taxonomy follow-up. It skips a legacy FAM-only production database and fails closed on mixed FAM/PFAM lineage.
+
+**Production status:** the 2026-11-16 taxonomy follow-up and 2026-11-17 engineering correction are prepared for review and are not yet applied. After PR merge, run `sudo sanatpish-deploy-main`. The pinned deployment script applies the 2026-11-16 reconciliation first, then the 2026-11-17 engineering layer, validates both private backup markers, and only then proceeds with canary/promotion. If a manual rollback is ever required, use the matching rollback SQL only after reviewing the incident and exact backup counts.
