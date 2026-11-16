@@ -1,3 +1,4 @@
+import { resolveManufacturerSeriesEvidence } from './beltManufacturerEvidence';
 import type { Product, ProductVariant } from '../types';
 
 export type BeltConfidenceLevel =
@@ -2702,17 +2703,16 @@ function buildNonBeltRecord(
 }
 
 interface ResearchedSkuProvenanceEntry {
-  manufacturer: string;
+  manufacturer: string | null;
   exactManufacturerMatch: boolean;
   sourceUrl: string;
   documentType: VerificationDocumentType;
   basis: string;
 }
 
-const BANDO_SYNCHRO_LINK_PDF = 'https://www.bandousa.com/wp-content/uploads/bu_synchro_link_catalog.pdf';
-const MEGADYNE_TNX_URL = 'https://www.megadynegroup.com/en/products/polyurethane-belts';
-const MEGADYNE_SILVER_URL = 'https://www.megadynegroup.com/en/products/rubber-timing-belts';
-const OPTIBELT_ZRK_CATALOG_URL = 'https://www.optibelt.com/en/products/timing-belts/';
+const BANDO_SYNCHRO_LINK_PDF = 'https://www.bandousa.com/media/uploads/0/114_BUI-1009_Industrial-Power-Transmission-Products-catalog-Vol-2_9-17.pdf';
+const OPTIBELT_ZRK_CATALOG_URL = 'https://www.optibelt.com/fileadmin/pdf/kataloge/Optibelt-Power-Transmission-product-range-belts.pdf';
+const JIKIU_123RU24_URL = 'https://www.jikiu.jp/catalogue/557384';
 const OPTIBELT_TM_PDF_URL =
   'https://www.optibelt.com/fileadmin/pdf/produkte/zahnriemen-gummi/Optibelt-TM-Rubber-Timing-Belt-Drives.pdf';
 const MISUMI_H_URL =
@@ -2796,20 +2796,8 @@ const RESEARCHED_EXACT_SKU_DATASHEETS: Record<string, ResearchedSkuProvenanceEnt
     documentType: 'MANUFACTURER_DATASHEET',
     basis: 'تطبیق مستقیم آستین دوطرفه 800DH با دیتاشیت رسمی Bando Synchro-Link DH',
   },
-  '58129': {
-    manufacturer: 'MEGADYNE',
-    exactManufacturerMatch: true,
-    sourceUrl: MEGADYNE_TNX_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم تسمه چاپ کاشی Megadyne TNX Pluribelt 1270PJ8 در مستندات Megadyne',
-  },
-  '31501': {
-    manufacturer: 'OPTIBELT',
-    exactManufacturerMatch: true,
-    sourceUrl: OPTIBELT_ZRK_CATALOG_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم 108*17 برند OPTIBELT با Optibelt ZRK 1118 (108 دندانه × 17mm، طول 1029mm، گام 9.525mm)',
-  },
+
+
   '31502': {
     manufacturer: 'OPTIBELT',
     exactManufacturerMatch: false,
@@ -2838,40 +2826,17 @@ const RESEARCHED_EXACT_SKU_DATASHEETS: Record<string, ResearchedSkuProvenanceEnt
     documentType: 'NOMINAL_REFERENCE_TABLE',
     basis: 'تطبیق مرجع ابعادی 136*25 با Optibelt ZRK 1262 / ZRK 1538 (گام 9.525mm؛ تایید چاپ ZRK روی کاور در فاز 4 باقی است)',
   },
-  '31769': {
-    manufacturer: 'OPTIBELT',
-    exactManufacturerMatch: true,
-    sourceUrl: OPTIBELT_ZRK_CATALOG_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم Optibelt ZRK 1593 (طول مشخص 1305mm = 137 دندانه × 22mm، گام 9.525mm)',
-  },
-  '34722': {
-    manufacturer: 'OPTIBELT',
-    exactManufacturerMatch: true,
-    sourceUrl: OPTIBELT_ZRK_CATALOG_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم Optibelt ZRK 1182 / CT887 (127 دندانه × 25mm، طول 1210mm، گام 9.525mm)',
-  },
-  '35232': {
-    manufacturer: 'OPTIBELT',
-    exactManufacturerMatch: true,
-    sourceUrl: OPTIBELT_ZRK_CATALOG_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم Optibelt ZRK 1176 / Gates T232 (123 دندانه × 29mm، طول 1172mm، گام 9.525mm)',
-  },
-  '35023': {
-    manufacturer: 'OPTIBELT',
-    exactManufacturerMatch: true,
-    sourceUrl: OPTIBELT_ZRK_CATALOG_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم Optibelt ZRK 1459 / CT1039 / MD182295 (65 دندانه × 12.7mm، طول 520mm، گام 8.000mm)',
-  },
+
+
+
+
   '42209': {
-    manufacturer: 'MITSUBISHI',
+    manufacturer: null,
     exactManufacturerMatch: false,
-    sourceUrl: 'https://www.gates.com/us/en/power-transmission/synchronous-belts.html',
+    sourceUrl: JIKIU_123RU24_URL,
     documentType: 'NOMINAL_REFERENCE_TABLE',
-    basis: 'تطبیق مرجع ابعاد/کد اسمی لیفتراک 123RU24 با جدول معادل Mitsubishi MD154243 (برند SKU در انبار UNSPECIFIED است)',
+    basis:
+      'JIKIU catalogue entry confirms the 123RU24 designation and nominal geometry (123 teeth, RU profile, 24 mm width, 9.525 mm pitch) and cross-references Mitsubishi MD154243 / Gates T204. The source is a cross-reference only: the stock SKU has no verified manufacturer label, so neither JIKIU nor Mitsubishi is assigned as its brand.',
   },
 };
 
@@ -3059,49 +3024,31 @@ function resolveProvenanceAndConfidence(
     };
   }
 
-  // Strict re-evaluation of SERIES_VERIFIED:
-  // Only SKUs carrying an explicit verified commercial series name in the SKU string (Megadyne TNX or Megadyne Silver)
-  // belong in SERIES_VERIFIED — and still with officialManufacturerSiteChecked = false & datasheetOrCatalogChecked = false
-  // because individual SKU sheets were not verified. Generic major-brand algorithmic regex SKUs stay ALGORITHMIC_STANDARD_ONLY.
-  const upperOrig = normalize(rec.originalName).toUpperCase();
-  if (rec.detectedBrand === 'MEGADYNE' && /\bTNX\b/.test(upperOrig)) {
-    return {
-      confidence: 'SERIES_VERIFIED',
-      verification: {
-        tier: 'BRAND_SERIES_AND_ISO_STANDARD',
-        evidenceClass7: '4_Brand_Series_Identified',
-        processedBySoftwareCode: true,
-        extractedFromDatabase: true,
-        manufacturerCodeIdentified: hasIdentifiedCode,
-        officialManufacturerSiteChecked: false,
-        datasheetOrCatalogChecked: false,
-        matchedAgainstReliableSource: true,
-        familyConfirmedByEvidence: true,
-        sourceUrl: MEGADYNE_TNX_URL,
-        documentType: 'SERIES_CATALOG',
-        matchedManufacturer: 'MEGADYNE',
-        evidenceBasis: `سری تجاری صریح Megadyne TNX در متن کالا + استاندارد ${rec.technical.standardReference} (استعلام تک‌تک سایزها روی سایت سازنده انجام نشده است)`,
-      },
-    };
-  }
 
-  if (rec.detectedBrand === 'MEGADYNE' && /\bSILVER\b/.test(upperOrig)) {
+  const seriesEvidence = resolveManufacturerSeriesEvidence({
+    sku: rec.sku,
+    manufacturer: rec.detectedBrand,
+    division: rec.technical.beltDivision,
+    profile: rec.technical.profile,
+    originalName: rec.originalName,
+  });
+  if (seriesEvidence) {
     return {
       confidence: 'SERIES_VERIFIED',
       verification: {
         tier: 'BRAND_SERIES_AND_ISO_STANDARD',
-        evidenceClass7: '4_Brand_Series_Identified',
+        evidenceClass7: '2_Official_Catalog_Verified',
         processedBySoftwareCode: true,
         extractedFromDatabase: true,
         manufacturerCodeIdentified: hasIdentifiedCode,
-        officialManufacturerSiteChecked: false,
-        datasheetOrCatalogChecked: false,
+        officialManufacturerSiteChecked: true,
+        datasheetOrCatalogChecked: true,
         matchedAgainstReliableSource: true,
         familyConfirmedByEvidence: true,
-        sourceUrl: MEGADYNE_SILVER_URL,
+        sourceUrl: seriesEvidence.sourceUrl,
         documentType: 'SERIES_CATALOG',
-        matchedManufacturer: 'MEGADYNE',
-        evidenceBasis: `سری تجاری صریح Megadyne RPP Silver در متن کالا + استاندارد ${rec.technical.standardReference} (استعلام تک‌تک سایزها روی سایت سازنده انجام نشده است)`,
+        matchedManufacturer: seriesEvidence.manufacturer,
+        evidenceBasis: seriesEvidence.evidenceBasis,
       },
     };
   }
@@ -3172,6 +3119,13 @@ export function classifyBeltSkuWithProvenance(
   const resolved = resolveProvenanceAndConfidence(rec, refs);
   rec.confidence = resolved.confidence;
   rec.verification = resolved.verification;
+  const sourceUrls = rec.verification.sourceUrl
+    .split('|')
+    .map((url) => url.trim())
+    .filter((url) => /^https?:\/\//i.test(url));
+  rec.technical.manufacturerSources = [
+    ...new Set([...(rec.technical.manufacturerSources ?? []), ...sourceUrls]),
+  ];
   return rec;
 }
 
