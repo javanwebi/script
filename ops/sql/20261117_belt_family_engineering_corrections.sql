@@ -176,7 +176,8 @@ SELECT 'catalog_categories',c.slug,to_jsonb(c)
 FROM public.catalog_categories c
 WHERE c.slug IN ('excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4','تسمه-و-انتقال-نیرو');
 
-DO $
+DO $$
+
 BEGIN
   IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_variants') <> 292 THEN
     RAISE EXCEPTION 'Backup failed: expected 292 catalog variant rows';
@@ -193,7 +194,7 @@ BEGIN
   IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_categories') <> 5 THEN
     RAISE EXCEPTION 'Backup failed: expected 5 category route rows';
   END IF;
-END $;
+END $$;
 
 -- 1) CRC is not one family type: crowned ridge-top CRC is separate from welded PU round CRC.
 UPDATE public.catalog_variants
