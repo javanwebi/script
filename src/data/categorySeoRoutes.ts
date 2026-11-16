@@ -113,7 +113,6 @@ export const LEGACY_CATEGORY_ROUTE_GROUPS: Readonly<Record<string, string | null
   'pumps-valves-mechanical': 'excel-v2-9',
   'impellers-pumps': 'excel-v2-9',
   'production-ceramic-equipment': 'excel-v2-10',
-  'ceramic-tiles': 'excel-v2-10',
   'kiln-roller-pins': 'excel-v2-10',
   'stacker-conveyor-parts': 'excel-v2-10',
   'brushes-filtration-tools': 'excel-v2-5',
