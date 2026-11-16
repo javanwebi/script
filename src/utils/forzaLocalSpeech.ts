@@ -46,7 +46,7 @@ export interface LocalRecognizer {
   remove?():void;
 }
 export interface LocalSttModel {
-  KaldiRecognizer:new(sampleRate?:number)=>LocalRecognizer;
+  KaldiRecognizer:new(sampleRate:number)=>LocalRecognizer;
   terminate?():void;
 }
 type BrowserVosk={createModel(url:string):Promise<LocalSttModel>};
