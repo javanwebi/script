@@ -3381,9 +3381,11 @@ export function runPhase1CatalogReconstruction(
       member.familyMemberCodes = memberCodes;
       member.splitFromMixedFamily = (sourceFamToTargetKeys.get(member.currentFamily)?.size || 0) > 1;
       member.mergedFromFragmentedFamilies = isMerged;
-      member.requiredAction = member.misplacedInSourceCategory
-        ? 'RECLASSIFY_CATEGORY_AND_ASSIGN_FAMILY'
-        : 'READY_FOR_MIGRATION_AS_FAMILY';
+      member.requiredAction = member.verificationStatus === 'REQUIRES_PHYSICAL_VERIFICATION'
+        ? 'WAREHOUSE_PHYSICAL_INSPECTION_REQUIRED'
+        : member.misplacedInSourceCategory
+          ? 'RECLASSIFY_CATEGORY_AND_ASSIGN_FAMILY'
+          : 'READY_FOR_MIGRATION_AS_FAMILY';
     }
 
     // Determine best evidence level across members
