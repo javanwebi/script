@@ -2710,7 +2710,6 @@ interface ResearchedSkuProvenanceEntry {
   basis: string;
 }
 
-const BANDO_SYNCHRO_LINK_PDF = 'https://www.bandousa.com/media/uploads/0/114_BUI-1009_Industrial-Power-Transmission-Products-catalog-Vol-2_9-17.pdf';
 const OPTIBELT_ZRK_CATALOG_URL = 'https://www.optibelt.com/fileadmin/pdf/produkte/keilriemen/Optibelt-product-range.pdf';
 const JIKIU_123RU24_URL = 'https://www.jikiu.jp/catalogue/557384';
 const OPTIBELT_TM_PDF_URL =
@@ -2718,84 +2717,18 @@ const OPTIBELT_TM_PDF_URL =
 const MISUMI_H_URL =
   'https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html';
 
-const RESEARCHED_EXACT_SKU_DATASHEETS: Record<string, ResearchedSkuProvenanceEntry> = {
-  '10538': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1400H100 با دیتاشیت رسمی Bando Synchro-Link H',
-  },
-  '36103': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1140H100 با دیتاشیت رسمی Bando Synchro-Link H',
-  },
-  '36468': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم آستین دوطرفه 1000DH با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '10111': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1400DH075 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '41291': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1400DH150 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '41598': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1000DH100 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '41689': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1250DH075 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '36636': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1100DH100 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '41322': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 950DH100 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '39994': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم آستین دوطرفه 1150DH با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '41349': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم آستین دوطرفه 800DH با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
+const RESEARCHED_SKU_EVIDENCE_OVERRIDES: Record<string, ResearchedSkuProvenanceEntry> = {
+
+
+
+
+
+
+
+
+
+
+
 
 
   '31502': {
@@ -2927,7 +2860,7 @@ function resolveProvenanceAndConfidence(
   // Strict rule: DATASHEET_VERIFIED ONLY when exact SKU matched against same manufacturer's datasheet
   if (
     exactEntry &&
-    exactEntry.exactManufacturerMatch &&
+    evidenceOverride.exactManufacturerMatch &&
     exactEntry.documentType === 'MANUFACTURER_DATASHEET' &&
     exactEntry.manufacturer === rec.detectedBrand
   ) {
@@ -2952,7 +2885,7 @@ function resolveProvenanceAndConfidence(
   }
 
   // Exact entry that is a dimensional/cross-reference match (e.g. 42209 UNSPECIFIED or ZRK sleeve check needed)
-  if (exactEntry) {
+  if (evidenceOverride) {
     return {
       confidence: 'NOMINAL_TABLE_VERIFIED',
       verification: {
