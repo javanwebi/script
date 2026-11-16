@@ -19,7 +19,7 @@ function wav(){
  ]});
  try{
   const page=await browser.newPage({permissions:['microphone'],viewport:{width:1180,height:750}});
-  const errors=[],queries=[],speech=[];
+  const errors=[],queries=[],requests=[],speech=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(()=>{
    Object.defineProperty(navigator,'hardwareConcurrency',{configurable:true,value:8});
@@ -75,7 +75,8 @@ function wav(){
     headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav()});
   });
   await page.route('**/api/ai/consult-stream',async route=>{
-   const query=route.request().postDataJSON().query;queries.push(query);
+   const request=route.request().postDataJSON();
+   const query=request.query;queries.push(query);requests.push(request);
    await page.evaluate(count=>{window.__forzaConsultRequestCount=count;},queries.length).catch(()=>{});
    const answer='برای انتخاب تسمه مناسب، کد فنی و ابعاد قطعه را بررسی می‌کنیم.';
    const frame=value=>'data: '+JSON.stringify(value)+'\\n\\n';
@@ -121,6 +122,16 @@ function wav(){
   assert.equal(queries.length,2,'second local Diba turn must also reach the AI');
   assert.ok(queries[0].includes('تسمه تایمینگ'));
   assert.ok(queries[1].includes('تسمه PU'));
+  const firstTurnInSecondHistory=requests[1].history.filter(item=>
+   item.role==='user'&&item.text===queries[0]);
+  assert.equal(firstTurnInSecondHistory.length,1,
+   'the previous customer turn must appear exactly once in the next model context');
+  assert.equal(requests[1].history.some(item=>
+   item.role==='user'&&item.text===queries[1]),false,
+   'the current customer turn must be sent separately, never duplicated in history');
+  assert.ok(requests[1].history.some(item=>
+   item.role==='model'&&item.text.includes('برای انتخاب تسمه مناسب')),
+   'the next turn must retain the assistant answer the customer actually heard');
   assert.equal(errors.length,0,errors.join('; '));
   console.log('PASS: same-origin local Diba streams Persian partials and recovers across two voice turns');
  }finally{await browser.close();}
