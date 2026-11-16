@@ -46,6 +46,8 @@ test('the Persian Diba browser recognizer is loaded from the same origin, never 
  const workflow=readFileSync('.github/workflows/verify-vps-build.yml','utf8');
  const canary=readFileSync('ops/verify-single-port-canary.mjs','utf8');
  assert.match(local,/FORZA_DIBA_MODEL_URL='\/forza-runtime\/stt\/diba-stt-fa-small-c244182d\.tar\.gz'/);
+ assert.match(local,/within\(modelPromise,90000,'diba_model_timeout',model=>model\.terminate\?\.\(\)\)/,
+  'a model worker resolving after its load timeout must be terminated');
  assert.doesNotMatch(local,/https:\/\/huggingface\.co/);
  assert.match(server,/app\.get\('\/forza-runtime\/stt\/diba-stt-fa-small-c244182d\.tar\.gz'/);
  assert.match(server,/FORZA_STT_DIBA_BROWSER_ARCHIVE/);
