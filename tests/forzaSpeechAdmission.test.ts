@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {ForzaSpeechAdmission,ForzaRecognitionAdmission} from '../src/utils/forzaSpeechAdmission';
 import {extractPersianSpeechSince} from '../src/utils/forzaSpeechPipeline';
 import {forzaTurnIntent} from '../src/utils/forzaBargeIn';
+import { ForzaVoiceActivity } from '../src/utils/forzaVoiceActivity';
 function calibrated(playback=false,noise=0.003){
  const gate=new ForzaSpeechAdmission();
  for(let t=0;t<=1000;t+=50)gate.sample(noise,t,playback);
@@ -183,6 +184,42 @@ test('a late final hypothesis preserves words already admitted as live interim t
  assert.equal(final.results[0].isFinal,true);
 });
 
+test('near-field admission survives short Persian word gaps but expires after sustained silence',()=>{
+ const gate=calibrated(false,0.001);
+ speak(gate,1050,1300,0.006);
+ for(let t=1350;t<=1450;t+=50)gate.sample(0.0005,t,false);
+ assert.equal(gate.acousticSpeech,false,'the immediate onset detector may reset during a word gap');
+ assert.equal(gate.hasRecentNearFieldEvidence(1450),true);
+ assert.equal(gate.decide('بلبرینگ 6203',false,false,1450),'accept',
+  'the already-admitted utterance must survive a short inter-word gap');
+ for(let t=1500;t<=1650;t+=50)gate.sample(0.0005,t,false);
+ assert.equal(gate.hasRecentNearFieldEvidence(1650),false);
+ assert.equal(gate.decide('صدای دور',false,false,1650),'reject',
+  'a stale near-field latch must not authorize a later speaker');
+});
+
+test('fresh near-field PCM resets the VAD endpoint before the full admission window',()=>{
+ const gate=calibrated(false,0.001);
+ const vad=new ForzaVoiceActivity();
+ for(let t=1050;t<=1300;t+=50){
+  gate.sample(0.006,t,false);
+  const evidence=gate.acousticSpeech||gate.hasRecentNearFieldEvidence(t);
+  vad.sample(0.006,t,evidence);
+ }
+ assert.equal(vad.heardSpeech,true);
+ for(let t=1350;t<=3700;t+=50){
+  gate.sample(0.0005,t,false);
+  const evidence=gate.acousticSpeech||gate.hasRecentNearFieldEvidence(t);
+  vad.sample(0.0005,t,evidence);
+ }
+ assert.ok(vad.silenceDuration(3700)>=2300);
+ gate.sample(0.006,3750,false);
+ assert.equal(gate.acousticSpeech,false,'the resumed syllable has not completed the full evidence window');
+ const resumed=vad.sample(0.006,3750,
+  gate.acousticSpeech||gate.hasRecentNearFieldEvidence(3750));
+ assert.equal(resumed.speaking,true);
+ assert.equal(resumed.silenceMs,0,'the pending endpoint must see resumed near-field PCM immediately');
+});
 test('ordinary speech at moderate mic gain remains admitted over an ambient floor',()=>{
  const gate=calibrated(false,0.003);
  speak(gate,1050,1450,0.006);
