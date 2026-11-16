@@ -283,7 +283,7 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
         [
           sku, 'direct ' + profile, brand, submenu, subcategory,
           specs([
-            ['پروفیل', profile], ['beltDivision', division],
+            ['پروفیل', profile], ['profile', profile], ['beltDivision', division],
             ['نوع محصول', 'تسمه V شکل پروفیل ' + profile],
             ['جنس و متریال', material], ['ساختار و مکانیزم', 'کورد پلی‌استر قدیمی'],
           ]),
