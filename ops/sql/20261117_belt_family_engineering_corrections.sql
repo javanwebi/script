@@ -234,11 +234,40 @@ WHERE f.code IN (
 );
 
 -- 2) Banded V-belts have a separate family type and must not sit in a single-belt leaf.
-UPDATE public.catalog_variants
+UPDATE public.catalog_variants v
 SET family_type_id='FT-VBELT-BANDED',
+    identity_specs=jsonb_set(
+      jsonb_set(
+        coalesce(v.identity_specs,'{}'::jsonb),
+        '{material}',
+        to_jsonb('بدنه لاستیکی با نوار پیونددهنده فوقانی (Tie-Band / Banded V-Belt); ترکیب دقیق لاستیک نیازمند دیتاشیت سازنده است'::text),
+        true
+      ),
+      '{construction}',
+      to_jsonb('چند شاخه V متصل به نوار پشتی مشترک؛ جنس و آرایش دقیق عضو کششی نیازمند دیتاشیت سازنده است'::text),
+      true
+    ),
+    technical_specs=(
+      SELECT coalesce(jsonb_agg(
+        CASE
+          WHEN e->>'key'='جنس و متریال' OR e->>'key'='material'
+            THEN jsonb_set(e,'{value}',to_jsonb('بدنه لاستیکی با نوار پیونددهنده فوقانی (Tie-Band / Banded V-Belt); ترکیب دقیق لاستیک نیازمند دیتاشیت سازنده است'::text),true)
+          WHEN e->>'key'='ساختار مهندسی' OR e->>'key'='ساختار و مکانیزم' OR e->>'key'='construction'
+            THEN jsonb_set(e,'{value}',to_jsonb('چند شاخه V متصل به نوار پشتی مشترک؛ جنس و آرایش دقیق عضو کششی نیازمند دیتاشیت سازنده است'::text),true)
+          ELSE e
+        END ORDER BY x.ord
+      ),'[]'::jsonb)
+      FROM jsonb_array_elements(coalesce(v.technical_specs,'[]'::jsonb)) WITH ORDINALITY AS x(e,ord)
+    ),
+    technical_review=jsonb_set(
+      coalesce(v.technical_review,'{}'::jsonb),
+      '{note}',
+      to_jsonb('ساختار Banded / Powerband از روی پروفیل و نوار پیونددهنده شناسایی شده است؛ ترکیب دقیق لاستیک و جنس/آرایش کورد بدون دیتاشیت سازنده تأیید نشده است.'::text),
+      true
+    ),
     proposed_leaf=NULL,
     updated_at=now()
-WHERE variable_specs->>'beltDivision'='vbelt-banded';
+WHERE v.variable_specs->>'beltDivision'='vbelt-banded';
 
 UPDATE public.catalog_families
 SET subcategory=NULL,
