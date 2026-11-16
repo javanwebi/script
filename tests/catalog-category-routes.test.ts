@@ -103,6 +103,7 @@ test('retired category parents no longer render old category experiences', () =>
   assert.match(routeMap, /'timing-belts': 'excel-v2-1'/);
   assert.match(routeMap, /'conveyors-industrial-chains': 'excel-v2-2'/);
   assert.match(routeMap, /'production-ceramic-equipment': 'excel-v2-10'/);
+  assert.doesNotMatch(routeMap, /'ceramic-tiles': 'excel-v2-10'/);
   assert.match(categoryPage, /<Navigate to=\{destination\} replace \/>/);
 });
 
@@ -168,6 +169,18 @@ test('production SEO routes issue permanent redirects and expose all approved UR
     const oldParentId = await fetch(origin + '/category/excel-v2-1', { redirect: 'manual' });
     assert.equal(oldParentId.status, 301);
     assert.equal(oldParentId.headers.get('location'), '/categories?group=excel-v2-1');
+
+    const oldIndustryCategory = await fetch(origin + '/category/ceramic-tiles', { redirect: 'manual' });
+    assert.equal(oldIndustryCategory.status, 301);
+    assert.equal(oldIndustryCategory.headers.get('location'), '/industries/ceramic');
+
+    const oldIndustryAlias = await fetch(origin + '/industry/ceramic-tile', { redirect: 'manual' });
+    assert.equal(oldIndustryAlias.status, 301);
+    assert.equal(oldIndustryAlias.headers.get('location'), '/industries/ceramic');
+
+    const oldPluralIndustryAlias = await fetch(origin + '/industries/tile-ceramic', { redirect: 'manual' });
+    assert.equal(oldPluralIndustryAlias.status, 301);
+    assert.equal(oldPluralIndustryAlias.headers.get('location'), '/industries/ceramic');
 
     const sitemap = await fetch(origin + '/sitemap.xml');
     assert.equal(sitemap.status, 200);
