@@ -5,6 +5,39 @@
  * Keeping it here silently bundled a second, unwanted voice engine.
  */
 export const FORZA_DIBA_MODEL_URL='/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz';
+export const FORZA_DIBA_SAMPLE_RATE=16000;
+
+/** Resample microphone PCM to the 16 kHz rate used by the Persian Vosk model.
+ * A short windowed-sinc low-pass prevents frequencies above the new Nyquist
+ * limit from aliasing into speech when browsers capture at 44.1/48 kHz.
+ */
+export function resampleDibaPcm(input:Float32Array,inputRate:number):Float32Array{
+  if(!Number.isFinite(inputRate)||inputRate<8000||!input.length)return new Float32Array(0);
+  if(inputRate===FORZA_DIBA_SAMPLE_RATE)return input.slice();
+  const ratio=inputRate/FORZA_DIBA_SAMPLE_RATE;
+  const outputLength=Math.max(1,Math.round(input.length/ratio));
+  const output=new Float32Array(outputLength);
+  const radius=12;
+  const cutoff=Math.min(1,FORZA_DIBA_SAMPLE_RATE/inputRate)*0.94;
+  for(let outIndex=0;outIndex<outputLength;outIndex++){
+    const center=outIndex*ratio;
+    const centerIndex=Math.floor(center);
+    let weighted=0,weightSum=0;
+    for(let inputIndex=Math.max(0,centerIndex-radius+1);
+        inputIndex<=Math.min(input.length-1,centerIndex+radius);inputIndex++){
+      const distance=center-inputIndex;
+      if(Math.abs(distance)>=radius)continue;
+      const phase=Math.PI*cutoff*distance;
+      const sinc=Math.abs(phase)<1e-8?1:Math.sin(phase)/phase;
+      const window=0.5+0.5*Math.cos(Math.PI*distance/radius);
+      const weight=cutoff*sinc*window;
+      weighted+=input[inputIndex]*weight;
+      weightSum+=weight;
+    }
+    output[outIndex]=weightSum!==0?weighted/weightSum:input[Math.min(input.length-1,Math.round(center))]||0;
+  }
+  return output;
+}
 const VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.js';
 
 export interface LocalRecognizer {
