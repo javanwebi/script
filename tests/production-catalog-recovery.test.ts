@@ -94,7 +94,7 @@ test('production deploy keeps unverified families out of the bulk seed and appli
  const skuCodes=skuBlocks.flatMap(block=>[...block[1].matchAll(/'(\d+)'/g)].map(match=>match[1]));
  assert.equal(skuCodes.length,305);
  assert.equal(new Set(skuCodes).size,305);
- assert.match(skuSql,/ON CONFLICT\(sku_code\) DO NOTHING/);
+ assert.match(skuSql,/ON CONFLICT\s*\(sku_code\)\s*DO NOTHING/);
  assert.match(skuSql,/BEGIN;/);
  assert.match(skuSql,/COMMIT;/);
  assert.doesNotMatch(skuSql,/^\s*(DROP\s+|TRUNCATE\s+|DELETE\s+FROM\s+|UPDATE\s+)/gim);
