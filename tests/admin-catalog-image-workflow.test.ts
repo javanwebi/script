@@ -41,12 +41,15 @@ test('direct SKU image links are loaded and refreshed in the audit list',async()
   const audit=await read('../src/admin/modules/ProductImageAudit.tsx');
   const assignments=await read('../src/data/imageAssignments.ts');
   const module=await read('../src/admin/modules/ProductsModule.tsx');
+  const navigation=await read('../server/catalogNavigationApi.ts');
   assert.match(audit,/fetch\('\/api\/catalog\/direct-skus'/);
   assert.match(audit,/catalog-direct-skus-updated/);
   assert.match(audit,/getImageAssignmentAudit\(products,records,directSkus\)/);
   assert.match(audit,/row\.directSkus/);
   assert.match(assignments,/directBindings/);
   assert.match(module,/catalog-direct-skus-updated/);
+  assert.match(navigation,/app\.post\('\/api\/catalog\/direct-skus'/);
+  assert.match(navigation,/insert into public\.catalog_direct_skus/);
 });
 
 test('production deploy gate runs admin catalog and image assignment regressions',async()=>{
