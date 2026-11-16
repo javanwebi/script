@@ -261,7 +261,7 @@ test('CC is parsed as a double-sided hexagonal V-belt using its standard section
 
 test('crowned CRC and banded V-belts do not invent rubber compounds, cords or standards', () => {
   const crc = classifyBelt('تسمه گرده ماهی CRC 300 GNR', 'لاستیک', 'حلقه', 'excel-v2-1-4', 'تسمه بارکش و تجهیزات جوشی');
-  assert.equal(crc.technical.beltDivision, 'vbelt-crowned-crc');
+  assert.equal(crc.technical.beltDivision, 'conveyor-crowned-crc');
   assert.match(crc.technical.standardReference, /تأیید نشده/);
   assert.match(crc.technical.bodyMaterial, /ترکیب دقیق نیازمند دیتاشیت/);
   assert.match(crc.technical.tensileCord, /نیازمند دیتاشیت/);
@@ -281,7 +281,7 @@ test('engineering family types keep crowned CRC, welded PU round, and banded V-b
     material: 'لاستیک',
     construction: 'crowned top',
     proposedCategorySlug: 'excel-v2-1-4',
-    engineeringSpecifications: { beltDivision: 'vbelt-crowned-crc', sidedness: 'single-sided' },
+    engineeringSpecifications: { beltDivision: 'conveyor-crowned-crc', sidedness: 'single-sided' },
   });
   const welded = resolveEngineeringFamilyType({
     productType: 'تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل CRC',
