@@ -1377,7 +1377,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         : `تسمه تایمینگ متریک پلی‌یورتان پروفیل ${profile} (${supplyForm === 'endless-loop' ? 'مداربسته' : 'کلاف متری'})`,
       technical: {
         operatingPrinciple: 'synchronous',
-        beltDivision: isRubber3M ? 'timing-curvilinear-rubber' : spec.sidedness === 'double-sided' ? 'timing-metric-double' : 'timing-metric-single',
+        beltDivision: isRubber3M ? 'timing-htd-rpp-single' : spec.sidedness === 'double-sided' ? 'timing-metric-double' : 'timing-metric-single',
         supplyForm,
         sidedness: spec.sidedness,
         profile,
