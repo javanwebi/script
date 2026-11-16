@@ -158,9 +158,9 @@ test('production SEO routes issue permanent redirects and expose all approved UR
     assert.equal(oldId.status, 301);
     assert.equal(oldId.headers.get('location'), '/category/' + encodeURIComponent('تسمه-تایمینگ-صنعتی') + '?sub=' + encodeURIComponent('پلی-یورتان'));
 
-    const oldParent = await fetch(origin + '/category/' + encodeURIComponent('تسمه-و-انتقال-نیرو'), { redirect: 'manual' });
+    const oldParent = await fetch(origin + '/category/' + encodeURIComponent('تسمه-و-انتقال-نیرو') + '?q=spa', { redirect: 'manual' });
     assert.equal(oldParent.status, 301);
-    assert.equal(oldParent.headers.get('location'), '/categories?group=excel-v2-1');
+    assert.equal(oldParent.headers.get('location'), '/categories?group=excel-v2-1&q=spa');
 
     const oldEnglishAlias = await fetch(origin + '/category/industrial-belts', { redirect: 'manual' });
     assert.equal(oldEnglishAlias.status, 301);
