@@ -1,7 +1,8 @@
 import type {Express,Request,Response} from 'express';
 import crypto from 'node:crypto';
 import {database,databaseEnabled} from './db/connection';
-import {getFamilyMenuAssignment} from '../src/services/catalogTaxonomyResolver';
+import {invalidatePublicCatalogCache} from './db/runtimeApi';
+import {getFamilyMenuAssignment,getStaticFamilyCodesForCategory} from '../src/services/catalogTaxonomyResolver';
 import {validateFamilyMenuAssignment} from '../src/data/catalogMenuSemanticGuard';
 import {getPortalIdentity} from '../api/portal';
 import {canStaff} from './db/staffPermissions';
@@ -198,8 +199,10 @@ export function registerCatalogNavigationApi(app:Express){
 
   // Read-only four-level menu taxonomy; original family categories remain untouched.
   app.get('/api/catalog/menu-category/:slug',async(req,res)=>{
+    let stage='category_lookup';
+    let slug='';
     try{
-      const slug=clean(req.params.slug,90);
+      slug=clean(req.params.slug,90);
       if(!/^excel-v2-[0-9]+-[0-9]+$/.test(slug))return res.status(404).json({success:false,message:'دسته موجود نیست.'});
       if(!databaseEnabled())return res.status(503).json({success:false,message:'پایگاه داده در دسترس نیست.'});
       const category=await database().query(
@@ -208,6 +211,8 @@ export function registerCatalogNavigationApi(app:Express){
          where c.slug=$1 and c.is_active=true and c.metadata->>'source'='industrial_megamenu_hierarchy_v2'
          limit 1`,[slug]);
       if(!category.rows.length)return res.status(404).json({success:false,message:'دسته موجود نیست.'});
+      stage='family_query';
+      const staticFamilyCodes=getStaticFamilyCodesForCategory(slug);
       const familyRows=await database().query(
         `select f.code,f.name,f.name as "familyName",coalesce(f.brand,'') as brand,
            coalesce(identity.product_type,f.name) as "productType",
@@ -229,7 +234,9 @@ export function registerCatalogNavigationApi(app:Express){
              from public.catalog_variants v where v.family_code=f.code and v.active=true
           ) identity on true
           where f.is_active=true and f.is_deleted=false
-          order by f.name,f.code limit 10000`);
+            and (a.category_slug=$1 or f.code=any($2::text[]))
+          order by f.name,f.code limit 10000`,[slug,staticFamilyCodes]);
+      stage='family_resolution';
       const families=familyRows.rows.flatMap((row)=>{
         const assignment=resolveFamilyMenuAssignment(row);
         if(!assignment||assignment.categorySlug!==slug)return [];
@@ -245,7 +252,10 @@ export function registerCatalogNavigationApi(app:Express){
         slug:record.slug,name:record.name,description:record.description||'',
         image:record.image||null,children:Array.isArray(record.metadata?.children)?record.metadata.children:[]
       },families});
-    }catch(error){return fail(res,error);}
+    }catch(error){
+      console.error('[Catalog menu category failure]',{slug,stage});
+      return fail(res,error);
+    }
   });
 
 
@@ -433,6 +443,7 @@ export function registerCatalogNavigationApi(app:Express){
   });
 
   app.get('/api/catalog/direct-skus',async(req,res)=>{
+    res.setHeader('Cache-Control','no-store');
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,items:[]});
       const withInactive=req.query.includeInactive==='1'&&canStaff(await getPortalIdentity(req),'products');
@@ -489,7 +500,9 @@ export function registerCatalogNavigationApi(app:Express){
         submenu=excluded.submenu,subcategory=excluded.subcategory,image_url=excluded.image_url,
         technical_specs=excluded.technical_specs,price_snapshot=excluded.price_snapshot,is_active=true,updated_at=now()`,
         [skuCode,name,categorySlug,cat.rows[0].name,submenu,subcategory,brand,selectedImage,JSON.stringify(specs),JSON.stringify(prices),original.family_code||original.source_family_code||null]);
-      return res.json({success:true,skuCode,categorySlug});
+      invalidatePublicCatalogCache();
+      res.setHeader('Cache-Control','no-store');
+      return res.json({success:true,skuCode,categorySlug,imageUrl:selectedImage});
     }catch(error){return fail(res,error);}
   });
 }
