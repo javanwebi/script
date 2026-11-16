@@ -2244,9 +2244,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     stream?.getTracks().forEach(track=>{track.onended=null;track.stop();});
     audioEvidenceCleanupRef.current?.();audioEvidenceCleanupRef.current=null;
     speechAdmissionRef.current.reset();
-    localSttRecognizerRef.current?.remove?.();localSttRecognizerRef.current=null;
-    localSttModelRef.current?.terminate?.();localSttModelRef.current=null;
+    const localRecognizer=localSttRecognizerRef.current;localSttRecognizerRef.current=null;
+    try{localRecognizer?.remove?.();}catch{}
+    const localModel=localSttModelRef.current;localSttModelRef.current=null;
     localSttModelLoadingRef.current=false;
+    try{localModel?.terminate?.();}catch{}
     for(const node of [localSttNodeRef.current,localSttSinkRef.current,
       micSourceNodeRef.current,micAnalyserRef.current,audioSourceNodeRef.current,
       analyserRef.current,gainNodeRef.current]){
