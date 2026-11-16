@@ -36,6 +36,9 @@ export function validateFamilyMenuAssignment(
   const identity = [productType, familyName, profile].filter(Boolean).join(' ');
 
   const fail = (reason: string): FamilyMenuSemanticValidation => ({ valid: false, reason });
+  if (productType === 'mixed' || material === 'mixed' || profile === 'mixed') {
+    return fail('family_contains_mixed_technical_identity');
+  }
 
   // Wheels must contain a wheel, gear or sprocket identity. Couplings transmit torque
   // between shafts but are not wheels, even when a source family was named incorrectly.
