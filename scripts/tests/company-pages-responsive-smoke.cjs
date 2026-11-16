@@ -6,7 +6,7 @@ const out = process.env.SCREENSHOT_DIR || "/tmp";
 const base = process.env.PREVIEW_URL || "http://127.0.0.1:4173";
 
 const pages = [
-  { path: "/about", selector: ".company-page--about .sp-about-hero", heading: /بازار تخصصی قطعات صنعتی با پشتوانه اطلس/ },
+  { path: "/about", selector: "#about", heading: /تأمین قطعات صنعتی/ },
   { path: "/services", selector: ".company-page--services", heading: /از شناخت قطعه تا/ },
   { path: "/industries", selector: ".company-page--industries", heading: /هر صنعت، نیاز فنی خودش را دارد/ },
   { path: "/industries/textile", selector: ".textile-page .textile-hero", heading: /نساجی/ },
