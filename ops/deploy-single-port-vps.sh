@@ -224,7 +224,7 @@ docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memor
  -e npm_config_maxsockets=4 \
  -e npm_config_fetch_retries=2 \
  -e npm_config_fetch_retry_maxtimeout=60000 \
- node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm run lint && node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts && npm run build' 2>&1 | tee "$BUILD_LOG"
+ node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm run lint && npm run test:portal && node --import tsx --test tests/admin-catalog-image-workflow.test.ts tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/image-assignments.test.ts tests/catalog-menu-assignment-audit.test.ts && npm run build' 2>&1 | tee "$BUILD_LOG"
 test -s "$STAGE/dist/index.html"
 
 echo '===== VERIFY / BUILD PINNED DIBA STT RUNTIME IMAGE ====='
@@ -374,6 +374,36 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
   process.exitCode=1;
  }finally{await closeDatabase()}
 ' < "$SKU_MENU_SQL"
+
+echo '===== APPLY GUARDED INDUSTRIAL BELT TAXONOMY RECONCILIATION ====='
+BELT_TAXONOMY_SQL="$STAGE/ops/sql/20261116_belt_family_taxonomy_followup.sql"
+test -s "$BELT_TAXONOMY_SQL" || { echo "REQUIRED_BELT_TAXONOMY_SQL_MISSING=$BELT_TAXONOMY_SQL"; exit 1; }
+# This is a one-time data migration. The private 138-row backup is its durable
+# completion marker; subsequent deploys verify it and never re-run the DELETE/UPDATE.
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+ import {readFileSync} from "node:fs";
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const sql=readFileSync(0,"utf8");
+  const marker=await database().query(
+   "select to_regclass(\x27internal.catalog_belt_taxonomy_followup_backup_20261116\x27) as backup");
+  if(marker.rows[0].backup){
+   const existing=await database().query(
+    "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
+   if(Number(existing.rows[0].rows)!==138)throw Error("Existing belt taxonomy backup is incomplete; refusing to continue");
+   console.log("PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138");
+  }else{
+   await database().query(sql);
+   const applied=await database().query(
+    "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
+   if(Number(applied.rows[0].rows)!==138)throw Error("Belt taxonomy migration did not create its complete 138-row backup");
+   console.log("PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138");
+  }
+ }catch(error){
+  console.error("PRODUCTION_BELT_TAXONOMY_MIGRATION_FAILED",error.code||"",error.message);
+  process.exitCode=1;
+ }finally{await closeDatabase()}
+' < "$BELT_TAXONOMY_SQL"
 
 echo '===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA ====='
 for MIGRATION in \
