@@ -232,6 +232,19 @@ test('belt taxonomy follow-up quarantines non-belt families, preserves every SKU
       [mappingRows.map((row) => row.code)]
     );
     assert.equal(mapped.rows[0].count, 31);
+    for (const row of mappingRows) {
+      const actual = await db.query<{ category_slug: string; submenu_name: string; leaf_name: string | null; method: string }>(
+        `select category_slug,submenu_name,leaf_name,method
+         from public.catalog_family_menu_assignments where family_code=$1`,
+        [row.code]
+      );
+      assert.deepEqual(actual.rows[0], {
+        category_slug: row.categorySlug,
+        submenu_name: row.submenu,
+        leaf_name: row.leaf,
+        method: 'engineering_audited',
+      });
+    }
 
     const apl = await db.query<{ assignments: number; category: string }>(
       `select
