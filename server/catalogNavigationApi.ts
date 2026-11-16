@@ -351,7 +351,7 @@ export function registerCatalogNavigationApi(app:Express){
       if(!familyCode||!/^excel-v2-[0-9]+-[0-9]+$/.test(categorySlug))
         return res.status(400).json({success:false,message:'خانواده و دسته مقصد معتبر لازم است.'});
       const category=await database().query(
-        `select c.metadata from public.catalog_categories c
+        `select c.name,c.metadata from public.catalog_categories c
          where c.slug=$1 and c.is_active=true and c.metadata->>'source'='industrial_megamenu_hierarchy_v2' limit 1`,[categorySlug]);
       const family=await database().query(
          `select f.code,f.name as "familyName",coalesce(identity.product_type,f.name) as "productType",
@@ -387,6 +387,10 @@ export function registerCatalogNavigationApi(app:Express){
          on conflict(family_code) do update set category_slug=excluded.category_slug,
            submenu_name=excluded.submenu_name,leaf_name=excluded.leaf_name,
            method='admin_verified',updated_at=now()`,[familyCode,categorySlug,submenu||null,leaf||null]);
+      // Keep the denormalized family row aligned with the canonical approved menu assignment.
+      await database().query(
+        `update public.catalog_families set category_slug=$2,category_name=$3,submenu=$4,subcategory=$5,updated_at=now() where code=$1`,
+        [familyCode,categorySlug,clean(category.rows[0].name,250),submenu||null,leaf||'']);
       return res.json({success:true,familyCode,categorySlug});
     }catch(error){return fail(res,error);}
   });
