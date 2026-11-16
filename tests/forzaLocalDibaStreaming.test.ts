@@ -51,7 +51,7 @@ test('the Persian Diba browser recognizer is loaded from the same origin, never 
 test('local Diba streams partial and final hypotheses and falls back to browser recognition on model errors',()=>{
  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
  assert.match(ui,/loadDibaSttModel\(\)\.then\(model=>/);
- assert.match(ui,/dibaCpuCount>=6/);
+ assert.match(ui,/dibaCpuCount>=4/);
  assert.match(ui,/dibaSaveData/);
  assert.match(ui,/createScriptProcessor\(2048,1,1\)/,'small audio frames keep live partial latency low');
  assert.match(ui,/resampleDibaPcm\(mono,input\.sampleRate\)/,'browser capture must be resampled to the model rate');
