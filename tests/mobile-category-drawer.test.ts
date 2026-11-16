@@ -30,7 +30,7 @@ test("mobile group rail and results derive from the exact approved Excel catalog
   assert.match(explorer, /activeGroup\.categories\.map\(category/);
   assert.match(explorer, /category\.children/);
   assert.match(explorer, /<CategoryNavigation nodes=\{subNodes\} categorySlug=\{category\.slug\}/);
-  assert.match(explorer, /getCategoryRouteSlug\(category\)/);
+  assert.match(explorer, /getCategoryRoutePath\(category\.slug\)/);
   assert.match(explorer, /onClick=\{onNavigate\}/);
   assert.doesNotMatch(explorer, /SP-458721|SP-335090|۲۴۸ کالا/);
 });
