@@ -83,6 +83,9 @@ test('timing-belt families cannot leak V-belts, automotive belts or unlisted tim
   assert.equal(check('excel-v2-1-1', 'لاستیکی فابریک', 'تسمه تایمینگ صنعتی 3M', 'لاستیک کلروپرن', 'لاستیکی فابریک ساده و دنده‌دار', '3M').valid, true);
   assert.equal(check('excel-v2-1-1', 'سیم‌دار فابریک', 'تسمه تایمینگ پلی‌یورتان سیم‌دار', 'TPU پلی‌یورتان', 'پلی‌یورتان', '8M').valid, true);
   assert.equal(check('excel-v2-1-1', 'سیم‌دار فابریک', 'تسمه تایمینگ متریک پلی‌یورتان پروفیل T10 (مداربسته)', 'TPU پلی‌یورتان', 'پلی‌یورتان', 'T10').valid, true);
+  assert.equal(check('excel-v2-1-1', 'سیم‌دار فابریک', 'تسمه تایمینگ H پلی‌یورتان با کورد فولادی (مداربسته)', 'TPU پلی‌یورتان', 'پلی‌یورتان', 'H').valid, true);
+  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ دوطرفه D8M', 'لاستیک', '', 'D8M').valid, true);
+  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ دوطرفه DH', 'لاستیک', '', 'DH').valid, true);
 });
 
 test('V-belt families use profile-specific leaves and never enter timing or Poly-V leaves', () => {
@@ -111,7 +114,7 @@ test('double-sided and non-listed profiles remain at their valid timing or V-bel
   assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V شکل به‌پشت‌پیوسته (Banded V-Belt) سری 3VX', 'لاستیک کلروپرن', 'SPA , SPB , SPC و دندانه‌دار', '3VX-BANDED').valid, false);
   assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V شکل به‌پشت‌پیوسته (Banded V-Belt) سری 3VX', 'لاستیک کلروپرن', '', '3VX-BANDED').valid, true);
   assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه V شکل پروفیل MX', 'لاستیک', 'Z (9.5) , M , A , B , C , D , E , 8V', 'MX').valid, false);
-  assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه V شکل پروفیل ZX', 'لاستیک', 'Z (9.5) , M , A , B , C , D , E , 8V', 'ZX').valid, false);
+  assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه V شکل پروفیل ZX', 'لاستیک', 'Z (9.5) , M , A , B , C , D , E , 8V', 'ZX').valid, true);
   assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه V شکل پروفیل ZX', 'لاستیک', '', 'ZX').valid, true);
   assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه V شکل پروفیل MX', 'لاستیک', '', 'MX').valid, true);
 });
