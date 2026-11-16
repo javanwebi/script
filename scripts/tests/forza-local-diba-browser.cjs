@@ -86,7 +86,7 @@ function wav(){
   await page.waitForFunction(()=>!!window.__forzaVoskRecognizer,null,{timeout:15000});
   await page.waitForFunction(()=>window.__forzaVoskFrames>0,null,{timeout:5000});
   assert.equal(await page.evaluate(()=>window.__forzaDibaModelUrl),
-   '/forza-runtime/stt/diba-stt-fa-small.tar.gz','model must load from the same origin');
+   '/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz','model must load from the same origin');
   await page.waitForTimeout(450);
   await page.evaluate(()=>{window.__forzaMicSample=0.003;});
   await page.waitForTimeout(450);
