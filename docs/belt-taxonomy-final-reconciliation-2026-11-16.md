@@ -48,6 +48,8 @@ The production database already contains the PVC conveyor surface split: four di
 - `ops/sql/20261116_belt_family_taxonomy_followup.sql` contains the 31 reviewed family mappings, the 22-family quarantine, the 18 stale-metadata cleanup, and direct-SKU parent assignments.
 - Before changing rows, it snapshots 71 family rows, 32 menu-assignment rows, and 35 direct-SKU rows into a private RLS-enabled backup table.
 - `ops/sql/20261116_belt_family_taxonomy_followup_rollback.sql` restores those exact fields from that snapshot and retains the backup.
+- `ops/deploy-single-port-vps.sh` applies the guarded SQL after the earlier source-verified SKU corrections. It is idempotent: later deploys skip the migration only when the private backup marker exists with all 138 rows.
 - PGlite integration coverage verifies forward migration, SKU/commercial-row preservation, backup protection, and exact rollback.
+- The single-port deploy regression verifies that this one-time migration runs in the correct deployment order and cannot be silently skipped with an incomplete backup.
 
-**Production status:** this final follow-up is prepared for review and is not yet applied. Merge the code/test PR first; apply the guarded SQL migration only after the PR is merged and the production preconditions are rechecked.
+**Production status:** this final follow-up is prepared for review and is not yet applied. After PR merge, run `sudo sanatpish-deploy-main`. The pinned deployment script applies the SQL migration once, validates its backup marker, and only then proceeds with canary/promotion. If a manual rollback is ever required, use `ops/sql/20261116_belt_family_taxonomy_followup_rollback.sql` after reviewing the incident and backup.
