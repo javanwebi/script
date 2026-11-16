@@ -15,7 +15,7 @@ type Filter='all'|'sku-linked'|'family-example'|'unassigned'|'catalogue-photo';
 type StorageChoice='family'|'sku'|'new-sku';
 type Source='existing'|'upload'|'url';
 const fa=(n:number)=>n.toLocaleString('fa-IR');
-const statusLabel=(r:AuditRow)=>r.status==='sku-linked'?'متصل به کد کالا':r.status==='family-example'?'متصل به خانواده':'تصویر بدون اتصال';
+const statusLabel=(r:AuditRow)=>r.status==='sku-linked'?'متصل به کد کالا':r.status==='family-example'?'متصل به خانواده':'متصل به کد کالا نیست';
 const statusColor=(r:AuditRow)=>r.status==='sku-linked'?'bg-emerald-50 text-emerald-700':r.status==='family-example'?'bg-amber-50 text-amber-700':'bg-rose-50 text-rose-700';
 const card='rounded-xl border border-[#E7E8EA] bg-white';
 export function ProductImageAudit({products,categories,onCreateFamily,onCreateCategory,onEditCategory,onEditFamily,onCreateSku,onAssignFamilyImage,onImageSaved,onAssignSku,onAssignDirectSku}:{
