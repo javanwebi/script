@@ -614,12 +614,12 @@ interface CanonicalMenuPath {
   leaf: string | null;
 }
 
-const UNRESOLVED_MENU_PATH: CanonicalMenuPath = {
+const UNRESOLVED_MENU_PATH = {
   categorySlug: 'UNRESOLVED',
   categoryName: 'نیازمند تعیین مسیر مصوب',
   submenu: 'نیازمند تعیین مسیر مصوب',
   leaf: 'نیازمند تعیین مسیر مصوب',
-};
+} satisfies CanonicalMenuPath;
 
 const CANONICAL_MENU_PATHS: CanonicalMenuPath[] = [];
 const CANONICAL_BY_TRIPLET = new Map<string, CanonicalMenuPath>();
@@ -3015,9 +3015,18 @@ export function classifyNonBeltSku(
   // its engineering meaning against the SKU/family identity. A syntactically valid
   // leaf is not enough if the component itself belongs to another engineering domain.
   const resolvedMenu = resolveStrictApprovedMenuPath(categorySlug, submenu, leaf);
-  categorySlug = resolvedMenu.categorySlug;
-  submenu = resolvedMenu.submenu;
-  leaf = resolvedMenu.leaf;
+  if (!resolvedMenu.leaf) {
+    // A category/submenu match without an approved leaf is not a publishable
+    // family path. Keep the SKU identity, but quarantine its menu placement.
+    categorySlug = UNRESOLVED_MENU_PATH.categorySlug;
+    submenu = UNRESOLVED_MENU_PATH.submenu;
+    leaf = UNRESOLVED_MENU_PATH.leaf;
+    taxonomyGap = taxonomyGap || `GAP-APPROVED-MENU-LEAF-MISSING: برای مسیر «${resolvedMenu.categoryName} > ${resolvedMenu.submenu}» برگ مصوبی ثبت نشده است.`;
+  } else {
+    categorySlug = resolvedMenu.categorySlug;
+    submenu = resolvedMenu.submenu;
+    leaf = resolvedMenu.leaf;
+  }
 
   if (categorySlug === 'UNRESOLVED') {
     taxonomyGap = taxonomyGap || `GAP-APPROVED-MENU-PATH-MISSING: مسیر دقیق «${rawFam.technicalType}» در منوی مصوب وجود ندارد یا ورودی دسته/زیر‌دسته/برگ دقیق نیست.`;
@@ -3034,7 +3043,7 @@ export function classifyNonBeltSku(
     });
     if (!semantic.valid) {
       taxonomyGap = `GAP-SEMANTIC-MENU-CONFLICT: ${semantic.reason}; هویت خانواده حفظ می‌شود اما تا ایجاد/تأیید برگ صحیح نباید در این مسیر نمایش داده شود.`;
-      categorySlug = 'UNRESOLVED';
+      categorySlug = UNRESOLVED_MENU_PATH.categorySlug;
       submenu = UNRESOLVED_MENU_PATH.submenu;
       leaf = UNRESOLVED_MENU_PATH.leaf;
     }
