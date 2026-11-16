@@ -64,7 +64,8 @@ SET metadata=b.row_data->'metadata',
 FROM internal.catalog_belt_family_engineering_backup_20261117 b
 WHERE b.table_name='catalog_categories' AND b.row_key=c.slug;
 
-DO $
+DO $$
+
 BEGIN
   IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_variants') <> 292
      OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_families') <> 19
