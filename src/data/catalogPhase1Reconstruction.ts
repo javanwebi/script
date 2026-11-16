@@ -8,6 +8,7 @@ import {
 } from './catalogMenuAssignmentsData';
 import {
   classifyBeltSkuWithProvenance,
+  detectConveyorSurfaceProfile,
   type AuditReferenceTables,
   type BeltSkuAuditRecord,
 } from './beltCatalogAudit';
@@ -1752,12 +1753,16 @@ export function classifyNonBeltSku(
       submenu = 'بر اساس جنس';
       leaf = 'نوار نقاله پلی‌اورتان (PU)';
     } else {
+      const surface = detectConveyorSurfaceProfile(norm);
       productType = 'نوار نقاله PVC';
       material = 'پلی‌وینیل کلراید (PVC Conveyor Belt)';
-      const surface = /آجدار|چمنی|لوزی/.test(norm) ? 'GRIP_PATTERN' : 'SMOOTH';
-      construction = `نوار نقاله PVC صنعتی (${surface === 'GRIP_PATTERN' ? 'آجدار' : 'ساده'})`;
-      profile = `CONVEYOR_PVC_${surface}`;
-      standard = 'ISO 21183 Light Conveyor';
+      // Surface identity is family-defining. SKU dimensions, colours and local
+      // perforation descriptors remain variant data, not new family identities.
+      construction = `نوار نقاله PVC صنعتی (${surface.profile})`;
+      profile = surface.profile;
+      // No manufacturer datasheet or product-specific standard is attached to
+      // these inventory rows; do not claim ISO conformity from the material name.
+      standard = 'NOT_ESTABLISHED';
       submenu = 'بر اساس جنس';
       leaf = 'نوار نقاله PVC';
     }
@@ -3056,6 +3061,8 @@ export function classifyNonBeltSku(
     leaf = UNRESOLVED_MENU_PATH.leaf;
   }
 
+  const pvcSurface = productType === 'نوار نقاله PVC' ? detectConveyorSurfaceProfile(norm) : null;
+
   const proposedCategoryName = categorySlug === 'UNRESOLVED'
     ? UNRESOLVED_MENU_PATH.categoryName
     : getApprovedCategoryName(categorySlug, rawFam.categoryName);
@@ -3074,7 +3081,11 @@ export function classifyNonBeltSku(
 
   const confidence: 'HIGH' | 'MEDIUM' | 'LOW' =
     evidence === 'STANDARD_REFERENCE' || evidence === 'EXCEL_SOURCE' ? 'HIGH' : 'MEDIUM';
-  const confidenceScore = computeConfidenceScore(evidence, 'APPROVED_FAMILY');
+  // An unknown PVC surface is still a valid, separately quarantined family;
+  // retain the family but keep its score above the global unresolved threshold.
+  const confidenceScore = pvcSurface?.requiresReview
+    ? Math.max(70, Math.min(74, computeConfidenceScore(evidence, 'APPROVED_FAMILY')))
+    : computeConfidenceScore(evidence, 'APPROVED_FAMILY');
   const manufacturer = resolveManufacturerName(brand);
   const mpn = drawingSeries !== 'STD_SERIES' ? drawingSeries : profile;
 
@@ -3091,6 +3102,7 @@ export function classifyNonBeltSku(
   const variableSpecifications: Record<string, string | number> = {
     catalogSize: variant.size || 'استاندارد',
     variantDesignation: variant.size && variant.size !== 'نامشخص' ? variant.size : norm,
+    ...(pvcSurface ? { surfaceTradeLabel: pvcSurface.label } : {}),
   };
   const descriptiveSpecifications: Record<string, string | number> = {
     manufacturer,
@@ -3152,16 +3164,21 @@ export function classifyNonBeltSku(
     finalStatus: 'FAMILY_MEMBER', // Updated to DIRECT_PRODUCT if singleton during family grouping
     technicalEvidence: evidence,
     sourceUrl,
-    decisionReason: misplaced
-      ? `بازطبقه‌بندی مهندسی از «${rawFam.technicalType}» به «${productType}» بر اساس ماهیت واقعی قطعه، جنس (${material}) و ساختار فنی.`
-      : `طبقه‌بندی مهندسی اختصاصی بر اساس نوع قطعه (${productType})، جنس (${material})، ساختار (${construction}) و پروفیل/سری (${profile}).`,
+    decisionReason: pvcSurface?.requiresReview
+      ? `این SKU نوار نقاله PVC است، اما الگوی سطح از عنوان/مدرک موجود قابل تعیین نیست؛ در خانواده مستقل PVC_SURFACE_UNSPECIFIED نگه داشته می‌شود و تا بررسی فیزیکی/دیتاشیت با هیچ پروفیل شناخته‌شده‌ای ادغام نمی‌شود.`
+      : misplaced
+        ? `بازطبقه‌بندی مهندسی از «${rawFam.technicalType}» به «${productType}» بر اساس ماهیت واقعی قطعه، جنس (${material}) و ساختار فنی.`
+        : `طبقه‌بندی مهندسی اختصاصی بر اساس نوع قطعه (${productType})، جنس (${material})، ساختار (${construction}) و پروفیل/سری (${profile}).`,
     confidence,
     confidenceScore,
-    verificationStatus:
-      evidence === 'STANDARD_REFERENCE' || evidence === 'EXCEL_SOURCE'
+    verificationStatus: pvcSurface?.requiresReview
+      ? 'REQUIRES_PHYSICAL_VERIFICATION'
+      : evidence === 'STANDARD_REFERENCE' || evidence === 'EXCEL_SOURCE'
         ? 'VERIFIED_STANDARD_OR_SOURCE'
         : 'VERIFIED_INVENTORY_RECORD',
-    requiredAction: misplaced ? 'RECLASSIFY_CATEGORY_AND_ASSIGN' : 'READY_FOR_MIGRATION',
+    requiredAction: pvcSurface?.requiresReview
+      ? 'WAREHOUSE_PHYSICAL_INSPECTION_REQUIRED'
+      : misplaced ? 'RECLASSIFY_CATEGORY_AND_ASSIGN' : 'READY_FOR_MIGRATION',
     taxonomyGap,
     similarProductCodes: [],
     sourceFamilyName: rawFam.name,
@@ -3364,9 +3381,11 @@ export function runPhase1CatalogReconstruction(
       member.familyMemberCodes = memberCodes;
       member.splitFromMixedFamily = (sourceFamToTargetKeys.get(member.currentFamily)?.size || 0) > 1;
       member.mergedFromFragmentedFamilies = isMerged;
-      member.requiredAction = member.misplacedInSourceCategory
-        ? 'RECLASSIFY_CATEGORY_AND_ASSIGN_FAMILY'
-        : 'READY_FOR_MIGRATION_AS_FAMILY';
+      member.requiredAction = member.verificationStatus === 'REQUIRES_PHYSICAL_VERIFICATION'
+        ? 'WAREHOUSE_PHYSICAL_INSPECTION_REQUIRED'
+        : member.misplacedInSourceCategory
+          ? 'RECLASSIFY_CATEGORY_AND_ASSIGN_FAMILY'
+          : 'READY_FOR_MIGRATION_AS_FAMILY';
     }
 
     // Determine best evidence level across members
