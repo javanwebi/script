@@ -48,7 +48,7 @@ The production database already contains the PVC conveyor surface split: four di
 - `ops/sql/20261116_belt_family_taxonomy_followup.sql` contains the 31 reviewed family mappings, the 22-family quarantine, the 18 stale-metadata cleanup, and direct-SKU parent assignments.
 - Before changing rows, it snapshots 71 family rows, 32 menu-assignment rows, and 35 direct-SKU rows into a private RLS-enabled backup table.
 - `ops/sql/20261116_belt_family_taxonomy_followup_rollback.sql` restores those exact fields from that snapshot and retains the backup.
-- `ops/deploy-single-port-vps.sh` applies the guarded SQL after the earlier source-verified SKU corrections. It is idempotent: later deploys skip the migration only when the private backup marker exists with all 138 rows.
+- `ops/deploy-single-port-vps.sh` applies the guarded SQL after the earlier source-verified SKU corrections only when the production database contains the reviewed active `PFAM-*` family baseline. A legacy `FAM-*`-only catalog is detected and the PFAM-only family migration is skipped without touching its rows; the bundled direct-SKU follow-up is deferred for a separate FAM-specific review. The 138-row private backup remains the idempotency marker when the PFAM migration is applicable.
 - PGlite integration coverage verifies forward migration, SKU/commercial-row preservation, backup protection, and exact rollback.
 - The single-port deploy regression verifies that this one-time migration runs in the correct deployment order and cannot be silently skipped with an incomplete backup.
 
