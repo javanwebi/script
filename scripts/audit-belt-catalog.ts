@@ -2158,9 +2158,9 @@ function buildPreApprovalWorkbook(
       Gate_Code: 'GATE_04_ZRK_AND_35023_SPLIT',
       Gate_Name: 'تعیین تکلیف ۹ کاندید تایمینگ خودرویی Optibelt و جداسازی 35023 با گام 8.0mm',
       Status: 'CONDITIONAL_READY_WITH_PHASE4_SLEEVE_CHECK',
-      Count_Or_Metric: '5 datasheet-verified SKUs + 4 print-verify SKUs (31502, 31504, 31505, 31506); 35023 => 8.000mm (ZRK 1459)',
+      Count_Or_Metric: '4 SKU با شواهد سری ZRK (نه دیتاشیت SKU) + 4 کد نیازمند خواندن مارک چاپی (31502, 31504, 31505, 31506) + کد 35023 با گام مستقل 8.000mm؛ هیچ تطبیق exact ZRK ادعا نمی‌شود',
       Blocker_SKUs: `${zrkPrintVerifySkus.join(', ')} (قرائت کد ZRK چاپ‌شده روی کاور برای تفکیک قطعی از HTD 8M صنعتی در فاز ۴)`,
-      Owner_Action_Required: 'انتقال ساختاری هم‌اکنون قابل تصویب است؛ قرائت کد ZRK چاپ‌شده در انبار در فاز ۴ تکمیل شود.',
+      Owner_Action_Required: 'برای چهار SKU فهرست‌شده مارک چاپی روی تسمه فیزیکی خوانده شود؛ 35023 با گام 8mm در خانواده 9.525mm ادغام نشود و هیچ‌یک به‌عنوان دیتاشیت دقیق ZRK اعلام نشود.',
     },
     {
       Gate_Code: 'GATE_05_PHYSICAL_REVIEW_9_BLOCKERS',
