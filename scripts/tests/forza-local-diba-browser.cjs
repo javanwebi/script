@@ -83,6 +83,7 @@ function wav(){
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
   await page.waitForFunction(()=>!!window.__forzaVoskRecognizer,{timeout:15000});
+  await page.waitForFunction(()=>window.__forzaVoskFrames>0,{timeout:5000});
   assert.equal(await page.evaluate(()=>window.__forzaDibaModelUrl),
    '/forza-runtime/stt/diba-stt-fa-small.tar.gz','model must load from the same origin');
   await page.waitForTimeout(450);
@@ -90,7 +91,7 @@ function wav(){
   await page.waitForTimeout(450);
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('می خواهم مشخصات تسمه تایمینگ را بدانم'));
   await page.getByText('می خواهم مشخصات تسمه تایمینگ را بدانم',{exact:true}).waitFor({timeout:1500});
-  assert.ok(await page.evaluate(()=>window.__forzaVoskFrames||0)>=0);
+  assert.ok(await page.evaluate(()=>window.__forzaVoskFrames||0)>0,'local recognizer must receive live PCM frames');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('تسمه تایمینگ چیست؟'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
   await page.waitForFunction(()=>window.__forzaVoskCreated>=2,{timeout:10000});
