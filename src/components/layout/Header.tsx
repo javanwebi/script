@@ -43,7 +43,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { STORE_ASSETS } from '../../assets/images';
-import { CATEGORIES, PRIMARY_CATALOG_CATEGORIES, resolveCategorySlug } from '../../data/categories';
+import { CATEGORIES, PRIMARY_CATALOG_CATEGORIES, getCategoryRoutePath } from '../../data/categories';
 import { CategoryNavigation } from '../catalog/CategoryNavigation';
 import { BRANDS } from '../../data/brands';
 import { getInstantSearchResults } from '../../data/mockGenerator';
@@ -51,6 +51,9 @@ import { toPersianDigits, formatPrice } from '../../utils/formatters';
 import { Product } from '../../types';
 const LazyVisualPartSearchModal = React.lazy(() => import('../search/AiVisualPartSearchModal').then(m => ({default: m.AiVisualPartSearchModal})));
 const LazyAiConsultModal = React.lazy(() => import('../search/AiConsultModal').then(m => ({default: m.AiConsultModal})));
+
+const categoryHref = (category: { slug: string; routeSlug?: string; name?: string }) =>
+  getCategoryRoutePath(category.slug);
 
 import {
   portalContentService,
@@ -356,7 +359,7 @@ export const Header: React.FC = () => {
                         {PRIMARY_CATALOG_CATEGORIES.slice(0, 5).map(cat => (
                           <Link
                             key={cat.slug}
-                            to={`/category/${(cat.name === "تسمه و انتقال نیرو" || cat.name === "تسمه و انتقال قدرت") ? "تسمه-و-انتقال-نیرو" : resolveCategorySlug(cat.slug)}`}
+                            to={categoryHref(cat)}
                             onClick={() => setIsSearchDropdownOpen(false)}
                             className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-[#E06518] border border-slate-200 text-[11px] font-bold transition-colors"
                           >
@@ -420,7 +423,7 @@ export const Header: React.FC = () => {
                           {liveResults.categories.map(c => (
                             <Link
                               key={c.id}
-                              to={`/category/${(c.name === "تسمه و انتقال نیرو" || c.name === "تسمه و انتقال قدرت") ? "تسمه-و-انتقال-نیرو" : resolveCategorySlug(c.slug)}`}
+                              to={categoryHref(c)}
                               onClick={() => setIsSearchDropdownOpen(false)}
                               className="px-2.5 py-1 bg-white border border-[#CBD2D8] rounded-lg text-[11px] hover:border-[#E06518] hover:text-[#E06518] transition-colors"
                             >

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { STORE_ASSETS } from '../../assets/images';
+import { getCategoryRoutePath } from '../../data/categories';
 
 export const MainBrandsBanner: React.FC = () => {
   // Subcategories for FORZA (Ordered Left-to-Right matching reference image)
@@ -10,25 +11,25 @@ export const MainBrandsBanner: React.FC = () => {
       id: 'belts',
       title: 'تسمه‌ها',
       image: STORE_ASSETS.forzaSubBelt || STORE_ASSETS.products.forzaBelt,
-      link: '/category/industrial-belts',
+      link: '/categories?group=excel-v2-1',
     },
     {
       id: 'bearings',
       title: 'بلبرینگ‌ها',
       image: STORE_ASSETS.forzaSubBearing || STORE_ASSETS.products.bearing,
-      link: '/category/power-transmission',
+      link: '/categories?group=excel-v2-13',
     },
     {
       id: 'couplings',
       title: 'کوپلینگ‌ها',
       image: STORE_ASSETS.forzaSubCoupling || STORE_ASSETS.categories.transmission,
-      link: '/category/power-transmission',
+      link: '/categories',
     },
     {
       id: 'fittings',
       title: 'اتصالات صنعتی',
       image: STORE_ASSETS.forzaSubFittings || STORE_ASSETS.products.ceramicParts,
-      link: '/category/production-fittings',
+      link: '/categories',
     },
   ];
 
@@ -38,25 +39,25 @@ export const MainBrandsBanner: React.FC = () => {
       id: 'pulleys',
       title: 'پولی‌ها',
       image: STORE_ASSETS.categories.pulleys || STORE_ASSETS.products.aluPulley,
-      link: '/category/power-transmission',
+      link: getCategoryRoutePath('excel-v2-4-1'),
     },
     {
       id: 'belts',
       title: 'تسمه‌ها',
       image: STORE_ASSETS.categories.belts || STORE_ASSETS.products.pvcBelt,
-      link: '/category/industrial-belts',
+      link: '/categories?group=excel-v2-1',
     },
     {
       id: 'sprockets',
       title: 'چرخ زنجیر',
       image: STORE_ASSETS.categories.chains || STORE_ASSETS.products.motor,
-      link: '/category/power-transmission',
+      link: '/categories?group=excel-v2-9',
     },
     {
       id: 'transmission',
       title: 'انتقال قدرت',
       image: STORE_ASSETS.categories.transmission || STORE_ASSETS.products.bearing,
-      link: '/category/power-transmission',
+      link: '/categories?group=excel-v2-4',
     },
   ];
 
@@ -66,25 +67,25 @@ export const MainBrandsBanner: React.FC = () => {
       id: 'valves',
       title: 'شیرآلات',
       image: STORE_ASSETS.swrSubValve || STORE_ASSETS.products.valve,
-      link: '/category/industrial-valves',
+      link: '/categories',
     },
     {
       id: 'elbows',
       title: 'اتصالات',
       image: STORE_ASSETS.swrSubElbow || STORE_ASSETS.products.ceramicParts,
-      link: '/category/production-fittings',
+      link: '/categories',
     },
     {
       id: 'pipes',
       title: 'لوله‌ها',
       image: STORE_ASSETS.swrSubPipes || STORE_ASSETS.products.pipes,
-      link: '/category/pipes-flanges',
+      link: '/categories',
     },
     {
       id: 'flanges',
       title: 'فلنج‌ها',
       image: STORE_ASSETS.swrSubFlanges || STORE_ASSETS.products.flange,
-      link: '/category/pipes-flanges',
+      link: '/categories',
     },
   ];
 
@@ -289,7 +290,7 @@ export const MainBrandsBanner: React.FC = () => {
               {/* ATLAS Pill Button */}
               <div className="pt-1 w-full flex justify-center sm:justify-end">
                 <Link
-                  to="/category/power-transmission"
+                  to="/categories"
                   className="inline-flex items-center justify-between gap-4 px-5 py-2.5 rounded-full bg-[#0B101B]/80 hover:bg-[#EA580C] border border-[#F97316] hover:border-[#EA580C] text-[#FF7700] hover:text-white text-xs font-bold transition-all duration-300 shadow-[0_0_18px_rgba(249,115,22,0.25)] hover:shadow-[0_0_24px_rgba(249,115,22,0.6)] cursor-pointer group/btn"
                 >
                   <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />

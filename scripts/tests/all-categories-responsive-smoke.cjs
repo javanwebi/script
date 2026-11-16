@@ -186,7 +186,7 @@ async function installApiRoutes(page, fallbackMode = false) {
       assert.equal(await page.locator('.all-categories-group').count(), 1, 'empty groups should be removed from filtered results');
 
       const categoryHref = await page.getByRole('heading', { name: 'تسمه تایمینگ' }).locator('a').getAttribute('href');
-      assert.equal(categoryHref, '/category/excel-v2-1-1', 'category title should use the canonical Excel taxonomy route');
+      assert.equal(categoryHref, '/category/' + encodeURIComponent('تسمه-تایمینگ-صنعتی'), 'category title should use its Persian SEO route');
 
       await page.getByRole('button', { name: 'پاک کردن جستجو' }).click();
       await page.waitForURL(url => !url.searchParams.has('q'), { timeout: 10000 });

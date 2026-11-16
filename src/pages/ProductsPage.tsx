@@ -300,15 +300,13 @@ export const ProductsPage: React.FC = () => {
     setCurrentPage(1);
   }, [categoryParam, subParam, queryParam, brandParam, stockParam, imageParam]);
 
-  // Legacy category-query URLs for belts should land on the dedicated, canonical belt page.
+  // Legacy belt filters now open the approved industrial-belts group instead of the retired parent page.
   useEffect(() => {
     if (categoryParam !== BELT_CATEGORY_SLUG) return;
-    const destinationParams = new URLSearchParams();
-    if (searchParams.has("sub")) destinationParams.set("sub", subParam);
-    if (queryParam.trim()) destinationParams.set("q", queryParam);
-    const query = destinationParams.toString();
-    navigate(`/category/${BELT_CATEGORY_SLUG}${query ? `?${query}` : ""}`, { replace: true });
-  }, [categoryParam, subParam, queryParam, searchParams, navigate]);
+    const destinationParams = new URLSearchParams({ group: 'excel-v2-1' });
+    if (queryParam.trim()) destinationParams.set('q', queryParam);
+    navigate(`/categories?${destinationParams.toString()}`, { replace: true });
+  }, [categoryParam, queryParam, navigate]);
 
   // First resolve the real category/subcategory scope, then derive its brand facet.
   const categoryScopedProducts = useMemo(

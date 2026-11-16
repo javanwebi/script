@@ -7,6 +7,31 @@ on:
       - "src/pages/HomePage.tsx"
       - "src/pages/DiscoveryPages.tsx"
       - "src/App.tsx"
+      - "src/pages/CategoryPage.tsx"
+      - "src/components/catalog/ReferenceMegaMenu.tsx"
+      - "src/components/catalog/MobileCategoryExplorer.tsx"
+      - "src/components/catalog/CategoryNavigation.tsx"
+      - "src/pages/AllCategoriesPage.tsx"
+      - "src/components/layout/Header.tsx"
+      - "src/components/catalog/ReferenceMegaMenu.tsx"
+      - "src/pages/SearchPage.tsx"
+      - "src/pages/ProductsPage.tsx"
+      - "src/components/layout/Footer.tsx"
+      - "src/components/home/MainBrandsBanner.tsx"
+      - "src/pages/ClubPage.tsx"
+      - "src/components/layout/Header.tsx"
+      - "src/data/categories.ts"
+      - "src/data/categorySeoRoutes.ts"
+      - "server/categorySeoRoutes.ts"
+      - "server.ts"
+      - "src/data/approvedMenuFallback.ts"
+      - "src/pages/ExcelMenuCategoryPage.tsx"
+      - "src/admin/modules/ProductsModule.tsx"
+      - "server/catalogNavigationApi.ts"
+      - "src/pages/TileCeramicIndustryPage.tsx"
+      - "tests/catalog-category-routes.test.ts"
+      - "scripts/tests/belt-category-responsive-smoke.cjs"
+      - "supabase/migrations/20261116163011_canonical_category_routes.sql"
       - "src/components/layout/RouteIntentPreload.tsx"
       - "src/pages/IndustryTemplatePage.tsx"
       - "src/pages/industry-template.css"
@@ -21,6 +46,10 @@ on:
       - "tests/products-page-premium.test.ts"
       - "scripts/tests/products-catalogue-responsive-smoke.cjs"
       - "src/pages/ProductDetailPage.tsx"
+      - "src/pages/DirectSkuDetailPage.tsx"
+      - "src/components/home/PopularProductsSection.tsx"
+      - "scripts/tests/all-categories-responsive-smoke.cjs"
+      - "tests/mobile-category-drawer.test.ts"
       - "src/pages/product-detail-premium.css"
       - "tests/product-detail-premium.test.ts"
       - "scripts/tests/product-detail-responsive-smoke.cjs"
@@ -83,6 +112,8 @@ jobs:
         run: node --import tsx --test tests/product-detail-premium.test.ts
       - name: All categories regression suite
         run: node --import tsx --test tests/all-categories-page-premium.test.ts
+      - name: Canonical category route regression suite
+        run: node --import tsx --test tests/catalog-category-routes.test.ts
       - name: Excel menu category regression suite
         run: node --import tsx --test tests/excel-menu-category-premium.test.ts
       - name: Textile industry regression suite
@@ -116,7 +147,7 @@ jobs:
           done
           cat /tmp/storefront-preview.log
           exit 1
-      - name: Verify belt category desktop and mobile interactions
+      - name: Verify canonical belt category routes and legacy redirect
         run: node scripts/tests/belt-category-responsive-smoke.cjs
       - name: Verify products catalogue desktop and mobile interactions
         run: node scripts/tests/products-catalogue-responsive-smoke.cjs

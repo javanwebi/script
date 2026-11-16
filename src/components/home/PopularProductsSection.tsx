@@ -15,6 +15,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { USER_PRODUCTS } from '../../data/userProducts';
+import { getCategoryRoutePath } from '../../data/categories';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import { Modal } from '../ui/Modal';
@@ -204,7 +205,7 @@ export const PopularProductsSection: React.FC = () => {
                     {product.name}
                   </Link>
                   <Link
-                    to={`/category/${product.categorySlug}`}
+                    to={getCategoryRoutePath(product.categorySlug)}
                     className="block text-[10px] text-[#777A7D] hover:text-[#E06518] line-clamp-1 font-medium transition-colors"
                   >
                     {product.categoryName}

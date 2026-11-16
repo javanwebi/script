@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import "../../reference-menu.css";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ArrowUpLeft, Box, ChevronLeft, Factory, Layers, Link2, Move, PackageSearch, Search, Sparkles } from "lucide-react";
-import { CATEGORIES, getManagedCategories, resolveCategorySlug } from "../../data/categories";
+import { CATEGORIES, getManagedCategories, getCategoryRoutePath, resolveCategorySlug } from "../../data/categories";
 import type { CategoryNode, EnhancedCategory } from "../../data/categories";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { CategoryNavigation } from "./CategoryNavigation";
@@ -66,11 +66,12 @@ function CategoryThumbnail({ category, FallbackIcon }: { category: EnhancedCateg
   );
 }
 
-const categoryHref = (category: EnhancedCategory) =>
-  "/category/" + resolveCategorySlug(category.slug);
+const categoryHref = (category: EnhancedCategory) => getCategoryRoutePath(category.slug);
 
-const selectionHref = (category: EnhancedCategory, node: CategoryNode) =>
-  categoryHref(category) + "?" + new URLSearchParams({ sub: node.value || node.name }).toString();
+const selectionHref = (category: EnhancedCategory, node: CategoryNode) => {
+  const path = categoryHref(category);
+  return path + (path.includes("?") ? "&" : "?") + new URLSearchParams({ sub: node.value || node.name }).toString();
+};
 
 export function ReferenceMegaMenu({
   onNavigate,

@@ -22,6 +22,7 @@ import {
 import { STORE_ASSETS as A } from "../assets/images";
 import { INDUSTRIES, ARTICLES } from "../data/siteContent";
 import { INDUSTRY_PAGE_DETAILS, type IndustryPageSlug } from "../data/industryPageDetails";
+import { SANAT_PISH_CANONICAL_ORIGIN } from "../data/categorySeoRoutes";
 import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 import { isDatabaseCatalogHydrated } from "../services/durableStorage";
 import { rankIndustryProducts } from "../utils/industryCatalog";
@@ -126,7 +127,7 @@ export function IndustryTemplatePage() {
       document.head.appendChild(canonical);
     }
     const previousCanonical = canonical.href;
-    canonical.href = window.location.origin + "/industries/" + slug;
+    canonical.href = SANAT_PISH_CANONICAL_ORIGIN + "/industries/" + slug;
 
     return () => {
       document.title = previousTitle;

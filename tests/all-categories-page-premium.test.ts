@@ -11,7 +11,7 @@ const layout = source('src/components/layout/Layout.tsx');
 test('all categories remains the canonical route and keeps existing category route registration', () => {
   assert.match(routes, /<Route path="\/categories" element={<AllCategoriesPage \/>} \/>/);
   assert.match(routes, /<Route path="\/category\/:slug" element={<CategoryPage \/>} \/>/);
-  assert.match(page, /categoryHref\(category\.slug\)/);
+  assert.match(page, /categoryHref\(category\)/);
   assert.ok(layout.includes('"/categories"'));
 });
 
@@ -51,7 +51,7 @@ test('category cards reuse registered industrial assets and retain nested subcat
   assert.match(artwork, /STORE_ASSETS\.products\.bearingNsk/);
   assert.match(artwork, /STORE_ASSETS\.reverseEngineeringLab/);
   assert.match(page, /CategoryNavigation nodes=/);
-  assert.match(page, /categoryHref\(category\.slug, node\.value \|\| node\.name\)/);
+  assert.match(page, /categoryHref\(category, node\.value \|\| node\.name\)/);
 });
 
 test('group anchors, search, visual identification and FORZA routes remain connected', () => {

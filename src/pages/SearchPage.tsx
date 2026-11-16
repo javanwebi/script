@@ -4,7 +4,7 @@ import {
   searchProducts,
   subscribeCatalogChanges,
 } from '../data/mockGenerator';
-import { getManagedCategories } from '../data/categories';
+import { getManagedCategories, getCategoryRoutePath } from '../data/categories';
 import { ProductCard } from '../components/product/ProductCard';
 import { toDirectSkuProduct, useDirectSkus } from '../components/catalog/DirectSkuProducts';
 import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
@@ -633,7 +633,7 @@ export const SearchPage: React.FC = () => {
               {categories.slice(0, 12).map(cat => (
                 <Link
                   key={cat.slug}
-                  to={`/category/${cat.slug}`}
+                  to={getCategoryRoutePath(cat.slug)}
                   className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs font-bold text-[#23262B] transition-all hover:border-[#E06518] hover:bg-[#FFF5EE] hover:text-[#E06518]"
                 >
                   <span className="truncate">{cat.name}</span>
