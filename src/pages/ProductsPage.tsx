@@ -100,9 +100,9 @@ function matchesProductMenuSelection(
   }
 
   const liveAssignment = liveIndex[product.code];
-  const assignment = liveAssignment?.method === 'admin_verified' || liveAssignment?.method === 'excel_source_verified'
-    ? liveAssignment
-    : getFamilyMenuAssignment(product);
+  const assignment = ['admin_verified','excel_source_verified','engineering_audited','taxonomy_gap'].includes(String(liveAssignment?.method || ''))
+        ? liveAssignment
+        : getFamilyMenuAssignment(product);
   if (!assignment) return false;
 
   const assignedSlug = resolveCategorySlug(assignment.categorySlug || "");
@@ -267,7 +267,7 @@ export const ProductsPage: React.FC = () => {
     () => allCatalogProducts.map((product) => {
       if (directSkuCodeSet.has(product.code)) return product;
       const liveAssignment = liveFamilyMenuIndex[product.code];
-      const assignment = liveAssignment?.method === 'admin_verified' || liveAssignment?.method === 'excel_source_verified'
+      const assignment = ['admin_verified','excel_source_verified','engineering_audited','taxonomy_gap'].includes(String(liveAssignment?.method || ''))
         ? liveAssignment
         : getFamilyMenuAssignment(product);
       if (!assignment) return product;
