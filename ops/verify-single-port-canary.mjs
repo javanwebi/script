@@ -5,7 +5,12 @@ const candidate = "http://127.0.0.1:3000";
 
 async function get(base, route) {
   const response = await fetch(base + route, { signal: AbortSignal.timeout(80000) });
-  assert.equal(response.status, 200, base + route + " HTTP " + response.status);
+  const detail = response.ok ? "" : await response.clone().text().catch(() => "");
+  assert.equal(
+    response.status,
+    200,
+    base + route + " HTTP " + response.status + (detail ? " BODY " + detail.slice(0, 500) : ""),
+  );
   return response;
 }
 
