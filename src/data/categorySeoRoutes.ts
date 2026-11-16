@@ -44,6 +44,20 @@ export const APPROVED_CATEGORY_SEO_ROUTES: readonly ApprovedCategorySeoRoute[] =
 
 /** Old public category parents retained only as 301 redirect sources. */
 export const LEGACY_CATEGORY_ROUTE_GROUPS: Readonly<Record<string, string | null>> = {
+  'excel-v2-1': 'excel-v2-1',
+  'excel-v2-2': 'excel-v2-2',
+  'excel-v2-3': 'excel-v2-3',
+  'excel-v2-4': 'excel-v2-4',
+  'excel-v2-5': 'excel-v2-5',
+  'excel-v2-6': 'excel-v2-6',
+  'excel-v2-7': 'excel-v2-7',
+  'excel-v2-8': 'excel-v2-8',
+  'excel-v2-9': 'excel-v2-9',
+  'excel-v2-10': 'excel-v2-10',
+  'excel-v2-11': 'excel-v2-11',
+  'excel-v2-12': 'excel-v2-12',
+  'excel-v2-13': 'excel-v2-13',
+  'excel-v2-14': 'excel-v2-14',
   'jjjjjjj': null,
   'آب-بندی-و-درزگیری': null,
   'آب-بندی-و-قطعات-لاستیکی': 'excel-v2-7',
