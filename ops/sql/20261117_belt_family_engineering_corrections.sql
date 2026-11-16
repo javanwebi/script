@@ -199,6 +199,7 @@ END $$;
 -- 1) CRC is not one family type: crowned ridge-top CRC is separate from welded PU round CRC.
 UPDATE public.catalog_variants
 SET family_type_id='FT-BELT-CROWNED-CRC',
+    variable_specs=jsonb_set(coalesce(variable_specs,'{}'::jsonb),'{beltDivision}',to_jsonb('conveyor-crowned-crc'::text),true),
     proposed_category_slug='excel-v2-1-4',
     proposed_submenu='تسمه بارکش',
     proposed_leaf='انواع تسمه بارکش صنعتی',
@@ -221,6 +222,7 @@ SET family_type_id='FT-BELT-CROWNED-CRC',
     technical_specs=(
       SELECT coalesce(jsonb_agg(
         CASE
+          WHEN e->>'key'='beltDivision' THEN jsonb_set(e,'{value}',to_jsonb('conveyor-crowned-crc'::text),true)
           WHEN e->>'key'='جنس و متریال' OR e->>'key'='material'
             THEN jsonb_set(e,'{value}',to_jsonb('لاستیک/الاستومر با سطح تاج‌دار (Crowned / Ridge-Top); ترکیب دقیق نیازمند دیتاشیت سازنده است'::text),true)
           WHEN e->>'key'='ساختار مهندسی' OR e->>'key'='ساختار و مکانیزم' OR e->>'key'='construction'
@@ -268,6 +270,7 @@ SET materials='لاستیک/الاستومر با سطح تاج‌دار (Crowne
     technical_specs=(
       SELECT coalesce(jsonb_agg(
         CASE
+          WHEN e->>'key'='beltDivision' THEN jsonb_set(e,'{value}',to_jsonb('conveyor-crowned-crc'::text),true)
           WHEN e->>'key'='جنس و متریال' OR e->>'key'='material'
             THEN jsonb_set(e,'{value}',to_jsonb('لاستیک/الاستومر با سطح تاج‌دار (Crowned / Ridge-Top); ترکیب دقیق نیازمند دیتاشیت سازنده'::text),true)
           WHEN e->>'key'='ساختار مهندسی' OR e->>'key'='construction'
@@ -741,7 +744,7 @@ SET technical_review=jsonb_set(
       to_jsonb(ARRAY['تسمه و انتقال نیرو','تسمه بارکش و تجهیزات جوشی','تسمه بارکش','انواع تسمه بارکش صنعتی']::text[]),
       true
     )
-WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc';
+WHERE variable_specs->>'beltDivision'='conveyor-crowned-crc';
 
 UPDATE public.catalog_variants v
 SET technical_review=jsonb_set(
@@ -828,13 +831,16 @@ WHERE c.slug='تسمه-و-انتقال-نیرو';
 -- The official SWR catalogue confirms the series and construction families, while exact local SKU/length matching remains open.
 DO $$
 BEGIN
+  IF (SELECT count(*) FROM public.catalog_variants WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc') <> 0 THEN
+    RAISE EXCEPTION 'Postcondition failed: crowned CRC/TRC must not retain the V-belt division';
+  END IF;
   IF (SELECT count(*) FROM public.catalog_variants
-      WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc'
+      WHERE variable_specs->>'beltDivision'='conveyor-crowned-crc'
         AND family_type_id='FT-BELT-CROWNED-CRC') <> 103 THEN
     RAISE EXCEPTION 'Postcondition failed: crowned CRC type split';
   END IF;
   IF (SELECT count(*) FROM public.catalog_variants
-      WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc'
+      WHERE variable_specs->>'beltDivision'='conveyor-crowned-crc'
         AND identity_specs->>'standard'='استاندارد رسمی CRC/TRC در منابع موجود تأیید نشده؛ دیتاشیت سازنده لازم است'
         AND technical_review->>'standardStatus'='not-established') <> 103 THEN
     RAISE EXCEPTION 'Postcondition failed: CRC/TRC must not retain an invented standard';
