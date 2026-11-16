@@ -14,6 +14,31 @@ BEGIN
     RAISE EXCEPTION 'Belt engineering backup already exists; inspect the prior run before retrying';
   END IF;
 
+  IF (SELECT count(*) FROM public.catalog_categories
+      WHERE slug IN ('excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4','تسمه-و-انتقال-نیرو')
+        AND is_active=true) <> 5 THEN
+    RAISE EXCEPTION 'Expected four active Excel belt categories and one active legacy category before route reconciliation';
+  END IF;
+  IF (SELECT count(*) FROM public.catalog_categories
+      WHERE slug IN ('excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4')
+        AND metadata->>'routeSlug'='تسمه-و-انتقال-نیرو'
+        AND parent_id IS NULL) <> 4 THEN
+    RAISE EXCEPTION 'Expected all four Excel belt categories to point at the stale legacy route before correction';
+  END IF;
+  IF (SELECT count(*) FROM public.catalog_categories
+      WHERE slug='تسمه-و-انتقال-نیرو' AND is_active=true
+        AND metadata->>'legacyRedirectTo' IS NULL) <> 1 THEN
+    RAISE EXCEPTION 'Expected the legacy belt category to be active and not previously retired';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.catalog_families
+      WHERE category_slug='تسمه-و-انتقال-نیرو' AND is_active=true AND coalesce(is_deleted,false)=false)
+     OR EXISTS (SELECT 1 FROM public.catalog_family_menu_assignments
+      WHERE category_slug='تسمه-و-انتقال-نیرو')
+     OR EXISTS (SELECT 1 FROM public.catalog_direct_skus
+      WHERE category_slug='تسمه-و-انتقال-نیرو') THEN
+    RAISE EXCEPTION 'Legacy belt category still has active family, menu or direct-SKU references';
+  END IF;
+
   IF (SELECT count(*) FROM public.catalog_variants WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc') <> 103 THEN
     RAISE EXCEPTION 'Expected 103 crowned CRC/TRC variants';
   END IF;
@@ -146,7 +171,12 @@ WHERE d.sku_code IN (
   '28363','37186','37188','41602','52319','39861','31315','32280'
 );
 
-DO $$
+INSERT INTO internal.catalog_belt_family_engineering_backup_20261117(table_name,row_key,row_data)
+SELECT 'catalog_categories',c.slug,to_jsonb(c)
+FROM public.catalog_categories c
+WHERE c.slug IN ('excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4','تسمه-و-انتقال-نیرو');
+
+DO $
 BEGIN
   IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_variants') <> 292 THEN
     RAISE EXCEPTION 'Backup failed: expected 292 catalog variant rows';
@@ -160,7 +190,10 @@ BEGIN
   IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_direct_skus') <> 14 THEN
     RAISE EXCEPTION 'Backup failed: expected 14 direct SKU rows';
   END IF;
-END $$;
+  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_categories') <> 5 THEN
+    RAISE EXCEPTION 'Backup failed: expected 5 category route rows';
+  END IF;
+END $;
 
 -- 1) CRC is not one family type: crowned ridge-top CRC is separate from welded PU round CRC.
 UPDATE public.catalog_variants
@@ -767,7 +800,30 @@ SET technical_review=jsonb_set(
     )
 WHERE upper(coalesce(identity_specs->>'profile',''))='AA';
 
--- 11) Keep the exact SKU evidence honest: series-level catalogue evidence is not an exact model match.
+-- 11) The four Excel belt categories are independent routes. Retire the empty legacy catch-all
+-- only after confirming no active families, assignments or direct SKUs still reference it.
+UPDATE public.catalog_categories c
+SET metadata=jsonb_set(
+      coalesce(c.metadata,'{}'::jsonb),
+      '{routeSlug}',
+      to_jsonb(c.slug),
+      true
+    ),
+    updated_at=now()
+WHERE c.slug IN ('excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4');
+
+UPDATE public.catalog_categories c
+SET is_active=false,
+    metadata=jsonb_set(
+      coalesce(c.metadata,'{}'::jsonb),
+      '{legacyRedirectTo}',
+      to_jsonb('/categories'::text),
+      true
+    ),
+    updated_at=now()
+WHERE c.slug='تسمه-و-انتقال-نیرو';
+
+-- 12) Keep the exact SKU evidence honest: series-level catalogue evidence is not an exact model match.
 -- The official SWR catalogue confirms the series and construction families, while exact local SKU/length matching remains open.
 DO $$
 BEGIN
@@ -850,6 +906,16 @@ BEGIN
       WHERE sku_code IN ('33969','39183','27843','27850','37496','41253','28363','37186','37188','41602','52319','39861')
         AND submenu='تسمه اسپشیال' AND subcategory='') <> 12 THEN
     RAISE EXCEPTION 'Postcondition failed: direct American wedge SKU paths';
+  END IF;
+  IF (SELECT count(*) FROM public.catalog_categories
+      WHERE slug IN ('excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4')
+        AND metadata->>'routeSlug'=slug AND is_active=true) <> 4 THEN
+    RAISE EXCEPTION 'Postcondition failed: Excel belt categories must use their own canonical route slugs';
+  END IF;
+  IF (SELECT count(*) FROM public.catalog_categories
+      WHERE slug='تسمه-و-انتقال-نیرو' AND is_active=false
+        AND metadata->>'legacyRedirectTo'='/categories') <> 1 THEN
+    RAISE EXCEPTION 'Postcondition failed: empty legacy belt category must be retired with a redirect target';
   END IF;
   IF (SELECT count(*) FROM public.catalog_direct_skus
       WHERE sku_code IN ('31315','32280')
