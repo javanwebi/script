@@ -693,22 +693,24 @@ app.post('/api/catalog/sku-transfer',async(req,res)=>{
     else if(byUrl>=0)targetGallery[byUrl]=galleryEntry;
     else targetGallery.push(galleryEntry);
 
-    const movedVariant={...skuVariant,images:Array.from(new Set([...(skuVariant.images||[]),resolvedImageUrl]))};
+    const movedVariant={
+      ...skuVariant,
+      // Rebuild the SKU image list from rows explicitly scoped to this SKU.
+      images:Array.from(new Set(targetGallery.filter(image=>image.scope==='variant'&&image.variantCode===skuCode).map(image=>image.url)))
+    };
     const nextTargetVariants=(target.variants||[]).some(variant=>variant.code===skuCode)
       ? (target.variants||[]).map(variant=>variant.code===skuCode?movedVariant:variant)
       : [...(target.variants||[]),movedVariant];
     const nextTarget:Product={
       ...target,variants:nextTargetVariants,galleryImages:targetGallery,
-      images:targetGallery.map(image=>image.url)
+      // Family images are shared; SKU-owned images must never leak into this list.
+      images:targetGallery.filter(image=>image.scope==='family').map(image=>image.url)
     };
     if(source.code!==target.code){
-      const movedSkuUrls=new Set([...(skuVariant.images||[]),...movedImages.map(image=>image.url),resolvedImageUrl]);
-      const remainingFamilyUrls=new Set(remainingSourceGallery.filter(image=>image.scope==='family').map(image=>image.url));
-      const remainingImages=(source.images||[]).filter(url=>!movedSkuUrls.has(url)||remainingFamilyUrls.has(url));
       const nextSource:Product={
         ...source,variants:(source.variants||[]).filter(variant=>variant.code!==skuCode),
         galleryImages:remainingSourceGallery,
-        images:remainingSourceGallery.length?remainingSourceGallery.map(image=>image.url):remainingImages
+        images:remainingSourceGallery.filter(image=>image.scope==='family').map(image=>image.url)
       };
       currentDb.families[nextSource.code]=nextSource;
     }

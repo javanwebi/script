@@ -18,7 +18,7 @@ test('homepage About preview and approved editorial pages preserve company navig
   const premiumCss = read('src/company-pages-premium.css');
 
   assert.match(home,/HomeAboutSection/);
-  assert.match(home,/<WhySanatPish \/>/);
+  assert.match(home,/<HomeAboutSection \/>/);
   assert.match(layout,/isAboutEditorialPage/);
   assert.match(layout,/!isAboutEditorialPage/);
   assert.match(overview,/export function HomeAboutSection/);

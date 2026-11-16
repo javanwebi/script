@@ -193,10 +193,15 @@ export function buildDefaultGalleryImages(
         fileName: extractFileNameFromUrl(url), scope: 'family' as const,
         title: `تصویر عمومی خانواده ${product.name}`, order: idx + 1,
       }));
+  const familyGalleryUrls=gallery.filter(image=>image.scope==='family').map(image=>image.url);
+  const variantGalleryUrls=new Set(gallery.filter(image=>image.scope==='variant').map(image=>image.url));
+  const familyImageUrls=new Set([...familyGalleryUrls,...(product.images||[]).filter(url=>!variantGalleryUrls.has(getProductImageUrl(url)||url)).map(url=>getProductImageUrl(url)||url)]);
   for (const variant of product.variants || []) {
     for (const [idx, originalUrl] of (variant.images || []).entries()) {
       const url = getProductImageUrl(originalUrl) || originalUrl;
-      if (!url || gallery.some(img => img.scope === 'variant' && img.variantCode === variant.code && img.url === url)) continue;
+      // Older uploads accidentally copied family URLs into every SKU.images array.
+      // Treat those as inherited family photos, never as SKU-specific gallery entries.
+      if (!url || familyImageUrls.has(url) || gallery.some(img => img.scope === 'variant' && img.variantCode === variant.code && img.url === url)) continue;
       gallery.push({id: `sku-${variant.code}-${idx}`, url, scope: 'variant', variantCode: variant.code,
         title: `تصویر کد ${variant.code}`, order: gallery.length + 1});
     }
