@@ -611,7 +611,7 @@ interface CanonicalMenuPath {
   categorySlug: string;
   categoryName: string;
   submenu: string;
-  leaf: string;
+  leaf: string | null;
 }
 
 const UNRESOLVED_MENU_PATH: CanonicalMenuPath = {
@@ -623,11 +623,18 @@ const UNRESOLVED_MENU_PATH: CanonicalMenuPath = {
 
 const CANONICAL_MENU_PATHS: CanonicalMenuPath[] = [];
 const CANONICAL_BY_TRIPLET = new Map<string, CanonicalMenuPath>();
+const CANONICAL_BY_SUBMENU = new Map<string, CanonicalMenuPath>();
 const CANONICAL_BY_CATEGORY = new Map<string, CanonicalMenuPath[]>();
 
 for (const cat of APPROVED_MENU_CATEGORIES) {
   const list: CanonicalMenuPath[] = [];
   for (const sub of cat.children || []) {
+    CANONICAL_BY_SUBMENU.set(`${cat.slug}::${normalizeFa(sub.name)}`, {
+      categorySlug: cat.slug,
+      categoryName: cat.name,
+      submenu: sub.name,
+      leaf: null,
+    });
     for (const lf of sub.children || []) {
       const entry: CanonicalMenuPath = {
         categorySlug: cat.slug,
@@ -653,7 +660,7 @@ for (const cat of APPROVED_MENU_CATEGORIES) {
 export function resolveStrictApprovedMenuPath(
   rawCategorySlug: string,
   rawSubmenu: string,
-  rawLeaf: string
+  rawLeaf: string | null
 ): CanonicalMenuPath {
   // Only approved category slugs are accepted. Legacy categories must be mapped
   // through an explicitly approved path before they can be published.
@@ -661,6 +668,9 @@ export function resolveStrictApprovedMenuPath(
   if (!CANONICAL_BY_CATEGORY.has(slug)) return UNRESOLVED_MENU_PATH;
 
   const normSub = normalizeFa(rawSubmenu);
+  if (rawLeaf === null || !rawLeaf.trim()) {
+    return CANONICAL_BY_SUBMENU.get(`${slug}::${normSub}`) || UNRESOLVED_MENU_PATH;
+  }
   const normLeaf = normalizeFa(rawLeaf);
   const exact = CANONICAL_BY_TRIPLET.get(`${slug}::${normSub}::${normLeaf}`);
   return exact || UNRESOLVED_MENU_PATH;
