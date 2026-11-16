@@ -57,15 +57,19 @@ test('audit accounts for all 1,383 raw families, 10,435 SKUs, and exact 634 + 2 
   assert.equal(confSum, 7709);
   assert.equal(actSum, 7709);
 
-  // Strict verification provenance: siteChecked === dsChecked === 17 exact manufacturer datasheet matches
+  // Official evidence is counted separately: exact SKU datasheets + manufacturer series catalogs.
   const siteChecked = audit.reportA_skuClassifications.filter((r) => r.verification.officialManufacturerSiteChecked).length;
   const dsChecked = audit.reportA_skuClassifications.filter((r) => r.verification.datasheetOrCatalogChecked).length;
-  assert.equal(siteChecked, 17);
-  assert.equal(dsChecked, 17);
-  assert.equal(audit.confidenceCounts.DATASHEET_VERIFIED, 17);
+  const exactVerified = audit.confidenceCounts.DATASHEET_VERIFIED;
+  const seriesVerified = audit.confidenceCounts.SERIES_VERIFIED;
+  assert.equal(exactVerified, 11);
+  assert.ok(seriesVerified >= 2058, `Expected broad official series coverage, received ${seriesVerified}`);
+  assert.equal(siteChecked, exactVerified + seriesVerified);
+  assert.equal(dsChecked, exactVerified + seriesVerified);
   assert.equal(audit.confidenceCounts.NOMINAL_TABLE_VERIFIED, 1141);
-  assert.equal(audit.confidenceCounts.SERIES_VERIFIED, 10);
-  assert.equal(audit.confidenceCounts.ALGORITHMIC_STANDARD_ONLY, 6532);
+  assert.equal(audit.confidenceCounts.ALGORITHMIC_STANDARD_ONLY,
+    7709 - exactVerified - seriesVerified - audit.confidenceCounts.NOMINAL_TABLE_VERIFIED -
+      audit.confidenceCounts.INVENTORY_DESCRIPTION_ONLY - audit.confidenceCounts.REQUIRES_REVIEW);
   assert.equal(audit.confidenceCounts.REQUIRES_REVIEW, 9);
 
   // Every SKU record must carry an explicit sourceUrl & documentType, and DATASHEET_VERIFIED requires same-brand match
@@ -76,6 +80,13 @@ test('audit accounts for all 1,383 raw families, 10,435 SKUs, and exact 634 + 2 
       assert.equal(r.verification.documentType, 'MANUFACTURER_DATASHEET');
       assert.equal(r.verification.officialManufacturerSiteChecked, true);
       assert.equal(r.verification.datasheetOrCatalogChecked, true);
+      assert.equal(r.verification.matchedManufacturer, r.detectedBrand);
+    } else if (r.confidence === 'SERIES_VERIFIED') {
+      assert.equal(r.verification.documentType, 'SERIES_CATALOG');
+      assert.equal(r.verification.evidenceClass7, '2_Official_Catalog_Verified');
+      assert.equal(r.verification.officialManufacturerSiteChecked, true);
+      assert.equal(r.verification.datasheetOrCatalogChecked, true);
+      assert.ok(/^https:\/\//i.test(r.verification.sourceUrl));
       assert.equal(r.verification.matchedManufacturer, r.detectedBrand);
     } else {
       assert.equal(r.verification.officialManufacturerSiteChecked, false, `SKU ${r.sku} must not claim official site checked`);
@@ -255,26 +266,29 @@ test('BANDO DH double-sided timing belts (36468, 10111, 41291, 41598, 41689) nev
   }
 });
 
-test('automotive timing belts (31501 DATASHEET_VERIFIED vs 42209/31502 NOMINAL_TABLE_VERIFIED), AA-TOP Poly-V (39216), and generic SWR items have honest verification provenance', () => {
-  // 31501 (Optibelt ZRK 1118) matches Optibelt brand + ZRK datasheet
+test('automotive timing belts, cross-reference-only RU codes, official series catalogs, and unsupported labels have honest provenance', () => {
+  // Optibelt AUTO-RU is series-level only: the official product range identifies ZRK, not this exact stock article.
   const s31501 = bySku.get('31501');
   assert.equal(s31501?.technical.beltDivision, 'timing-automotive-ru');
   assert.equal(s31501?.technical.toothCount, 108);
   assert.equal(s31501?.technical.nominalWidthMm, 17);
-  assert.equal(s31501?.confidence, 'DATASHEET_VERIFIED');
-  assert.equal(s31501?.verification.officialManufacturerSiteChecked, true);
+  assert.equal(s31501?.confidence, 'SERIES_VERIFIED');
+  assert.equal(s31501?.verification.documentType, 'SERIES_CATALOG');
+  assert.match(s31501?.verification.evidenceBasis ?? '', /ZRK.*(article|SKU|code).*(not|unverified)/i);
 
-  // 42209 is UNSPECIFIED brand — nominal cross-ref only, MUST NOT claim DATASHEET_VERIFIED or officialManufacturerSiteChecked
+  // 42209 has no verified stock manufacturer; JIKIU is a nominal cross-reference source, not its brand.
   const s42209 = bySku.get('42209');
   assert.equal(s42209?.technical.beltDivision, 'timing-automotive-ru');
   assert.equal(s42209?.technical.toothCount, 123);
   assert.equal(s42209?.technical.nominalWidthMm, 24);
   assert.equal(s42209?.confidence, 'NOMINAL_TABLE_VERIFIED');
   assert.equal(s42209?.verification.documentType, 'NOMINAL_REFERENCE_TABLE');
+  assert.equal(s42209?.verification.matchedManufacturer, null);
+  assert.ok(s42209?.verification.sourceUrl.includes('jikiu.jp'));
   assert.equal(s42209?.verification.officialManufacturerSiteChecked, false);
   assert.equal(s42209?.verification.datasheetOrCatalogChecked, false);
 
-  // 31502..31506 require physical ZRK print verification — MUST be NOMINAL_TABLE_VERIFIED, never DATASHEET_VERIFIED
+  // Four RU cross-reference candidates still require physical ZRK marking; never call them exact datasheets.
   for (const pendingZrk of ['31502', '31504', '31505', '31506']) {
     const rec = bySku.get(pendingZrk);
     assert.equal(rec?.confidence, 'NOMINAL_TABLE_VERIFIED');
@@ -282,20 +296,46 @@ test('automotive timing belts (31501 DATASHEET_VERIFIED vs 42209/31502 NOMINAL_T
     assert.equal(rec?.verification.datasheetOrCatalogChecked, false);
   }
 
-  // AA-TOP ribbed belts must all be single-sided and ALGORITHMIC_STANDARD_ONLY
+  // The 8 mm AUTO-8MM belt is deliberately not folded into the 9.525 mm ZRK family.
+  const s35023 = bySku.get('35023');
+  assert.equal(s35023?.technical.pitchMm, 8);
+  assert.equal(s35023?.confidence, 'ALGORITHMIC_STANDARD_ONLY');
+
+  // Megadyne PJ section is catalog-supported; TNX itself remains an unverified inventory label.
+  const s58129 = bySku.get('58129');
+  assert.equal(s58129?.detectedBrand, 'MEGADYNE');
+  assert.equal(s58129?.technical.profile, 'PJ');
+  assert.equal(s58129?.confidence, 'SERIES_VERIFIED');
+  assert.ok(s58129?.verification.sourceUrl.includes('megadynegroup.com'));
+  assert.match(s58129?.verification.evidenceBasis ?? '', /TNX.*not.*manufacturer-verified/i);
+
+  // Official profile/series examples across the researched manufacturers.
+  const verifiedExamples = [
+    ['52798', 'SWR', 'swr-europe.de'],
+    ['15970', 'OPTIBELT', 'optibelt.com'],
+    ['38872', 'OPTIBELT', 'optibelt.com'],
+    ['38083', 'OPTIBELT', 'optibelt.com'],
+    ['38893', 'MEGADYNE', 'megadynegroup.com'],
+    ['38077', 'MEGADYNE', 'megadynegroup.com'],
+    ['36512', 'MEGADYNE', 'megadynegroup.com'],
+    ['40331', 'BANDO', 'bandousa.com'],
+  ] as const;
+  for (const [sku, brand, domain] of verifiedExamples) {
+    const rec = bySku.get(sku);
+    assert.equal(rec?.detectedBrand, brand, `Unexpected brand for ${sku}`);
+    assert.equal(rec?.confidence, 'SERIES_VERIFIED', `Expected official series evidence for ${sku}`);
+    assert.ok(rec?.verification.sourceUrl.includes(domain), `Missing official source for ${sku}`);
+  }
+
+  // Unsupported profile/brand combinations must remain algorithmic rather than inheriting a nearby catalog.
+  for (const sku of ['39861', '32280', '765', '10742']) {
+    assert.equal(bySku.get(sku)?.confidence, 'ALGORITHMIC_STANDARD_ONLY', `Unexpected manufacturer evidence for ${sku}`);
+  }
+
+  // AA-TOP ribbed belts must all be single-sided and ALGORITHMIC_STANDARD_ONLY.
   const s39216 = bySku.get('39216');
   assert.equal(s39216?.detectedBrand, 'AA-TOP');
   assert.equal(s39216?.technical.sidedness, 'single-sided');
-
-  // Generic algorithmic parse must NOT claim manufacturer datasheet verification
-  const swrVbelt = audit.reportA_skuClassifications.find(
-    (r) => r.detectedBrand === 'SWR' && r.technical.beltDivision === 'vbelt-classical'
-  );
-  assert.ok(swrVbelt);
-  assert.equal(swrVbelt.confidence, 'ALGORITHMIC_STANDARD_ONLY');
-  assert.equal(swrVbelt.verification.documentType, 'ENGINEERING_STANDARD_ONLY');
-  assert.equal(swrVbelt.verification.officialManufacturerSiteChecked, false);
-  assert.equal(swrVbelt.verification.datasheetOrCatalogChecked, false);
 });
 
 test('BANDO SKUs and mixed catch-all family FAM-10111 are split into homogeneous families by profile, sidedness, and supply form', () => {
