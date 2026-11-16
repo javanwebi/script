@@ -14,7 +14,7 @@ BEGIN
     RAISE EXCEPTION 'Belt engineering backup already exists; inspect the prior run before retrying';
   END IF;
 
-  IF (SELECT count(*) FROM public.catalog_variants WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc') <> 101 THEN
+  IF (SELECT count(*) FROM public.catalog_variants WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc') <> 103 THEN
     RAISE EXCEPTION 'Expected 101 crowned CRC variants';
   END IF;
   IF (SELECT count(*) FROM public.catalog_variants WHERE variable_specs->>'beltDivision'='vbelt-banded') <> 15 THEN
@@ -103,6 +103,11 @@ WHERE f.code IN (
   'PFAM-تسمه-V-شکل-به--GENERIC--C-BANDED-654',
   'PFAM-تسمه-V-شکل-به--GENERIC--3VX-BANDED-641',
   'PFAM-تسمه-V-شکل-به--DONGIL-C-BANDED-655',
+  'PFAM-تسمه-ذوزنقه-ای-GENERIC--CRC-046',
+  'PFAM-تسمه-ذوزنقه-ای-SWR-CRC-097',
+  'PFAM-تسمه-ذوزنقه-ای-MEGADYNE-CRC-107',
+  'PFAM-تسمه-ذوزنقه-ای-GNR-CRC-168',
+  'PFAM-تسمه-ذوزنقه-ای-GENERIC--TRC-653',
   'PFAM-تسمه-V-شکل-پرو-SWR-XPZ-105',
   'PFAM-تسمه-V-شکل-پرو-SWR-XPA-061',
   'PFAM-تسمه-V-شکل-پرو-SWR-XPB-028',
@@ -136,10 +141,10 @@ WHERE d.sku_code IN (
 
 DO $$
 BEGIN
-  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_variants') <> 288 THEN
+  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_variants') <> 290 THEN
     RAISE EXCEPTION 'Backup failed: expected 288 catalog variant rows';
   END IF;
-  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_families') <> 13 THEN
+  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_families') <> 18 THEN
     RAISE EXCEPTION 'Backup failed: expected 13 catalog family rows';
   END IF;
   IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_family_menu_assignments') <> 7 THEN
