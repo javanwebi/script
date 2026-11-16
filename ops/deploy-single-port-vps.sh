@@ -378,26 +378,61 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
 echo '===== APPLY GUARDED INDUSTRIAL BELT TAXONOMY RECONCILIATION ====='
 BELT_TAXONOMY_SQL="$STAGE/ops/sql/20261116_belt_family_taxonomy_followup.sql"
 test -s "$BELT_TAXONOMY_SQL" || { echo "REQUIRED_BELT_TAXONOMY_SQL_MISSING=$BELT_TAXONOMY_SQL"; exit 1; }
-# This is a one-time data migration. The private 138-row backup is its durable
-# completion marker; subsequent deploys verify it and never re-run the DELETE/UPDATE.
+# One-time data migration. A complete private snapshot is the durable completion marker.
+# Every deploy verifies the snapshot by table and the key belt-taxonomy invariants.
 docker exec -i "$OLD" node --import tsx --input-type=module -e '
  import {readFileSync} from "node:fs";
  import {database,closeDatabase} from "./server/db/connection.ts";
- try {
+ const aplFamily="PFAM-دستگاه-صنعتی-GENERIC--دستگاه-صنعتی-576";
+ const staleFamilies=[
+  "PFAM-تسمه-جوشی-V-رو-FORZA-A-633","PFAM-تسمه-جوشی-V-رو-FORZA-B-634",
+  "PFAM-تسمه-جوشی-V-رو-FORZA-B-636","PFAM-تسمه-جوشی-V-رو-FORZA-C-637",
+  "PFAM-تسمه-جوشی-V-رو-FORZA-C-638","PFAM-تسمه-جوشی-V-رو-T-B-B-635",
+  "PFAM-تسمه-جوشی-پلی--B-R-B-665","PFAM-تسمه-جوشی-پلی--FORZA-A-662",
+  "PFAM-تسمه-جوشی-پلی--FORZA-A-663","PFAM-تسمه-جوشی-پلی--FORZA-B-491",
+  "PFAM-تسمه-جوشی-پلی--FORZA-B-666","PFAM-تسمه-جوشی-پلی--FORZA-C-494",
+  "PFAM-تسمه-جوشی-پلی--FORZA-C-667","PFAM-تسمه-جوشی-پلی--GENERIC--B-397",
+  "PFAM-تسمه-جوشی-پلی--GENERIC--B-398","PFAM-تسمه-جوشی-پلی--GENERIC--C-399",
+  "PFAM-تسمه-جوشی-پلی--GENERIC--C-493","PFAM-تسمه-جوشی-پلی--VOLTA-B-664"
+ ];
+ const verifyState=async()=>{
+  const backup=await database().query(
+   "select table_name,count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116 group by table_name");
+  const counts=Object.fromEntries(backup.rows.map(row=>[row.table_name,Number(row.rows)]));
+  if(counts.catalog_families!==71||counts.catalog_family_menu_assignments!==32||counts.catalog_direct_skus!==35||backup.rows.length!==3){
+   throw Error("Belt taxonomy private backup is incomplete: "+JSON.stringify(counts));
+  }
+  const audit=await database().query(`
+   select
+    (select count(*)::int from public.catalog_family_menu_assignments where family_code=$1) as apl_assignments,
+    (select count(*)::int from public.catalog_families
+      where code=any($2::text[]) and category_slug=$q$UNRESOLVED$q$
+        and category_name=$q$نیازمند تعیین تکلیف$q$ and submenu is null and subcategory is null) as stale_families,
+    (select count(*)::int from public.catalog_family_menu_assignments where family_code=any($2::text[])) as stale_assignments,
+    (select count(*)::int from public.catalog_family_menu_assignments a
+      join public.catalog_families f on f.code=a.family_code
+      where f.is_active=true and coalesce(f.is_deleted,false)=false
+        and a.category_slug in ($q$excel-v2-1-1$q$,$q$excel-v2-1-2$q$,$q$excel-v2-1-3$q$,$q$excel-v2-1-4$q$)
+        and (f.category_slug is distinct from a.category_slug
+          or coalesce(f.submenu,$q$$q$) is distinct from coalesce(a.submenu_name,$q$$q$)
+          or coalesce(f.subcategory,$q$$q$) is distinct from coalesce(a.leaf_name,$q$$q$))) as metadata_mismatches
+  `,[aplFamily,staleFamilies]);
+  const row=audit.rows[0];
+  if(Number(row.apl_assignments)!==0||Number(row.stale_families)!==18||Number(row.stale_assignments)!==0||Number(row.metadata_mismatches)!==0){
+   throw Error("Belt taxonomy invariants failed: "+JSON.stringify(row));
+  }
+ };
+ try{
   const sql=readFileSync(0,"utf8");
   const marker=await database().query(
    "select to_regclass(\x27internal.catalog_belt_taxonomy_followup_backup_20261116\x27) as backup");
   if(marker.rows[0].backup){
-   const existing=await database().query(
-    "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
-   if(Number(existing.rows[0].rows)!==138)throw Error("Existing belt taxonomy backup is incomplete; refusing to continue");
-   console.log("PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138");
+   await verifyState();
+   console.log("PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138 invariants=verified");
   }else{
    await database().query(sql);
-   const applied=await database().query(
-    "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
-   if(Number(applied.rows[0].rows)!==138)throw Error("Belt taxonomy migration did not create its complete 138-row backup");
-   console.log("PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138");
+   await verifyState();
+   console.log("PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138 invariants=verified");
   }
  }catch(error){
   console.error("PRODUCTION_BELT_TAXONOMY_MIGRATION_FAILED",error.code||"",error.message);
