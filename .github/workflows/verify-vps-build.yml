@@ -43,6 +43,8 @@ on:
       - "src/data/catalogMenuSemanticGuard.ts"
       - "tests/catalog-menu-semantic-guard.test.ts"
       - "tests/single-port-deploy.test.ts"
+      - "docs/belt-taxonomy-final-reconciliation-2026-11-16.md"
+      - "docs/belt-family-engineering-research-2026-11-17.md"
       - "tests/database/belt-family-taxonomy-followup.test.ts"
       - "tests/database/belt-family-engineering-corrections.test.ts"
       - "ops/sql/20261116_belt_family_taxonomy_followup.sql"
