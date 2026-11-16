@@ -104,10 +104,19 @@ export class ForzaSpeechAdmission {
   }
 
   hasRecentNearFieldEvidence(now:number){
-    return this.calibrated&&now>=this.lastStrong&&now-this.lastStrong<=250;
+    // During assistant playback, raw loudspeaker leakage is not customer
+    // evidence. Only a transcript that passed the speech/echo gate can latch
+    // a genuine barge-in; outside playback, fresh PCM can cancel a turn timer.
+    return (!this.mode||this.utteranceLatched)&&this.calibrated&&
+      now>=this.lastStrong&&now-this.lastStrong<=250;
   }
 
-  get acousticSpeech(){return this.onset!==null&&this.duration>=160&&this.strongFrames>=3;}
+  get acousticSpeech(){
+    // A loud TTS echo can satisfy the raw RMS threshold. Do not let it become
+    // VAD evidence until an actual recognized customer phrase is admitted.
+    return (!this.mode||this.utteranceLatched)&&
+      this.onset!==null&&this.duration>=160&&this.strongFrames>=3;
+  }
   reset(){
     this.levels=[];this.floor=0.001;this.lastSample=-Infinity;this.onset=null;
     this.lastStrong=-Infinity;this.duration=0;this.strongFrames=0;this.mode=false;this.calibrated=false;
