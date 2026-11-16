@@ -553,8 +553,11 @@ export function resolveEngineeringFamilyType(input: {
         familyTypeName: 'تسمه V دنده‌ای لبه‌خام (ZX / AX / BX / CX / XPZ / XPA / XPB / XPC / 3VX / 5VX / 8VX)',
       };
     }
-    if (/^(?:SPZ|SPA|SPB|SPC|3V|5V|8V)$/i.test(prof) || div.includes('narrow')) {
-      return { familyTypeId: 'FT-VBELT-NARROW', familyTypeName: 'تسمه V شکل پروفیل باریک (SPZ / SPA / SPB / SPC / 3V / 5V / 8V)' };
+    if (/^(?:3V|5V|8V)$/i.test(prof) || div === 'vbelt-wedge') {
+      return { familyTypeId: 'FT-VBELT-WEDGE', familyTypeName: 'تسمه V گوه‌ای آمریکایی / توان‌بالا (3V / 5V / 8V)' };
+    }
+    if (/^(?:SPZ|SPA|SPB|SPC)$/i.test(prof) || div === 'vbelt-narrow-wedge') {
+      return { familyTypeId: 'FT-VBELT-NARROW', familyTypeName: 'تسمه V گوه‌ای باریک متریک (SPZ / SPA / SPB / SPC)' };
     }
     return { familyTypeId: 'FT-VBELT-CLASSICAL', familyTypeName: 'تسمه V شکل کلاسیک (Z / A / B / C / D / E)' };
   }
