@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import express from 'express';
 import { registerCategorySeoRoutes } from '../server/categorySeoRoutes';
 import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../src/data/approvedMenuFallback';
-import { APPROVED_CATEGORY_SEO_ROUTES, getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug } from '../src/data/categorySeoRoutes';
+import { APPROVED_CATEGORY_SEO_ROUTES, getCategorySeoMetadata, getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug } from '../src/data/categorySeoRoutes';
 
 const source = (file: string) => readFileSync(file, 'utf8');
 const categories = source('src/data/categories.ts');
@@ -40,6 +40,11 @@ test('the approved menu exposes 34 unique category routes with no parent-route r
   assert.deepEqual(new Set(groupedSlugs), new Set(categorySlugs));
   assert.equal(APPROVED_CATEGORY_SEO_ROUTES.length, 34);
   assert.equal(new Set(APPROVED_CATEGORY_SEO_ROUTES.map(route => route.routeSlug)).size, 34);
+  assert.equal(new Set(APPROVED_CATEGORY_SEO_ROUTES.map(route => route.description)).size, 34);
+  for (const route of APPROVED_CATEGORY_SEO_ROUTES) {
+    assert.ok(route.description.length >= 100 && route.description.length <= 155);
+    assert.equal(getCategorySeoMetadata(route.categorySlug)?.description, route.description);
+  }
   for (const route of APPROVED_CATEGORY_SEO_ROUTES) {
     assert.ok(route.routeSlug.includes('-'));
     assert.ok(!/[\s_]/.test(route.routeSlug));
@@ -81,6 +86,7 @@ test('retired category parents no longer render old category experiences', () =>
   assert.match(categoryPage, /getInternalCategorySlugFromRouteSlug\(routeSlug\)/);
   assert.match(categoryPage, /getCategorySeoRouteSlug\(internalCategorySlug\)/);
   assert.match(categoryPage, /search: location\.search, hash: location\.hash/);
+  assert.match(excelPage, /getCategorySeoMetadata\(slug\)/);
   assert.match(categoryPage, /LEGACY_CATEGORY_ROUTE_GROUPS/);
   assert.match(serverSeo, /res\.redirect\(301/);
   assert.match(serverEntry, /registerCategorySeoRoutes\(app\)/);
