@@ -64,6 +64,7 @@ on:
       - "ops/Dockerfile.forza-stt-runtime"
       - "server.ts"
       - "ops/deploy-single-port-vps.sh"
+      - "ops/sanatpish-deploy.sh"
       - "ops/verify-single-port-canary.mjs"
       - ".github/workflows/verify-vps-build.yml"
   push:
