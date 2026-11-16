@@ -333,10 +333,10 @@ test('category APIs and product filters prefer the audited map over legacy conse
  const server=readFileSync('server/catalogNavigationApi.ts','utf8');
  const products=readFileSync('src/pages/ProductsPage.tsx','utf8');
  assert.ok(server.includes("import {getFamilyMenuAssignment} from '../src/services/catalogTaxonomyResolver'"));
- assert.ok(server.includes("a.leaf_name as \"leafName\",a.method"));
- assert.ok(server.includes("getFamilyMenuAssignment(row.code)"));
- assert.ok(server.includes("row.method==='admin_verified'||row.method==='excel_source_verified'"));
- assert.ok(products.includes("liveAssignment?.method === 'admin_verified' || liveAssignment?.method === 'excel_source_verified'"));
+ assert.ok(server.includes("a.leaf_name as \"assignedLeaf\",a.method"));
+ assert.ok(server.includes("getFamilyMenuAssignment(row.code||row.familyCode)"));
+ assert.ok(server.includes("['admin_verified','excel_source_verified','engineering_audited','taxonomy_gap'].includes(assignmentMethod)"));
+ assert.ok(products.includes("['admin_verified','excel_source_verified','engineering_audited','taxonomy_gap'].includes(String(liveAssignment?.method || ''))"));
 });
 
 
