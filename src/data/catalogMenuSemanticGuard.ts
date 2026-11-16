@@ -57,6 +57,100 @@ export function validateFamilyMenuAssignment(
     if (!approvedLeaf) return fail('unapproved_leaf');
   }
 
+  // Industrial belt families need both a valid Excel path and a matching engineering identity.
+  const profileCode = profile.replace(/-banded$/, '').replace(/[^a-z0-9]/g, '');
+  const isTiming = matches(identity, /تسمه تایمینگ|timing|synchronous|htd|rpp|at5|at10|at20|\bt5\b/);
+  const isVbelt = matches(identity, /تسمه\s*v|وی.?بلت|v.?belt|v شکل/);
+  const isPolyV = matches(identity, /چندشیاری|poly.?v|multi.?rib/);
+  const isPuMaterial = matches(material, /پلی.?یورتان|polyurethane|thermoplastic.?pu|\btpu\b|\bpu\b/);
+  const isRubberMaterial = matches(material, /لاستیک|الاستومر|rubber|elastomer|nbr|epdm|fkm|viton|neoprene|کلروپرن/);
+  const isRidgeTop = matches(identity, /تاج.?دار|گرده.?ماهی|ridge.?top|crowned/);
+  const isWeldingDevice = matches(identity, /دستگاه.*(?:جوش|آپارات).*تسمه|گیره.*آپارات.*تسمه|belt.*weld.*device/);
+  const isNonBeltItem = matches(identity, /دستگاه پولیش|دستگاه تزریق|تسمه پاک.?کن|اسکریپر|تیغه فلزی|تسمه آهنی/);
+
+  if (context.categorySlug === 'excel-v2-1-1') {
+    if (!isTiming || isVbelt || isPolyV || isNonBeltItem) {
+      return fail('timing_category_product_type_mismatch');
+    }
+    if (matches(identity, /auto.?ru|auto.?8mm|zrk|خودرویی|لیفتراکی/)) {
+      return fail('automotive_timing_outside_industrial_menu');
+    }
+
+    if (submenu === normalize('سیم‌دار فابریک')) {
+      if (leaf === normalize('پلی‌یورتان') && !isPuMaterial) {
+        return fail('polyurethane_timing_leaf_without_pu_material');
+      }
+      if (leaf === normalize('APL دار') && !matches(identity, /apl|گریپ|روکش|coating/)) {
+        return fail('apl_timing_leaf_without_coating_identity');
+      }
+    }
+
+    if (submenu === normalize('لاستیکی فابریک') && !isRubberMaterial) {
+      return fail('rubber_timing_leaf_without_rubber_material');
+    }
+
+    if (submenu === normalize('انواع گام و کدهای تایمینگ')) {
+      if (profileCode === 't10' || profileCode === 't20' || profileCode === '3m' || profileCode === 'mxl') {
+        return fail('timing_profile_without_exact_approved_leaf');
+      }
+      if (leaf === normalize('T5 , AT5 , AT10 , AT20') && !['t5', 'at5', 'at10', 'at20'].includes(profileCode)) {
+        return fail('metric_timing_leaf_profile_mismatch');
+      }
+      if (leaf === normalize('H , XH , L , XL') && !['h', 'xh', 'l', 'xl', 'dh', 'dxh', 'dl', 'dxl'].includes(profileCode)) {
+        return fail('imperial_timing_leaf_profile_mismatch');
+      }
+      if (
+        leaf === normalize('5M , 8M , 11M , 14M') &&
+        !['5m', '8m', '11m', '14m', 'd5m', 'd8m', 'd11m', 'd14m', 'rpp8m', 'rpp14m'].includes(profileCode)
+      ) {
+        return fail('curvilinear_timing_leaf_profile_mismatch');
+      }
+    }
+  }
+
+  if (context.categorySlug === 'excel-v2-1-2') {
+    if (!isVbelt || isPolyV) return fail('vbelt_category_product_type_mismatch');
+    if (['aa', 'bb', 'k'].includes(profileCode)) return fail('vbelt_profile_without_approved_leaf');
+
+    if (submenu === normalize('وی‌بلت متری') && !['a', 'b', 'c', 'aperforated', 'bperforated', 'cperforated'].includes(profileCode)) {
+      return fail('vbelt_meter_leaf_profile_mismatch');
+    }
+
+    if (
+      submenu === normalize('کلاسیک و دنده‌دار') &&
+      !['z', 'zx', 'm', 'mx', 'a', 'ax', 'b', 'bx', 'c', 'cx', 'd', 'e', '8v', '8vx'].includes(profileCode)
+    ) {
+      return fail('vbelt_classical_leaf_profile_mismatch');
+    }
+
+    if (
+      submenu === normalize('تسمه اسپشیال') &&
+      !['spz', 'xpz', 'spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc', '3v', '3vx', '5v', '5vx'].includes(profileCode)
+    ) {
+      return fail('vbelt_special_leaf_profile_mismatch');
+    }
+  }
+
+  if (context.categorySlug === 'excel-v2-1-3') {
+    if (!isPuMaterial) return fail('welded_pu_category_without_pu_material');
+    if (isRidgeTop) return fail('ridge_top_belt_is_not_welded_pu');
+    if (submenu === normalize('تسمه گرد (CRC)') && !['crc', 'round'].includes(profileCode)) {
+      return fail('welded_round_leaf_profile_mismatch');
+    }
+    if (submenu === normalize('تسمه فلت') && (['a', 'b', 'c', 'brb'].includes(profileCode) || !['flat', 'f'].includes(profileCode))) {
+      return fail('welded_flat_leaf_profile_mismatch');
+    }
+  }
+
+  if (context.categorySlug === 'excel-v2-1-4') {
+    if (submenu === normalize('تسمه بارکش') && !isRidgeTop) {
+      return fail('hauling_belt_leaf_requires_crowned_conveyor_identity');
+    }
+    if (submenu === normalize('دستگاه‌های تسمه جوشی') && !isWeldingDevice) {
+      return fail('belt_welding_equipment_leaf_product_type_mismatch');
+    }
+  }
+
   // Wheels must contain a wheel, gear or sprocket identity. Couplings transmit torque
   // between shafts but are not wheels, even when a source family was named incorrectly.
   if (context.categorySlug === 'excel-v2-9-4') {
