@@ -20,6 +20,7 @@ import {
 import { ProductImage } from '../components/product/ProductImage';
 import { useDirectSkus } from '../components/catalog/DirectSkuProducts';
 import { resolveDisplayBrand } from '../utils/catalogBrands';
+import { getCategoryRoutePath } from '../data/categories';
 import { toPersianDigits } from '../utils/formatters';
 import { getBeltFamilyMedia, getBeltSkuMedia } from '../utils/beltCatalogMedia';
 import {
@@ -104,10 +105,10 @@ export default function DirectSkuDetailPage() {
     );
   }
 
-  const categoryBackUrl =
-    '/category/' +
-    encodeURIComponent(item.categorySlug) +
-    (item.submenu ? '?sub=' + encodeURIComponent(item.submenu) : '');
+  const categoryPath = getCategoryRoutePath(item.categorySlug);
+  const categoryBackUrl = categoryPath + (item.submenu
+    ? (categoryPath.includes('?') ? '&' : '?') + new URLSearchParams({ sub: item.submenu }).toString()
+    : '');
 
   return (
     <main dir="rtl" className="mx-auto max-w-7xl space-y-6 bg-white px-4 py-6 sm:py-10 text-right">
