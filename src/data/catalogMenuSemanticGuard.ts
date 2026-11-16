@@ -70,7 +70,8 @@ export function validateFamilyMenuAssignment(
     'spz', 'xpz', 'spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc', '3v', '3vx', '5v', '5vx',
     'aa', 'bb', 'k'
   ].includes(profileCode);
-  const isVbelt = matches(identity, /تسمه(?:\s+جوشی)?\s*v|وی.?بلت|v.?belt|v شکل/) || hasVbeltProfile || isWeldedPuVSection;
+  // Welded PU V-sections are a separate engineering division, not rubber V-belts.
+  const isVbelt = (matches(identity, /تسمه(?:\s+جوشی)?\s*v|وی.?بلت|v.?belt|v شکل/) || hasVbeltProfile) && !isWeldedPuVSection;
   const isPolyV = matches(identity, /چندشیاری|poly.?v|multi.?rib/);
   const isRubberMaterial = matches(material, /لاستیک|الاستومر|rubber|elastomer|nbr|epdm|fkm|viton|neoprene|کلروپرن/);
   const isRidgeTop = matches(identity, /تاج.?دار|گرده.?ماهی|ridge.?top|crowned/);
