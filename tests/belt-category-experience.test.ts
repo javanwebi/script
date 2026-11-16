@@ -229,6 +229,7 @@ test('8V and 8VX are heavy-duty wedge profiles, not classical V-belt leaf member
     assert.match(result.taxonomyGap || '', /AMERICAN-WEDGE-LEAF-MISSING/);
   }
   assert.match(cogged.technical.bodyMaterial, /Raw-Edge Cogged/);
+  assert.match(cogged.proposedFamilyNameFa, /دنده‌ای لبه‌خام/);
 });
 
 test('3V, 5V and 8V are American wedge belts, separate from metric SPZ/SPA/SPB/SPC narrow wedge', () => {
