@@ -84,6 +84,31 @@ console.log("API_NOT_FOUND_JSON_CONTRACT_OK");
 const groups = await json(candidate, "/api/catalog/navigation-groups");
 assert.ok(groups.success && Array.isArray(groups.groups) && groups.groups.length >= 6);
 
+const categoryCatalog = await json(candidate, "/api/catalog/categories");
+assert.ok(
+  categoryCatalog.success && Array.isArray(categoryCatalog.categories),
+  "PUBLIC_CATALOG_CATEGORIES_RESPONSE_INVALID",
+);
+const approvedCategories = categoryCatalog.categories.filter(category =>
+  category?.active === true &&
+  category?.menuSource === "industrial_megamenu_hierarchy_v2" &&
+  /^excel-v2-[0-9]+-[0-9]+$/.test(String(category?.slug || "")),
+);
+assert.ok(
+  approvedCategories.length >= 34,
+  "PUBLIC_CATALOG_CATEGORIES_INCOMPLETE: expected at least 34 approved categories, received " + approvedCategories.length,
+);
+const approvedCategorySlugs = new Set(approvedCategories.map(category => category.slug));
+assert.equal(approvedCategorySlugs.size, approvedCategories.length,
+  "PUBLIC_CATALOG_CATEGORIES_DUPLICATE_SLUG");
+assert.ok(approvedCategories.every(category =>
+  typeof category.name === "string" && category.name.trim().length > 0 &&
+  Number.isInteger(category.familyCount) && category.familyCount >= 0 &&
+  Number.isInteger(category.skuCount) && category.skuCount >= 0
+), "PUBLIC_CATALOG_CATEGORIES_INVALID_FIELDS");
+console.log("PUBLIC_CATALOG_CATEGORIES_API_OK", approvedCategories.length);
+
+
 // excel-v2-1-4 is a valid approved category, but the reviewed family map
 // currently contains no source-confirmed families for it. Empty is valid here:
 // do not promote conservative name guesses just to satisfy a deployment probe.
