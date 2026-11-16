@@ -55,14 +55,17 @@ RUN set -eux; \
       https://huggingface.co/Dibachain/Diba-STT/resolve/c244182debe853f83a00a03642830e7507a55d1d/browser/diba-stt-fa-small.tar.gz \
       -o /tmp/diba-stt-fa-small.tar.gz; \
     tar -xzf /tmp/diba-stt-fa-small.tar.gz -C /opt/diba-stt; \
+    cp /tmp/diba-stt-fa-small.tar.gz /opt/diba-stt/diba-stt-fa-small.tar.gz; \
     MODEL_ROOT="$(find /opt/diba-stt -type d -name am -printf '%h\n' | head -n 1)"; \
     test -n "$MODEL_ROOT"; \
     ln -s "$MODEL_ROOT" /opt/diba-stt/model; \
     test -d /opt/diba-stt/model/am; \
     test -d /opt/diba-stt/model/conf; \
+    test -s /opt/diba-stt/diba-stt-fa-small.tar.gz; \
     rm -f /tmp/diba-stt-fa-small.tar.gz
 
 ENV FORZA_STT_PROVIDER=diba \
     FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model \
+    FORZA_STT_DIBA_BROWSER_ARCHIVE=/opt/diba-stt/diba-stt-fa-small.tar.gz \
     FORZA_STT_PYTHON=/opt/forza-pocket/bin/python \
     FORZA_STT_WORKERS=2
