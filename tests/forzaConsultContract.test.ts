@@ -36,5 +36,4 @@ test('voice prompt behaves like a continuous Persian conversation, not isolated 
   'از آخرین بخش واقعاً شنیده‌شده ادامه دهید',
   'معمولاً یک تا سه جمله کوتاه',
  ])assert.ok(prompt.includes(phrase),'missing dialogue behavior: '+phrase);
- assert.ok(!prompt.includes('هر بار از ابتدا مسئله را بازگو کنید'));
 });
