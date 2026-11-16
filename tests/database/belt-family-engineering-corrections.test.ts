@@ -329,6 +329,13 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
     );
     assert.equal(aa.rows[0].count, 4);
 
+    const aaReviewPath = await db.query(
+      `select count(*)::int count from public.catalog_variants
+       where upper(identity_specs->>'profile')='AA'
+         and technical_review->'categoryPath'='["تسمه و انتقال نیرو","نیازمند تعیین تکلیف","تسمه V دوطرفه شش‌ضلعی AA (Double V)"]'::jsonb`,
+    );
+    assert.equal(aaReviewPath.rows[0].count, 4);
+
     const xp = await db.query(
       `select count(*)::int count from public.catalog_variants
        where brand='SWR' and upper(identity_specs->>'profile') in ('XPZ','XPA','XPB','XPC')
