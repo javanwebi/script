@@ -197,6 +197,42 @@ SET family_type_id='FT-BELT-CROWNED-CRC',
     updated_at=now()
 WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc';
 
+-- Correct the five active CRC/TRC family records too: do not publish invented compound, cord or standard claims.
+UPDATE public.catalog_families f
+SET materials='لاستیک/الاستومر با سطح تاج‌دار (Crowned / Ridge-Top); ترکیب دقیق نیازمند دیتاشیت سازنده',
+    name=replace(
+      replace(f.name,'لاستیک کلروپرن/طبیعی ضدسایش با تاج محدب (Crowned Top)','لاستیک/الاستومر با سطح تاج‌دار (Crowned / Ridge-Top)'),
+      'Ceramic Tile Roller Kiln & Glazing Line Ridge-Top C-Belt Standard',
+      'استاندارد رسمی تأیید نشده؛ نیازمند دیتاشیت سازنده'
+    ),
+    description=replace(
+      replace(f.description,'لاستیک کلروپرن/طبیعی ضدسایش با تاج محدب (Crowned Top)','لاستیک/الاستومر با سطح تاج‌دار (Crowned / Ridge-Top)'),
+      'Ceramic Tile Roller Kiln & Glazing Line Ridge-Top C-Belt Standard',
+      'استاندارد رسمی تأیید نشده؛ نیازمند دیتاشیت سازنده'
+    ),
+    technical_specs=(
+      SELECT coalesce(jsonb_agg(
+        CASE
+          WHEN e->>'key'='جنس و متریال' OR e->>'key'='material'
+            THEN jsonb_set(e,'{value}',to_jsonb('لاستیک/الاستومر با سطح تاج‌دار (Crowned / Ridge-Top); ترکیب دقیق نیازمند دیتاشیت سازنده'::text),true)
+          WHEN e->>'key'='ساختار مهندسی' OR e->>'key'='construction'
+            THEN jsonb_set(e,'{value}',to_jsonb('تسمه مداربسته با سطح فوقانی تاج‌دار؛ نوع لایه‌ها و عضو کششی نیازمند دیتاشیت سازنده است'::text),true)
+          WHEN e->>'key'='استاندارد مرجع' OR e->>'key'='standard'
+            THEN jsonb_set(e,'{value}',to_jsonb('استاندارد رسمی CRC/TRC در منابع موجود تأیید نشده؛ دیتاشیت سازنده لازم است'::text),true)
+          ELSE e
+        END ORDER BY x.ord
+      ),'[]'::jsonb)
+      FROM jsonb_array_elements(coalesce(f.technical_specs,'[]'::jsonb)) WITH ORDINALITY AS x(e,ord)
+    ),
+    updated_at=now()
+WHERE f.code IN (
+  'PFAM-تسمه-ذوزنقه-ای-GENERIC--CRC-046',
+  'PFAM-تسمه-ذوزنقه-ای-SWR-CRC-097',
+  'PFAM-تسمه-ذوزنقه-ای-MEGADYNE-CRC-107',
+  'PFAM-تسمه-ذوزنقه-ای-GNR-CRC-168',
+  'PFAM-تسمه-ذوزنقه-ای-GENERIC--TRC-653'
+);
+
 -- 2) Banded V-belts have a separate family type and must not sit in a single-belt leaf.
 UPDATE public.catalog_variants
 SET family_type_id='FT-VBELT-BANDED',
