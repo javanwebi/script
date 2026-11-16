@@ -448,28 +448,28 @@ export const TileCeramicIndustryPage: React.FC = () => {
       title: 'چرخ و رولیک',
       image: getProductImageUrl('e(378).png'),
       fallbackImage: STORE_ASSETS.products.ceramicRoller,
-      link: '/category/چرخ-و-رولر',
+      link: '/categories?group=excel-v2-3',
     },
     {
       id: 'cat-rubber',
       title: 'قطعات لاستیکی',
       image: getProductImageUrl('e(817).png'),
       fallbackImage: STORE_ASSETS.products.ceramicParts,
-      link: '/category/آب‌بندی-و-قطعات-لاستیکی',
+      link: '/categories?group=excel-v2-7',
     },
     {
       id: 'cat-profiles',
       title: 'پروفیل و ریل‌ها',
       image: getProductImageUrl('e(251).png'),
       fallbackImage: STORE_ASSETS.forzaSubFittings,
-      link: '/category/ریل-و-تجهیزات-هدایت',
+      link: '/categories?group=excel-v2-6',
     },
     {
       id: 'cat-misc',
       title: 'قطعات متفرقه',
       image: getProductImageUrl('e(168).png'),
       fallbackImage: STORE_ASSETS.forzaSubBearing,
-      link: '/category/قطعات-مکانیکی',
+      link: '/categories?group=excel-v2-9',
     },
   ];
 
