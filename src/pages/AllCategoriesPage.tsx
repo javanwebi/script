@@ -21,7 +21,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { flattenCategoryNodes, resolveCategorySlug } from '../data/categories';
+import { flattenCategoryNodes, getCategoryRouteSlug } from '../data/categories';
 import type { EnhancedCategory } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { STORE_ASSETS } from '../assets/images';
@@ -149,8 +149,8 @@ const categoryDescription = (category: EnhancedCategory) => {
     : 'مسیرهای مرتبط و ساختار زیرگروه‌های این دسته را بررسی کنید.';
 };
 
-const categoryHref = (slug: string, subcategory?: string) => {
-  const path = '/category/' + encodeURIComponent(resolveCategorySlug(slug));
+const categoryHref = (category: Pick<EnhancedCategory, 'slug' | 'routeSlug'>, subcategory?: string) => {
+  const path = '/category/' + encodeURIComponent(getCategoryRouteSlug(category));
   if (!subcategory) return path;
   return path + '?' + new URLSearchParams({ sub: subcategory }).toString();
 };
@@ -319,7 +319,7 @@ export const AllCategoriesPage: React.FC = () => {
               <em>قطعات و تجهیزات صنعتی صنعت پیش</em>
             </h1>
             <p>
-              به مرجع تخصصی تأمین قطعات صنعتی خوش آمدید. مجموعه کامل ۱۴ گروه اصلی شامل تسمه‌های انتقال نیرو و تایمینگ، پولی و چرخ‌دنده، بلبرینگ و رولبرینگ، زنجیرهای صنعتی، تجهیزات اتوماسیون، خطوط تولید کاشی و سرامیک و قطعات سفارشی را با کدهای کاتالوگ و مشخصات دقیق بررسی کنید.
+              به مرجع تخصصی تأمین قطعات صنعتی خوش آمدید. مجموعه کامل ۱۴ گروه اصلی شامل انواع تسمه‌های صنعتی، پولی و چرخ‌دنده، بلبرینگ و رولبرینگ، زنجیرهای صنعتی، تجهیزات اتوماسیون، خطوط تولید کاشی و سرامیک و قطعات سفارشی را با کدهای کاتالوگ و مشخصات دقیق بررسی کنید.
             </p>
             <div className="all-categories-hero-actions">
               <a href="#all-categories-results" className="all-categories-primary-action">
@@ -541,7 +541,7 @@ export const AllCategoriesPage: React.FC = () => {
                         const childNodes = (category.children || []).filter(node => node.hidden !== true);
                         const familyCount = source === 'database' ? Number(category.familyCount ?? category.count ?? 0) : null;
                         const skuCount = source === 'database' ? Number(category.skuCount ?? 0) : null;
-                        const route = categoryHref(category.slug);
+                        const route = categoryHref(category);
 
                         return (
                           <article className="all-categories-card" key={category.id || category.slug}>
@@ -613,7 +613,7 @@ export const AllCategoriesPage: React.FC = () => {
                                   {childNodes.slice(0, 4).map(node => (
                                     <Link
                                       key={node.name}
-                                      to={categoryHref(category.slug, node.value || node.name)}
+                                      to={categoryHref(category, node.value || node.name)}
                                     >
                                       {node.name}
                                     </Link>
