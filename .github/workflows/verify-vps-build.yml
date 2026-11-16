@@ -42,6 +42,11 @@ on:
       - "tests/phase1-catalog-reconstruction.test.ts"
       - "tests/pvc-conveyor-phase1-classification.test.ts"
       - "tests/database/pvc-conveyor-surface-family-split.test.ts"
+      - "src/data/catalogMenuSemanticGuard.ts"
+      - "tests/catalog-menu-semantic-guard.test.ts"
+      - "tests/database/belt-family-taxonomy-followup.test.ts"
+      - "ops/sql/20261116_belt_family_taxonomy_followup.sql"
+      - "ops/sql/20261116_belt_family_taxonomy_followup_rollback.sql"
       - "supabase/migrations/20261116152640_split_pvc_conveyor_surface_families_20261116.sql"
       - "ops/sql/20261116_pvc_conveyor_surface_family_split.sql"
       - "ops/sql/20261116_pvc_conveyor_surface_family_split_rollback.sql"
@@ -56,6 +61,11 @@ on:
       - "api/sms.ts"
       - "tests/supabase-sms-hook.test.ts"
       - "tests/mobile-scan-ui.test.ts"
+      - "src/data/catalogMenuSemanticGuard.ts"
+      - "tests/catalog-menu-semantic-guard.test.ts"
+      - "tests/database/belt-family-taxonomy-followup.test.ts"
+      - "ops/sql/20261116_belt_family_taxonomy_followup.sql"
+      - "ops/sql/20261116_belt_family_taxonomy_followup_rollback.sql"
       - "vite.config.ts"
       - "package.json"
       - "package-lock.json"
@@ -95,6 +105,10 @@ jobs:
         run: node --import tsx --test tests/pvc-conveyor-phase1-classification.test.ts
       - name: PVC conveyor database split and rollback integration test
         run: node --import tsx --test tests/database/pvc-conveyor-surface-family-split.test.ts
+      - name: Industrial belt taxonomy semantic guard
+        run: node --import tsx --test tests/catalog-menu-semantic-guard.test.ts
+      - name: Industrial belt taxonomy follow-up and exact rollback integration
+        run: node --import tsx --test tests/database/belt-family-taxonomy-followup.test.ts
       - name: Supabase SMS hook signature safety
         run: node --import tsx --test tests/supabase-sms-hook.test.ts
       - name: FORZA mobile support panel and swipe gesture
