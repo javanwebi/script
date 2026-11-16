@@ -923,7 +923,7 @@ function buildViewBCrossSectionSvg(sku: ReconciledSku): string {
   </g>`;
   }
 
-  // Crowned CRC V-Belt
+  // Crowned CRC / TRC conveyor transport belt
   if (div === 'conveyor-crowned-crc') {
     return `
   <text x="672" y="229" text-anchor="end" class="font-fa" font-size="13.5" font-weight="800" fill="#55565A">${rtl('نمای ۲ — مقطع ذوزنقه‌ای با تاج گرده‌ماهی (CRC)')}</text>
