@@ -1,14 +1,14 @@
 import '../category-showcase.css';
 import { STORE_ASSETS } from '../assets/images';
 import { matchesProductSearch, categorySlugFor } from '../data/userProducts';
-import { BeltCategoryExperience } from './BeltCategoryExperience';
 import { ExcelMenuCategoryPage } from './ExcelMenuCategoryPage';
 import { PulleyCatalogPage } from './PulleyCatalogPage';
 import { subscribeCatalogChanges } from '../data/mockGenerator';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Navigate, useLocation, useParams, Link, useSearchParams } from 'react-router-dom';
+import { Navigate, useParams, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
 import { CATEGORIES, findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
+import { getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug, LEGACY_CATEGORY_ROUTE_GROUPS } from '../data/categorySeoRoutes';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { toDirectSkuProduct, useDirectSkus } from '../components/catalog/DirectSkuProducts';
 import { getProductDisplayBrands, productHasDisplayBrand, resolveDisplayBrand } from '../utils/catalogBrands';
@@ -39,26 +39,22 @@ import {
 } from 'lucide-react';
 
 export const CategoryPage: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
-  // Keep original legacy category pages unchanged; approved Excel categories get their
-  // own real family listing instead of linking several menu categories to one old page.
-  if (/^excel-v2-[0-9]+-[0-9]+$/.test(slug || '')) {
+  const { slug } = useParams<{ slug: string }>();
+  const routeSlug = String(slug || '');
+  const internalCategorySlug = getInternalCategorySlugFromRouteSlug(routeSlug);
+  if (internalCategorySlug) {
+    const seoSlug = getCategorySeoRouteSlug(internalCategorySlug);
+    if (routeSlug !== seoSlug) {
+      return <Navigate to={{ pathname: '/category/' + encodeURIComponent(seoSlug), search: location.search, hash: location.hash }} replace />;
+    }
     return <ExcelMenuCategoryPage />;
   }
-  const canonicalBeltSlug = categorySlugFor('تسمه و انتقال نیرو');
-  if (resolveCategorySlug(slug || '') === canonicalBeltSlug) {
-    if (slug !== canonicalBeltSlug) {
-      return <Navigate to={`/category/${canonicalBeltSlug}${location.search}${location.hash}`} replace />;
-    }
-    return <BeltCategoryExperience />;
-  }
-  const canonicalPulleySlug = categorySlugFor('پولی و انتقال نیرو');
-  if (resolveCategorySlug(slug || '') === canonicalPulleySlug) {
-    if (slug !== canonicalPulleySlug) {
-      return <Navigate to={`/category/${canonicalPulleySlug}${location.search}${location.hash}`} replace />;
-    }
-    return <PulleyCategoryRoute />;
+  const canonicalSlug = resolveCategorySlug(routeSlug);
+  if (Object.prototype.hasOwnProperty.call(LEGACY_CATEGORY_ROUTE_GROUPS, canonicalSlug)) {
+    const group = LEGACY_CATEGORY_ROUTE_GROUPS[canonicalSlug];
+    const destination = group ? `/categories?group=${encodeURIComponent(group)}` : '/categories';
+    return <Navigate to={destination} replace />;
   }
   return <LegacyCategoryPage />;
 };
