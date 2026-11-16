@@ -142,14 +142,19 @@ test('long speech does not relearn its own voice level as ambient noise between 
   speak(gate,start,start+300,0.006);
   for(let t=start+350;t<start+500;t+=50)gate.sample(0.003,t,false);
  }
- assert.equal(gate.decide('مشخصات تسمه را می خواهم',false,false,5800),'accept');
+ // Continue speaking after the last natural gap; the floor must remain frozen
+ // at the room level and fresh near-field samples must admit the resumed words.
+ speak(gate,5850,6050,0.006);
+ assert.equal(gate.decide('مشخصات تسمه را می خواهم',false,false,6050),'accept');
  assert.equal(gate.acousticSpeech,true);
 });
 
 test('final hypotheses are accepted only while near-field evidence is fresh',()=>{
  const gate=calibrated(false,0.001);
  speak(gate,1050,1350,0.006);
+ speak(gate,1400,2100,0.001);
  assert.equal(gate.decide('تسمه SPA 1250',true,false,2100),'accept');
+ speak(gate,2150,2400,0.001);
  assert.equal(gate.decide('تسمه SPA 1250',true,false,2400),'reject');
 });
 
