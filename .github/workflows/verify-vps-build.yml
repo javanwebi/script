@@ -106,6 +106,8 @@ jobs:
           mkdir -p public/forza-runtime/stt
           cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js
           test -s public/forza-runtime/stt/vosk.js
+      - name: Validate candidate deploy shell syntax
+        run: bash -n ops/deploy-single-port-vps.sh ops/sanatpish-deploy.sh
       - name: TypeScript
         run: npm run lint
       - name: Products catalogue regression suite
