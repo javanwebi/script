@@ -1,4 +1,4 @@
-// Auto-generated audited family-to-menu assignments: 1,349 retained mappings. The 97 ambiguous families are intentionally omitted for admin review.
+// Auto-generated audited family-to-menu assignments: 1,348 retained mappings. The 97 ambiguous families are intentionally omitted for admin review.
 export interface FamilyMenuAssignment {
   categorySlug: string;
   submenuName: string;
@@ -6474,7 +6474,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   "PFAM-تسمه-V-شکل-پرو-GENERIC--ZX-109": {
     "categorySlug": "excel-v2-1-2",
     "submenuName": "کلاسیک و دنده‌دار",
-    "leafName": null
+    "leafName": "Z (9.5) , M , A , B , C , D , E , 8V"
   },
   "PFAM-تسمه-V-شکل-پرو-HANKOOK-Z-657": {
     "categorySlug": "excel-v2-1-2",
@@ -6745,10 +6745,5 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "categorySlug": "excel-v2-1-4",
     "submenuName": "تسمه بارکش",
     "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "PFAM-دستگاه-صنعتی-GENERIC--دستگاه-صنعتی-576": {
-    "categorySlug": "excel-v2-1-2",
-    "submenuName": "تسمه اسپشیال",
-    "leafName": null
   }
 };
