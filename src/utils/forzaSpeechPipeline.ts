@@ -101,7 +101,10 @@ export function appendForzaSpeechSegment(previousValue:string, incomingValue:str
   if(/^[،؛؟.!?,:]/.test(incoming))return previous+incoming;
 
   const maximum=Math.min(previous.length,incoming.length);
-  for(let length=maximum;length>=2;length--){
+  // Avoid collapsing common two-letter Persian words; only allow that short
+  // overlap for the frequent "می" prefix split by recognition restarts.
+  const minimumOverlap=previous.endsWith('می')&&incoming.startsWith('می')?2:3;
+  for(let length=maximum;length>=minimumOverlap;length--){
     if(previous.slice(-length)===incoming.slice(0,length)){
       // Preserve the incoming boundary exactly: no space means the browser
       // completed a partial word (e.g. "تایم" + "تایمینگ").
