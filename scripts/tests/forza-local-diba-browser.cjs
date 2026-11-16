@@ -42,9 +42,14 @@ function wav(){
     window.__forzaDibaModelUrl=url;
     return {KaldiRecognizer:class{
      constructor(rate){this.rate=rate;this.handlers={};window.__forzaVoskRecognizer=this;
+      window.__forzaDibaRecognizerSampleRate=rate;
       window.__forzaVoskCreated=(window.__forzaVoskCreated||0)+1;}
      on(name,handler){this.handlers[name]=handler;}
-     acceptWaveform(){window.__forzaVoskFrames=(window.__forzaVoskFrames||0)+1;}
+     acceptWaveform(samples){
+      window.__forzaVoskFrames=(window.__forzaVoskFrames||0)+1;
+      window.__forzaDibaBufferSampleRate=samples.sampleRate;
+      window.__forzaDibaBufferLength=samples.length;
+     }
      emitPartial(text){this.handlers.partialresult?.({result:{partial:text}});}
      emitFinal(text){this.handlers.result?.({result:{text}});}
      remove(){this.removed=true;}
@@ -85,6 +90,11 @@ function wav(){
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
   await page.waitForFunction(()=>!!window.__forzaVoskRecognizer,null,{timeout:15000});
   await page.waitForFunction(()=>window.__forzaVoskFrames>0,null,{timeout:5000});
+  assert.equal(await page.evaluate(()=>window.__forzaDibaRecognizerSampleRate),16000,
+   'the Vosk decoder must be configured for the Persian model sample rate');
+  assert.equal(await page.evaluate(()=>window.__forzaDibaBufferSampleRate),16000,
+   'microphone PCM must be resampled before it reaches Vosk');
+  assert.ok(await page.evaluate(()=>window.__forzaDibaBufferLength>0));
   assert.equal(await page.evaluate(()=>window.__forzaDibaModelUrl),
    '/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz','model must load from the same origin');
   await page.waitForTimeout(450);
