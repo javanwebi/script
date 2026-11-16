@@ -1702,8 +1702,8 @@ async function main() {
       };
       productByCode.set(prod.code, prod);
 
-      const assign = getFamilyMenuAssignment(prod.code, prod as any);
-      if (beltMenuSlugs.has(assign.categorySlug as BeltCategorySlug)) {
+      const assign = getFamilyMenuAssignment(prod.code);
+      if (assign && beltMenuSlugs.has(assign.categorySlug as BeltCategorySlug)) {
         menuFamilies.push({
           code: prod.code,
           name: prod.name,
