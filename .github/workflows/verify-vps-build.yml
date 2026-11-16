@@ -39,6 +39,10 @@ on:
       - "tests/industry-pages-unique-layouts.test.ts"
       - "tests/belt-category-experience.test.ts"
       - "src/data/beltCatalogAudit.ts"
+      - "src/data/beltManufacturerEvidence.ts"
+      - "scripts/audit-belt-catalog.ts"
+      - "tests/belt-catalog-audit.test.ts"
+      - "docs/belt-manufacturer-source-audit-2026-11-17.md"
       - "src/data/catalogPhase1Reconstruction.ts"
       - "src/data/catalogMenuSemanticGuard.ts"
       - "tests/catalog-menu-semantic-guard.test.ts"
@@ -106,6 +110,8 @@ jobs:
         run: node --import tsx --test tests/textile-industry-premium.test.ts
       - name: Industry page regression suite
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
+      - name: Industrial belt manufacturer evidence audit
+        run: node --import tsx --test tests/belt-catalog-audit.test.ts
       - name: Belt category reference and regression suite
         run: node --import tsx --test tests/belt-category-experience.test.ts
       - name: Belt menu semantic guard regression suite
