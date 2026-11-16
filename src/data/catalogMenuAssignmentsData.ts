@@ -1,4 +1,4 @@
-// Auto-generated audited family-to-menu assignments: 1,348 retained mappings. The 97 ambiguous families are intentionally omitted for admin review.
+// Auto-generated audited family-to-menu assignments: 1,286 retained mappings. The 97 ambiguous families are intentionally omitted for admin review.
 export interface FamilyMenuAssignment {
   categorySlug: string;
   submenuName: string;
