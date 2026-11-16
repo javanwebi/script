@@ -1219,6 +1219,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       : null;
 
   const bareMetricPuProfileMatch = upperName.match(/\b(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\b/);
+  const rubber3mProfileMatch = isRubberMaterial ? upperName.match(/\b3M\b/) : null;
   const metricPuMatch =
     mWidthLenProf ||
     mRollProf ||
@@ -1227,9 +1228,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     mOpenProfWidthStar ||
     upperName.match(/\b(\d+(?:[./]\d+)?)\s*(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\s*(?:[*×-]|\s+)?\s*(\d{3,5})?\b/) ||
     upperName.match(/\b(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\s*(?:[*×-]|\s+)?\s*(\d+(?:[./]\d+)?)(?:\s*[*×-]\s*(\d{3,5}))?\b/) ||
-    bareMetricPuProfileMatch;
+    bareMetricPuProfileMatch ||
+    rubber3mProfileMatch;
 
-  if (metricPuMatch && isPolyurethaneMaterial) {
+  if (metricPuMatch && (isPolyurethaneMaterial || rubber3mProfileMatch)) {
     let profile = 'T10';
     let widthMm: number | null = null;
     let lengthMm: number | null = null;
@@ -1277,6 +1279,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       }
     } else if (bareMetricPuProfileMatch) {
       profile = bareMetricPuProfileMatch[1];
+    } else if (rubber3mProfileMatch) {
+      profile = '3M';
     }
 
     if (!lengthMm && !mOpenProfWidthStar) {
@@ -1291,7 +1295,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       }
     }
 
-    const spec = METRIC_PU_TIMING_SPECS[profile] || METRIC_PU_TIMING_SPECS.T10;
+    const isRubber3M = profile === '3M' && isRubberMaterial;
+    const spec: { pitchMm: number; toothAngleDeg: number | null; toothHeightMm: number; beltThicknessMm: number; sidedness: 'single-sided' | 'double-sided' } = isRubber3M
+      ? { ...CURVILINEAR_TIMING_SPECS['3M'], toothAngleDeg: null }
+      : { ...(METRIC_PU_TIMING_SPECS[profile] || METRIC_PU_TIMING_SPECS.T10) };
     const isSteelCord = /سیم\s*دار/.test(normName) || isSteelCordMaterial || product.subcategory === 'تسمه سیم‌دار';
     const isEndless = /مدار\s*بسته/.test(normName) || (!mayBeMeterRoll && rawUnit.includes('حلقه')) || lengthMm !== null;
     const supplyForm: BeltTechnicalParameters['supplyForm'] = isEndless ? 'endless-loop' : 'open-ended-meter';
@@ -1319,7 +1326,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     }
 
     const familyKey = [
-      'FAM-TIMING-PU',
+      isRubber3M ? 'FAM-TIMING-RUBBER' : 'FAM-TIMING-PU',
       profile,
       supplyForm === 'endless-loop' ? 'ENDLESS' : 'OPEN',
       coatingCode,
@@ -1355,18 +1362,22 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         'تسمه تایمینگ',
         spec.sidedness === 'double-sided' ? 'دوطرفه' : '',
         profile,
-        'پلی‌یورتان سیم‌دار',
+        isRubber3M ? 'لاستیکی' : 'پلی‌یورتان سیم‌دار',
         coatingLabel ? `(${coatingLabel})` : '',
         supplyForm === 'endless-loop' ? 'مداربسته' : 'متری',
         brand !== 'UNSPECIFIED' ? brand : '',
       ]
         .filter(Boolean)
         .join(' '),
-      proposedFamilyNameEn: `${brand} ${profile} ${spec.sidedness === 'double-sided' ? 'Double-Sided ' : ''}Polyurethane Steel-Cord Timing Belt (${supplyForm})`,
-      actualProductType: `تسمه تایمینگ متریک پلی‌یورتان پروفیل ${profile} (${supplyForm === 'endless-loop' ? 'مداربسته' : 'کلاف متری'})`,
+      proposedFamilyNameEn: isRubber3M
+        ? `${brand} 3M Rubber Timing Belt (${supplyForm})`
+        : `${brand} ${profile} ${spec.sidedness === 'double-sided' ? 'Double-Sided ' : ''}Polyurethane Steel-Cord Timing Belt (${supplyForm})`,
+      actualProductType: isRubber3M
+        ? 'تسمه تایمینگ منحنی‌الخط لاستیکی 3M'
+        : `تسمه تایمینگ متریک پلی‌یورتان پروفیل ${profile} (${supplyForm === 'endless-loop' ? 'مداربسته' : 'کلاف متری'})`,
       technical: {
         operatingPrinciple: 'synchronous',
-        beltDivision: spec.sidedness === 'double-sided' ? 'timing-metric-double' : 'timing-metric-single',
+        beltDivision: isRubber3M ? 'timing-curvilinear-rubber' : spec.sidedness === 'double-sided' ? 'timing-metric-double' : 'timing-metric-single',
         supplyForm,
         sidedness: spec.sidedness,
         profile,
@@ -1383,15 +1394,19 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         lengthDesignation: lengthMm ? `${lengthMm}` : null,
         toothCount: teeth,
         ribCount: null,
-        bodyMaterial: 'پلی‌یورتان ترموپلاستیک (TPU 92 ShA)',
-        tensileCord: 'کورد فولادی گالوانیزه (Steel Cord)',
+        bodyMaterial: isRubber3M ? 'لاستیک کلروپرن (Neoprene) مطابق داده جنس کالا' : 'پلی‌یورتان ترموپلاستیک (TPU 92 ShA)',
+        tensileCord: isRubber3M ? 'نامشخص؛ نیازمند دیتاشیت سازنده' : 'کورد فولادی گالوانیزه (Steel Cord)',
         backingOrCoating: coatingLabel,
-        standardReference: 'DIN 7721 / ISO 17396 (تسمه‌های سنکرون متریک پروفیل T و AT)',
-        manufacturerSources: [
-          'DIN 7721 Synchronous Belt Drives — Metric Pitch T and AT',
-          'Megadyne Megapower / Megaflex / TNX Technical Catalog',
-          'Optibelt Alpha Linear / Alpha Flex Datasheet',
-        ],
+        standardReference: isRubber3M
+          ? 'ISO 13050 / HTD 3M curvilinear profile; compound and tensile member require manufacturer datasheet'
+          : 'DIN 7721 / ISO 17396 (تسمه‌های سنکرون متریک پروفیل T و AT)',
+        manufacturerSources: isRubber3M
+          ? ['ISO 13050 Curvilinear Synchronous Belt Profiles', 'Manufacturer datasheet required for 3M compound and tensile member']
+          : [
+              'DIN 7721 Synchronous Belt Drives — Metric Pitch T and AT',
+              'Megadyne Megapower / Megaflex / TNX Technical Catalog',
+              'Optibelt Alpha Linear / Alpha Flex Datasheet',
+            ],
       },
       confidence: 'ALGORITHMIC_STANDARD_ONLY',
       verification: unattachedProvenancePlaceholder(),
@@ -1399,9 +1414,11 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         product.categoryName !== 'تسمه و انتقال نیرو'
           ? 'MOVE_TO_OTHER_CATEGORY'
           : 'MOVE_TO_EXISTING_FAMILY',
-      engineeringReasoning: isCeramicPrint
-        ? `تسمه تایمینگ پلی‌یورتان ${profile} دستگاه چاپ کاشی مگادین ایتالیا که از دسته قطعات چاپ به دسته اصلی تسمه تایمینگ (${proposedLeaf}) منتقل شد.`
-        : `تسمه سنکرون متریک ${profile} با گام ${spec.pitchMm} میلی‌متر مطابق DIN 7721.`,
+      engineeringReasoning: isRubber3M
+        ? 'پروفیل منحنی‌الخط 3M با جنس لاستیکی ثبت‌شده؛ نوع کورد و ترکیب دقیق باید از دیتاشیت سازنده تأیید شود.'
+        : isCeramicPrint
+          ? `تسمه تایمینگ پلی‌یورتان ${profile} دستگاه چاپ کاشی مگادین ایتالیا که از دسته قطعات چاپ به دسته اصلی تسمه تایمینگ (${proposedLeaf}) منتقل شد.`
+          : `تسمه سنکرون متریک ${profile} با گام ${spec.pitchMm} میلی‌متر مطابق DIN 7721.`,
     };
   }
 
