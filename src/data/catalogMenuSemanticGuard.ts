@@ -143,7 +143,7 @@ export function validateFamilyMenuAssignment(
 
     if (
       submenu === normalize('تسمه اسپشیال') &&
-      !['spz', 'xpz', 'spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc', '3v', '3vx', '5v', '5vx'].includes(profileCode)
+      !['spz', 'xpz', 'spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc', '3v', '3vx', '5v', '5vx', '8v', '8vx'].includes(profileCode)
     ) {
       return fail('vbelt_special_leaf_profile_mismatch');
     }
