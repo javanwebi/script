@@ -51,6 +51,19 @@ on:
       - "ops/sql/20261116_pvc_conveyor_surface_family_split.sql"
       - "ops/sql/20261116_pvc_conveyor_surface_family_split_rollback.sql"
       - "scripts/tests/belt-category-responsive-smoke.cjs"
+      - "src/components/forza/AiForzaCallExperience.tsx"
+      - "src/utils/forzaLocalSpeech.ts"
+      - "src/utils/forzaSpeechAdmission.ts"
+      - "src/utils/forzaSpeechPipeline.ts"
+      - "src/utils/forzaRecognitionRecovery.ts"
+      - "tests/forzaLocalDibaStreaming.test.ts"
+      - "tests/forzaRecognitionRecovery.test.ts"
+      - "tests/forza-smart-turn.test.ts"
+      - "tests/forzaSpeechAdmission.test.ts"
+      - "tests/forzaBrowserRecognitionLifecycle.test.ts"
+      - "ops/Dockerfile.forza-stt-runtime"
+      - "ops/deploy-single-port-vps.sh"
+      - "ops/verify-single-port-canary.mjs"
       - ".github/workflows/verify-vps-build.yml"
   push:
     branches: [main, feature/textile-industry-page]
@@ -101,6 +114,8 @@ jobs:
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
       - name: Belt category reference and regression suite
         run: node --import tsx --test tests/belt-category-experience.test.ts
+      - name: FORZA local Diba and speech-turn recovery regression suite
+        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts
       - name: PVC conveyor Phase 1 classification regression suite
         run: node --import tsx --test tests/pvc-conveyor-phase1-classification.test.ts
       - name: PVC conveyor database split and rollback integration test
