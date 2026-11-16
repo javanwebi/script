@@ -200,6 +200,11 @@ test('belt audit does not force automotive RU or unsupported T10 into neighbouri
 
   const rubber3m = classifyBelt('تسمه تایمینگ 3M', 'لاستیک کلروپرن');
   assert.equal(rubber3m.proposedSubmenu, 'لاستیکی فابریک');
+  assert.equal(rubber3m.proposedLeaf, 'لاستیکی فابریک ساده و دنده‌دار');
+  assert.equal(rubber3m.technical.profile, '3M');
+  assert.equal(rubber3m.technical.pitchMm, 3);
+  assert.equal(rubber3m.technical.beltDivision, 'timing-curvilinear-rubber');
+  assert.match(rubber3m.technical.bodyMaterial, /لاستیک کلروپرن/);
 });
 
 test('belt audit distinguishes V-belt meter supply from its profile menu path', () => {
