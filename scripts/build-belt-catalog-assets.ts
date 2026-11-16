@@ -29,8 +29,9 @@ function readExistingBeltManifest(): ExistingBeltManifest | null {
 
 const API_BASE = process.env.BELT_API_BASE || 'http://localhost:3000';
 
-// 11 pure non-belt families inside excel-v2-1-* that MUST stay excluded
+// Known pure non-belt families inside the legacy belt catalogue; keep migrated PFAM identities excluded too.
 const EXCLUDED_NON_BELT_FAMILY_IDS = new Set([
+  'PFAM-دستگاه-صنعتی-GENERIC--دستگاه-صنعتی-576', // دستگاه پولیش/تزریق APL؛ تجهیزات است، نه خانواده تسمه
   'FAM-31942', // پولی تسمه تایم H
   'FAM-10415', // پولی نافی دار تسمه خور
   'FAM-32245', // دستگاه پولیش APL

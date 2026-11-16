@@ -64,7 +64,7 @@ export function validateFamilyMenuAssignment(
   const isWeldedPuVSection =
     isPuMaterial &&
     ['a', 'b', 'c', 'brb'].includes(profileCode) &&
-    matches(identity, /تسمه\s*جوشی.*(?:پروفیل|گروه)/);
+    matches(identity, /تسمه\s*جوشی|welded.{0,24}belt/);
   const hasVbeltProfile = [
     'z', 'zx', 'm', 'mx', 'a', 'ax', 'b', 'bx', 'c', 'cx', 'd', 'e', '8v', '8vx',
     'spz', 'xpz', 'spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc', '3v', '3vx', '5v', '5vx',
@@ -76,7 +76,6 @@ export function validateFamilyMenuAssignment(
   const isRubberMaterial = matches(material, /لاستیک|الاستومر|rubber|elastomer|nbr|epdm|fkm|viton|neoprene|کلروپرن/);
   const isRidgeTop = matches(identity, /تاج.?دار|گرده.?ماهی|ridge.?top|crowned/);
   const isWeldingDevice = matches(identity, /دستگاه.*(?:جوش|آپارات).*تسمه|گیره.*آپارات.*تسمه|belt.*weld.*device/);
-  const isBeltManufacturingDevice = matches(identity, /دستگاه.*(?:پولیش|تزریق).*apl|apl.*دستگاه/);
   const isConveyorBelt = matches(identity, /نوار نقاله|تسمه بارکش|تسمه نقاله|conveyor|belt conveyor|گریپ.?آجدار/);
   const isNonBeltItem = matches(identity, /دستگاه پولیش|دستگاه تزریق|تسمه سفت.?کن|belt.?tensioner|tensioner|تسمه پاک.?کن|belt.?cleaner|scraper|اسکریپر|تیغه فلزی|تسمه آهنی/);
 
@@ -169,13 +168,9 @@ export function validateFamilyMenuAssignment(
     if (submenu === normalize('تسمه بارکش') && !isRidgeTop && !isConveyorBelt) {
       return fail('hauling_belt_leaf_requires_crowned_conveyor_identity');
     }
-    if (submenu === normalize('دستگاه‌های تسمه جوشی')) {
-      if (!isWeldingDevice && !isBeltManufacturingDevice) {
-        return fail('belt_welding_equipment_leaf_product_type_mismatch');
-      }
-      if (leaf && !isWeldingDevice) {
-        return fail('belt_welding_equipment_leaf_product_type_mismatch');
-      }
+    if (isNonBeltItem) return fail('belt_equipment_category_contains_non_belt_item');
+    if (submenu === normalize('دستگاه‌های تسمه جوشی') && !isWeldingDevice) {
+      return fail('belt_welding_equipment_leaf_product_type_mismatch');
     }
   }
 

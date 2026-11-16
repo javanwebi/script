@@ -375,6 +375,36 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
  }finally{await closeDatabase()}
 ' < "$SKU_MENU_SQL"
 
+echo '===== APPLY GUARDED INDUSTRIAL BELT TAXONOMY RECONCILIATION ====='
+BELT_TAXONOMY_SQL="$STAGE/ops/sql/20261116_belt_family_taxonomy_followup.sql"
+test -s "$BELT_TAXONOMY_SQL" || { echo "REQUIRED_BELT_TAXONOMY_SQL_MISSING=$BELT_TAXONOMY_SQL"; exit 1; }
+# This is a one-time data migration. The private 138-row backup is its durable
+# completion marker; subsequent deploys verify it and never re-run the DELETE/UPDATE.
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+ import {readFileSync} from "node:fs";
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const sql=readFileSync(0,"utf8");
+  const marker=await database().query(
+   "select to_regclass(\x27internal.catalog_belt_taxonomy_followup_backup_20261116\x27) as backup");
+  if(marker.rows[0].backup){
+   const existing=await database().query(
+    "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
+   if(Number(existing.rows[0].rows)!==138)throw Error("Existing belt taxonomy backup is incomplete; refusing to continue");
+   console.log("PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138");
+  }else{
+   await database().query(sql);
+   const applied=await database().query(
+    "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
+   if(Number(applied.rows[0].rows)!==138)throw Error("Belt taxonomy migration did not create its complete 138-row backup");
+   console.log("PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138");
+  }
+ }catch(error){
+  console.error("PRODUCTION_BELT_TAXONOMY_MIGRATION_FAILED",error.code||"",error.message);
+  process.exitCode=1;
+ }finally{await closeDatabase()}
+' < "$BELT_TAXONOMY_SQL"
+
 echo '===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA ====='
 for MIGRATION in \
   "$STAGE/supabase/adopted/migrations/20261109010000_customer_360_local_vault.sql" \
