@@ -1296,7 +1296,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     if (hasCoating && !isCeramicPrint) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'APL دار';
-    } else if (isSteelCord && isPolyurethaneMaterial && !isEndless) {
+    } else if (isSteelCord && isPolyurethaneMaterial) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'پلی‌یورتان';
     } else if (profile === '3M' && isRubberMaterial) {
@@ -1318,7 +1318,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     let taxonomyGap: string | null = null;
     if (spec.sidedness === 'double-sided') {
       taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${profile} در برگ «${proposedLeaf}» قرار می‌گیرد (برگ مستقل دوطرفه در اکسل وجود ندارد).`;
-    } else if (profile === 'T10' || profile === 'T20') {
+    } else if ((profile === 'T10' || profile === 'T20') && proposedSubmenu === 'انواع گام و کدهای تایمینگ') {
       taxonomyGap = `GAP-TIMING-${profile}-LEAF-MISSING: پروفیل ${profile} در برگ مصوب «T5 , AT5 , AT10 , AT20» وجود ندارد؛ تا افزودن برگ دقیق نباید به آن مسیر منتسب شود.`;
     }
 
@@ -2008,6 +2008,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
               ? vSectionMatch[1]
               : 'PU-V';
     const isCrcOrRound = profileCode === 'CRC' || profileCode === 'ROUND';
+    const isApprovedVbeltSection = ['A', 'B', 'C'].includes(profileCode);
     const hasApprovedWeldedLeaf = isCrcOrRound || profileCode === 'FLAT';
     const isCorded = /نخ\s*دار/.test(normName);
     const isRoughGreen = /زبر/.test(normName);
@@ -2047,15 +2048,25 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       currentSubmenu: product.submenu || '',
       currentSubcategory: product.subcategory,
       detectedBrand: brand,
-      proposedCategorySlug: hasApprovedWeldedLeaf ? 'excel-v2-1-3' : 'UNRESOLVED',
-      proposedCategoryName: hasApprovedWeldedLeaf ? 'تسمه جوشی با سایت' : 'نیازمند تعیین تکلیف',
-      proposedSubmenu: isCrcOrRound ? 'تسمه گرد (CRC)' : profileCode === 'FLAT' ? 'تسمه فلت' : 'پروفیل جوشی فاقد برگ مصوب',
+      proposedCategorySlug: isApprovedVbeltSection ? 'excel-v2-1-2' : hasApprovedWeldedLeaf ? 'excel-v2-1-3' : 'UNRESOLVED',
+      proposedCategoryName: isApprovedVbeltSection ? 'تسمه وی‌بلت (V-Belt)' : hasApprovedWeldedLeaf ? 'تسمه جوشی با سایت' : 'نیازمند تعیین تکلیف',
+      proposedSubmenu: isCrcOrRound
+        ? 'تسمه گرد (CRC)'
+        : profileCode === 'FLAT'
+          ? 'تسمه فلت'
+          : isApprovedVbeltSection
+            ? weldedSupplyForm === 'heat-weldable-meter' ? 'وی‌بلت متری' : 'کلاسیک و دنده‌دار'
+            : 'پروفیل جوشی فاقد برگ مصوب',
       proposedLeaf: isCrcOrRound
         ? 'انواع تسمه گرد جوشی'
         : profileCode === 'FLAT'
           ? 'انواع تسمه تخت و فلت'
-          : `پروفیل ${profileCode} پلی‌یورتان (فاقد برگ مصوب)`,
-      taxonomyGap: hasApprovedWeldedLeaf
+          : isApprovedVbeltSection
+            ? weldedSupplyForm === 'heat-weldable-meter'
+              ? 'تسمه A و B و C وی‌بلت متری'
+              : 'Z (9.5) , M , A , B , C , D , E , 8V'
+            : `پروفیل ${profileCode} پلی‌یورتان (فاقد برگ مصوب)`,
+      taxonomyGap: isApprovedVbeltSection || hasApprovedWeldedLeaf
         ? null
         : `GAP-WELDED-PU-${profileCode}-LEAF-MISSING: پروفیل ذوزنقه‌ای/BRB جوشی پلی‌یورتان در منوی مصوب برگ مستقل ندارد؛ زیر «تسمه فلت» قرار داده نمی‌شود.`,
       proposedFamilyId: `FAM-WELDED-PU-${profileCode}-${surfaceCode}-${isCorded ? 'CORDED' : 'HOMOGENEOUS'}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
@@ -2075,7 +2086,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         .filter(Boolean)
         .join(' '),
       proposedFamilyNameEn: `${brand} Heat-Weldable PU ${profileCode} ${surfaceCode} (${isCorded ? 'Reinforced' : 'Homogeneous'}) Belt`,
-      actualProductType: `تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل ${profileCode} (${isWeldedGrip ? 'با روکش گریپ' : isRoughGreen ? 'سطح زبر' : 'صاف'})`,
+      actualProductType: isApprovedVbeltSection
+        ? `تسمه جوشی V شکل پلی‌یورتان پروفیل ${profileCode} (${isWeldedGrip ? 'با روکش گریپ' : isRoughGreen ? 'سطح زبر' : 'صاف'})`
+        : `تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل ${profileCode} (${isWeldedGrip ? 'با روکش گریپ' : isRoughGreen ? 'سطح زبر' : 'صاف'})`,
       technical: {
         operatingPrinciple: isCrcOrRound ? 'friction-round-welded' : 'friction-v',
         beltDivision: isCrcOrRound
@@ -2110,10 +2123,12 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       },
       confidence: 'ALGORITHMIC_STANDARD_ONLY',
       verification: unattachedProvenancePlaceholder(),
-      recommendedAction: hasApprovedWeldedLeaf ? 'MOVE_TO_EXISTING_FAMILY' : 'MANUAL_ENGINEERING_REVIEW',
-      engineeringReasoning: hasApprovedWeldedLeaf
-        ? `تسمه جوشی پلی‌یورتان اکسترودشده پروفیل ${profileCode} با تفکیک دقیق برند (${brand})، سطح (${surfaceLabel}) و مغزی (${isCorded ? 'نخ‌دار' : 'ساده'}) در برگ مصوب متناظر.`
-        : `پروفیل جوشی پلی‌یورتان ${profileCode} از نظر مهندسی شناسایی شده است، اما برگ مصوب مناسبی در اکسل برای آن وجود ندارد؛ خانواده و SKU حفظ می‌شوند و تا تأیید مسیر جدید در منوی تسمه منتشر نمی‌شوند.`,
+      recommendedAction: hasApprovedWeldedLeaf || isApprovedVbeltSection ? 'MOVE_TO_EXISTING_FAMILY' : 'MANUAL_ENGINEERING_REVIEW',
+      engineeringReasoning: isApprovedVbeltSection
+        ? `پروفیل جوشی پلی‌یورتان ${profileCode} دارای مقطع V ذوزنقه‌ای استاندارد است؛ مسیر منو بر اساس پروفیل A/B/C و شکل عرضه تعیین می‌شود (${weldedSupplyForm === 'heat-weldable-meter' ? 'وی‌بلت متری' : 'حلقه مداربسته کلاسیک'}). برند، سطح گریپ/صاف و مغزی همچنان هویت خانواده را جدا نگه می‌دارند.`
+        : hasApprovedWeldedLeaf
+          ? `تسمه جوشی پلی‌یورتان اکسترودشده پروفیل ${profileCode} با تفکیک دقیق برند (${brand})، سطح (${surfaceLabel}) و مغزی (${isCorded ? 'نخ‌دار' : 'ساده'}) در برگ مصوب متناظر.`
+          : `پروفیل جوشی پلی‌یورتان ${profileCode} از نظر مهندسی شناسایی شده است، اما برگ مصوب مناسبی در اکسل برای آن وجود ندارد؛ خانواده و SKU حفظ می‌شوند و تا تأیید مسیر جدید در منوی تسمه منتشر نمی‌شوند.`,
     };
   }
 
