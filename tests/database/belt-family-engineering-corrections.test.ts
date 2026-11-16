@@ -410,6 +410,12 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
       [oldMaterial],
     );
     assert.deepEqual(restored.rows[0], { crc: 103, banded: 15, wedge: 31, xp: 139 });
+    const crcTechnicalRestored = await db.query(
+      `select count(*)::int count from public.catalog_variants
+       where variable_specs->>'beltDivision'='vbelt-crowned-crc'
+         and technical_specs @> '[{"key":"beltDivision","value":"vbelt-crowned-crc"}]'::jsonb`,
+    );
+    assert.equal(crcTechnicalRestored.rows[0].count, 103);
 
     const aaRestored = await db.query(
       `select count(*)::int count from public.catalog_variants
