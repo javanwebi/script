@@ -1095,7 +1095,7 @@ function buildBeltPhase1SkuRecord(
       currentCategory: rawFam.categoryName,
       proposedCategory: canonical.categoryName,
       currentSubcategory: rawFam.technicalType,
-      proposedSubcategory: `${canonical.submenu} > ${canonical.leaf}`,
+      proposedSubcategory: canonical.leaf ? `${canonical.submenu} > ${canonical.leaf}` : canonical.submenu,
       familyDecision: 'DIRECT_PRODUCT',
       finalStatus: 'DIRECT_PRODUCT',
       technicalEvidence: 'INVENTORY_DESCRIPTION',
@@ -1189,7 +1189,7 @@ function buildBeltPhase1SkuRecord(
       currentCategory: rawFam.categoryName,
       proposedCategory: canonical.categoryName,
       currentSubcategory: rawFam.technicalType,
-      proposedSubcategory: `${canonical.submenu} > ${canonical.leaf}`,
+      proposedSubcategory: canonical.leaf ? `${canonical.submenu} > ${canonical.leaf}` : canonical.submenu,
       familyDecision: 'UNRESOLVED',
       finalStatus: 'UNRESOLVED',
       technicalEvidence: 'UNKNOWN',
@@ -1636,7 +1636,7 @@ export function classifyNonBeltSku(
       currentCategory: rawFam.categoryName,
       proposedCategory: canonical.categoryName,
       currentSubcategory: rawFam.technicalType,
-      proposedSubcategory: `${canonical.submenu} > ${canonical.leaf}`,
+      proposedSubcategory: canonical.leaf ? `${canonical.submenu} > ${canonical.leaf}` : canonical.submenu,
       familyDecision: 'UNRESOLVED',
       finalStatus: 'UNRESOLVED',
       technicalEvidence: 'UNKNOWN',
@@ -1675,7 +1675,7 @@ export function classifyNonBeltSku(
   let standard = 'INDUSTRIAL_SPEC';
   let categorySlug = directOverride?.categorySlug || baseMenu?.categorySlug || 'excel-v2-10-1';
   let submenu = directOverride?.submenu || baseMenu?.submenuName || rawFam.submenu || '';
-  let leaf = directOverride?.subcategory || baseMenu?.leafName || '';
+  let leaf: string | null = directOverride?.subcategory || baseMenu?.leafName || null;
   let misplaced = rescuedFromBeltCategory;
   let taxonomyGap: string | null = null;
   let evidence: TechnicalEvidenceLevel = directOverride ? 'EXCEL_SOURCE' : 'INVENTORY_DESCRIPTION';
