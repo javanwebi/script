@@ -282,6 +282,17 @@ test('belt taxonomy follow-up quarantines non-belt families, preserves every SKU
         leaf_name: row.leaf,
         method: 'engineering_audited',
       });
+      const family = await db.query<{ category_slug: string; category_name: string; submenu: string | null; subcategory: string | null }>(
+        `select category_slug,category_name,submenu,subcategory
+         from public.catalog_families where code=$1`,
+        [row.code]
+      );
+      assert.deepEqual(family.rows[0], {
+        category_slug: row.categorySlug,
+        category_name: row.categoryName,
+        submenu: row.submenu,
+        subcategory: row.leaf,
+      });
     }
 
     const apl = await db.query<{ assignments: number; category: string }>(
