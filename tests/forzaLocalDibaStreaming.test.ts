@@ -34,6 +34,8 @@ test('the Persian Diba browser recognizer is loaded from the same origin, never 
  const server=readFileSync('server.ts','utf8');
  const docker=readFileSync('ops/Dockerfile.forza-stt-runtime','utf8');
  const deploy=readFileSync('ops/deploy-single-port-vps.sh','utf8');
+ const legacyDeploy=readFileSync('ops/sanatpish-deploy.sh','utf8');
+ const workflow=readFileSync('.github/workflows/verify-vps-build.yml','utf8');
  const canary=readFileSync('ops/verify-single-port-canary.mjs','utf8');
  assert.match(local,/FORZA_DIBA_MODEL_URL='\/forza-runtime\/stt\/diba-stt-fa-small-c244182d\.tar\.gz'/);
  assert.doesNotMatch(local,/https:\/\/huggingface\.co/);
@@ -44,6 +46,15 @@ test('the Persian Diba browser recognizer is loaded from the same origin, never 
  assert.match(docker,/cp \/tmp\/diba-stt-fa-small\.tar\.gz \/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
  assert.match(docker,/FORZA_STT_DIBA_BROWSER_ARCHIVE=\/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
  assert.match(deploy,/test -s \/opt\/diba-stt\/diba-stt-fa-small\.tar\.gz/);
+ assert.match(deploy,/vosk-browser@0\.0\.8/);
+ assert.match(deploy,/cp node_modules\/vosk-browser\/dist\/vosk\.js public\/forza-runtime\/stt\/vosk\.js/);
+ assert.match(deploy,/test -s dist\/forza-runtime\/stt\/vosk\.js/);
+ assert.match(legacyDeploy,/vosk-browser@0\.0\.8/);
+ assert.match(legacyDeploy,/cp node_modules\/vosk-browser\/dist\/vosk\.js public\/forza-runtime\/stt\/vosk\.js/);
+ assert.match(legacyDeploy,/Candidate Diba browser runtime missing/);
+ assert.match(workflow,/vosk-browser@0\.0\.8/);
+ assert.match(workflow,/cp node_modules\/vosk-browser\/dist\/vosk\.js public\/forza-runtime\/stt\/vosk\.js/);
+ assert.match(workflow,/test -s dist\/forza-runtime\/stt\/vosk\.js/);
  assert.match(canary,/DIBA_BROWSER_MODEL_HTTP_/);
  assert.match(canary,/DIBA_BROWSER_MODEL_CONTENT_LENGTH_MISSING/);
 });
