@@ -417,7 +417,7 @@ function chooseFamilyPhotoTriplet(fam: {
   }
 
   // 5. Classical & Narrow Wedge V-belts
-  if (div === 'vbelt-narrow-wedge') {
+  if (div === 'vbelt-narrow-wedge' || div === 'vbelt-wedge') {
     if (fam.isCogged) {
       if (isMitsuboshi) return ['vb_cog_agx', 'vb_cog_macro', 'pt_cogwedge_struct'];
       if (isBando) return ['vb_cog_pix', 'vb_cog_bando_cut', 'pt_cogwedge_struct'];
@@ -507,8 +507,12 @@ function getDivisionTitleFa(div: string, isCogged: boolean, isCoated: boolean): 
         : { fa: 'تسمه وی‌بلت کلاسیک روکش‌دار صنعتی (Wrapped)', en: 'WRAPPED CLASSICAL V-BELT' };
     case 'vbelt-narrow-wedge':
       return isCogged
-        ? { fa: 'تسمه وی‌بلت باریک دنده‌دار پرفشار (XPZ/XPA/XPB/XPC)', en: 'COGGED NARROW WEDGE V-BELT' }
-        : { fa: 'تسمه وی‌بلت باریک (Wedge) روکش‌دار (SPZ/SPA/SPB/SPC)', en: 'WRAPPED NARROW WEDGE V-BELT' };
+        ? { fa: 'تسمه وی‌بلت باریک دنده‌دار لبه‌خام (XPZ/XPA/XPB/XPC)', en: 'RAW-EDGE COGGED NARROW WEDGE V-BELT' }
+        : { fa: 'تسمه وی‌بلت باریک روکش‌دار (SPZ/SPA/SPB/SPC)', en: 'WRAPPED NARROW WEDGE V-BELT' };
+    case 'vbelt-wedge':
+      return isCogged
+        ? { fa: 'تسمه وی‌بلت گوه‌ای آمریکایی دنده‌دار لبه‌خام (3VX/5VX/8VX)', en: 'RAW-EDGE COGGED AMERICAN WEDGE V-BELT' }
+        : { fa: 'تسمه وی‌بلت گوه‌ای آمریکایی روکش‌دار (3V/5V/8V)', en: 'WRAPPED AMERICAN WEDGE V-BELT' };
     case 'vbelt-banded':
       return { fa: 'تسمه V شکل پشت‌پیوسته / پاورباند (Banded V-Belt)', en: 'BANDED / POWERBAND V-BELT' };
     case 'vbelt-hexagonal':
