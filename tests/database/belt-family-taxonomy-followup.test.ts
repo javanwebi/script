@@ -15,30 +15,49 @@ const unresolvedDirectCodes = [
   '37731','38075','41278','41807','41814','58129','35236','38510'
 ];
 
-const quotedValues = (source: string) => [...source.matchAll(/'([^']+)'/g)].map((match) => match[1]);
-
 const readReviewedLists = async (migration: string, menuCorrection: string) => {
+  const mappingEnd = ')' + String.fromCharCode(10) + 'update public.catalog_family_menu_assignments';
   const mappingBlock = migration
     .split('with mapping(family_code,category_slug,category_name,submenu_name,leaf_name) as (')[1]
-    .split(')\nupdate public.catalog_family_menu_assignments')[0];
-  const mappingRows = [...mappingBlock.matchAll(
-    /\('([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*(null|'[^']*')\)/g
-  )].map((match) => ({
-    code: match[1],
-    categorySlug: match[2],
-    categoryName: match[3],
-    submenu: match[4],
-    leaf: match[5] === 'null' ? null : match[5].slice(1, -1),
-  }));
+    .split(mappingEnd)[0];
+  const mappingRows = mappingBlock.split(String.fromCharCode(10))
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("('"))
+    .map((line) => {
+      const raw = line.slice(1, line.lastIndexOf(')'));
+      const parts = raw.split("','");
+      parts[0] = parts[0].slice(1);
+      if (parts[parts.length - 1].endsWith("'")) {
+        parts[parts.length - 1] = parts[parts.length - 1].slice(0, -1);
+      }
+      return {
+        code: parts[0],
+        categorySlug: parts[1],
+        categoryName: parts[2],
+        submenu: parts[3],
+        leaf: parts[4] === 'null' ? null : parts[4],
+      };
+    });
 
   const preconditionBlock = migration.split('do $$')[1].split('end $$')[0];
-  const familyCodeBlocks = [...preconditionBlock.matchAll(/where code in \(([\s\S]*?)\)\s*and is_active=true/g)];
-  const unresolvedCodes = quotedValues(familyCodeBlocks[1][1]);
+  const familyCodeBlocks = preconditionBlock.split('where code in (').slice(1)
+    .map((block) => block.split(') and is_active=true')[0]
+      .split(',')
+      .map((value) => value.trim().replaceAll("'", ''))
+      .filter(Boolean));
+  const unresolvedCodes = familyCodeBlocks[1];
+
   const staleBlock = menuCorrection.split('INSERT INTO _belt_family_unassign VALUES')[1]
     .split('CREATE TEMP TABLE _belt_direct_unassign')[0];
-  const staleCodes = [...new Set([...staleBlock.matchAll(/\('([^']+)'/g)].map((match) => match[1]))];
+  const staleCodes = [...new Set(staleBlock.split(String.fromCharCode(10))
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("('"))
+    .map((line) => line.slice(2).split("','")[0]))];
+
   const directBlock = migration.split('-- Direct SKU: XPC is a narrow V-belt')[1].split('do $$')[0];
-  const directCodes = [...new Set([...directBlock.matchAll(/'([0-9]{4,7})'/g)].map((match) => match[1]))];
+  const directCodes = [...new Set(directBlock.split("'")
+    .filter((value) => value.length >= 4 && value.length <= 7
+      && [...value].every((char) => char >= '0' && char <= '9')))];
 
   return { mappingRows, unresolvedCodes, staleCodes, directCodes };
 };
