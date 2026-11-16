@@ -430,8 +430,9 @@ const VBELT_SPECS: Record<
   CX: { topWidthMm: 22, thicknessMm: 14, division: 'vbelt-classical', sidedness: 'single-sided', standard: 'DIN 2215 / ISO 4184 (پروفیل دنده‌ای CX 22×14 mm)' },
   D: { topWidthMm: 32, thicknessMm: 20, division: 'vbelt-classical', sidedness: 'single-sided', standard: 'DIN 2215 / ISO 4184 (پروفیل کلاسیک D 32×20 mm)' },
   E: { topWidthMm: 40, thicknessMm: 25, division: 'vbelt-classical', sidedness: 'single-sided', standard: 'DIN 2215 / ISO 4184 (پروفیل کلاسیک E 40×25 mm)' },
-  AA: { topWidthMm: 13, thicknessMm: 10, division: 'vbelt-hexagonal', sidedness: 'double-sided', standard: 'ISO 5289 / DIN 7722 (تسمه شش‌ضلعی دوطرفه AA / HAA)' },
-  BB: { topWidthMm: 17, thicknessMm: 13, division: 'vbelt-hexagonal', sidedness: 'double-sided', standard: 'ISO 5289 / DIN 7722 (تسمه شش‌ضلعی دوطرفه BB / HBB)' },
+  AA: { topWidthMm: 13, thicknessMm: 10, division: 'vbelt-hexagonal', sidedness: 'double-sided', standard: 'ISO 5289 / DIN 7722 (تسمه V دوطرفه AA / HAA)' },
+  BB: { topWidthMm: 17, thicknessMm: 13, division: 'vbelt-hexagonal', sidedness: 'double-sided', standard: 'ISO 5289 / DIN 7722 (تسمه V دوطرفه BB / HBB)' },
+  CC: { topWidthMm: 22, thicknessMm: 17, division: 'vbelt-hexagonal', sidedness: 'double-sided', standard: 'ISO 5289 / DIN 7722 (تسمه V دوطرفه CC / HCC)' },
   SPZ: { topWidthMm: 9.7, thicknessMm: 8, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'DIN 7753-1 / ISO 4184 (پروفیل باریک SPZ 9.7×8 mm)' },
   XPZ: { topWidthMm: 9.7, thicknessMm: 8, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'DIN 7753-1 / ISO 4184 (پروفیل باریک دنده‌ای XPZ 9.7×8 mm)' },
   SPA: { topWidthMm: 12.7, thicknessMm: 10, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'DIN 7753-1 / ISO 4184 (پروفیل باریک SPA 12.7×10 mm)' },
@@ -2313,9 +2314,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedCategorySlug: 'excel-v2-1-2',
       proposedCategoryName: 'تسمه وی‌بلت (V-Belt)',
       proposedSubmenu: isNarrow ? 'تسمه اسپشیال' : 'کلاسیک و دنده‌دار',
-      proposedLeaf: isNarrow
-        ? isSpecialLeaf ? 'SPA , SPB , SPC و دندانه‌دار' : null
-        : isClassicalLeaf ? 'Z (9.5) , M , A , B , C , D , E , 8V' : null,
+      proposedLeaf: null,
       taxonomyGap: `GAP-VBELT-BANDED: تسمه به‌پشت‌پیوسته (Banded Powerband) پروفیل ${baseProf} در زیرمنوی پروفیل پایه قرار می‌گیرد؛ فقط پروفیل‌هایی که برگ مصوب دقیق دارند به برگ فرعی متصل می‌شوند.`,
       proposedFamilyId: `FAM-VBELT-BANDED-${baseProf}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
       proposedFamilyNameFa: `تسمه V شکل به‌پشت‌پیوسته (پاورباند) پروفیل ${baseProf} (${brand})`,
@@ -2356,10 +2355,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   // 12. Classical, Narrow/Wedge, and Hexagonal V-Belts
   const productUpperName = normalize(product.name).toUpperCase();
   const explicitWeldedVProfileMatch = `${upperName} ${productUpperName}`.match(/تسمه\s*جوشی\s*V\b.*?پروفیل\s*(A|B|C)\b/);
-  const explicitVProfileMatch = `${upperName} ${productUpperName}`.match(/(?:تسمه\s*V(?:\s*شکل)?|V[\s-]*BELT|وی[\s‌-]*بلت).*?پروفیل\s*(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\b/);
+  const explicitVProfileMatch = `${upperName} ${productUpperName}`.match(/(?:تسمه\s*V(?:\s*شکل)?|V[\s-]*BELT|وی[\s‌-]*بلت).*?پروفیل\s*(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|CC|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\b/);
   const stdVMatch =
-    upperName.match(/\b(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\s*[-*× ]?\s*(\d{2,5}(?:[./]\d+)?)\b/) ||
-    upperName.match(/\b(\d{2,5}(?:[./]\d+)?)\s*(?:[*×]\s*)?(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|M|K)\b/);
+    upperName.match(/\b(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|CC|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\s*[-*× ]?\s*(\d{2,5}(?:[./]\d+)?)\b/) ||
+    upperName.match(/\b(\d{2,5}(?:[./]\d+)?)\s*(?:[*×]\s*)?(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|CC|ZX|AX|BX|CX|MX|M|K)\b/);
 
   const isExplicitTiming = /تایم|تایمینگ/.test(normName);
   const numericVMatch =
@@ -2405,7 +2404,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     const isClassicalLeaf = ['Z', 'ZX', 'M', 'A', 'AX', 'B', 'BX', 'C', 'CX', 'D', 'E', '8V', '8VX'].includes(vProfile);
     const isOpenEndedSupply = !isMixedFamilyUnit && rawUnit === 'متر';
     const isMeterLeaf = isOpenEndedSupply && ['A', 'B', 'C'].includes(vProfile);
-    const isHexagonal = ['AA', 'BB'].includes(vProfile);
+    const isHexagonal = ['AA', 'BB', 'CC'].includes(vProfile);
+    const isCoggedProfile = /X$/.test(vProfile);
+    const isHeavyWedgeProfile = ['8V', '8VX'].includes(vProfile);
+    const isWedgeProfile = isNarrowProfile || isHeavyWedgeProfile;
     const isUnlistedK = vProfile === 'K';
     const vUnit = isOpenEndedSupply ? 'متر' : 'حلقه';
 
@@ -2415,11 +2417,11 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         ? 'پروفیل K'
         : isMeterLeaf
           ? 'وی‌بلت متری'
-          : isNarrowProfile
+          : isWedgeProfile
             ? 'تسمه اسپشیال'
             : 'کلاسیک و دنده‌دار';
 
-    const proposedLeaf = isHexagonal || isUnlistedK
+    const proposedLeaf = isHexagonal || isUnlistedK || isHeavyWedgeProfile
       ? null
       : isMeterLeaf
         ? 'تسمه A و B و C وی‌بلت متری'
@@ -2428,7 +2430,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
           : isNarrowProfile
             ? null
             : isClassicalLeaf
-              ? 'Z (9.5) , M , A , B , C , D , E , 8V'
+              ? 'Z (9.5) , M , A , B , C , D , E'
               : null;
 
     let taxonomyGap: string | null = null;
@@ -2436,7 +2438,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       taxonomyGap = `GAP-VBELT-HEXAGONAL-LEAF-MISSING: تسمه شش‌ضلعی دوطرفه ${vProfile} خانواده فنی مستقلی است، اما برگ مصوب آن در اکسل وجود ندارد.`;
     } else if (isUnlistedK) {
       taxonomyGap = 'GAP-VBELT-K-LEAF-MISSING: پروفیل K در برگ‌های مصوب کلاسیک/اسپشیال/متری درج نشده است.';
-    } else if (['3V', '3VX', '5V', '5VX', 'MX', 'SPZ', 'XPZ'].includes(vProfile)) {
+    } else if (['3V', '3VX', '5V', '5VX', '8V', '8VX', 'MX', 'SPZ', 'XPZ'].includes(vProfile)) {
       taxonomyGap = `GAP-VBELT-PROFILE-LABEL: پروفیل ${vProfile} در نام برگ اکسل صریحاً ذکر نشده؛ هویت آن به‌عنوان تسمه V حفظ می‌شود و باید در بازنگری منبع اکسل تأیید شود.`;
     } else if (hasCoating) {
       taxonomyGap =
@@ -2489,7 +2491,13 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedFamilyId: familyId,
       proposedFamilyNameFa: [
         'تسمه V شکل',
-        vSpec.division === 'vbelt-hexagonal' ? 'شش‌ضلعی دوطرفه' : isNarrowProfile ? 'پروفیل باریک' : 'کلاسیک',
+        vSpec.division === 'vbelt-hexagonal'
+          ? 'شش‌ضلعی دوطرفه'
+          : isHeavyWedgeProfile
+            ? 'پروفیل گوه‌ای سنگین'
+            : isNarrowProfile
+              ? isCoggedProfile ? 'پروفیل باریک دنده‌ای لبه‌خام' : 'پروفیل باریک روکش‌دار'
+              : isCoggedProfile ? 'کلاسیک دنده‌ای لبه‌خام' : 'کلاسیک روکش‌دار',
         vProfile,
         coatingLabel ? `(${coatingLabel})` : '',
         isOpenEndedSupply ? 'متری' : '',
@@ -2498,9 +2506,15 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         .filter(Boolean)
         .join(' '),
       proposedFamilyNameEn: `${brand} ${vProfile} ${
-        vSpec.division === 'vbelt-hexagonal' ? 'Hexagonal Double-Sided' : isNarrowProfile ? 'Narrow Wedge' : 'Classical'
+        vSpec.division === 'vbelt-hexagonal'
+          ? 'Hexagonal Double-Sided'
+          : isHeavyWedgeProfile
+            ? 'Heavy-Duty Wedge'
+            : isNarrowProfile
+              ? isCoggedProfile ? 'Raw-Edge Cogged Narrow Wedge' : 'Wrapped Narrow Wedge'
+              : isCoggedProfile ? 'Raw-Edge Cogged Classical' : 'Wrapped Classical'
       } V-Belt${hasCoating ? ' (Coated)' : ''}${isOpenEndedSupply ? ' Open-Ended Meter' : ''}`,
-      actualProductType: `تسمه V شکل پروفیل ${vProfile}${hasCoating ? ` همراه با ${coatingLabel}` : ''}`,
+      actualProductType: `تسمه V شکل ${isCoggedProfile ? 'دنده‌ای لبه‌خام ' : ''}${vProfile}${hasCoating ? ` همراه با ${coatingLabel}` : ''}`,
       technical: {
         operatingPrinciple: 'friction-v',
         beltDivision: vSpec.division,
