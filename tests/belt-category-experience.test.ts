@@ -41,8 +41,11 @@ const classifyBelt = (
 const route = readFileSync(new URL('../src/pages/CategoryPage.tsx', import.meta.url), 'utf8');
 const directSkus = readFileSync(new URL('../src/components/catalog/DirectSkuProducts.tsx', import.meta.url), 'utf8');
 
-test('direct SKU records are rendered in the same belt collection as family cards', () => {
-  assert.match(route, /return <BeltCategoryExperience \/>/);
+test('the retired belt parent route redirects to the approved industrial-belts group', () => {
+  assert.doesNotMatch(route, /BeltCategoryExperience/);
+  assert.match(route, /LEGACY_CATEGORY_ROUTE_GROUPS/);
+  assert.match(route, /'تسمه-و-انتقال-نیرو': 'excel-v2-1'/);
+  assert.match(route, /return <ExcelMenuCategoryPage \/>/);
   assert.doesNotMatch(route, /DirectSkuProducts categorySlug=\{canonicalBeltSlug\}/);
   assert.match(page, /const directSkuRecords = useDirectSkus\(BELT_SLUG, 'excel-v2-1-'\)/);
   assert.match(page, /const directSkuProducts = useMemo/);
