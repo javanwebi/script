@@ -29,7 +29,7 @@ const browserModel = await fetch(candidate + "/forza-runtime/stt/diba-stt-fa-sma
   signal: AbortSignal.timeout(15000),
 });
 assert.equal(browserModel.status, 200, "DIBA_BROWSER_MODEL_HTTP_" + browserModel.status);
-assert.match(browserModel.headers.get("content-type") || "", /application\\/gzip/i);
+assert.match(browserModel.headers.get("content-type") || "", /application\/gzip/i);
 assert.ok(Number(browserModel.headers.get("content-length") || 0) > 0,
   "DIBA_BROWSER_MODEL_CONTENT_LENGTH_MISSING");
 console.log("PRIVATE_CANARY_DIBA_BROWSER_MODEL_OK bytes=" + browserModel.headers.get("content-length"));
