@@ -37,6 +37,11 @@ on:
       - "scripts/tests/textile-industry-responsive-smoke.cjs"
       - "tests/industry-pages-unique-layouts.test.ts"
       - "tests/belt-category-experience.test.ts"
+      - "src/data/beltCatalogAudit.ts"
+      - "src/data/catalogPhase1Reconstruction.ts"
+      - "tests/phase1-catalog-reconstruction.test.ts"
+      - "ops/sql/20261116_pvc_conveyor_surface_family_split.sql"
+      - "ops/sql/20261116_pvc_conveyor_surface_family_split_rollback.sql"
       - "scripts/tests/belt-category-responsive-smoke.cjs"
       - ".github/workflows/verify-vps-build.yml"
   push:
@@ -83,6 +88,8 @@ jobs:
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
       - name: Belt category reference and regression suite
         run: node --import tsx --test tests/belt-category-experience.test.ts
+      - name: Phase 1 catalog reconstruction and PVC conveyor taxonomy regression suite
+        run: node --import tsx --test tests/phase1-catalog-reconstruction.test.ts
       - name: Supabase SMS hook signature safety
         run: node --import tsx --test tests/supabase-sms-hook.test.ts
       - name: FORZA mobile support panel and swipe gesture
