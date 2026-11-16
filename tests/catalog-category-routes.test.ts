@@ -13,6 +13,7 @@ const megaMenu = source('src/components/catalog/ReferenceMegaMenu.tsx');
 const mobileExplorer = source('src/components/catalog/MobileCategoryExplorer.tsx');
 const header = source('src/components/layout/Header.tsx');
 const categoryPage = source('src/pages/CategoryPage.tsx');
+const categoryNavigation = source('src/components/catalog/CategoryNavigation.tsx');
 const admin = source('src/admin/modules/ProductsModule.tsx');
 const api = source('server/catalogNavigationApi.ts');
 const industry = source('src/pages/TileCeramicIndustryPage.tsx');
@@ -47,6 +48,8 @@ test('the approved menu exposes 34 unique category routes with no parent-route r
 test('every approved category uses its own canonical route slug across storefront and admin', () => {
   assert.match(categories, /routeSlug\?: string/);
   assert.match(categories, /getCategoryRouteSlug/);
+  assert.match(categories, /getCategoryRoutePath/);
+  assert.match(categoryNavigation, /getCategoryRoutePath\(categorySlug\)/);
   assert.match(categories, /getInternalCategorySlugFromRouteSlug/);
   assert.match(api, /routeSlug:typeof metadata\.routeSlug==='string'\?metadata\.routeSlug:row\.slug/);
   assert.match(allCategories, /getCategoryRouteSlug\(category\)/);
@@ -76,6 +79,9 @@ test('retired category parents no longer render old category experiences', () =>
 
 test('industry category shortcuts open the new industrial-belts group instead of the retired parent page', () => {
   assert.match(industry, /link: '\/categories\?group=excel-v2-1'/);
+  assert.match(industry, /link: '\/categories\?group=excel-v2-3'/);
+  assert.match(industry, /link: '\/categories\?group=excel-v2-7'/);
+  assert.match(brandBanner, /getCategoryRoutePath\('excel-v2-4-1'\)/);
   assert.match(productsPage, /categories\?\$\{destinationParams\.toString\(\)\}/);
   assert.match(productsPage, /group: 'excel-v2-1'/);
   assert.match(brandBanner, /categories\?group=excel-v2-1/);
