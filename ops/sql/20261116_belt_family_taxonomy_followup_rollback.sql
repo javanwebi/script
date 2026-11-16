@@ -17,6 +17,12 @@ BEGIN
   END IF;
 END $$;
 
+INSERT INTO public.catalog_families
+SELECT (jsonb_populate_record(NULL::public.catalog_families,b.row_data)).*
+FROM internal.catalog_belt_taxonomy_followup_backup_20261116 b
+LEFT JOIN public.catalog_families f ON f.code=b.row_key
+WHERE b.table_name='catalog_families' AND f.code IS NULL;
+
 UPDATE public.catalog_families f
 SET category_slug=b.row_data->>'category_slug',
     category_name=b.row_data->>'category_name',
@@ -47,6 +53,12 @@ SET category_slug=EXCLUDED.category_slug,
     created_at=EXCLUDED.created_at,
     updated_at=EXCLUDED.updated_at;
 
+INSERT INTO public.catalog_direct_skus
+SELECT (jsonb_populate_record(NULL::public.catalog_direct_skus,b.row_data)).*
+FROM internal.catalog_belt_taxonomy_followup_backup_20261116 b
+LEFT JOIN public.catalog_direct_skus s ON s.sku_code=b.row_key
+WHERE b.table_name='catalog_direct_skus' AND s.sku_code IS NULL;
+
 UPDATE public.catalog_direct_skus s
 SET category_slug=b.row_data->>'category_slug',
     category_name=b.row_data->>'category_name',
@@ -62,10 +74,11 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM internal.catalog_belt_taxonomy_followup_backup_20261116 b
-    JOIN public.catalog_families f ON f.code=b.row_key
+    LEFT JOIN public.catalog_families f ON f.code=b.row_key
     WHERE b.table_name='catalog_families'
       AND (
-        f.category_slug IS DISTINCT FROM b.row_data->>'category_slug'
+        f.code IS NULL
+        OR f.category_slug IS DISTINCT FROM b.row_data->>'category_slug'
         OR f.category_name IS DISTINCT FROM b.row_data->>'category_name'
         OR f.submenu IS DISTINCT FROM b.row_data->>'submenu'
         OR f.subcategory IS DISTINCT FROM b.row_data->>'subcategory'
@@ -96,10 +109,11 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM internal.catalog_belt_taxonomy_followup_backup_20261116 b
-    JOIN public.catalog_direct_skus s ON s.sku_code=b.row_key
+    LEFT JOIN public.catalog_direct_skus s ON s.sku_code=b.row_key
     WHERE b.table_name='catalog_direct_skus'
       AND (
-        s.category_slug IS DISTINCT FROM b.row_data->>'category_slug'
+        s.sku_code IS NULL
+        OR s.category_slug IS DISTINCT FROM b.row_data->>'category_slug'
         OR s.category_name IS DISTINCT FROM b.row_data->>'category_name'
         OR s.submenu IS DISTINCT FROM b.row_data->>'submenu'
         OR s.subcategory IS DISTINCT FROM b.row_data->>'subcategory'
