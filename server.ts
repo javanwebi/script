@@ -494,7 +494,7 @@ app.use('/api/auth', (_req, res) => res.status(410).json({ success: false, messa
 // Public, version-pinned Diba/Vosk browser model. This is an open model
 // archive, not customer audio or a credential; serve it from the same origin
 // so browsers never depend on a third-party model host during a live call.
-app.get('/forza-runtime/stt/diba-stt-fa-small.tar.gz',(_req,res)=>{
+app.get('/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz',(_req,res)=>{
   const archive=String(process.env.FORZA_STT_DIBA_BROWSER_ARCHIVE||
     '/opt/diba-stt/diba-stt-fa-small.tar.gz');
   if(!path.isAbsolute(archive)||!fs.existsSync(archive))
