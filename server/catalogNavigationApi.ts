@@ -94,7 +94,7 @@ export function registerCatalogNavigationApi(app:Express){
         const children=Array.isArray(metadata.children)?metadata.children:
           (Array.isArray(metadata.subcategories)?metadata.subcategories.map((name:unknown)=>({name:String(name),children:[]})):[]);
         const menuStatsForCategory=menuStats.get(row.slug);
-        const isApprovedMenuCategory=String(row.slug||'').startsWith('excel-v2-');
+        const isApprovedMenuCategory=metadata.source==='industrial_megamenu_hierarchy_v2';
         const familyCount=isApprovedMenuCategory
           ? Number(menuStatsForCategory?.familyCount)||0
           : Number(row.familyCount)||0;
