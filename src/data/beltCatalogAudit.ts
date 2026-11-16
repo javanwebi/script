@@ -604,6 +604,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     .map((spec) => String(spec.value || ''))
     .join(' ');
   const normalizedMaterialEvidence = normalize(materialEvidence);
+  const constructionEvidence = technicalEvidence
+    .filter((spec) => /ساختار|construction|cord|کورد/i.test(String(spec.key || '')))
+    .map((spec) => String(spec.value || ''))
+    .join(' ');
   const isPolyurethaneMaterial = /پلی.?یورتان|polyurethane|thermoplastic.?pu|\btpu\b|\bpu\b/.test(
     normalize(`${normalizedMaterialEvidence} ${normName}`)
   );
@@ -611,7 +615,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     normalize(`${normalizedMaterialEvidence} ${normName}`)
   );
   const isSteelCordMaterial = /سیم\s*دار|کورد\s*فولادی|steel\s*cord|fiberglass\s*cord|کورد\s*فایبرگلاس/.test(
-    normalize(`${normalizedMaterialEvidence} ${normName}`)
+    normalize(`${normalizedMaterialEvidence} ${constructionEvidence} ${normName}`)
   );
 
   // 1. Check for non-belt items inside belt or conveyor categories
@@ -1616,7 +1620,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     upperName.match(/\b(XH|DH|DL|DXL|MXL|XL|L|H)\s*(?:[*×-]\s*|.*عرض\s*)(\d{2,3})\b/);
   const impLoopMatch = upperName.match(/\b(\d{2,5}(?:[./]\d+)?)\s*(MXL|DXL|XL|DL|L|DH|H|XH)(?:\s*[-*× ]?\s*(\d{2,3}M?)\b)?/);
 
-  const isSteelCordTiming = /سیم\s*دار/.test(normName) || product.subcategory === 'تسمه سیم‌دار';
+  const isSteelCordTiming = /سیم\s*دار/.test(normName) || isSteelCordMaterial || product.subcategory === 'تسمه سیم‌دار';
 
   if (impLoopMatch || (isSteelCordTiming && impOpenMatch)) {
     let profile = 'H';
@@ -2333,7 +2337,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   const explicitWeldedVProfileMatch = upperName.match(/تسمه\s*جوشی\s*V\b.*?پروفیل\s*(A|B|C)\b/);
   const stdVMatch =
     upperName.match(/\b(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\s*[-*× ]?\s*(\d{2,5}(?:[./]\d+)?)\b/) ||
-    upperName.match(/\b(\d{2,5}(?:[./]\]\s*)?(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|M|K)\b/);
+    upperName.match(/\b(\d{2,5}(?:[./]\d+)?)\s*(?:[*×]\s*)?(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|M|K)\b/);
 
   const isExplicitTiming = /تایم|تایمینگ/.test(normName);
   const numericVMatch =
@@ -2460,7 +2464,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedFamilyId: familyId,
       proposedFamilyNameFa: [
         'تسمه V شکل',
-        vSpec.division === 'vbelt-hexagonal' ? 'شش‌ضلعی دوطرفه' : isNarrowLeaf ? 'پروفیل باریک' : 'کلاسیک',
+        vSpec.division === 'vbelt-hexagonal' ? 'شش‌ضلعی دوطرفه' : isNarrowProfile ? 'پروفیل باریک' : 'کلاسیک',
         vProfile,
         coatingLabel ? `(${coatingLabel})` : '',
         isOpenEndedSupply ? 'متری' : '',
@@ -2469,7 +2473,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         .filter(Boolean)
         .join(' '),
       proposedFamilyNameEn: `${brand} ${vProfile} ${
-        vSpec.division === 'vbelt-hexagonal' ? 'Hexagonal Double-Sided' : isNarrowLeaf ? 'Narrow Wedge' : 'Classical'
+        vSpec.division === 'vbelt-hexagonal' ? 'Hexagonal Double-Sided' : isNarrowProfile ? 'Narrow Wedge' : 'Classical'
       } V-Belt${hasCoating ? ' (Coated)' : ''}${isOpenEndedSupply ? ' Open-Ended Meter' : ''}`,
       actualProductType: `تسمه V شکل پروفیل ${vProfile}${hasCoating ? ` همراه با ${coatingLabel}` : ''}`,
       technical: {
