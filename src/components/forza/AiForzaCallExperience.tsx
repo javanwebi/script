@@ -21,7 +21,7 @@ import { ForzaSpeechAdmission, ForzaRecognitionAdmission } from '../../utils/for
 import { ForzaRecordingSafety } from '../../utils/forzaSttTurnSafety';
 import { ForzaVoiceActivity, rootMeanSquareFromFloatTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
-import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
+import { loadDibaSttModel, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
@@ -174,6 +174,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recorderStartedAtRef = useRef(0);
   const speechSegmentStartedRef = useRef(false);
   const localSttModelRef=useRef<LocalSttModel|null>(null);
+  const localSttModelLoadingRef=useRef(false);
   const localSttRecognizerRef=useRef<LocalRecognizer|null>(null);
   const localSttNodeRef=useRef<ScriptProcessorNode|null>(null);
   const localSttSinkRef=useRef<GainNode|null>(null);
@@ -332,7 +333,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       };
       recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
       recognizer.on('result',msg=>update(String(msg?.result?.text||''),true));
-      recognizer.on('error',()=>setLocalSttStatus('fallback'));
+      recognizer.on('error',()=>{
+        if(localSttRecognizerRef.current!==recognizer)return;
+        localSttRecognizerRef.current=null;
+        recognizer.remove?.();
+        setLocalSttStatus('fallback');
+        // If the local WASM recognizer fails, immediately return to the
+        // persistent browser recognizer. Its restart handler will run after
+        // the current session's onend event.
+        if(greetingFinishedRef.current&&!micMutedRef.current){
+          recognitionFailedRef.current=false;
+          webSpeechFailedRef.current=false;
+          recognitionStartRef.current();
+        }
+      });
       localSttRecognizerRef.current=recognizer;
       return true;
     }catch(error){console.warn('[FORZA Diba] Recognizer failed',error);setLocalSttStatus('fallback');return false;}
@@ -358,9 +372,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
     }
 
-    // Prefer Chrome's Persian recognition when available; local Diba is a fallback.
-    const browserAvailable=Boolean(recognitionRef.current && !recognitionFailedRef.current && !webSpeechFailedRef.current);
-    const localReady=browserAvailable ? false : startDibaTurn();
+    // Prefer the on-device Diba/Vosk partial recognizer once its pinned model
+    // is warm. Chrome remains the immediate fallback while that model loads,
+    // and is restarted automatically if local recognition fails.
+    const localReady=startDibaTurn();
+    if(localReady){
+      if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
+      recognitionRetryTimerRef.current=null;
+      if(recognitionStartWatchdogRef.current!==null)window.clearTimeout(recognitionStartWatchdogRef.current);
+      recognitionStartWatchdogRef.current=null;
+      recognitionStartPendingRef.current=false;
+      if(isRecognitionActiveRef.current){
+        try{recognitionRef.current?.stop();}catch{}
+      }
+    }
     if (!localReady && !micMutedRef.current && recognitionRef.current &&
         !isRecognitionActiveRef.current && !recognitionStartPendingRef.current &&
         !recognitionFailedRef.current) {
@@ -2012,6 +2037,27 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       localSttNodeRef.current=null;localSttSinkRef.current=null;
       attachLocalStt();
       setupMediaRecorder(stream);
+      // Warm the free local Diba/Vosk browser recognizer in the background on
+      // devices with enough CPU headroom. Chrome keeps transcribing immediately
+      // until the model is ready; low-power/save-data devices stay on Chrome.
+      const dibaCpuCount=Number(navigator.hardwareConcurrency||0);
+      const dibaSaveData=Boolean((navigator as any).connection?.saveData);
+      if(dibaCpuCount>=4&&!dibaSaveData&&!localSttModelRef.current&&!localSttModelLoadingRef.current){
+        localSttModelLoadingRef.current=true;
+        setLocalSttStatus('loading');
+        void loadDibaSttModel().then(model=>{
+          if(callClosedRef.current)return;
+          localSttModelRef.current=model;
+          attachLocalStt();
+          setLocalSttStatus('ready');
+          setServerSttLabel('دایبا محلی آماده است · تشخیص زنده');
+          console.info('[FORZA_STT] provider=diba-browser ready=1');
+        }).catch(error=>{
+          setLocalSttStatus('fallback');
+          console.warn('[FORZA_STT] provider=diba-browser unavailable=1 code='+
+            String((error as any)?.message||'model_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40));
+        }).finally(()=>{localSttModelLoadingRef.current=false;});
+      }
       if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
       recognitionRetryTimerRef.current=null;
       if(recognitionStartWatchdogRef.current!==null)window.clearTimeout(recognitionStartWatchdogRef.current);
