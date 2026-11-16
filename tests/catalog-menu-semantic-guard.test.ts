@@ -77,22 +77,35 @@ test('mixed family identity is quarantined rather than accepted by a valid path'
 
 
 test('timing-belt families cannot leak V-belts, automotive belts or unlisted timing pitches into the wrong leaf', () => {
-  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ T10', 'پلی‌یورتان', 'T5 , AT5 , AT10 , AT20').valid, false);
-  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ 3M', 'لاستیک کلروپرن', '5M , 8M , 11M , 14M').valid, false);
-  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ خودرویی AUTO-RU', 'لاستیک', '5M , 8M , 11M , 14M').valid, false);
-  assert.equal(check('excel-v2-1-1', 'لاستیکی فابریک', 'تسمه تایمینگ صنعتی 3M', 'لاستیک کلروپرن', 'لاستیکی فابریک ساده و دنده‌دار').valid, true);
-  assert.equal(check('excel-v2-1-1', 'سیم‌دار فابریک', 'تسمه تایمینگ پلی‌یورتان سیم‌دار', 'TPU پلی‌یورتان', 'پلی‌یورتان').valid, true);
+  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ T10', 'پلی‌یورتان', 'T5 , AT5 , AT10 , AT20', 'T10').valid, false);
+  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ 3M', 'لاستیک کلروپرن', '5M , 8M , 11M , 14M', '3M').valid, false);
+  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ خودرویی AUTO-RU', 'لاستیک', '5M , 8M , 11M , 14M', 'AUTO-RU').valid, false);
+  assert.equal(check('excel-v2-1-1', 'لاستیکی فابریک', 'تسمه تایمینگ صنعتی 3M', 'لاستیک کلروپرن', 'لاستیکی فابریک ساده و دنده‌دار', '3M').valid, true);
+  assert.equal(check('excel-v2-1-1', 'سیم‌دار فابریک', 'تسمه تایمینگ پلی‌یورتان سیم‌دار', 'TPU پلی‌یورتان', 'پلی‌یورتان', '8M').valid, true);
   assert.equal(check('excel-v2-1-1', 'سیم‌دار فابریک', 'تسمه تایمینگ متریک پلی‌یورتان پروفیل T10 (مداربسته)', 'TPU پلی‌یورتان', 'پلی‌یورتان', 'T10').valid, true);
 });
 
 test('V-belt families use profile-specific leaves and never enter timing or Poly-V leaves', () => {
-  assert.equal(check('excel-v2-1-2', 'وی‌بلت متری', 'تسمه V شکل پروفیل Z', 'لاستیک', 'تسمه A و B و C وی‌بلت متری').valid, false);
-  assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه V شکل پروفیل Z', 'لاستیک', 'Z (9.5) , M , A , B , C , D , E , 8V').valid, true);
+  assert.equal(check('excel-v2-1-2', 'وی‌بلت متری', 'تسمه V شکل پروفیل Z', 'لاستیک', 'تسمه A و B و C وی‌بلت متری', 'Z').valid, false);
+  assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه V شکل پروفیل Z', 'لاستیک', 'Z (9.5) , M , A , B , C , D , E , 8V', 'Z').valid, true);
   assert.equal(check('excel-v2-1-2', 'وی‌بلت متری', 'تسمه V شکل پروفیل B', 'لاستیک', 'تسمه A و B و C وی‌بلت متری', 'B').valid, true);
-  assert.equal(check('excel-v2-1-2', 'وی‌بلت متری', 'تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل A (صاف)', 'TPU پلی‌یورتان', 'تسمه A و B و C وی‌بلت متری', 'A').valid, true);
-  assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل B (صاف)', 'TPU پلی‌یورتان', 'Z (9.5) , M , A , B , C , D , E , 8V', 'B').valid, true);
+  assert.equal(check('excel-v2-1-2', 'وی‌بلت متری', 'تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل A (صاف)', 'TPU پلی‌یورتان', 'تسمه A و B و C وی‌بلت متری', 'A').valid, false);
+  assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل B (صاف)', 'TPU پلی‌یورتان', 'Z (9.5) , M , A , B , C , D , E , 8V', 'B').valid, false);
   assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه چندشیاری Poly-V پروفیل PJ', 'لاستیک', 'SPA , SPB , SPC و دندانه‌دار', 'PJ').valid, false);
-  assert.equal(check('excel-v2-1-2', 'وی‌بلت متری', 'تسمه V شکل پروفیل AA', 'لاستیک', 'تسمه A و B و C وی‌بلت متری').valid, false);
+  assert.equal(check('excel-v2-1-2', 'وی‌بلت متری', 'تسمه V شکل پروفیل AA', 'لاستیک', 'تسمه A و B و C وی‌بلت متری', 'AA').valid, false);
+});
+
+test('double-sided and non-listed profiles remain at their valid timing or V-belt parent submenu', () => {
+  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ دوطرفه DH', 'لاستیک', 'H , XH , L , XL', 'DH').valid, false);
+  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ دوطرفه DH', 'لاستیک', '', 'DH').valid, true);
+  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ دوطرفه D8M', 'TPU', '5M , 8M , 11M , 14M', 'D8M').valid, false);
+  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ دوطرفه D8M', 'TPU', '', 'D8M').valid, true);
+  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ T10', 'TPU', '', 'T10').valid, true);
+  assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ 3M لاستیکی', 'Neoprene', '', '3M').valid, false);
+  assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V شکل پروفیل 5V', 'لاستیک', 'SPA , SPB , SPC و دندانه‌دار', '5V').valid, false);
+  assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V شکل پروفیل 5V', 'لاستیک', '', '5V').valid, true);
+  assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه V شکل پروفیل MX', 'لاستیک', 'Z (9.5) , M , A , B , C , D , E , 8V', 'MX').valid, false);
+  assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه V شکل پروفیل MX', 'لاستیک', '', 'MX').valid, true);
 });
 
 test('welded PU, ridge-top conveyor and welding equipment are three distinct identities', () => {
@@ -101,5 +114,7 @@ test('welded PU, ridge-top conveyor and welding equipment are three distinct ide
   assert.equal(check('excel-v2-1-3', 'تسمه گرد (CRC)', 'تسمه ذوزنقه‌ای تاج‌دار CRC', 'لاستیک کلروپرن', 'انواع تسمه گرد جوشی').valid, false);
   assert.equal(check('excel-v2-1-4', 'تسمه بارکش', 'تسمه ذوزنقه‌ای تاج‌دار CRC', 'لاستیک کلروپرن', 'انواع تسمه بارکش صنعتی').valid, true);
   assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'دستگاه جوش تسمه صنعتی', 'فولاد', 'دستگاه جوش تسمه صنعتی').valid, true);
+  assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'دستگاه پولیش APL', 'فولاد').valid, true);
+  assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'دستگاه تزریق APL', 'فولاد').valid, true);
   assert.equal(check('excel-v2-1-4', 'دستگاه‌های تسمه جوشی', 'دستگاه پولیش APL', 'فولاد', 'دستگاه جوش تسمه صنعتی').valid, false);
 });
