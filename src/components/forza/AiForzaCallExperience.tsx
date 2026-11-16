@@ -2041,8 +2041,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // devices with enough CPU headroom. Chrome keeps transcribing immediately
       // until the model is ready; low-power/save-data devices stay on Chrome.
       const dibaCpuCount=Number(navigator.hardwareConcurrency||0);
+      const dibaDeviceMemory=Number((navigator as any).deviceMemory||0);
       const dibaSaveData=Boolean((navigator as any).connection?.saveData);
-      if(dibaCpuCount>=4&&!dibaSaveData&&!localSttModelRef.current&&!localSttModelLoadingRef.current){
+      // Keep the WASM model off low-end phones and memory-constrained browsers.
+      const dibaHasHeadroom=dibaCpuCount>=6&&(dibaDeviceMemory>=4||(!dibaDeviceMemory&&dibaCpuCount>=8));
+      if(dibaHasHeadroom&&!dibaSaveData&&!localSttModelRef.current&&!localSttModelLoadingRef.current){
         localSttModelLoadingRef.current=true;
         setLocalSttStatus('loading');
         void loadDibaSttModel().then(model=>{
@@ -2052,6 +2055,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setLocalSttStatus('ready');
           setServerSttLabel('دایبا محلی آماده است · تشخیص زنده');
           console.info('[FORZA_STT] provider=diba-browser ready=1');
+          // Switch only at a clean boundary. If the customer is mid-sentence,
+          // keep Chrome until the current turn has been delivered.
+          if(greetingFinishedRef.current&&!activeTranscriptRef.current.trim()&&
+             !vadRef.current.heardSpeech){
+            startListening(true);
+          }
         }).catch(error=>{
           setLocalSttStatus('fallback');
           console.warn('[FORZA_STT] provider=diba-browser unavailable=1 code='+
