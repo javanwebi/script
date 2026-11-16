@@ -502,7 +502,7 @@ app.get('/forza-runtime/stt/diba-stt-fa-small.tar.gz',(_req,res)=>{
   res.setHeader('Content-Type','application/gzip');
   res.setHeader('Cache-Control','public, max-age=31536000, immutable');
   res.setHeader('X-Content-Type-Options','nosniff');
-  return res.sendFile(archive);
+  return res.sendFile(archive,{maxAge:'1y',immutable:true});
 });
 
 // Fallback to disk folder if image existed prior
