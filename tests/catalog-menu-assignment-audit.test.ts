@@ -332,7 +332,7 @@ test('category pages merge SKU-level records into the same collection as family 
 test('category APIs and product filters prefer the audited map over legacy conservative assignments',()=>{
  const server=readFileSync('server/catalogNavigationApi.ts','utf8');
  const products=readFileSync('src/pages/ProductsPage.tsx','utf8');
- assert.ok(server.includes("import {getFamilyMenuAssignment} from '../src/services/catalogTaxonomyResolver'"));
+ assert.match(server,/import \{[^}]*getFamilyMenuAssignment[^}]*\} from '..\/src\/services\/catalogTaxonomyResolver'/);
  assert.ok(server.includes("a.leaf_name as \"assignedLeaf\",a.method"));
  assert.ok(server.includes("getFamilyMenuAssignment(row.code||row.familyCode)"));
  assert.ok(server.includes("['admin_verified','excel_source_verified','engineering_audited','taxonomy_gap'].includes(assignmentMethod)"));
