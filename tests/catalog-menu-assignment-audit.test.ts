@@ -106,6 +106,12 @@ const reviewCodes=[
   'FAM-35198',
 ];
 
+const haulingReviewCodes = [
+  'FAM-34280','FAM-54569','FAM-381961','FAM-36858','FAM-39853','FAM-31520','FAM-32174',
+  'FAM-39782','FAM-39852','FAM-41065','FAM-41498','FAM-33163','FAM-41601','FAM-38800',
+  'FAM-35310','FAM-35743','FAM-33996','FAM-32247','FAM-32246','FAM-39114','FAM-40601',
+];
+
 test('approved industrial menu retains exactly 67 technical leaf nodes',()=>{
  const leafCount=APPROVED_MENU_CATEGORIES.reduce(
   (total,category)=>total+(category.children||[]).reduce(
@@ -350,5 +356,8 @@ test('the 90-type Excel audit matrix reconciles all source family and SKU totals
  assert.equal(sum(8),1563);
  assert.equal(reviewCodes.length,97);
  assert.equal(new Set(reviewCodes).size,97);
+ assert.equal(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).length,1286);
+ assert.ok(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).every(code=>code.startsWith('FAM-')));
+ assert.ok(haulingReviewCodes.every(code=>reviewCodes.includes(code)&&!(code in CATALOG_FAMILY_MENU_ASSIGNMENTS)));
  assert.equal(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).length+reviewCodes.length,1383);
 });
