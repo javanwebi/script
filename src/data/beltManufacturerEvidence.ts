@@ -17,7 +17,7 @@ const SWR_BROCHURE_URL =
 const OPTIBELT_PRODUCT_RANGE_URL =
   'https://www.optibelt.com/fileadmin/pdf/kataloge/Optibelt-Power-Transmission-product-range-belts.pdf';
 const MEGADYNE_VBELT_MANUAL_URL =
-  'https://megadynegroup.com/files/resources/attachments/md_manu_en_v-belts_web.pdf';
+  'https://megadynegroup.com/files/resources/attachments/md_manu_en_product_guide_web_0.pdf';
 const MEGADYNE_MEGASYNC_MANUAL_URL =
   'https://megadynegroup.com/files/resources/attachments/md_manu_en_product_guide_web_0.pdf';
 const MEGADYNE_MEGALINEAR_URL =
@@ -235,7 +235,7 @@ export function resolveManufacturerSeriesEvidence(
       return seriesEvidence(
         manufacturer,
         MEGADYNE_VBELT_MANUAL_URL,
-        'The official Megadyne V-Belts Technical Handbook documents the matched classical and raw-edge cogged sections.',
+        'The official Megadyne Corporate Product Guide documents the matched classical and raw-edge cogged V-belt sections.',
         originalName,
       );
     }
@@ -246,7 +246,7 @@ export function resolveManufacturerSeriesEvidence(
       return seriesEvidence(
         manufacturer,
         MEGADYNE_VBELT_MANUAL_URL,
-        'The official Megadyne V-Belts Technical Handbook documents wrapped, wedge and raw-edge cogged sections.',
+        'The official Megadyne Corporate Product Guide documents wrapped, wedge and raw-edge cogged V-belt sections.',
         originalName,
       );
     }
@@ -254,7 +254,7 @@ export function resolveManufacturerSeriesEvidence(
       return seriesEvidence(
         manufacturer,
         MEGADYNE_VBELT_MANUAL_URL,
-        'The official Megadyne V-Belts Technical Handbook documents banded profiles for the matched base section.',
+        'The official Megadyne Corporate Product Guide documents banded V-belt profiles for the matched base section.',
         originalName,
       );
     }
@@ -262,7 +262,7 @@ export function resolveManufacturerSeriesEvidence(
       return seriesEvidence(
         manufacturer,
         MEGADYNE_VBELT_MANUAL_URL,
-        'The official Megadyne V-Belts Technical Handbook documents double-V/hexagonal belt sections.',
+        'The official Megadyne Corporate Product Guide documents double-V/hexagonal belt sections.',
         originalName,
       );
     }
@@ -281,7 +281,7 @@ export function resolveManufacturerSeriesEvidence(
       return seriesEvidence(
         manufacturer,
         MEGADYNE_MEGASYNC_MANUAL_URL,
-        'The official Megadyne MEGASYNC technical handbook documents imperial MXL/XL/L/H/XH/XXH timing-belt families.',
+        'The official Megadyne Corporate Product Guide documents MEGASYNC imperial MXL/XL/L/H/XH/XXH timing-belt families.',
         originalName,
       );
     }
@@ -309,7 +309,7 @@ export function resolveManufacturerSeriesEvidence(
       return seriesEvidence(
         manufacturer,
         MEGADYNE_MEGASYNC_MANUAL_URL,
-        'The official Megadyne MEGASYNC handbook documents HTB/STD/RPP and Silver3/Gold2 metric timing-belt families.',
+        'The official Megadyne Corporate Product Guide documents MEGASYNC HTB/STD/RPP and Silver3/Gold2 timing-belt families.',
         originalName,
       );
     }
@@ -323,7 +323,7 @@ export function resolveManufacturerSeriesEvidence(
       return seriesEvidence(
         manufacturer,
         MEGADYNE_MEGASYNC_MANUAL_URL,
-        'The official Megadyne MEGASYNC handbook documents double-sided RPP/Silver3/Gold2 timing-belt families.',
+        'The official Megadyne Corporate Product Guide documents double-sided RPP/Silver3/Gold2 timing-belt families.',
         originalName,
       );
     }
