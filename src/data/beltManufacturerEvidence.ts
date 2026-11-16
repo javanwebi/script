@@ -17,9 +17,9 @@ const SWR_BROCHURE_URL =
 const OPTIBELT_PRODUCT_RANGE_URL =
   'https://www.optibelt.com/fileadmin/pdf/kataloge/Optibelt-Power-Transmission-product-range-belts.pdf';
 const MEGADYNE_VBELT_MANUAL_URL =
-  'https://megadynegroup.com/de/resource/10/download';
+  'https://megadynegroup.com/files/resources/attachments/md_manu_en_v-belts_web.pdf';
 const MEGADYNE_MEGASYNC_MANUAL_URL =
-  'https://megadynegroup.com/pl/resource/4/download';
+  'https://megadynegroup.com/files/resources/attachments/md_manu_en_product_guide_web_0.pdf';
 const MEGADYNE_MEGALINEAR_URL =
   'https://megadynegroup.com/en/products/timing-belts/polyurethane-open-end/megalinear/';
 const MEGADYNE_PV_RIBBED_URL =
