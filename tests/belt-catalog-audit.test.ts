@@ -167,6 +167,7 @@ test('all proposed groups pass strict invariant homogeneity checks with zero MIX
   assert.equal(bySku.get('36859')?.technical.beltDivision, 'service-ambiguous');
   assert.equal(bySku.get('36859')?.confidence, 'REQUIRES_REVIEW');
   assert.match(bySku.get('36859')?.technical.bodyMaterial || '', /اثبات نمی‌شود/);
+  assert.notEqual(bySku.get('36859')?.detectedBrand, 'OPTIBELT');
   assert.equal(bySku.get('52640')?.technical.profile, 'A');
   assert.equal(bySku.get('41121')?.technical.bodyMaterial.includes('TPU'), true);
   assert.notEqual(bySku.get('41121')?.proposedFamilyId, bySku.get('10203')?.proposedFamilyId);
