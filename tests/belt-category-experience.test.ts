@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { classifyBeltSku, detectConveyorSurfaceProfile } from '../src/data/beltCatalogAudit';
+import { resolveEngineeringFamilyType } from '../src/data/catalogPhase1Reconstruction';
 import type { Product, ProductVariant } from '../src/types';
 
 const page = readFileSync(new URL('../src/pages/BeltCategoryExperience.tsx', import.meta.url), 'utf8');
@@ -42,7 +43,8 @@ const route = readFileSync(new URL('../src/pages/CategoryPage.tsx', import.meta.
 const directSkus = readFileSync(new URL('../src/components/catalog/DirectSkuProducts.tsx', import.meta.url), 'utf8');
 
 test('direct SKU records are rendered in the same belt collection as family cards', () => {
-  assert.match(route, /return <BeltCategoryExperience \/>/);
+  assert.match(route, /if \(resolveCategorySlug\(slug \|\| ''\) === canonicalBeltSlug\) \{\s*return <Navigate to=\{`\/categories\$\{location\.search\}\$\{location\.hash\}`\} replace \/>/);
+  assert.doesNotMatch(route, /return <BeltCategoryExperience \/>/);
   assert.doesNotMatch(route, /DirectSkuProducts categorySlug=\{canonicalBeltSlug\}/);
   assert.match(page, /const directSkuRecords = useDirectSkus\(BELT_SLUG, 'excel-v2-1-'\)/);
   assert.match(page, /const directSkuProducts = useMemo/);
@@ -209,6 +211,118 @@ test('belt audit routes crowned CRC/TRC to hauling belts, not welded PU round be
   assert.equal(ridge.proposedLeaf, 'انواع تسمه بارکش صنعتی');
 });
 
+test('SWR XP wedge profiles are raw-edge cogged, not wrapped V-belts', () => {
+  for (const profile of ['XPZ', 'XPA', 'XPB', 'XPC']) {
+    const result = classifyBelt(`تسمه V شکل پروفیل ${profile} 1980 SWR`, 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+    assert.match(result.technical.bodyMaterial, /Raw-Edge Cogged/);
+    assert.match(result.proposedFamilyNameFa, /دنده‌ای لبه‌خام/);
+    assert.match(result.proposedFamilyNameEn, /Raw-Edge Cogged/);
+    assert.doesNotMatch(result.technical.bodyMaterial, /Wrapped V-Belt/);
+    if (profile === 'XPZ') {
+      assert.equal(result.proposedLeaf, 'SPA , SPB , SPC و دندانه‌دار');
+      assert.equal(result.taxonomyGap, null);
+    }
+  }
+});
+
+test('8V and 8VX are heavy-duty wedge profiles, not classical V-belt leaf members', () => {
+  const wrapped = classifyBelt('تسمه V شکل پروفیل 8V 2500 SWR', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  const cogged = classifyBelt('تسمه V شکل پروفیل 8VX 2500 SWR', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  for (const result of [wrapped, cogged]) {
+    assert.equal(result.proposedSubmenu, 'تسمه اسپشیال');
+    assert.equal(result.proposedLeaf, null);
+    assert.match(result.taxonomyGap || '', /AMERICAN-WEDGE-LEAF-MISSING/);
+  }
+  assert.match(cogged.technical.bodyMaterial, /Raw-Edge Cogged/);
+  assert.match(cogged.proposedFamilyNameFa, /دنده‌ای لبه‌خام/);
+});
+
+test('3V, 5V and 8V are American wedge belts, separate from metric SPZ/SPA/SPB/SPC narrow wedge', () => {
+  for (const profile of ['3V', '5V', '8V']) {
+    const result = classifyBelt(`تسمه V شکل پروفیل ${profile} 2500 SWR`, 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+    assert.equal(result.technical.beltDivision, 'vbelt-wedge');
+    assert.equal(result.proposedSubmenu, 'تسمه اسپشیال');
+    assert.equal(result.proposedLeaf, null);
+    assert.match(result.taxonomyGap || '', /AMERICAN-WEDGE-LEAF-MISSING/);
+  }
+  const narrow = classifyBelt('تسمه V شکل پروفیل SPB 2500 SWR', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  assert.equal(narrow.technical.beltDivision, 'vbelt-narrow-wedge');
+});
+
+test('CC is parsed as a double-sided hexagonal V-belt using its standard section dimensions', () => {
+  const result = classifyBelt('تسمه V شکل پروفیل CC 1950 SWR', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  assert.equal(result.technical.profile, 'CC');
+  assert.equal(result.technical.sidedness, 'double-sided');
+  assert.equal(result.technical.nominalWidthMm, 22);
+  assert.equal(result.technical.beltThicknessMm, 17);
+  assert.equal(result.proposedSubmenu, 'پروفیل شش‌ضلعی دوطرفه');
+  assert.equal(result.proposedLeaf, null);
+});
+
+test('crowned CRC and banded V-belts do not invent rubber compounds, cords or standards', () => {
+  const crc = classifyBelt('تسمه گرده ماهی CRC 300 GNR', 'لاستیک', 'حلقه', 'excel-v2-1-4', 'تسمه بارکش و تجهیزات جوشی');
+  assert.equal(crc.technical.beltDivision, 'conveyor-crowned-crc');
+  assert.match(crc.technical.standardReference, /تأیید نشده/);
+  assert.match(crc.technical.bodyMaterial, /ترکیب دقیق نیازمند دیتاشیت/);
+  assert.match(crc.technical.tensileCord, /نیازمند دیتاشیت/);
+  assert.doesNotMatch(crc.technical.standardReference, /C-Belt Standard/);
+
+  const banded = classifyBelt('تسمه SWR 4RSPC4250', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  assert.equal(banded.technical.beltDivision, 'vbelt-banded');
+  assert.match(banded.technical.bodyMaterial, /ترکیب دقیق لاستیک نیازمند دیتاشیت/);
+  assert.match(banded.technical.tensileCord, /نیازمند دیتاشیت/);
+  assert.doesNotMatch(banded.technical.bodyMaterial, /Neoprene/);
+});
+
+test('engineering family types keep crowned CRC, welded PU round, and banded V-belts separate', () => {
+  const crowned = resolveEngineeringFamilyType({
+    productType: 'تسمه گرده‌ماهی تاج‌دار CRC مداربسته',
+    profile: 'CRC',
+    material: 'لاستیک',
+    construction: 'crowned top',
+    proposedCategorySlug: 'excel-v2-1-4',
+    engineeringSpecifications: { beltDivision: 'conveyor-crowned-crc', sidedness: 'single-sided' },
+  });
+  const welded = resolveEngineeringFamilyType({
+    productType: 'تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل CRC',
+    profile: 'CRC',
+    material: 'TPU پلی‌یورتان',
+    construction: 'heat-welded',
+    proposedCategorySlug: 'excel-v2-1-3',
+    engineeringSpecifications: { beltDivision: 'welded-pu-round-crc', sidedness: 'symmetric-round-hex' },
+  });
+  const banded = resolveEngineeringFamilyType({
+    productType: 'تسمه V شکل به‌پشت‌پیوسته Banded V-Belt',
+    profile: '3VX-BANDED',
+    material: 'لاستیک',
+    construction: 'tie-band',
+    proposedCategorySlug: 'excel-v2-1-2',
+    engineeringSpecifications: { beltDivision: 'vbelt-banded', sidedness: 'single-sided' },
+  });
+  const doubleV = resolveEngineeringFamilyType({
+    productType: 'تسمه V دوطرفه AA',
+    profile: 'AA',
+    material: 'لاستیک',
+    construction: 'wrapped',
+    proposedCategorySlug: 'excel-v2-1-2',
+    engineeringSpecifications: { beltDivision: 'vbelt-hexagonal', sidedness: 'double-sided' },
+  });
+  assert.equal(crowned.familyTypeId, 'FT-BELT-CROWNED-CRC');
+  assert.equal(welded.familyTypeId, 'FT-BELT-ROUND-CRC');
+  assert.equal(banded.familyTypeId, 'FT-VBELT-BANDED');
+  assert.equal(doubleV.familyTypeId, 'FT-VBELT-HEXAGONAL');
+  const americanWedge = resolveEngineeringFamilyType({
+    productType: 'تسمه V گوه‌ای آمریکایی 8V',
+    profile: '8V',
+    material: 'لاستیک',
+    construction: 'wrapped',
+    proposedCategorySlug: 'excel-v2-1-2',
+    engineeringSpecifications: { beltDivision: 'vbelt-wedge', sidedness: 'single-sided' },
+  });
+  assert.equal(americanWedge.familyTypeId, 'FT-VBELT-WEDGE');
+  assert.match(doubleV.familyTypeName, /Double V/);
+});
+
 test('belt audit does not force automotive RU or unsupported T10 into neighbouring timing leaves', () => {
   const auto = classifyBelt('تسمه تایمینگ خودرویی AUTO-RU', 'لاستیک کلروپرن');
   assert.equal(auto.proposedCategorySlug, 'UNRESOLVED');
@@ -230,7 +344,7 @@ test('belt audit does not force automotive RU or unsupported T10 into neighbouri
 test('belt audit distinguishes V-belt meter supply from its profile menu path', () => {
   const meterZ = classifyBelt('تسمه V شکل پروفیل Z متری', 'لاستیک', 'متر', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
   assert.equal(meterZ.proposedSubmenu, 'کلاسیک و دنده‌دار');
-  assert.equal(meterZ.proposedLeaf, 'Z (9.5) , M , A , B , C , D , E , 8V');
+  assert.equal(meterZ.proposedLeaf, 'Z (9.5) , M , A , B , C , D , E');
   assert.equal(meterZ.technical.profile, 'Z');
   assert.equal(meterZ.technical.supplyForm, 'open-ended-meter');
 
