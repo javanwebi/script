@@ -36,6 +36,11 @@ function resolveFamilyMenuAssignment(row:any):MenuAssignment|null{
   if(authoritative){
     return assignmentIsValid(row,databaseAssignment!).valid?databaseAssignment:null;
   }
+  // Conservative rule assignments are candidates, not trusted mappings:
+  // publish them only after the same strict semantic guard used for verified paths.
+  if(databaseAssignment&&assignmentMethod==='conservative_name_rule'){
+    return assignmentIsValid(row,databaseAssignment).valid?databaseAssignment:null;
+  }
   const fallback=getFamilyMenuAssignment(row.code||row.familyCode);
   if(!fallback)return null;
   const candidate:MenuAssignment={categorySlug:fallback.categorySlug,submenuName:fallback.submenuName||'',leafName:fallback.leafName||null,method:'static_audited'};
