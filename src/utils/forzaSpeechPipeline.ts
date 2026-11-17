@@ -114,6 +114,34 @@ export function appendForzaSpeechSegment(previousValue:string, incomingValue:str
   return previous+' '+incoming;
 }
 
+/**
+ * Run a long recording's independent WebM containers through a small bounded
+ * worker pool. Results are always returned in recording order, regardless of
+ * which request finishes first; no segment is silently dropped.
+ */
+export async function mapForzaSegmentsInOrder<T,R>(
+  items:readonly T[],
+  concurrency:number,
+  mapper:(item:T,index:number)=>Promise<R>,
+):Promise<PromiseSettledResult<R>[]>{
+  const results=new Array<PromiseSettledResult<R>>(items.length);
+  if(!items.length)return results;
+  const workerCount=Math.max(1,Math.min(items.length,Math.floor(concurrency)||1));
+  let cursor=0;
+  await Promise.all(Array.from({length:workerCount},async()=>{
+    while(true){
+      const index=cursor++;
+      if(index>=items.length)return;
+      try{
+        results[index]={status:'fulfilled',value:await mapper(items[index],index)};
+      }catch(reason){
+        results[index]={status:'rejected',reason};
+      }
+    }
+  }));
+  return results;
+}
+
 /** Combine live browser interim/final text with the server's final Diba result.
  * Keep browser-recognized industrial part codes when the acoustic model drops
  * them, but otherwise prefer the server transcript as the final authority.
