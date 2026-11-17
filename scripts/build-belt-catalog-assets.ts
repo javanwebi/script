@@ -389,7 +389,7 @@ function chooseFamilyPhotoTriplet(fam: {
   if (div === 'welded-pu-v-flat') {
     return ['pu_v_smooth', 'pu_round_profiles', 'pu_ridge_cut'];
   }
-  if (div === 'vbelt-crowned-crc') {
+  if (div === 'conveyor-crowned-crc') {
     if (/آبی|BLUE/i.test(upperName)) {
       return ['pu_ridge_green', 'pu_ridge_blue', 'pu_ridge_caliper'];
     }
@@ -417,7 +417,7 @@ function chooseFamilyPhotoTriplet(fam: {
   }
 
   // 5. Classical & Narrow Wedge V-belts
-  if (div === 'vbelt-narrow-wedge') {
+  if (div === 'vbelt-narrow-wedge' || div === 'vbelt-wedge') {
     if (fam.isCogged) {
       if (isMitsuboshi) return ['vb_cog_agx', 'vb_cog_macro', 'pt_cogwedge_struct'];
       if (isBando) return ['vb_cog_pix', 'vb_cog_bando_cut', 'pt_cogwedge_struct'];
@@ -507,14 +507,18 @@ function getDivisionTitleFa(div: string, isCogged: boolean, isCoated: boolean): 
         : { fa: 'تسمه وی‌بلت کلاسیک روکش‌دار صنعتی (Wrapped)', en: 'WRAPPED CLASSICAL V-BELT' };
     case 'vbelt-narrow-wedge':
       return isCogged
-        ? { fa: 'تسمه وی‌بلت باریک دنده‌دار پرفشار (XPZ/XPA/XPB/XPC)', en: 'COGGED NARROW WEDGE V-BELT' }
-        : { fa: 'تسمه وی‌بلت باریک (Wedge) روکش‌دار (SPZ/SPA/SPB/SPC)', en: 'WRAPPED NARROW WEDGE V-BELT' };
+        ? { fa: 'تسمه وی‌بلت باریک دنده‌دار لبه‌خام (XPZ/XPA/XPB/XPC)', en: 'RAW-EDGE COGGED NARROW WEDGE V-BELT' }
+        : { fa: 'تسمه وی‌بلت باریک روکش‌دار (SPZ/SPA/SPB/SPC)', en: 'WRAPPED NARROW WEDGE V-BELT' };
+    case 'vbelt-wedge':
+      return isCogged
+        ? { fa: 'تسمه وی‌بلت گوه‌ای آمریکایی دنده‌دار لبه‌خام (3VX/5VX/8VX)', en: 'RAW-EDGE COGGED AMERICAN WEDGE V-BELT' }
+        : { fa: 'تسمه وی‌بلت گوه‌ای آمریکایی روکش‌دار (3V/5V/8V)', en: 'WRAPPED AMERICAN WEDGE V-BELT' };
     case 'vbelt-banded':
-      return { fa: 'تسمه وی‌بلت پشت‌چسبیده / دبل‌رول (Banded Kraftband)', en: 'MULTI-RIB BANDED V-BELT' };
+      return { fa: 'تسمه V شکل پشت‌پیوسته / پاورباند (Banded V-Belt)', en: 'BANDED / POWERBAND V-BELT' };
     case 'vbelt-hexagonal':
-      return { fa: 'تسمه شش‌ضلعی دوطرفه صنعتی (AA / BB / CC)', en: 'HEXAGONAL DOUBLE V-BELT' };
-    case 'vbelt-crowned-crc':
-      return { fa: 'تسمه گرده‌ماهی سرامیکی / ریج‌تاپ (CRC)', en: 'CROWNED RIDGE-TOP CERAMIC BELT' };
+      return { fa: 'تسمه V دوطرفه شش‌ضلعی (AA / BB / CC)', en: 'DOUBLE V / HEXAGONAL BELT' };
+    case 'conveyor-crowned-crc':
+      return { fa: 'تسمه انتقال تاج‌دار / گرده‌ماهی (CRC / TRC)', en: 'CROWNED / RIDGE-TOP TRANSPORT BELT' };
     case 'perforated-open-v':
       return { fa: 'تسمه وی‌بلت سوراخ‌دار متری با بست مفصلی', en: 'PERFORATED OPEN-END V-BELT' };
     case 'ribbed-poly-v':
@@ -919,8 +923,8 @@ function buildViewBCrossSectionSvg(sku: ReconciledSku): string {
   </g>`;
   }
 
-  // Crowned CRC V-Belt
-  if (div === 'vbelt-crowned-crc') {
+  // Crowned CRC / TRC conveyor transport belt
+  if (div === 'conveyor-crowned-crc') {
     return `
   <text x="672" y="229" text-anchor="end" class="font-fa" font-size="13.5" font-weight="800" fill="#55565A">${rtl('نمای ۲ — مقطع ذوزنقه‌ای با تاج گرده‌ماهی (CRC)')}</text>
   <text x="76" y="229" text-anchor="start" class="font-mono" font-size="12" font-weight="700" fill="#E56B1E">VIEW B: RIDGE-TOP / CRC PROFILE</text>
@@ -936,7 +940,7 @@ function buildViewBCrossSectionSvg(sku: ReconciledSku): string {
   }
 
   // Standard V-belts (classical / wedge / perforated / welded PU V)
-  if (div.startsWith('vbelt') || div === 'perforated-open-v' || div === 'welded-pu-v-flat') {
+  if (div.startsWith('vbelt') || div === 'conveyor-crowned-crc' || div === 'perforated-open-v' || div === 'welded-pu-v-flat') {
     return `
   <text x="672" y="229" text-anchor="end" class="font-fa" font-size="13.5" font-weight="800" fill="#55565A">${rtl('نمای ۲ — مقطع ذوزنقه‌ای V-Belt و زاویه ۴۰ درجه')}</text>
   <text x="76" y="229" text-anchor="start" class="font-mono" font-size="12" font-weight="700" fill="#E56B1E">VIEW B: TRAPEZOIDAL WEDGE SECTION</text>
@@ -1358,7 +1362,7 @@ function buildSkuProfileDrawingSvg(sku: ReconciledSku): string {
   <line x1="${x0 + totalW + 64}" y1="199" x2="${x0 + totalW + 64}" y2="344" stroke="#111827" stroke-width="1.5" marker-start="url(#cadStart)" marker-end="url(#cadEnd)"/>
   <text x="${x0 + totalW + 76}" y="278" text-anchor="start" class="font-mono" font-size="20" font-weight="700" fill="#111827">h=${escapeXml(hsVal)}</text>`;
   } else if (div.startsWith('vbelt') || div === 'perforated-open-v' || div === 'welded-pu-v-flat') {
-    const isCrowned = div === 'vbelt-crowned-crc';
+    const isCrowned = div === 'conveyor-crowned-crc';
     const topPath = isCrowned
       ? 'M 300 205 Q 480 142 660 205 L 605 375 L 355 375 Z'
       : 'M 300 185 L 660 185 L 605 375 L 355 375 Z';
@@ -1899,7 +1903,7 @@ async function main() {
     'FAM-38079', // timing-htd-rpp-single 14M
     'FAM-30',    // vbelt-narrow-wedge / vbelt-banded
     'FAM-28880', // large multi-profile classical V-belt SWR (627 SKUs)
-    'FAM-35525', // welded-pu-round-crc / vbelt-crowned-crc
+    'FAM-35525', // welded-pu-round-crc / conveyor-crowned-crc
     'FAM-40702', // ribbed-poly-v
     'FAM-54569', // excel-v2-1-4 coated haul-off
     'FAM-32929', // service-ambiguous
