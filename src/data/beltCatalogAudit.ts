@@ -2848,7 +2848,7 @@ function resolveProvenanceAndConfidence(
     imperialBaseKey && refs?.misumiHLengths && refs.misumiHLengths.has(imperialBaseKey)
   );
   const isNominalRefMatched = inImperialRef || inMisumiRef;
-  const exactEntry = RESEARCHED_EXACT_SKU_DATASHEETS[rec.sku];
+  const evidenceOverride = RESEARCHED_SKU_EVIDENCE_OVERRIDES[rec.sku];
 
   const hasIdentifiedCode = Boolean(
     rec.technical.operatingPrinciple !== 'non-belt' &&
@@ -2859,10 +2859,10 @@ function resolveProvenanceAndConfidence(
 
   // Strict rule: DATASHEET_VERIFIED ONLY when exact SKU matched against same manufacturer's datasheet
   if (
-    exactEntry &&
+    evidenceOverride &&
     evidenceOverride.exactManufacturerMatch &&
-    exactEntry.documentType === 'MANUFACTURER_DATASHEET' &&
-    exactEntry.manufacturer === rec.detectedBrand
+    evidenceOverride.documentType === 'MANUFACTURER_DATASHEET' &&
+    evidenceOverride.manufacturer === rec.detectedBrand
   ) {
     return {
       confidence: 'DATASHEET_VERIFIED',
@@ -2876,10 +2876,10 @@ function resolveProvenanceAndConfidence(
         datasheetOrCatalogChecked: true,
         matchedAgainstReliableSource: true,
         familyConfirmedByEvidence: true,
-        sourceUrl: exactEntry.sourceUrl,
-        documentType: exactEntry.documentType,
-        matchedManufacturer: exactEntry.manufacturer,
-        evidenceBasis: exactEntry.basis,
+        sourceUrl: evidenceOverride.sourceUrl,
+        documentType: evidenceOverride.documentType,
+        matchedManufacturer: evidenceOverride.manufacturer,
+        evidenceBasis: evidenceOverride.basis,
       },
     };
   }
@@ -2898,10 +2898,10 @@ function resolveProvenanceAndConfidence(
         datasheetOrCatalogChecked: false,
         matchedAgainstReliableSource: true,
         familyConfirmedByEvidence: true,
-        sourceUrl: exactEntry.sourceUrl,
-        documentType: exactEntry.documentType,
-        matchedManufacturer: exactEntry.manufacturer,
-        evidenceBasis: exactEntry.basis,
+        sourceUrl: evidenceOverride.sourceUrl,
+        documentType: evidenceOverride.documentType,
+        matchedManufacturer: evidenceOverride.manufacturer,
+        evidenceBasis: evidenceOverride.basis,
       },
     };
   }
