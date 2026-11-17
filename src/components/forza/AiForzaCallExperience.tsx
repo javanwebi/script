@@ -531,8 +531,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(!isProcessingTurnRef.current)setIsUserSpeaking(true);
           else console.info('[FORZA_TURN] phase=barge-in-vad-candidate');
         }
-        // Keep a 2.6-3.1s continuation window so a natural two-second pause
-        // does not split one customer sentence into separate AI turns.
+        // Keep a 4.2-5.6s continuation window so natural breaths and pauses
+        // do not split one customer sentence into separate AI turns.
         if(isProcessingTurnRef.current){
           if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
           return;
