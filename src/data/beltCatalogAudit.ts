@@ -329,7 +329,7 @@ export function detectConveyorSurfaceProfile(rawName: string): ConveyorSurfacePr
     // treats perforated and non-perforated cone-top belts as one PVC family.
     return {
       profile: 'PVC_CONICAL_CLEAT',
-      label: /سوراخ\s*دار/.test(name) ? 'کله‌قندی سوراخ‌دار' : 'کله‌قندی',
+      label: 'کله‌قندی',
       requiresReview: false,
     };
   }
@@ -873,6 +873,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     const proposedFamilyId =
       brand !== 'UNSPECIFIED' ? (baseFam + '-' + brand).replace(/[^A-Z0-9-]/g, '') : baseFam;
     const requiresSurfaceReview = Boolean(surface?.requiresReview);
+    const surfaceSkuNote = /سوراخ\s*دار/.test(normName)
+      ? 'سوراخ‌کاری در نام اصلی همین SKU حفظ می‌شود و جزو هویت ثابت خانواده نیست.'
+      : '';
     const bodyMaterial = isModular
       ? 'پلیمر مدولار (گرید دقیق پلیمر نیازمند تأیید)'
       : isPu
@@ -950,7 +953,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       engineeringReasoning:
         'جنس کلی نوار از نام کالا مشخص است و ' +
         (surface ? 'توصیف سطح «' + surface.label + '»' : 'نوع PU/مدولار') +
-        ' به‌عنوان مشخصه کاتالوگی حفظ شده است؛ اما این برچسب معادل استاندارد سازنده نیست. ساختار لایه‌ها، منجید، سختی، ابعاد محوری و انطباق استاندارد بدون دیتاشیت/بازرسی فیزیکی ادعا نمی‌شود.',
+        ' به‌عنوان مشخصه کاتالوگی حفظ شده است. ' +
+        (surfaceSkuNote ? surfaceSkuNote + ' ' : '') +
+        'این برچسب معادل استاندارد سازنده نیست؛ ساختار لایه‌ها، منجید، سختی، ابعاد محوری و انطباق استاندارد بدون دیتاشیت/بازرسی فیزیکی ادعا نمی‌شود.',
     };
   }
 
@@ -1023,6 +1028,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   const hasAntiAbrasion = /با\s*(?:روکش\s*)?ضد\s*سایش|روکش\s*ضد\s*سایش/.test(normName);
   const hasGenericGrip = /گریپ\s*دار|با\s*گریپ/.test(normName);
   const isCeramicPrint = /تسمه\s+چاپ/.test(normName);
+  const isMegadyneCeramicT5 =
+    brand === 'MEGADYNE' && isCeramicPrint && /\bT5\b/.test(upperName);
   const hasCoating =
     has3APL ||
     has6APL ||
@@ -1084,7 +1091,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
                     : hasGenericGrip
                       ? 'روکش گریپ ضدسایش (Grip Coated)'
                       : isCeramicPrint
-                        ? 'پشت پارچه‌ای سبز/تخصصی چاپ کاشی (Megadyne TNX / Printing Spec)'
+                        ? 'توصیف انبار: داخل سبز ویژه چاپ کاشی؛ ساختار پوشش/پارچه‌ای تأیید نشده'
                         : hasCoating
                           ? 'روکش الاستومری/پلی‌یورتانی صنعتی'
                           : null;
@@ -1232,7 +1239,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     bareMetricPuProfileMatch ||
     rubber3mProfileMatch;
 
-  if (metricPuMatch && (isPolyurethaneMaterial || rubber3mProfileMatch)) {
+  if (metricPuMatch && (isPolyurethaneMaterial || rubber3mProfileMatch || isMegadyneCeramicT5)) {
     let profile = 'T10';
     let widthMm: number | null = null;
     let lengthMm: number | null = null;
@@ -1405,7 +1412,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
           ? ['ISO 13050 Curvilinear Synchronous Belt Profiles', 'Manufacturer datasheet required for 3M compound and tensile member']
           : [
               'DIN 7721 Synchronous Belt Drives — Metric Pitch T and AT',
-              'Megadyne Megapower / Megaflex / TNX Technical Catalog',
+              'Megadyne MEGAFLEX Technical Handbook — endless T5, TPU 92 ShA and helical zinc-plated steel cords (series-level evidence)',
               'Optibelt Alpha Linear / Alpha Flex Datasheet',
             ],
       },
@@ -1418,7 +1425,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       engineeringReasoning: isRubber3M
         ? 'پروفیل منحنی‌الخط 3M با جنس لاستیکی ثبت‌شده؛ نوع کورد و ترکیب دقیق باید از دیتاشیت سازنده تأیید شود.'
         : isCeramicPrint
-          ? `تسمه تایمینگ پلی‌یورتان ${profile} دستگاه چاپ کاشی مگادین ایتالیا که از دسته قطعات چاپ به دسته اصلی تسمه تایمینگ (${proposedLeaf}) منتقل شد.`
+          ? `تسمه تایمینگ متریک ${profile} برند مگاداین برای کاربرد چاپ کاشی؛ عبارت «داخل سبز» فقط توصیف انبار است و نوع پوشش/پارچه‌ای یا سری دقیق از روی نام قابل اثبات نیست.`
           : `تسمه سنکرون متریک ${profile} با گام ${spec.pitchMm} میلی‌متر مطابق DIN 7721.`,
     };
   }
@@ -2936,6 +2943,7 @@ function resolveProvenanceAndConfidence(
     manufacturer: rec.detectedBrand,
     division: rec.technical.beltDivision,
     profile: rec.technical.profile,
+    supplyForm: rec.technical.supplyForm,
     originalName: rec.originalName,
   });
   if (seriesEvidence) {
