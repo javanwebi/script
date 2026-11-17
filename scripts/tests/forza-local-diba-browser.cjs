@@ -71,6 +71,7 @@ function wav(){
   }));
   await page.route('**/api/ai/forza-speech',async route=>{
    speech.push(route.request().postDataJSON()?.text||'');
+   await page.evaluate(count=>{window.__forzaSpeechRequests=count;},speech.length).catch(()=>{});
    await route.fulfill({status:200,contentType:'audio/wav',
     headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav()});
   });
@@ -111,6 +112,7 @@ function wav(){
    'the local recognizer must stay alive after the first assistant reply');
   await page.waitForFunction(()=>window.document.body.innerText.includes('برای انتخاب تسمه مناسب'),null,{timeout:12000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:12000});
+  await page.waitForFunction(()=>window.__forzaSpeechRequests>=1,null,{timeout:8000});
   assert.equal(queries.length,1,'first local Diba turn must be submitted exactly once');
 
   await page.waitForFunction(()=>window.__forzaVoskCreated===1,null,{timeout:8000});
@@ -124,6 +126,8 @@ function wav(){
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
   await page.waitForFunction(()=>window.__forzaConsultRequestCount===2,null,{timeout:12000});
   assert.equal(queries.length,2,'second local Diba turn must also reach the AI');
+  await page.waitForFunction(()=>window.__forzaSpeechRequests>=2,null,{timeout:8000});
+  assert.ok(speech.length>=2,'Nima must synthesize audio on the second assistant turn too');
   assert.ok(queries[0].includes('تسمه تایمینگ'));
   assert.ok(queries[1].includes('تسمه PU'));
   const firstTurnInSecondHistory=requests[1].history.filter(item=>
