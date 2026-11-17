@@ -7285,7 +7285,14 @@ app.post('/api/ai/forza-live', async (req, res) => {
 دستورالعمل‌های حیاتی گفتاری:
 - لحن شما مردانه، عمیق، متین، هوشمند و قاطع است.
 - زبان پاسخ‌دهی منحصراً فارسی سلیس است.
-- پاسخ شما باید کاملاً متناسب با پرسش مشتری، موجز و صریح باشد (حداکثر ۱ تا ۳ جمله کوتاه) زیرا کلمات شما در قالب صدای هوش مصنوعی به صورت زنده برای مشتری پخش می‌شوند.
+- پاسخ را طبیعی، روشن و متناسب با نیاز مشتری کامل کنید؛ خود را به سقف ثابت ۱ تا ۳ جمله محدود نکنید و پاسخ را بی‌دلیل کوتاه نکنید.
+- مکالمه را یک گفت‌وگوی پیوسته بدانید، نه مجموعه‌ای از سؤال‌های بی‌ارتباط. تاریخچه پیام‌ها را قبل از تفسیر هر گفتار تازه بررسی کنید.
+- پیش‌فرض شما این باشد که گفتار تازه ادامه، تکمیل، اصلاح یا جزئیاتِ صحبت قبلی است؛ فقط وقتی نشانه روشن تغییر هدف یا موضوع وجود دارد آن را موضوع جدید تلقی کنید.
+- اگر مشتری بعد از مکث فقط عدد، اندازه، برند، کد فنی، کاربرد یا یک توضیح کوتاه اضافه کرد، آن را به درخواست قبلی متصل کنید؛ پاسخ قبلی را از ابتدا تکرار نکنید و با اطلاعات تازه آن را تکمیل یا اصلاح کنید.
+- اگر مشتری گفت «ادامه بده»، «همون مورد»، «اون قطعه»، «نه منظورم...» یا عبارتی وابسته به گفت‌وگوی قبلی گفت، مرجع را از تاریخچه پیدا کنید؛ از او نخواهید اطلاعاتی را که همین حالا گفته دوباره تکرار کند.
+- اگر موضوع واقعاً عوض شد، موضوع جدید را پاسخ دهید اما زمینه و اطلاعات قبلی مکالمه را فراموش نکنید.
+- اگر پاسخ صوتی قبلی قطع شده است، فقط بخش کاملِ شنیده‌شده را مبنا قرار دهید و در صورت درخواست ادامه، از همان نقطه ادامه دهید؛ متن یا توضیح قبلی را بی‌دلیل دوباره پخش نکنید.
+- متن گفتار قبلی را در ذهن خود حذف یا بازنویسی نکنید؛ اصلاحات جدید را به‌عنوان اصلاح/تکمیل همان درخواست تفسیر کنید، مگر اینکه مشتری صریحاً درخواست تازه‌ای مطرح کند.
 - هرگز از جدول، ستاره مارک‌داون (*)، هش‌تگ (#) یا شکلک‌های ایموجی استفاده نکنید.
 - اگر تصویر ناواضح است یا اطلاعات کافی نیست، به طور محترمانه از کاربر بخواهید زاویه دیگر، پلاک یا ابعاد قطعه را مشخص نماید.`;
 
@@ -7303,7 +7310,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       res.once('close',onClose);
       try{
         const transcript=await transcribeForzaDibaAudio(audioBase64,{signal:abort.signal,timeoutMs:20_000});
-        userQuery=normalizePersianTranscript(transcript).slice(0,2500);
+        userQuery=normalizePersianTranscript(transcript);
         console.info('[AI FORZA STT] provider=diba transcript_chars='+userQuery.length);
       }catch(sttErr:any){
         if(abort.signal.aborted)return;
@@ -7436,7 +7443,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       ];
 
       if (Array.isArray(history) && history.length > 0) {
-        for (const h of history.slice(-24)) {
+        for (const h of history.slice(-40)) {
           const role =
             h.role === 'model' || h.role === 'assistant' || h.sender === 'ai'
               ? 'assistant'
@@ -7504,7 +7511,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
 
         // Append recent conversational context
         if (Array.isArray(history) && history.length > 0) {
-          for (const h of history.slice(-24)) {
+          for (const h of history.slice(-40)) {
             if (h.role === 'user' || h.sender === 'user') {
               contents.push({ role: 'user', parts: [{ text: h.text }] });
             } else if (h.role === 'model' || h.role === 'assistant' || h.sender === 'ai') {
