@@ -54,7 +54,7 @@ left join lateral (
       case
         when count(distinct nullif(btrim(x->>'value'),'')) filter (
           where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
-            in ('profile','profilecode','beltprofile','beltprofilecode','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیلمدل','پروفیلومدل','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
+            in ('profile','profilecode','beltprofile','beltprofilecode','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیل/مدل','پروفایل/مدل','پروفیلمدل','پروفیلومدل','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
         ) <= 1
         then max(nullif(btrim(x->>'value'),'')) filter (
           where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
