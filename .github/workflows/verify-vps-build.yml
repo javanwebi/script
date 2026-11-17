@@ -68,6 +68,12 @@ on:
       - "tests/forzaCallTeardown.test.ts"
       - "ops/Dockerfile.forza-stt-runtime"
       - "server.ts"
+      - "server/ai/forzaDibaStt.ts"
+      - "server/ai/forzaTtsBudget.ts"
+      - "scripts/forza_diba_stt_worker.py"
+      - "tests/forzaTtsBudget.test.ts"
+      - "tests/forzaVoiceRetry.test.ts"
+      - "tests/forzaVoiceRecoveryUi.test.ts"
       - "ops/deploy-single-port-vps.sh"
       - "ops/sanatpish-deploy.sh"
       - "ops/verify-single-port-canary.mjs"
@@ -110,6 +116,8 @@ jobs:
         run: bash -n ops/deploy-single-port-vps.sh ops/sanatpish-deploy.sh
       - name: TypeScript
         run: npm run lint
+      - name: Diba worker Python syntax
+        run: python3 -m py_compile scripts/forza_diba_stt_worker.py
       - name: Products catalogue regression suite
         run: node --import tsx --test tests/products-page-premium.test.ts
       - name: Product detail regression suite
@@ -128,6 +136,8 @@ jobs:
         run: node --import tsx --test tests/belt-category-experience.test.ts
       - name: FORZA local Diba and speech-turn recovery regression suite
         run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
+      - name: FORZA TTS budget and playback recovery regression suite
+        run: node --import tsx --test tests/forzaTtsBudget.test.ts tests/forzaVoiceRetry.test.ts tests/forzaVoiceRecoveryUi.test.ts
       - name: PVC conveyor Phase 1 classification regression suite
         run: node --import tsx --test tests/pvc-conveyor-phase1-classification.test.ts
       - name: PVC conveyor database split and rollback integration test
