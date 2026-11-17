@@ -115,6 +115,46 @@ export function appendForzaSpeechSegment(previousValue:string, incomingValue:str
 }
 
 /**
+ * Keep finalized customer turns in one session transcript without applying
+ * overlap de-duplication across turn boundaries. Repeating a phrase in a later
+ * turn is still new speech and must remain visible.
+ */
+export function appendForzaSessionTurn(previousValue:string,nextTurnValue:string):string{
+  const previous=String(previousValue||'').trimEnd();
+  const next=normalizePersianTranscript(nextTurnValue);
+  if(!next)return previous;
+  return previous?previous+'\n'+next:next;
+}
+
+/** Replace only the last committed turn when the final Diba hypothesis corrects
+ * the live browser hypothesis. Earlier turns and repeated phrases stay intact.
+ */
+export function replaceForzaLastSessionTurn(
+  sessionValue:string,
+  previousTurnValue:string,
+  correctedTurnValue:string,
+):string{
+  const session=String(sessionValue||'').trimEnd();
+  const previousTurn=normalizePersianTranscript(previousTurnValue);
+  const corrected=normalizePersianTranscript(correctedTurnValue);
+  if(!corrected)return session;
+  if(!previousTurn)return appendForzaSessionTurn(session,corrected);
+  if(session===previousTurn)return corrected;
+  const suffix='\n'+previousTurn;
+  if(session.endsWith(suffix))
+    return session.slice(0,-previousTurn.length)+corrected;
+  return appendForzaSessionTurn(session,corrected);
+}
+
+/** Compose the immutable session transcript with the current live draft. */
+export function composeForzaSessionTranscript(sessionValue:string,activeTurnValue:string):string{
+  const session=String(sessionValue||'').trimEnd();
+  const active=normalizePersianTranscript(activeTurnValue);
+  if(!active)return session;
+  return session?session+'\n'+active:active;
+}
+
+/**
  * Run a long recording's independent WebM containers through a small bounded
  * worker pool. Results are always returned in recording order, regardless of
  * which request finishes first; no segment is silently dropped.
