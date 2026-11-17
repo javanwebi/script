@@ -1203,19 +1203,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         return;
       }
 
-      // Resolve the private voice identity before selecting incremental Nima
-      // playback; a cold health lookup must not make the first turn choose Pocket.
-      // Claim the turn synchronously before this await so a duplicate VAD /
-      // SpeechRecognition end event cannot start a second LLM+TTS pipeline.
+      // Claim the turn synchronously. The voice identity lookup now runs
+      // inside the owned/abortable turn below, so speech arriving during that
+      // lookup can still barge in instead of being erased by a later reset.
       turnDispatchPendingRef.current=true;
-      try{
-        await ensureVoiceMode();
-      }catch(error:any){
-        turnDispatchPendingRef.current=false;
-        if(!callClosedRef.current)setErrorNotice('آماده‌سازی صدای فورزا انجام نشد؛ دوباره تلاش کنید.');
-        return;
-      }
-      if(callClosedRef.current){turnDispatchPendingRef.current=false;return;}
       stopAcknowledgementRef.current?.cancel();
       // Chrome keeps final results from older turns while recognition stays
       // open to hear interruptions. Mark them consumed instead of stopping
@@ -1268,6 +1259,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       let bufferedNima:ForzaNimaBufferedSpeech|null=null;
       let terminalIdleTimer:number|null=null;
       try {
+        // A slow voice-health probe must not create an unowned gap before the
+        // turn controller exists. This turn is already abortable and the mic
+        // remains live, so the customer can interrupt even during warmup.
+        await ensureVoiceMode();
+        if(pocketAbort.signal.aborted || activeTurnRef.current?.generation!==generation)return;
         const payload: any = {
           history: historyRef.current.slice(-FORZA_CONVERSATION_HISTORY_LIMIT),
           // First deliver the exact AI words; synthesize audio as a second step.
