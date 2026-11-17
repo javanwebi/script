@@ -1654,7 +1654,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               console.info('[FORZA_TTS_DIAG] stage=turn-cancelled');
             else console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
               String(error?.message||'unknown').slice(0,100));
-            if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
+            if(!callClosedRef.current&&activeTurnRef.current?.generation===generation){
               const ttsCode=String(error?.message||'');
               setVoiceOutputError(
                 ttsCode==='autoplay_permission_required'
@@ -1668,6 +1668,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                         :ttsCode.startsWith('pocket_http_503_')
                           ?'سرویس صدای نیما موقتاً مشغول یا در حال بازیابی است؛ متن پاسخ حفظ شده است. دوباره تلاش کنید.'
                           :'تولید یا پخش صدای FORZA انجام نشد؛ متن پاسخ همچنان نمایش داده شده است.');
+            }
           }
         }
       } catch (err: any) {
