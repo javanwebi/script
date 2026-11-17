@@ -3,6 +3,7 @@ export interface ManufacturerSeriesEvidenceInput {
   manufacturer: string | null | undefined;
   division: string;
   profile: string;
+  supplyForm?: string | null;
   originalName?: string;
 }
 
@@ -24,6 +25,8 @@ const MEGADYNE_MEGASYNC_MANUAL_URL =
   'https://megadynegroup.com/files/resources/attachments/md_manu_en_product_guide_web_0.pdf';
 const MEGADYNE_MEGALINEAR_URL =
   'https://megadynegroup.com/en/products/timing-belts/polyurethane-open-end/megalinear/';
+const MEGADYNE_MEGAFLEX_URL =
+  'https://megadynegroup.com/files/resources/attachments/md_manu_en_megaflex_web.pdf';
 const MEGADYNE_PV_RIBBED_URL =
   'https://megadynegroup.com/de-de/products/multi-rib-belts/pv-rubber-ribbed/';
 const BANDO_INDUSTRIAL_CATALOG_URL =
@@ -358,10 +361,13 @@ export function resolveManufacturerSeriesEvidence(
         'AT20', 'ATG5', 'ATG10', 'MTD3', 'MTD5', 'MTD8', 'MTD14',
       ])
     ) {
+      const isEndlessMetric = input.supplyForm === 'endless-loop';
       return seriesEvidence(
         manufacturer,
-        MEGADYNE_MEGALINEAR_URL,
-        'The official Megadyne MEGALINEAR product range lists T/AT and MTD metric polyurethane timing-belt pitches.',
+        isEndlessMetric ? MEGADYNE_MEGAFLEX_URL : MEGADYNE_MEGALINEAR_URL,
+        isEndlessMetric
+          ? 'The official Megadyne MEGAFLEX technical handbook documents truly endless T5/TT5/T10/T20 metric polyurethane timing belts, standard 92 ShA TPU and single-helical zinc-plated steel cords. T5 is in the standard range and ceramic industry is a listed application. This is series-level evidence, not an exact local SKU/article-number match.'
+          : 'The official Megadyne MEGALINEAR product range lists T/AT and MTD metric polyurethane timing-belt pitches.',
         originalName,
       );
     }
