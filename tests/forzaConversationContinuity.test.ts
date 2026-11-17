@@ -50,6 +50,7 @@ test('long recording segments are processed with bounded concurrency and origina
 test('FORZA keeps a call-wide transcript and continuation-aware model context',()=>{
   const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
   const server=readFileSync('server.ts','utf8');
+  const liveConsult=readFileSync('server/ai/baiConsult.ts','utf8');
   assert.match(ui,/sessionTranscriptRef\s*=\s*useRef<string>\(''\)/);
   assert.match(ui,/pendingCommittedTranscriptRef/);
   assert.match(ui,/historyRef\.current=\[\.\.\.prior,\{role:'user',text:q\}\]/,
@@ -63,6 +64,9 @@ test('FORZA keeps a call-wide transcript and continuation-aware model context',(
   assert.match(server,/گفتار تازه ادامه، تکمیل، اصلاح یا جزئیاتِ صحبت قبلی است/);
   assert.match(server,/تاریخچه پیام‌ها را قبل از تفسیر هر گفتار تازه بررسی کنید/);
   assert.match(server,/history\.slice\(-40\)/);
+  assert.match(liveConsult,/مکث طولانی، مکث بین جمله‌ها/);
+  assert.match(liveConsult,/پیش‌فرض شما این باشد که گفتار تازه ادامه/);
+  assert.match(liveConsult,/به تعداد ثابت جمله محدود نکنید/);
   assert.doesNotMatch(server,/normalizePersianTranscript\(String\(query \|\| ''\)\)\.slice\(0,\s*2500\)/);
   assert.doesNotMatch(server,/response\?\.text \|\| ''\)\.trim\(\)\.slice\(0,\s*2500\)/);
 });
