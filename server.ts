@@ -7296,7 +7296,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
 - هرگز از جدول، ستاره مارک‌داون (*)، هش‌تگ (#) یا شکلک‌های ایموجی استفاده نکنید.
 - اگر تصویر ناواضح است یا اطلاعات کافی نیست، به طور محترمانه از کاربر بخواهید زاویه دیگر، پلاک یا ابعاد قطعه را مشخص نماید.`;
 
-    let userQuery = normalizePersianTranscript(String(query || '')).slice(0, 2500);
+    let userQuery = normalizePersianTranscript(String(query || ''));
     // STT transport diagnostics are deliberately provider-independent:
     // we do not select a different speech model or change any API credentials.
     let sttProviderError = false;
@@ -7393,7 +7393,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
           if (!result.ok) {
             console.warn('[AI FORZA] Worker STT failure:', result.status, response?.error?.type || 'unknown');
           } else {
-            userQuery = String(response?.text || '').trim().slice(0, 2500);
+            userQuery = String(response?.text || '').trim();
           }
         } finally {
           clearTimeout(timeout);
