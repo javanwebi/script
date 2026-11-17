@@ -79,11 +79,14 @@ test('recognition restarts append the next partial segment without losing or dup
   assert.equal(appendForzaSpeechSegment('بلبرینگ 6202','نه، 6203 می‌خواهم'),'بلبرینگ 6202 نه، 6203 می‌خواهم');
 });
 
-test('late final STT revision has a short stability guard after acoustic silence, not a second full pause', () => {
+test('a final hypothesis never collapses the acoustic continuation window to 250ms', () => {
   const phrase='تسمه SPA 1250 موجود دارید';
   const pause=forzaEndOfTurnPauseMs(phrase,false);
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,100,pause+300),150);
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,250,pause+300),0);
+  assert.ok(pause>=4200);
+  assert.ok(forzaTurnRemainingWaitMs(phrase,false,100,pause+300)>0,
+    'late final text must not dispatch while the transcript is still stabilizing');
+  assert.ok(forzaTurnRemainingWaitMs(phrase,false,250,pause-100)>0,
+    'a short natural pause must leave the turn open');
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,250,null)>0);
   assert.ok(forzaTurnRemainingWaitMs('بلبرینگ 6202 نه',false,250,3000)>0);
   assert.ok(forzaTurnRemainingWaitMs(phrase,true,250,3000)>0);
@@ -102,7 +105,8 @@ test('missing VAD analyser uses a longer text-only guard without blocking foreve
   const pause=forzaEndOfTurnPauseMs(phrase,false);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,pause+50,null)>0,
     'a browser interim stall must not be mistaken for acoustic silence');
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,4550,null),0);
+  assert.ok(forzaTurnRemainingWaitMs(phrase,false,4550,null)>0);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,5250,null),0);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,0,null)>0);
 });
 
