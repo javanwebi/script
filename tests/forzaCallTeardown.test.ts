@@ -21,6 +21,8 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
   recognitionRef:ref(recognition),isRecognitionActiveRef:ref(true),
   mediaRecorderRef:ref(recorder),streamRef:ref({getTracks:()=>[track]}),
   localSttRecognizerRef:ref({remove(){calls.push('local-stt');}}),
+  localSttAdmissionRef:ref({reset(){calls.push('local-stt-admission-reset');}}),
+  localSttActiveRef:ref(true),localSttFinalRef:ref('pending words'),turnDispatchPendingRef:ref(true),
   localSttModelRef:ref({terminate(){calls.push('local-stt-model');}}),
   localSttModelLoadingRef:ref(true),
   animFrameAudioRef:ref(10),ctxRef:ref({state:'running',async close(){calls.push('context');}}),
@@ -32,6 +34,10 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
  teardown();teardown();await Promise.resolve();
  for(const resource of ['recognition','recorder','track','request','context','local-stt','local-stt-model','animation','audio-evidence'])assert.equal(calls.filter(x=>x===resource).length,1,resource);
  assert.equal(values.localSttModelRef.current,null);
+ assert.equal(values.localSttAdmissionRef.current,null);
+ assert.equal(values.localSttActiveRef.current,false);
+ assert.equal(values.localSttFinalRef.current,'');
+ assert.equal(values.turnDispatchPendingRef.current,false);
  assert.equal(values.localSttModelLoadingRef.current,false);
  assert.equal(values.callClosedRef.current,true);
  assert.equal(values.microphoneGenerationRef.current,3);
