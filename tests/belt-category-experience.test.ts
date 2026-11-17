@@ -267,11 +267,33 @@ test('CC is parsed as a double-sided hexagonal V-belt using its standard section
   assert.equal(result.proposedLeaf, null);
 });
 
+test('explicit welded round belts receive a valid menu path while polymer remains unverified', () => {
+  const round = classifyBelt('تسمه جوشی گرد نمره 12 زبر نخ دار', 'نامشخص', 'متر');
+  assert.equal(round.proposedCategorySlug, 'excel-v2-1-3');
+  assert.equal(round.proposedSubmenu, 'تسمه گرد (CRC)');
+  assert.equal(round.proposedLeaf, 'انواع تسمه گرد جوشی');
+  assert.equal(round.technical.beltDivision, 'welded-round-material-unverified');
+  assert.equal(round.technical.profile, 'ROUND');
+  assert.equal(round.technical.roundDiameterMm, 12);
+  assert.match(round.technical.bodyMaterial, /اثبات نمی‌شود/);
+  assert.match(round.technical.tensileCord, /وجود نخ تقویتی/);
+  assert.equal(round.taxonomyGap, null);
+  const familyType = resolveEngineeringFamilyType({
+    productType: round.actualProductType,
+    profile: round.technical.profile,
+    material: round.technical.bodyMaterial,
+    construction: round.technical.tensileCord,
+    proposedCategorySlug: round.proposedCategorySlug,
+    engineeringSpecifications: { beltDivision: round.technical.beltDivision },
+  });
+  assert.equal(familyType.familyTypeId, 'FT-BELT-WELDED-ROUND-UNVERIFIED');
+});
+
 test('crowned CRC and banded V-belts do not invent rubber compounds, cords or standards', () => {
   const crc = classifyBelt('تسمه گرده ماهی CRC 300 GNR', 'لاستیک', 'حلقه', 'excel-v2-1-4', 'تسمه بارکش و تجهیزات جوشی');
   assert.equal(crc.technical.beltDivision, 'conveyor-crowned-crc');
-  assert.match(crc.technical.standardReference, /تأیید نشده/);
-  assert.match(crc.technical.bodyMaterial, /ترکیب دقیق نیازمند دیتاشیت/);
+  assert.match(crc.technical.standardReference, /NOT_ESTABLISHED/);
+  assert.match(crc.technical.bodyMaterial, /از شرح انبار اثبات نمی‌شود/);
   assert.match(crc.technical.tensileCord, /نیازمند دیتاشیت/);
   assert.doesNotMatch(crc.technical.standardReference, /C-Belt Standard/);
 
@@ -290,6 +312,14 @@ test('engineering family types keep crowned CRC, welded PU round, and banded V-b
     construction: 'crowned top',
     proposedCategorySlug: 'excel-v2-1-4',
     engineeringSpecifications: { beltDivision: 'conveyor-crowned-crc', sidedness: 'single-sided' },
+  });
+  const weldedRoundUnverified = resolveEngineeringFamilyType({
+    productType: 'تسمه گرد جوشی (جنس بدنه نامشخص)',
+    profile: 'ROUND',
+    material: 'جنس بدنه از شرح انبار اثبات نمی‌شود',
+    construction: 'جوشی؛ کورد نامشخص',
+    proposedCategorySlug: 'excel-v2-1-3',
+    engineeringSpecifications: { beltDivision: 'welded-round-material-unverified', sidedness: 'symmetric-round-hex' },
   });
   const welded = resolveEngineeringFamilyType({
     productType: 'تسمه جوشی پلی‌یورتان ترموپلاستیک پروفیل CRC',
@@ -317,6 +347,7 @@ test('engineering family types keep crowned CRC, welded PU round, and banded V-b
   });
   assert.equal(crowned.familyTypeId, 'FT-BELT-CROWNED-CRC');
   assert.equal(welded.familyTypeId, 'FT-BELT-ROUND-CRC');
+  assert.equal(weldedRoundUnverified.familyTypeId, 'FT-BELT-WELDED-ROUND-UNVERIFIED');
   assert.equal(banded.familyTypeId, 'FT-VBELT-BANDED');
   assert.equal(doubleV.familyTypeId, 'FT-VBELT-HEXAGONAL');
   const americanWedge = resolveEngineeringFamilyType({

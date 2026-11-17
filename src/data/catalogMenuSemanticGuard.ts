@@ -64,7 +64,7 @@ export function validateFamilyMenuAssignment(
   const isWeldedPuVSection =
     isPuMaterial &&
     ['a', 'b', 'c', 'brb'].includes(profileCode) &&
-    matches(identity, /تسمه\s*جوشی|welded.{0,24}belt/);
+    matches(identity, /تسمه.{0,12}جوشی|welded.{0,24}belt/);
   const hasVbeltProfile = [
     'z', 'zx', 'm', 'mx', 'a', 'ax', 'b', 'bx', 'c', 'cx', 'd', 'e', '8v', '8vx',
     'spz', 'xpz', 'spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc', '3v', '3vx', '5v', '5vx', '8v', '8vx',

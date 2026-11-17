@@ -164,8 +164,10 @@ test('all proposed groups pass strict invariant homogeneity checks with zero MIX
   assert.equal(bySku.get('37828')?.confidence, 'REQUIRES_REVIEW');
   assert.match(bySku.get('37828')?.taxonomyGap || '', /CRC/);
   assert.equal(bySku.get('36859')?.technical.profile, 'ROUND');
-  assert.equal(bySku.get('36859')?.technical.beltDivision, 'service-ambiguous');
-  assert.equal(bySku.get('36859')?.confidence, 'REQUIRES_REVIEW');
+  assert.equal(bySku.get('36859')?.technical.beltDivision, 'welded-round-material-unverified');
+  assert.equal(bySku.get('36859')?.confidence, 'ALGORITHMIC_STANDARD_ONLY');
+  assert.equal(bySku.get('36859')?.proposedCategorySlug, 'excel-v2-1-3');
+  assert.equal(bySku.get('36859')?.proposedLeaf, 'انواع تسمه گرد جوشی');
   assert.match(bySku.get('36859')?.technical.bodyMaterial || '', /اثبات نمی‌شود/);
   const forza52640 = bySku.get('52640');
   assert.equal(forza52640?.detectedBrand, 'FORZA');

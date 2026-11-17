@@ -300,7 +300,7 @@ export interface WeldingVsBeltAuditRecord {
   skuCode: string;
   sourceFamilyCode: string;
   originalName: string;
-  classification: 'WELDING_EQUIPMENT_OR_CLAMP' | 'WELDED_PU_ROUND_CRC_BELT' | 'WELDED_PU_V_OR_FLAT_BELT';
+  classification: 'WELDING_EQUIPMENT_OR_CLAMP' | 'WELDED_PU_ROUND_CRC_BELT' | 'WELDED_ROUND_BELT_MATERIAL_UNVERIFIED' | 'WELDED_PU_V_OR_FLAT_BELT';
   brand: string;
   profile: string;
   material: string;
@@ -433,6 +433,8 @@ export interface Phase1ReconstructionReport {
     totalAuditedSkus: number;
     weldingEquipmentAndClampCount: number;
     weldedRoundCrcBeltCount: number;
+    weldedRoundBeltCount: number;
+    weldedRoundMaterialUnverifiedCount: number;
     weldedVOrFlatBeltCount: number;
     records: WeldingVsBeltAuditRecord[];
   };
@@ -506,6 +508,12 @@ export function resolveEngineeringFamilyType(input: {
     return {
       familyTypeId: 'FT-BELT-CROWNED-CRC',
       familyTypeName: 'تسمه گرده‌ماهی / تاج‌دار مداربسته (CRC / TRC)',
+    };
+  }
+  if (div === 'welded-round-material-unverified') {
+    return {
+      familyTypeId: 'FT-BELT-WELDED-ROUND-UNVERIFIED',
+      familyTypeName: 'تسمه گرد جوشی (جنس بدنه نامشخص)',
     };
   }
   if (
@@ -1330,6 +1338,7 @@ function buildBeltPhase1SkuRecord(
     beltRec.technical.toothAngleDeg ?? 'NA',
     beltRec.technical.toothHeightMm ?? 'NA',
     isThicknessVariantAllowed ? 'VAR_THICK' : beltRec.technical.beltThicknessMm ?? 'NA',
+    beltRec.detectedBrand?.endsWith('-OEM') ? beltRec.detectedBrand : 'NO_SOURCE_ORIGIN',
     beltRec.technical.bodyMaterial,
     fullConstruction,
     coatingSignature,
@@ -1355,6 +1364,7 @@ function buildBeltPhase1SkuRecord(
   else if (beltRec.technical.outsideLengthMm) variantParts.push(`La=${beltRec.technical.outsideLengthMm}mm`);
   if (beltRec.technical.toothCount) variantParts.push(`Z=${beltRec.technical.toothCount}`);
   if (beltRec.technical.nominalWidthMm) variantParts.push(`W=${beltRec.technical.nominalWidthMm}mm`);
+  if (beltRec.technical.roundDiameterMm) variantParts.push(`D=${beltRec.technical.roundDiameterMm}mm`);
   if (beltRec.technical.ribCount) variantParts.push(`Ribs=${beltRec.technical.ribCount}`);
   if (variantParts.length === 0 && variant.size) variantParts.push(variant.size);
   const variantSummary = variantParts.join(', ') || variant.size || 'استاندارد';
@@ -1372,6 +1382,7 @@ function buildBeltPhase1SkuRecord(
     toothAngleDeg: beltRec.technical.toothAngleDeg ?? 'NOT_APPLICABLE',
     toothHeightMm: beltRec.technical.toothHeightMm ?? 'NOT_APPLICABLE',
     beltThicknessMm: beltRec.technical.beltThicknessMm ?? 'NOT_APPLICABLE',
+    roundDiameterMm: beltRec.technical.roundDiameterMm ?? 'NOT_APPLICABLE',
     nominalWidthMm: beltRec.technical.nominalWidthMm ?? 'NOT_APPLICABLE',
     pitchLengthMm: beltRec.technical.pitchLengthMm ?? 'NOT_APPLICABLE',
     toothCount: beltRec.technical.toothCount ?? 'NOT_APPLICABLE',
@@ -1427,6 +1438,7 @@ function buildBeltPhase1SkuRecord(
       pitchLengthMm: beltRec.technical.pitchLengthMm ?? beltRec.technical.insideLengthMm ?? beltRec.technical.outsideLengthMm ?? 'NOT_APPLICABLE',
       toothCount: beltRec.technical.toothCount ?? 'NOT_APPLICABLE',
       nominalWidthMm: beltRec.technical.nominalWidthMm ?? 'NOT_APPLICABLE',
+      roundDiameterMm: beltRec.technical.roundDiameterMm ?? 'NOT_APPLICABLE',
       ribCount: beltRec.technical.ribCount ?? 'NOT_APPLICABLE',
       catalogSize: variant.size || variantSummary,
     },
@@ -3719,12 +3731,14 @@ export function runPhase1CatalogReconstruction(
   const weldingRecords: WeldingVsBeltAuditRecord[] = [];
   for (const sku of allSkus) {
     const isWeldingTool = sku.productType === 'دستگاه و گیره جوش تسمه صنعتی';
-    const isRoundCrc = sku.engineeringSpecifications.beltDivision === 'welded-pu-round-crc';
+    const division = String(sku.engineeringSpecifications.beltDivision || '');
+    const isRoundCrc = division === 'welded-pu-round-crc';
+    const isRoundMaterialUnverified = division === 'welded-round-material-unverified';
     const isWeldedV =
-      sku.engineeringSpecifications.beltDivision === 'welded-pu-v-flat' ||
+      division === 'welded-pu-v-flat' ||
       (sku.sourceTechnicalType === 'تسمه روکش‌دار' && /تسمه\s*جوشی/.test(sku.normalizedProductName));
 
-    if (isWeldingTool || isRoundCrc || isWeldedV) {
+    if (isWeldingTool || isRoundCrc || isRoundMaterialUnverified || isWeldedV) {
       weldingRecords.push({
         skuCode: sku.skuCode,
         sourceFamilyCode: sku.currentFamily,
@@ -3733,7 +3747,9 @@ export function runPhase1CatalogReconstruction(
           ? 'WELDING_EQUIPMENT_OR_CLAMP'
           : isRoundCrc
             ? 'WELDED_PU_ROUND_CRC_BELT'
-            : 'WELDED_PU_V_OR_FLAT_BELT',
+            : isRoundMaterialUnverified
+              ? 'WELDED_ROUND_BELT_MATERIAL_UNVERIFIED'
+              : 'WELDED_PU_V_OR_FLAT_BELT',
         brand: sku.brand,
         profile: sku.profile,
         material: sku.material,
@@ -3748,8 +3764,10 @@ export function runPhase1CatalogReconstruction(
         engineeringExplanation: isWeldingTool
           ? 'ابزار و دستگاه جوش/آپارات تسمه صنعتی؛ به صورت کامل از خانواده‌های تسمه تفکیک شده و در برگ «دستگاه جوش تسمه صنعتی» به صورت DIRECT_PRODUCT قرار گرفته است.'
           : isRoundCrc
-            ? 'تسمه گرد پلی‌یورتان جوشی / گرده‌ماهی CRC؛ در زیرشاخه «تسمه گرد (CRC) > انواع تسمه گرد جوشی» طبقه‌بندی شده است.'
-            : 'تسمه جوشی پروفیل V (ساده، نخ‌دار یا گریپ‌دار)؛ در دسته «تسمه جوشی و گرد» بر اساس پروفیل (A/B/C)، برند و ساختار کورد/گریپ تفکیک شده است.',
+            ? 'تسمه گرد پلی‌یورتان جوشی با دیتاشیت تأییدشده؛ در زیرشاخه «تسمه گرد (CRC) > انواع تسمه گرد جوشی» طبقه‌بندی شده است.'
+            : isRoundMaterialUnverified
+              ? 'شرح انبار صراحتاً تسمه گرد جوشی را مشخص می‌کند؛ مسیر منو معتبر است اما جنس PU/TPE/TPR و کورد تا دریافت دیتاشیت نامشخص می‌ماند.'
+              : 'تسمه جوشی پروفیل V (ساده، نخ‌دار یا گریپ‌دار)؛ در مسیر مصوب وی‌بلت متری بر اساس پروفیل (A/B/C)، برند و ساختار کورد/گریپ تفکیک شده است.',
       });
     }
   }
@@ -3890,9 +3908,16 @@ export function runPhase1CatalogReconstruction(
   const taxonomyGapSkus = allSkus.filter((s) => s.proposedCategorySlug === 'UNRESOLVED' || Boolean(s.taxonomyGap));
   const allCategoriesValid = menuAssignedSkus.every((s) => CANONICAL_BY_CATEGORY.has(s.proposedCategorySlug));
   const allSubcategoriesValid = menuAssignedSkus.every((s) => {
-    const entries = CANONICAL_BY_CATEGORY.get(s.proposedCategorySlug) || [];
-    return entries.some((e) => e.submenu === s.proposedSubmenu && e.leaf === s.proposedLeaf);
+    const submenuKey = `${s.proposedCategorySlug}::${normalizeFa(s.proposedSubmenu)}`;
+    if (!CANONICAL_BY_SUBMENU.has(submenuKey)) return false;
+    // An approved submenu may hold SKUs without a dedicated leaf in the Excel taxonomy.
+    // Keep those SKUs at the approved submenu; never fabricate a leaf.
+    if (s.proposedLeaf === null || s.proposedLeaf.trim() === '') return true;
+    return CANONICAL_BY_TRIPLET.has(
+      `${s.proposedCategorySlug}::${normalizeFa(s.proposedSubmenu)}::${normalizeFa(s.proposedLeaf)}`
+    );
   });
+
   const taxonomyGapFamilyCount = new Set(
     taxonomyGapSkus.map((s) => s.proposedFamily || `SOURCE:${s.currentFamily}`)
   ).size;
@@ -3994,6 +4019,8 @@ export function runPhase1CatalogReconstruction(
       weldingEquipmentAndClampCount: weldingRecords.filter((r) => r.classification === 'WELDING_EQUIPMENT_OR_CLAMP')
         .length,
       weldedRoundCrcBeltCount: weldingRecords.filter((r) => r.classification === 'WELDED_PU_ROUND_CRC_BELT').length,
+      weldedRoundBeltCount: weldingRecords.filter((r) => r.classification === 'WELDED_PU_ROUND_CRC_BELT' || r.classification === 'WELDED_ROUND_BELT_MATERIAL_UNVERIFIED').length,
+      weldedRoundMaterialUnverifiedCount: weldingRecords.filter((r) => r.classification === 'WELDED_ROUND_BELT_MATERIAL_UNVERIFIED').length,
       weldedVOrFlatBeltCount: weldingRecords.filter((r) => r.classification === 'WELDED_PU_V_OR_FLAT_BELT').length,
       records: weldingRecords,
     },
