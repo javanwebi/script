@@ -199,6 +199,16 @@ async function generateWithModelCascade(
 }
 
 const app = express();
+// Production requests pass through one Nginx reverse proxy. Trust exactly
+// that hop so req.ip (including the FORZA TTS budget) resolves the real client
+// instead of treating every visitor as the same loopback/proxy address.
+// Local development remains direct unless explicitly configured.
+const configuredProxyHops = Number(process.env.SANATPISH_TRUST_PROXY_HOPS);
+const trustProxyHops = process.env.SANATPISH_TRUST_PROXY_HOPS?.trim()
+  ? (Number.isFinite(configuredProxyHops) && configuredProxyHops >= 0
+      ? Math.floor(configuredProxyHops) : 0)
+  : process.env.NODE_ENV === 'production' ? 1 : 0;
+app.set('trust proxy', trustProxyHops);
 const PORT = Number(process.env.PORT) || 3000;
 const IMAGE_AI_DIR = process.env.IMAGE_AI_DIR || path.join(process.cwd(), 'imageai');
 if (!fs.existsSync(IMAGE_AI_DIR)) {
@@ -7284,6 +7294,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
     // we do not select a different speech model or change any API credentials.
     let sttProviderError = false;
     let sttProviderStatus = 0;
+    let sttProviderErrorCode = '';
 
     // Local Diba/Vosk is the default server recognizer. It is independent from
     // AvalAI/XKIRO and keeps the model warm in a bounded CPU worker pool.
@@ -7292,15 +7303,19 @@ app.post('/api/ai/forza-live', async (req, res) => {
       const onClose=()=>abort.abort();
       res.once('close',onClose);
       try{
-        const transcript=await transcribeForzaDibaAudio(audioBase64,{signal:abort.signal,timeoutMs:10_000});
+        const transcript=await transcribeForzaDibaAudio(audioBase64,{signal:abort.signal,timeoutMs:24_000});
         userQuery=normalizePersianTranscript(transcript).slice(0,2500);
-        console.info('[AI FORZA STT] provider=diba transcript_chars='+userQuery.length);
+        console.info('[AI FORZA STT] provider=diba transcript_chars='+userQuery.length+
+          ' audio_segments='+(Array.isArray(audioBase64)?audioBase64.length:1));
       }catch(sttErr:any){
         if(abort.signal.aborted)return;
         sttProviderError=true;
         sttProviderStatus=503;
-        console.warn('[AI FORZA STT] provider=diba failure code='+
-          String(sttErr?.message||'stt_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+        const rawCode=String(sttErr?.message||'diba_transcription_failed')
+          .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48);
+        sttProviderErrorCode=/^(?:diba_|audio_|invalid_audio|stt_)[a-zA-Z0-9_-]*$/.test(rawCode)
+          ?rawCode:'diba_transcription_failed';
+        console.warn('[AI FORZA STT] provider=diba failure code='+sttProviderErrorCode);
       }finally{res.off('close',onClose);}
     }
 
@@ -7393,6 +7408,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
           success:false,
           errorCode:missingProvider?'stt_not_configured':
             sttProviderStatus===429?'stt_rate_limited':'stt_provider_unavailable',
+          ...(sttProviderErrorCode?{diagnosticCode:sttProviderErrorCode}:{}),
           error:missingProvider
             ? 'کلید xKiro برای تبدیل گفتار به متن کاربرد ندارد. تشخیص گفتار سرور جداگانه تنظیم نشده است؛ لطفاً سؤال را تایپ کنید.'
             : sttProviderStatus===429
