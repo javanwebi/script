@@ -337,6 +337,22 @@ for path,key in [('/api/catalog/home-categories','categories'),('/api/catalog/ho
  x=json.loads(get(new,path))
  assert x.get('success') and x.get(key),('EMPTY_PUBLIC_PROJECTION',path)
  print('FAST_API_OK',path,len(x[key]))
+# The actual production blue/green entrypoint must reject zero-family belt
+# categories on the same PostgreSQL database used by the private canary.
+cat_payload=json.loads(get(new,'/api/catalog/categories'))
+assert cat_payload.get('success') and isinstance(cat_payload.get('categories'),list),('BELT_CATEGORIES_API_FAILED',)
+cat_by_slug={c.get('slug'):c for c in cat_payload['categories']}
+for slug in ('excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4'):
+ c=cat_by_slug.get(slug)
+ assert c and c.get('menuSource')=='industrial_megamenu_hierarchy_v2',('BELT_CATEGORY_MISSING',slug)
+ assert int(c.get('familyCount') or 0)>0 and int(c.get('skuCount') or 0)>0,('BELT_CATEGORY_ZERO',slug,c)
+ detail=json.loads(get(new,'/api/catalog/menu-category/'+slug))
+ families=detail.get('families')
+ assert detail.get('success') and isinstance(families,list) and families,('BELT_CATEGORY_DETAILS_EMPTY',slug)
+ assert len(families)==int(c['familyCount']),('BELT_FAMILY_COUNT_DRIFT',slug,len(families),c['familyCount'])
+ family_skus=sum(max(0,int(f.get('skuCount') or 0)) for f in families)
+ assert int(c['skuCount'])>=family_skus,('BELT_SKU_COUNT_DRIFT',slug,family_skus,c['skuCount'])
+ print('BELT_CATEGORY_CANARY_OK',slug,len(families),c['skuCount'])
 def catalog(port):
  data=json.loads(get(port,'/api/runtime'))
  assert data.get('success')
