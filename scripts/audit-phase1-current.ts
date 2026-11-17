@@ -27,9 +27,21 @@ const invalidSubcategory:Phase1SkuRecord[]=report.skuRecords.filter((s:Phase1Sku
  if(!leaves)return true;
  return s.proposedLeaf!==null&&s.proposedLeaf.trim()!==''&&!leaves.has(s.proposedLeaf);
 });
-const welded:Phase1SkuRecord[]=report.skuRecords.filter((s:Phase1SkuRecord)=>
- /جوشی|CRC|BRB|گرده.?ماهی|تسمه فلت/i.test(s.originalProductName)
-);
+const normName=(value:string)=>value.replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[\u200c\s]+/g,' ').toLowerCase();
+const welded:Phase1SkuRecord[]=report.skuRecords.filter((s:Phase1SkuRecord)=>{
+ const division=String(s.engineeringSpecifications.beltDivision||'');
+ return ['welded-round-material-unverified','conveyor-crowned-crc','welded-pu-round-crc','welded-pu-v-flat'].includes(division) ||
+  /جوشی|CRC|BRB|گرد\s*ه?\s*ماهی|تسمه فلت/i.test(normName(s.originalProductName));
+});
+const selectSku=(s:Phase1SkuRecord)=>({
+ sku:s.skuCode,sourceFamilyCode:s.currentFamily,name:s.originalProductName,productType:s.productType,
+ familyType:s.familyTypeId,brand:s.brand,material:s.material,construction:s.construction,profile:s.profile,
+ category:s.proposedCategorySlug,submenu:s.proposedSubmenu,leaf:s.proposedLeaf,decision:s.familyDecision,
+ status:s.finalStatus,proposedFamily:s.proposedFamily,familyName:s.familyName,unit:s.unit,size:s.originalSize,
+ confidence:s.confidenceScore,taxonomyGap:s.taxonomyGap
+});
+const roundWeldedSkus=report.skuRecords.filter((s:Phase1SkuRecord)=>s.engineeringSpecifications.beltDivision==='welded-round-material-unverified').map(selectSku);
+const ridgeTopSkus=report.skuRecords.filter((s:Phase1SkuRecord)=>s.engineeringSpecifications.beltDivision==='conveyor-crowned-crc').map(selectSku);
 const group=<T,>(rows:T[],fn:(row:T)=>string)=>{
  const map=new Map<string,number>();
  for(const row of rows){const key=fn(row);map.set(key,(map.get(key)||0)+1);}

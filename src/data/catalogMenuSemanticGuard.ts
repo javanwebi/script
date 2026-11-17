@@ -64,7 +64,7 @@ export function validateFamilyMenuAssignment(
   const isWeldedPuVSection =
     isPuMaterial &&
     ['a', 'b', 'c', 'brb'].includes(profileCode) &&
-    matches(identity, /تسمه.{0,12}جوشی|welded.{0,24}belt/);
+    matches(identity, /تسمه\s*جوشی|welded.{0,24}belt/);
   const hasVbeltProfile = [
     'z', 'zx', 'm', 'mx', 'a', 'ax', 'b', 'bx', 'c', 'cx', 'd', 'e', '8v', '8vx',
     'spz', 'xpz', 'spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc', '3v', '3vx', '5v', '5vx', '8v', '8vx',
@@ -74,7 +74,10 @@ export function validateFamilyMenuAssignment(
   const isVbelt = (matches(identity, /تسمه(?:\s+جوشی)?\s*v|وی.?بلت|v.?belt|v شکل/) || hasVbeltProfile) && !isWeldedPuVSection;
   const isPolyV = matches(identity, /چندشیاری|poly.?v|multi.?rib/);
   const isRubberMaterial = matches(material, /لاستیک|الاستومر|rubber|elastomer|nbr|epdm|fkm|viton|neoprene|کلروپرن/);
-  const isRidgeTop = matches(identity, /تاج.?دار|گرده.?ماهی|ridge.?top|crowned/);
+  const isRidgeTop = matches(identity, /تاج.?دار|گرد\s*ه?\s*ماهی|ridge.?top|crowned/);
+  const isExplicitWeldedRound =
+    !isRidgeTop && matches(identity, /تسمه.{0,12}جوشی|welded.{0,24}belt/) && matches(identity, /گرد|round/) &&
+    ['round', 'crc'].includes(profileCode);
   const isWeldingDevice = matches(identity, /دستگاه.*(?:جوش|آپارات).*تسمه|گیره.*آپارات.*تسمه|belt.*weld.*device/);
   const isConveyorBelt = matches(identity, /نوار نقاله|تسمه بارکش|تسمه نقاله|conveyor|belt conveyor|گریپ.?آجدار/);
   const isNonBeltItem = matches(identity, /دستگاه پولیش|دستگاه تزریق|تسمه سفت.?کن|belt.?tensioner|tensioner|تسمه پاک.?کن|belt.?cleaner|scraper|اسکریپر|تیغه فلزی|تسمه آهنی/);
@@ -154,7 +157,9 @@ export function validateFamilyMenuAssignment(
   }
 
   if (context.categorySlug === 'excel-v2-1-3') {
-    if (!isPuMaterial) return fail('welded_pu_category_without_pu_material');
+    // Explicit round-welded identity is sufficient for the approved CRC menu path.
+    // Polymer grade, hardness, cord construction and exact manufacturer series remain unverified.
+    if (!isPuMaterial && !isExplicitWeldedRound) return fail('welded_round_category_without_explicit_round_identity');
     if (isRidgeTop) return fail('ridge_top_belt_is_not_welded_pu');
     if (submenu === normalize('تسمه گرد (CRC)') && !['crc', 'round'].includes(profileCode)) {
       return fail('welded_round_leaf_profile_mismatch');

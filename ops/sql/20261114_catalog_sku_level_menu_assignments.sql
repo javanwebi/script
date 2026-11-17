@@ -17,13 +17,25 @@ SELECT unnest(ARRAY['10127', '10438', '10439', '34229', '35058', '38287', '40865
        'بر اساس جنس'::text AS submenu,
        'نوار نقاله پلی‌اورتان (PU)'::text AS subcategory
 UNION ALL
-SELECT unnest(ARRAY['31243', '36946', '38748', '38971', '39004', '39122', '39468', '39769', '40462', '41160', '41725']::text[]) AS sku_code,
+SELECT unnest(ARRAY['31243', '36946', '38748', '39004', '41725']::text[]) AS sku_code,
+       'FAM-40462'::text AS expected_family_code,
+       'excel-v2-1-4'::text AS category_slug,
+       'تسمه بارکش'::text AS submenu,
+       'انواع تسمه بارکش صنعتی'::text AS subcategory
+UNION ALL
+SELECT unnest(ARRAY['38971', '39122', '39468', '39769', '40462', '41160']::text[]) AS sku_code,
        'FAM-40462'::text AS expected_family_code,
        'excel-v2-1-3'::text AS category_slug,
        'تسمه گرد (CRC)'::text AS submenu,
        'انواع تسمه گرد جوشی'::text AS subcategory
 UNION ALL
-SELECT unnest(ARRAY['31224', '31310', '31328', '34095', '34132', '34136', '35501', '36612', '37005', '37006', '37007', '37009', '37031', '37032', '37033', '37034', '37573', '39615', '39673', '40020', '41171', '41685']::text[]) AS sku_code,
+SELECT unnest(ARRAY['31224', '31310', '31328', '34095', '34132', '34136', '35501', '36612', '37005', '37006', '37007', '37009', '37031', '37032', '37033', '37034', '37573', '41685']::text[]) AS sku_code,
+       'FAM-38906'::text AS expected_family_code,
+       'excel-v2-1-4'::text AS category_slug,
+       'تسمه بارکش'::text AS submenu,
+       'انواع تسمه بارکش صنعتی'::text AS subcategory
+UNION ALL
+SELECT unnest(ARRAY['39615', '39673', '40020', '41171']::text[]) AS sku_code,
        'FAM-38906'::text AS expected_family_code,
        'excel-v2-1-3'::text AS category_slug,
        'تسمه گرد (CRC)'::text AS submenu,
@@ -35,7 +47,13 @@ SELECT unnest(ARRAY['50149']::text[]) AS sku_code,
        'تسمه گرد (CRC)'::text AS submenu,
        'انواع تسمه گرد جوشی'::text AS subcategory
 UNION ALL
-SELECT unnest(ARRAY['10166', '10184', '10188', '31205', '31206', '31208', '31252', '31254', '31275', '31280', '31282', '31292', '31299', '31311', '31663', '31697', '31882', '31997', '32088', '32172', '33088', '33768', '33773', '33775', '33822', '33830', '33834', '33842', '33843', '34092', '34283', '34374', '34650', '34687', '34688', '34767', '34780', '34783', '35387', '35946', '36156', '36188', '37215', '37217', '37507', '37699', '37828', '37934', '38013', '38014', '38015', '38221', '38702', '38703', '38778', '41043', '41141', '41142', '41143', '42563']::text[]) AS sku_code,
+SELECT unnest(ARRAY['10166', '31205', '31206', '31208', '31252', '31254', '31275', '31280', '31282', '31292', '31299', '31311', '31663', '31697', '31997', '32172', '33088', '33768', '33773', '33775', '34092', '34283', '34374', '34650', '34687', '34688', '35387', '35946', '36156', '37215', '37217', '37507', '37699', '37934', '38013', '38014', '38015', '38221', '38702', '38703', '38778', '42563']::text[]) AS sku_code,
+       'FAM-80151'::text AS expected_family_code,
+       'excel-v2-1-4'::text AS category_slug,
+       'تسمه بارکش'::text AS submenu,
+       'انواع تسمه بارکش صنعتی'::text AS subcategory
+UNION ALL
+SELECT unnest(ARRAY['10184', '10188', '31882', '32088', '33822', '33830', '33834', '33842', '33843', '34767', '34780', '34783', '36188', '37828', '41043', '41141', '41142', '41143']::text[]) AS sku_code,
        'FAM-80151'::text AS expected_family_code,
        'excel-v2-1-3'::text AS category_slug,
        'تسمه گرد (CRC)'::text AS submenu,
@@ -59,13 +77,25 @@ SELECT unnest(ARRAY['34182', '38344']::text[]) AS sku_code,
        'تسمه گرد (CRC)'::text AS submenu,
        'انواع تسمه گرد جوشی'::text AS subcategory
 UNION ALL
-SELECT unnest(ARRAY['36187', '39092']::text[]) AS sku_code,
+SELECT unnest(ARRAY['36187']::text[]) AS sku_code,
        'FAM-35525'::text AS expected_family_code,
        'excel-v2-1-3'::text AS category_slug,
        'تسمه گرد (CRC)'::text AS submenu,
        'انواع تسمه گرد جوشی'::text AS subcategory
 UNION ALL
-SELECT unnest(ARRAY['32060', '32612', '32613', '32616', '34096', '34107', '34131', '34147', '34149', '34454', '34526', '34598', '34721', '35147', '35314', '35441', '35741', '35867', '38599', '42386']::text[]) AS sku_code,
+SELECT unnest(ARRAY['39092']::text[]) AS sku_code,
+       'FAM-35525'::text AS expected_family_code,
+       'excel-v2-1-4'::text AS category_slug,
+       'تسمه بارکش'::text AS submenu,
+       'انواع تسمه بارکش صنعتی'::text AS subcategory
+UNION ALL
+SELECT unnest(ARRAY['32060', '32612', '32613', '32616', '34096', '34107', '34131', '34147', '34149', '34454', '34526', '34598', '34721', '35147', '35314', '35441', '35741', '35867', '38599']::text[]) AS sku_code,
+       'FAM-37769'::text AS expected_family_code,
+       'excel-v2-1-4'::text AS category_slug,
+       'تسمه بارکش'::text AS submenu,
+       'انواع تسمه بارکش صنعتی'::text AS subcategory
+UNION ALL
+SELECT unnest(ARRAY['42386']::text[]) AS sku_code,
        'FAM-37769'::text AS expected_family_code,
        'excel-v2-1-3'::text AS category_slug,
        'تسمه گرد (CRC)'::text AS submenu,
@@ -117,7 +147,7 @@ SELECT unnest(ARRAY['39703', '3970318']::text[]) AS sku_code,
        'FAM-52858'::text AS expected_family_code,
        'excel-v2-2-1'::text AS category_slug,
        'بر اساس کاربرد و ابعاد'::text AS submenu,
-       'مخصوص دستگاه بسته‌بندی (در ضخامت و ابعاد مختلف)'::text AS subcategory;
+       'مخصوص دستگاه بسته‌بندی (در ضخامت و ابعاد مختلف)'::text AS subcategory
 
 DO $audit$
 DECLARE
@@ -175,18 +205,17 @@ DO $audit$
 DECLARE
   assigned_count integer;
 BEGIN
+  -- Existing SKU rows may be deactivated later when the same SKU is published as a
+  -- member of a reconstructed family, or quarantined. Verify lineage here; the guarded
+  -- FAM reconciliation migration verifies the final menu path and active state.
   SELECT count(*) INTO assigned_count
   FROM pg_temp.catalog_sku_menu_source s
   JOIN public.catalog_direct_skus d
     ON d.sku_code=s.sku_code
-   AND d.source_family_code=s.expected_family_code
-   AND d.category_slug=s.category_slug
-   AND d.submenu=s.submenu
-   AND d.subcategory=s.subcategory
-   AND d.is_active=true;
+   AND d.source_family_code=s.expected_family_code;
 
   IF assigned_count <> 305 THEN
-    RAISE EXCEPTION 'SKU menu assignments conflict with existing/admin records: expected 305, found %', assigned_count;
+    RAISE EXCEPTION 'SKU menu source lineage mismatch: expected 305, found %', assigned_count;
   END IF;
 END $audit$;
 

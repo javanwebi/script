@@ -2060,7 +2060,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
 
   // 8. Explicit round-welded inventory records: classify the shape/path without inventing polymer.
   // Material, hardness, cord construction and manufacturer remain unverified until an exact datasheet is attached.
-  const isRidgeTopName = /گرده.?ماهی|تاج.?دار|ridge.?top|crowned/i.test(normName);
+  const isRidgeTopName = /گرد\\s*ه?\\s*ماهی|تاج.?دار|ridge.?top|crowned/i.test(normName);
   const isExplicitWeldedRoundWithoutMaterial =
     /تسمه\s+جوشی/.test(normName) && /گرد/.test(normName) && !isRidgeTopName && !isPolyurethaneMaterial;
   if (isExplicitWeldedRoundWithoutMaterial) {
@@ -2426,7 +2426,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   // 10. Explicit crowned / ridge-top CRC/TRC transport belts.
   // The shape and transport role are identifiable from the inventory wording; exact material,
   // dimensions, cord construction and supply form are deliberately not inferred.
-  const isRidgeTopIdentity = /گرده.?ماهی|تاج.?دار|ridge.?top|crowned/.test(
+  const isRidgeTopIdentity = /گرد\\s*ه?\\s*ماهی|تاج.?دار|ridge.?top|crowned/.test(
     normalize(`${normName} ${materialEvidence}`)
   );
   if ((/\b(?:CRC|TRC)\d*\b|گرد\s*ه?\s*ماهی/.test(upperName)) && isRidgeTopIdentity) {
