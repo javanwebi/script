@@ -187,8 +187,9 @@ test('Nima phrase requests are serialized to match the private single-worker CPU
 });
 
 test('server Diba verification preserves browser text and merges complete recorder segments in order',()=>{
-  assert.match(ui,/Promise\.allSettled\(audioBlobs\.map\(async segment=>/);
-  assert.match(ui,/const sttBudgetMs=q\?5500:22000/);
+  assert.match(ui,/mapForzaSegmentsInOrder\(audioBlobs,2,async segment=>/);
+  assert.match(ui,/Math\.ceil\(audioBlobs\.length\/2\)\*22_000/);
+  assert.match(ui,/A failed final verifier must never erase a usable live transcript/);
   assert.match(ui,/serverTranscript=appendForzaSpeechSegment\(serverTranscript,result\.value\)/);
   assert.match(ui,/A failed final verifier must never erase a usable live transcript/);
 });
