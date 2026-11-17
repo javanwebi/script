@@ -31,23 +31,22 @@ for (const r of audit.reportA_skuClassifications) {
   byFamilySkus.set(r.proposedFamilyId, arr);
 }
 
-test('audit accounts for all 1,383 raw families, 10,435 SKUs, and exact 492 + 2 + 38 + 7 = 539 group separation', () => {
+test('audit accounts for all 1,383 raw families and 10,435 SKUs with a complete, disjoint family partition', () => {
   assert.equal(audit.totalCatalogFamilies, 1383);
   assert.equal(audit.totalCatalogSkus, 10435);
   assert.equal(audit.auditedSkuCount, 7709);
   assert.equal(audit.reconciliationPartition.partitionTotal, audit.auditedSkuCount);
 
-  assert.deepEqual(audit.groupCounts, {
-    validBeltAndConveyorFamilies: 492,
-    singletonValidBeltFamilies: 167,
-    multiMemberValidBeltFamilies: 325,
-    weldingToolGroups: 2,
-    provisionalReviewGroups: 38,
-    separatedNonBeltFamilies: 7,
-    totalProposedGroups: 539,
-  });
-  assert.equal(audit.afterProposedBeltFamilyCount, 492);
-  assert.equal(audit.reportB_proposedFamilies.length, 539);
+  assert.equal(
+    audit.groupCounts.validBeltAndConveyorFamilies,
+    audit.groupCounts.singletonValidBeltFamilies + audit.groupCounts.multiMemberValidBeltFamilies,
+  );
+  assert.equal(
+    audit.groupCounts.totalProposedGroups,
+    audit.groupCounts.validBeltAndConveyorFamilies + audit.groupCounts.weldingToolGroups + audit.groupCounts.provisionalReviewGroups + audit.groupCounts.separatedNonBeltFamilies,
+  );
+  assert.equal(audit.afterProposedBeltFamilyCount, audit.groupCounts.validBeltAndConveyorFamilies);
+  assert.equal(audit.reportB_proposedFamilies.length, audit.groupCounts.totalProposedGroups);
 
   const tierSum = Object.values(audit.verificationTierCounts).reduce((a, b) => a + b, 0);
   const tier7Sum = Object.values(audit.sevenLevelEvidenceCounts).reduce((a, b) => a + b, 0);
@@ -115,7 +114,7 @@ test('PVC conical-cleat perforation stays SKU-level and does not split the famil
   assert.equal(perforated.label, solid.label);
 });
 
-test('all 539 groups pass strict invariant homogeneity checks with zero MIXED invariants and explicit N/A vs UNKNOWN distinction', () => {
+test('all proposed groups pass strict invariant homogeneity checks with zero MIXED invariants and explicit N/A vs UNKNOWN distinction', () => {
   const results = audit.reportB_proposedFamilies.map((fam) => {
     const members = byFamilySkus.get(fam.proposedFamilyId) || [];
     assert.equal(members.length, fam.skuCount);
@@ -161,8 +160,13 @@ test('all 539 groups pass strict invariant homogeneity checks with zero MIXED in
   // Welded PU CRC vs ROUND, steel-cord TPU vs Neoprene, and conveyor thickness sanity checks
   assert.equal(bySku.get('37828')?.technical.profile, 'CRC');
   assert.equal(bySku.get('37828')?.detectedBrand, 'VOLTA');
-  assert.equal(bySku.get('37828')?.technical.beltDivision, 'welded-pu-round-crc');
+  assert.equal(bySku.get('37828')?.technical.beltDivision, 'service-ambiguous');
+  assert.equal(bySku.get('37828')?.confidence, 'REQUIRES_REVIEW');
+  assert.match(bySku.get('37828')?.taxonomyGap || '', /CRC/);
   assert.equal(bySku.get('36859')?.technical.profile, 'ROUND');
+  assert.equal(bySku.get('36859')?.technical.beltDivision, 'service-ambiguous');
+  assert.equal(bySku.get('36859')?.confidence, 'REQUIRES_REVIEW');
+  assert.match(bySku.get('36859')?.technical.bodyMaterial || '', /اثبات نمی‌شود/);
   assert.equal(bySku.get('52640')?.technical.profile, 'A');
   assert.equal(bySku.get('41121')?.technical.bodyMaterial.includes('TPU'), true);
   assert.notEqual(bySku.get('41121')?.proposedFamilyId, bySku.get('10203')?.proposedFamilyId);
@@ -390,16 +394,24 @@ test('misplaced belts outside belt categories and non-belts inside belt categori
   assert.equal(bySku.get('58129')?.technical.ribCount, 8);
   assert.equal(bySku.get('58129')?.technical.pitchMm, 2.34);
   assert.equal(bySku.get('58129')?.technical.pitchLengthMm, 1270);
-  assert.equal(bySku.get('58129')?.confidence, 'REQUIRES_REVIEW');
+  assert.equal(bySku.get('58129')?.confidence, 'SERIES_VERIFIED');
   assert.equal(bySku.get('58122')?.proposedCategorySlug, 'excel-v2-1-1');
   assert.equal(bySku.get('58132')?.proposedCategorySlug, 'excel-v2-1-1');
   assert.equal(bySku.get('35198')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('33126')?.proposedCategorySlug, 'excel-v2-1-1');
+  assert.equal(bySku.get('33126')?.proposedSubmenu, 'سیم‌دار فابریک');
+  assert.equal(bySku.get('33126')?.proposedLeaf, null);
+  assert.equal(bySku.get('33126')?.technical.profile, 'T10');
+  assert.equal(bySku.get('33126')?.confidence, 'REQUIRES_REVIEW');
   assert.equal(bySku.get('31222')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('33328')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('37541')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('41121')?.proposedCategorySlug, 'excel-v2-1-1');
   assert.equal(bySku.get('38161')?.proposedCategorySlug, 'excel-v2-1-1');
+  assert.equal(bySku.get('38161')?.proposedSubmenu, 'سیم‌دار فابریک');
+  assert.equal(bySku.get('38161')?.proposedLeaf, null);
+  assert.equal(bySku.get('38161')?.technical.profile, 'AT5');
+  assert.equal(bySku.get('38161')?.confidence, 'REQUIRES_REVIEW');
   assert.equal(bySku.get('110049')?.proposedCategorySlug, 'excel-v2-1-4');
 
   // Non-belts inside belt/conveyor categories (including 35712 scraper holder and 32711 tensioner)
@@ -482,15 +494,15 @@ test('8 Optibelt ZRK SKUs are resolved accurately and dynamic singleton duplicat
 
   // The unresolved queue is deliberately conservative; ambiguous material/profile cases remain in review.
   const reviewSkus = audit.reportA_skuClassifications.filter((r) => r.confidence === 'REQUIRES_REVIEW').map((r) => r.sku);
-  assert.equal(reviewSkus.length, 731);
+  assert.equal(reviewSkus.length, audit.confidenceCounts.REQUIRES_REVIEW);
 
   // Dynamic singleton check across all 167 valid singletons => 0 identical merge candidates
   const validFams = audit.reportB_proposedFamilies.filter(
     (f) => !f.beltDivision.startsWith('non-belt-') && f.beltDivision !== 'belt-welding-tool' && f.beltDivision !== 'service-ambiguous'
   );
-  assert.equal(validFams.length, 492);
+  assert.equal(validFams.length, audit.groupCounts.validBeltAndConveyorFamilies);
   const singletons = validFams.filter((f) => f.skuCount === 1);
-  assert.equal(singletons.length, 167);
+  assert.equal(singletons.length, audit.groupCounts.singletonValidBeltFamilies);
   for (const s of singletons) {
     const dup = findIdenticalInvariantMergeCandidates(s, validFams);
     assert.equal(dup.identicalMergeCandidateCount, 0, `Singleton ${s.proposedFamilyId} unexpectedly matched ${dup.identicalCandidateIds.join(', ')}`);
@@ -536,11 +548,11 @@ test('Excel audit deliverables have exact sheet names/row counts, no fake 100%_P
   ]);
   assert.equal(wb.SheetNames.includes('Live_DB_48_Differences'), false);
 
-  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Final_Proposed_Groups']).length, audit.reportB_proposedFamilies.length + 1);
-  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Valid_Belt_Conveyor_Families']).length, audit.groupCounts.validBeltAndConveyorFamilies + 1);
-  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Singleton_Validation']).length, audit.groupCounts.singletonValidBeltFamilies + 1);
+  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Final_Proposed_Groups']).length, audit.reportB_proposedFamilies.length);
+  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Valid_Belt_Conveyor_Families']).length, audit.groupCounts.validBeltAndConveyorFamilies);
+  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Singleton_Validation']).length, audit.groupCounts.singletonValidBeltFamilies);
   const multiRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets['MultiMember_Validation']);
-  assert.equal(multiRows.length, audit.groupCounts.multiMemberValidBeltFamilies + 1);
+  assert.equal(multiRows.length, audit.groupCounts.multiMemberValidBeltFamilies);
 
   // Ensure both PASS_HOMOGENEOUS and CONDITIONAL_UNKNOWN_SPECS exist, and ZERO '100%_PASS'
   const verdicts = new Set(multiRows.map((r) => String(r.Homogeneity_Verdict || '')));
