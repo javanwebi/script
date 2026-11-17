@@ -311,8 +311,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const startDibaTurn=useCallback(()=>{
     const model=localSttModelRef.current;
     if(!model||!localSttNodeRef.current||!ctxRef.current)return false;
+    // Keep one recognizer attached to the live microphone for the entire call.
+    // Recreating it on every startListening(true) used to discard Vosk's
+    // decoder context and the final segment accumulator during barge-in.
+    if(localSttRecognizerRef.current)return true;
     try{
-      localSttRecognizerRef.current?.remove?.();
       const recognizer=new model.KaldiRecognizer(FORZA_DIBA_SAMPLE_RATE);
       localSttFinalRef.current='';
       const admission=new ForzaRecognitionAdmission();
@@ -2127,29 +2130,49 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // A failed discovery does not disable the existing compatibility path.
   useEffect(()=>{
     const controller=new AbortController();
-    void fetch('/api/ai/forza-stt-info',{signal:controller.signal,cache:'no-store'})
-      .then(async response=>response.ok?await response.json():null)
-      .then((info:{serverSttConfigured?:boolean;serverSttProvider?:string;serverSttReady?:boolean}|null)=>{
-        if(controller.signal.aborted||typeof info?.serverSttConfigured!=='boolean')return;
-        // The project explicitly avoids Gemini speech recognition. Only a
-        // ready local Diba/Vosk worker may trigger a server-audio round trip.
-        const dibaReady=info.serverSttProvider==='diba'&&
-          info.serverSttConfigured===true&&info.serverSttReady===true;
-        serverSttConfiguredRef.current=dibaReady;
+    let retryTimer:number|null=null;
+    let attempts=0;
+    const checkServerStt=async()=>{
+      try{
+        const response=await fetch('/api/ai/forza-stt-info',{signal:controller.signal,cache:'no-store'});
+        if(!response.ok)throw new Error('stt_status_http_'+response.status);
+        const info=await response.json() as {
+          serverSttConfigured?:boolean;serverSttProvider?:string;serverSttReady?:boolean;
+        };
+        if(controller.signal.aborted)return;
+        // Configured and warm are different states. A cold Diba worker is
+        // still a valid server fallback: the first status request must not
+        // permanently disable it just because model warm-up is in progress.
+        const dibaConfigured=info.serverSttProvider==='diba'&&info.serverSttConfigured===true;
+        serverSttConfiguredRef.current=dibaConfigured;
         setServerSttLabel(localSttModelRef.current
           ? 'دایبا محلی آماده است · تشخیص زنده'
           : localSttModelLoadingRef.current
             ? 'در حال آماده‌سازی دایبا محلی · متن مرورگر فعال است'
-            : dibaReady
-              ? 'دایبا سرور آماده است'
-              : info.serverSttProvider==='diba'
-                ? 'دایبا در دسترس نیست؛ متن زنده مرورگر'
-                : 'دایبا تنظیم نشده؛ متن زنده مرورگر');
-      })
-      .catch(()=>{
-        if(!controller.signal.aborted){serverSttConfiguredRef.current=false;setServerSttLabel('وضعیت دایبا نامشخص؛ متن زنده مرورگر');}
-      });
-    return ()=>controller.abort();
+            : dibaConfigured
+              ? info.serverSttReady===true
+                ? 'دایبا سرور آماده است'
+                : 'دایبا سرور در حال آماده‌سازی · متن زنده فعال است'
+              : 'دایبا تنظیم نشده؛ متن زنده مرورگر');
+        if(dibaConfigured&&info.serverSttReady!==true&&attempts<12){
+          attempts++;
+          retryTimer=window.setTimeout(()=>void checkServerStt(),2500);
+        }
+      }catch(error){
+        if(controller.signal.aborted)return;
+        serverSttConfiguredRef.current=false;
+        setServerSttLabel('وضعیت دایبا نامشخص؛ متن زنده مرورگر');
+        if(attempts<4){
+          attempts++;
+          retryTimer=window.setTimeout(()=>void checkServerStt(),2500);
+        }
+      }
+    };
+    void checkServerStt();
+    return ()=>{
+      controller.abort();
+      if(retryTimer!==null)window.clearTimeout(retryTimer);
+    };
   },[]);
 
   // Acquire permission while the particle animation forms; audio input stays
