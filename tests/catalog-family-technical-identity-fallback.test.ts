@@ -25,7 +25,8 @@ test('legacy technical_specs supplies belt profile, material and product type wh
         ('FAM-LEGACY','Industrial V-belt',null),
         ('FAM-OVERRIDE','Industrial V-belt',null),
         ('FAM-MIXED','Industrial V-belt',null),
-        ('FAM-PERSIAN','تسمه وی‌بلت',null);
+        ('FAM-PERSIAN','تسمه وی‌بلت',null),
+        ('FAM-EMPTY','Industrial V-belt',null);
       insert into public.catalog_variants(code,family_code,name,identity_specs,technical_specs) values
         ('SKU-LEGACY','FAM-LEGACY','SPZ V-belt', '{}'::jsonb,
           '[{"key":"profile","value":"SPZ"},{"key":"material","value":"Rubber"},{"key":"productType","value":"V-Belt"}]'::jsonb),
@@ -37,7 +38,9 @@ test('legacy technical_specs supplies belt profile, material and product type wh
         ('SKU-MIXED-B','FAM-MIXED','B profile belt', '{}'::jsonb,
           '[{"key":"profile","value":"B"},{"key":"material","value":"Rubber"}]'::jsonb),
         ('SKU-PERSIAN','FAM-PERSIAN','تسمه وی‌بلت پروفیل A', '{}'::jsonb,
-          '[{"key":"پروفیل درج‌شده","value":"A"},{"key":"نوع قطعه","value":"تسمه وی‌بلت"}]'::jsonb);
+          '[{"key":"پروفیل درج‌شده","value":"A"},{"key":"نوع قطعه","value":"تسمه وی‌بلت"}]'::jsonb),
+        ('SKU-EMPTY','FAM-EMPTY','SPZ V-belt', '{"profile":"","material":"","productType":""}'::jsonb,
+          '[{"key":"پروفیل / مدل","value":"SPZ"},{"key":"جنس و متریال","value":"PU"},{"key":"نوع محصول","value":"V-Belt"}]'::jsonb);
     `);
 
     const result = await db.query<{
@@ -53,6 +56,7 @@ test('legacy technical_specs supplies belt profile, material and product type wh
     );
 
     assert.deepEqual(result.rows, [
+      { code: 'FAM-EMPTY', product_type: 'V-Belt', material: 'PU', profile: 'SPZ' },
       { code: 'FAM-LEGACY', product_type: 'V-Belt', material: 'Rubber', profile: 'SPZ' },
       { code: 'FAM-MIXED', product_type: 'Industrial V-belt', material: 'Rubber', profile: 'MIXED' },
       { code: 'FAM-OVERRIDE', product_type: 'V-Belt', material: 'EPDM', profile: 'XPA' },
@@ -70,4 +74,5 @@ test('every public and admin family resolver shares the legacy technical identit
   assert.doesNotMatch(api, /from public\.catalog_variants v where v\.family_code=f\.code and v\.active=true\s*\) identity on true/);
   assert.match(api, /databaseAssignment&&assignmentMethod==='conservative_name_rule'/);
   assert.match(api, /return assignmentIsValid\(row,databaseAssignment\)\.valid\?databaseAssignment:null/);
+  assert.ok(api.indexOf('const fallback=getFamilyMenuAssignment') < api.indexOf("if(databaseAssignment&&assignmentMethod==='conservative_name_rule')"), 'static audited mappings must precede conservative DB candidates');
 });
