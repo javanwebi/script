@@ -73,7 +73,8 @@ export class ForzaSpeechAdmission {
       // Keep only a qualified acoustic burst briefly while delayed local ASR
       // emits its final hypothesis. A single transient still expires quickly.
       const qualified=this.duration>=160&&this.strongFrames>=3;
-      if(now-this.lastStrong>(qualified?900:100)){
+      const graceMs=qualified&&playback?900:100;
+      if(now-this.lastStrong>graceMs){
         this.onset=null;this.duration=0;this.strongFrames=0;
       }
     }
@@ -120,7 +121,7 @@ export class ForzaSpeechAdmission {
     // A loud TTS echo can satisfy the raw RMS threshold. Do not let it become
     // VAD evidence until an actual recognized customer phrase is admitted.
     return (!this.mode||this.utteranceLatched)&&
-      this.lastSample-this.lastStrong<=250&&
+      this.lastSample-this.lastStrong<=100&&
       this.onset!==null&&this.duration>=160&&this.strongFrames>=3;
   }
   reset(){
