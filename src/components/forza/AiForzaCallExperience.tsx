@@ -1397,6 +1397,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           throw new Error('متن گفتار دریافت نشد و موتور دایبا هم آماده نیست. لطفاً دوباره نزدیک میکروفون صحبت کنید یا پیام را تایپ کنید.');
         }
 
+        if(pocketAbort.signal.aborted||activeTurnRef.current?.generation!==generation)return;
+
         // Render every incoming SSE delta immediately; the selected Nima
         // engine voices complete word groups before the LLM reply finishes.
         // Pocket fallback retains its one-request full-answer path.
