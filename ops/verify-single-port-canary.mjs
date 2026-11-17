@@ -114,33 +114,25 @@ assert.ok(approvedCategories.every(category =>
 console.log("PUBLIC_CATALOG_CATEGORIES_API_OK", approvedCategories.length);
 
 
-// excel-v2-1-4 is a valid approved category, but the reviewed family map
-// currently contains no source-confirmed families for it. Empty is valid here:
-// do not promote conservative name guesses just to satisfy a deployment probe.
-const beltCategory = await json(candidate, "/api/catalog/menu-category/excel-v2-1-4");
-assert.ok(
-  beltCategory.success &&
-  beltCategory.category?.slug === "excel-v2-1-4" &&
-  Array.isArray(beltCategory.families) &&
-  beltCategory.families.every((family) =>
-    typeof family?.code === "string" && family.code.length > 0 &&
-    typeof family?.name === "string" && family.name.length > 0
-  ),
-  "BELT_WELDED_CATEGORY_RESPONSE_INVALID: excel-v2-1-4 must return its approved category and a valid family array",
-);
-console.log("PRIVATE_CANARY_BELT_WELDED_CATEGORY_OK", beltCategory.families.length);
-
-// Positive control: prove the same endpoint still returns real, active families
-// for a category that has source-reviewed assignments in the approved map.
-const beltTimingCategory = await json(candidate, "/api/catalog/menu-category/excel-v2-1-1");
-assert.ok(
-  beltTimingCategory.success &&
-  beltTimingCategory.category?.slug === "excel-v2-1-1" &&
-  Array.isArray(beltTimingCategory.families) &&
-  beltTimingCategory.families.length > 0,
-  "BELT_TIMING_CATEGORY_EMPTY: excel-v2-1-1 must return source-reviewed active catalogue families",
-);
-console.log("PRIVATE_CANARY_BELT_TIMING_CATEGORY_OK", beltTimingCategory.families.length);
+// Belt catalogue release gate: a published family group must never silently
+// become empty when PostgreSQL is misconfigured or a taxonomy map is missing.
+// Direct SKUs count separately; category SKU totals must cover all family SKUs.
+for (const slug of ["excel-v2-1-1","excel-v2-1-2","excel-v2-1-3","excel-v2-1-4"]) {
+  const summary = approvedCategories.find(category => category.slug === slug);
+  assert.ok(summary && summary.familyCount > 0 && summary.skuCount > 0,
+    "BELT_CATEGORY_ZERO_OR_MISSING: " + slug);
+  const detail = await json(candidate, "/api/catalog/menu-category/" + slug);
+  assert.ok(detail.success && detail.category?.slug === slug &&
+    Array.isArray(detail.families) && detail.families.length > 0,
+    "BELT_CATEGORY_DETAILS_EMPTY: " + slug);
+  assert.equal(detail.families.length, summary.familyCount,
+    "BELT_CATEGORY_FAMILY_COUNT_MISMATCH: " + slug);
+  const liveFamilySkuCount=detail.families.reduce(
+    (total, family) => total + Math.max(0, Number(family.skuCount)||0),0);
+  assert.ok(summary.skuCount >= liveFamilySkuCount,
+    "BELT_CATEGORY_SKU_COUNT_MISMATCH: " + slug);
+  console.log("PRIVATE_CANARY_BELT_CATEGORY_OK", slug, detail.families.length, summary.skuCount);
+}
 
 for (const [route, key] of [
   ["/api/catalog/home-categories", "categories"],
