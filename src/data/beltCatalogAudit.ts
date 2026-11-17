@@ -2466,7 +2466,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
 
   // 12. Classical, Narrow/Wedge, and Hexagonal V-Belts
   const productUpperName = normalize(product.name).toUpperCase();
-  const explicitWeldedVProfileMatch = `${upperName} ${productUpperName}`.match(/تسمه\s*جوشی\s*(?:V\b\s*)?(?:شکل\s*)?(?:پروفیل\s*)?(A|B|C)\b/);
+  const explicitWeldedVProfileMatch = `${upperName} ${productUpperName}`.match(/تسمه\s*جوشی\s*(?:V\b\s*)?(?:شکل\s*)?(?:روکش\s+(?:گریپ[\s‌-]*دار|آج[\s‌-]*دار)\s*)?(?:پروفیل\s*)?(A|B|C)\b/);
   const explicitVProfileMatch = `${upperName} ${productUpperName}`.match(/(?:تسمه\s*V(?:\s*شکل)?|V[\s-]*BELT|وی[\s‌-]*بلت).*?پروفیل\s*(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|CC|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\b/);
   const stdVMatch =
     upperName.match(/\b(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|CC|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\s*[-*× ]?\s*(\d{2,5}(?:[./]\d+)?)\b/) ||
