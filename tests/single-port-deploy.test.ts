@@ -236,8 +236,23 @@ test("industrial belt PFAM reconciliation is guarded by the active production ca
     "legacy FAM-only catalogs skip PFAM SQL, while mixed FAM/PFAM catalogs fail closed before execution");
   const sku = one.indexOf('===== APPLY SOURCE-VERIFIED SKU-LEVEL MENU ASSIGNMENTS =====');
   const belt = one.indexOf('===== APPLY GUARDED INDUSTRIAL BELT TAXONOMY RECONCILIATION =====');
+  const engineering = one.indexOf('===== APPLY GUARDED BELT FAMILY ENGINEERING CORRECTIONS =====');
   const customer360 = one.indexOf('===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA =====');
-  assert.ok(sku >= 0 && belt > sku && customer360 > belt, "belt reconciliation remains ordered before app promotion");
+  assert.ok(sku >= 0 && belt > sku && engineering > belt && customer360 > engineering,
+    "belt menu reconciliation and engineering corrections run in order before app promotion");
+  assert.match(one, /BELT_ENGINEERING_SQL="\$STAGE\/ops\/sql\/20261117_belt_family_engineering_corrections\.sql"/);
+  assert.match(one, /catalog_belt_family_engineering_backup_20261117/);
+  assert.match(one, /activePfam===0&&activeFam>0/);
+  assert.match(one, /PRODUCTION_BELT_ENGINEERING_SKIPPED reason=legacy_fam_catalog/);
+  assert.match(one, /Mixed active FAM\/PFAM family lineage; refusing PFAM belt engineering correction/);
+  assert.match(one, /PRODUCTION_BELT_ENGINEERING_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5/);
+  assert.match(one, /PRODUCTION_BELT_ENGINEERING_ALREADY_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5/);
+  assert.match(one, /Existing belt engineering backup is incomplete/);
+  assert.match(one, /categories=5/);
+  assert.match(one, /tests\/catalog-menu-semantic-guard\.test\.ts/);
+  assert.match(one, /tests\/belt-category-experience\.test\.ts/);
+  assert.match(one, /tests\/database\/belt-family-taxonomy-followup\.test\.ts/);
+  assert.match(one, /tests\/database\/belt-family-engineering-corrections\.test\.ts/);
 });
 
 test("old app containers stop after Nima validation and are not deleted", () => {

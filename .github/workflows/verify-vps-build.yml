@@ -15,6 +15,7 @@ on:
       - "tests/textile-industry-premium.test.ts"
       - "src/pages/TextileIndustryPage.tsx"
       - "src/pages/BeltCategoryExperience.tsx"
+      - "src/pages/CategoryPage.tsx"
       - "src/pages/BeltCategoryExperience.css"
       - "src/pages/ProductsPage.tsx"
       - "src/pages/products-page-premium.css"
@@ -38,7 +39,22 @@ on:
       - "tests/industry-pages-unique-layouts.test.ts"
       - "tests/belt-category-experience.test.ts"
       - "src/data/beltCatalogAudit.ts"
+      - "src/data/beltManufacturerEvidence.ts"
+      - "scripts/audit-belt-catalog.ts"
+      - "tests/belt-catalog-audit.test.ts"
+      - "docs/belt-manufacturer-source-audit-2026-11-17.md"
       - "src/data/catalogPhase1Reconstruction.ts"
+      - "src/data/catalogMenuSemanticGuard.ts"
+      - "tests/catalog-menu-semantic-guard.test.ts"
+      - "tests/single-port-deploy.test.ts"
+      - "docs/belt-taxonomy-final-reconciliation-2026-11-16.md"
+      - "docs/belt-family-engineering-research-2026-11-17.md"
+      - "tests/database/belt-family-taxonomy-followup.test.ts"
+      - "tests/database/belt-family-engineering-corrections.test.ts"
+      - "ops/sql/20261116_belt_family_taxonomy_followup.sql"
+      - "ops/sql/20261116_belt_family_taxonomy_followup_rollback.sql"
+      - "ops/sql/20261117_belt_family_engineering_corrections.sql"
+      - "ops/sql/20261117_belt_family_engineering_corrections_rollback.sql"
       - "tests/phase1-catalog-reconstruction.test.ts"
       - "tests/pvc-conveyor-phase1-classification.test.ts"
       - "tests/database/pvc-conveyor-surface-family-split.test.ts"
@@ -128,12 +144,23 @@ jobs:
         run: node --import tsx --test tests/textile-industry-premium.test.ts
       - name: Industry page regression suite
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
+      - name: Industrial belt manufacturer evidence audit
+        run: node --import tsx scripts/audit-belt-catalog.ts && node --import tsx --test tests/belt-catalog-audit.test.ts
       - name: Belt category reference and regression suite
         run: node --import tsx --test tests/belt-category-experience.test.ts
       - name: FORZA local Diba and speech-turn recovery regression suite
         run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConversationContinuity.test.ts tests/forzaConsultContract.test.ts
       - name: FORZA TTS budget and error diagnostics regression suite
         run: node --import tsx --test tests/forzaTtsBudget.test.ts tests/forzaVoiceRecoveryUi.test.ts
+        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
+      - name: Belt menu semantic guard regression suite
+        run: node --import tsx --test tests/catalog-menu-semantic-guard.test.ts
+      - name: Belt taxonomy follow-up migration and rollback integration
+        run: node --import tsx --test tests/database/belt-family-taxonomy-followup.test.ts
+      - name: Belt engineering correction migration and rollback integration
+        run: node --import tsx --test tests/database/belt-family-engineering-corrections.test.ts
+      - name: Single-port deployment and migration ordering regression
+        run: node --import tsx --test tests/single-port-deploy.test.ts
       - name: PVC conveyor Phase 1 classification regression suite
         run: node --import tsx --test tests/pvc-conveyor-phase1-classification.test.ts
       - name: PVC conveyor database split and rollback integration test

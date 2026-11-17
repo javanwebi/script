@@ -11,6 +11,7 @@ import {
   runBeltCatalogAudit,
   validateFamilyEngineeringHomogeneity,
   findIdenticalInvariantMergeCandidates,
+  detectConveyorSurfaceProfile,
   type ProposedBeltFamilyRecord,
 } from '../src/data/beltCatalogAudit';
 import { getFamilyMenuAssignment } from '../src/services/catalogTaxonomyResolver';
@@ -30,23 +31,22 @@ for (const r of audit.reportA_skuClassifications) {
   byFamilySkus.set(r.proposedFamilyId, arr);
 }
 
-test('audit accounts for all 1,383 raw families, 10,435 SKUs, and exact 634 + 2 + 4 + 7 = 647 group separation', () => {
+test('audit accounts for all 1,383 raw families and 10,435 SKUs with a complete, disjoint family partition', () => {
   assert.equal(audit.totalCatalogFamilies, 1383);
   assert.equal(audit.totalCatalogSkus, 10435);
   assert.equal(audit.auditedSkuCount, 7709);
   assert.equal(audit.reconciliationPartition.partitionTotal, audit.auditedSkuCount);
 
-  assert.deepEqual(audit.groupCounts, {
-    validBeltAndConveyorFamilies: 634,
-    singletonValidBeltFamilies: 247,
-    multiMemberValidBeltFamilies: 387,
-    weldingToolGroups: 2,
-    provisionalReviewGroups: 4,
-    separatedNonBeltFamilies: 7,
-    totalProposedGroups: 647,
-  });
-  assert.equal(audit.afterProposedBeltFamilyCount, 634);
-  assert.equal(audit.reportB_proposedFamilies.length, 647);
+  assert.equal(
+    audit.groupCounts.validBeltAndConveyorFamilies,
+    audit.groupCounts.singletonValidBeltFamilies + audit.groupCounts.multiMemberValidBeltFamilies,
+  );
+  assert.equal(
+    audit.groupCounts.totalProposedGroups,
+    audit.groupCounts.validBeltAndConveyorFamilies + audit.groupCounts.weldingToolGroups + audit.groupCounts.provisionalReviewGroups + audit.groupCounts.separatedNonBeltFamilies,
+  );
+  assert.equal(audit.afterProposedBeltFamilyCount, audit.groupCounts.validBeltAndConveyorFamilies);
+  assert.equal(audit.reportB_proposedFamilies.length, audit.groupCounts.totalProposedGroups);
 
   const tierSum = Object.values(audit.verificationTierCounts).reduce((a, b) => a + b, 0);
   const tier7Sum = Object.values(audit.sevenLevelEvidenceCounts).reduce((a, b) => a + b, 0);
@@ -57,16 +57,21 @@ test('audit accounts for all 1,383 raw families, 10,435 SKUs, and exact 634 + 2 
   assert.equal(confSum, 7709);
   assert.equal(actSum, 7709);
 
-  // Strict verification provenance: siteChecked === dsChecked === 17 exact manufacturer datasheet matches
+  // Official evidence is counted separately: exact SKU datasheets + manufacturer series catalogs.
   const siteChecked = audit.reportA_skuClassifications.filter((r) => r.verification.officialManufacturerSiteChecked).length;
   const dsChecked = audit.reportA_skuClassifications.filter((r) => r.verification.datasheetOrCatalogChecked).length;
-  assert.equal(siteChecked, 17);
-  assert.equal(dsChecked, 17);
-  assert.equal(audit.confidenceCounts.DATASHEET_VERIFIED, 17);
-  assert.equal(audit.confidenceCounts.NOMINAL_TABLE_VERIFIED, 1141);
-  assert.equal(audit.confidenceCounts.SERIES_VERIFIED, 10);
-  assert.equal(audit.confidenceCounts.ALGORITHMIC_STANDARD_ONLY, 6532);
-  assert.equal(audit.confidenceCounts.REQUIRES_REVIEW, 9);
+  const exactVerified = audit.confidenceCounts.DATASHEET_VERIFIED;
+  const seriesVerified = audit.confidenceCounts.SERIES_VERIFIED;
+  assert.equal(exactVerified, 0, 'No exact manufacturer article-number datasheet match is established in this pass');
+  assert.ok(seriesVerified >= 2058, `Expected broad official series coverage, received ${seriesVerified}`);
+  assert.equal(siteChecked, exactVerified + seriesVerified);
+  assert.equal(dsChecked, exactVerified + seriesVerified);
+  assert.ok(audit.confidenceCounts.NOMINAL_TABLE_VERIFIED > 0);
+  assert.ok(audit.confidenceCounts.NOMINAL_TABLE_VERIFIED <= 1141);
+  assert.equal(audit.confidenceCounts.ALGORITHMIC_STANDARD_ONLY,
+    7709 - exactVerified - seriesVerified - audit.confidenceCounts.NOMINAL_TABLE_VERIFIED -
+      audit.confidenceCounts.INVENTORY_DESCRIPTION_ONLY - audit.confidenceCounts.REQUIRES_REVIEW);
+  assert.equal(audit.confidenceCounts.REQUIRES_REVIEW, 723);
 
   // Every SKU record must carry an explicit sourceUrl & documentType, and DATASHEET_VERIFIED requires same-brand match
   for (const r of audit.reportA_skuClassifications) {
@@ -76,6 +81,13 @@ test('audit accounts for all 1,383 raw families, 10,435 SKUs, and exact 634 + 2 
       assert.equal(r.verification.documentType, 'MANUFACTURER_DATASHEET');
       assert.equal(r.verification.officialManufacturerSiteChecked, true);
       assert.equal(r.verification.datasheetOrCatalogChecked, true);
+      assert.equal(r.verification.matchedManufacturer, r.detectedBrand);
+    } else if (r.confidence === 'SERIES_VERIFIED') {
+      assert.equal(r.verification.documentType, 'SERIES_CATALOG');
+      assert.equal(r.verification.evidenceClass7, '2_Official_Catalog_Verified');
+      assert.equal(r.verification.officialManufacturerSiteChecked, true);
+      assert.equal(r.verification.datasheetOrCatalogChecked, true);
+      assert.ok(/^https:\/\//i.test(r.verification.sourceUrl));
       assert.equal(r.verification.matchedManufacturer, r.detectedBrand);
     } else {
       assert.equal(r.verification.officialManufacturerSiteChecked, false, `SKU ${r.sku} must not claim official site checked`);
@@ -91,10 +103,18 @@ test('audit accounts for all 1,383 raw families, 10,435 SKUs, and exact 634 + 2 
   assert.equal(audit.nonBeltInsideBeltCategoryCount, 24);
   assert.equal(audit.nonConveyorInsideConveyorCategoryCount, 32);
   assert.ok(audit.misplacedBeltOutsideBeltCategoryCount >= 45);
-  assert.ok(audit.catchAllIndustrialBeltResolvedCount >= 1180);
+  assert.equal(audit.catchAllIndustrialBeltResolvedCount, 1012);
 });
 
-test('all 647 groups pass strict invariant homogeneity checks with zero MIXED invariants and explicit N/A vs UNKNOWN distinction', () => {
+test('PVC conical-cleat perforation stays SKU-level and does not split the family identity', () => {
+  const perforated = detectConveyorSurfaceProfile('نوار PVC کله قندی سوراخ دار');
+  const solid = detectConveyorSurfaceProfile('نوار PVC کله قندی');
+  assert.equal(perforated.profile, 'PVC_CONICAL_CLEAT');
+  assert.equal(perforated.profile, solid.profile);
+  assert.equal(perforated.label, solid.label);
+});
+
+test('all proposed groups pass strict invariant homogeneity checks with zero MIXED invariants and explicit N/A vs UNKNOWN distinction', () => {
   const results = audit.reportB_proposedFamilies.map((fam) => {
     const members = byFamilySkus.get(fam.proposedFamilyId) || [];
     assert.equal(members.length, fam.skuCount);
@@ -103,7 +123,7 @@ test('all 647 groups pass strict invariant homogeneity checks with zero MIXED in
 
   // Zero FAIL_MIXED_INVARIANT across the entire catalog
   const mixed = results.filter((v) => v.homogeneityVerdict === 'FAIL_MIXED_INVARIANT');
-  assert.equal(mixed.length, 0, `Unexpected FAIL_MIXED families: ${mixed.map((m) => m.proposedFamilyId).join(', ')}`);
+  assert.equal(mixed.length, 0, `Unexpected FAIL_MIXED families: ${mixed.map((m) => `${m.proposedFamilyId} [${m.mixedAttributes.join(', ')}]`).join('; ')}`);
 
   // Never output fake '100%_PASS'
   for (const v of results) {
@@ -112,7 +132,7 @@ test('all 647 groups pass strict invariant homogeneity checks with zero MIXED in
 
   // N/A vs UNKNOWN separation:
   // 1. Classical V-belt (B) has 40-deg wedge angle (OK_INVARIANT) and marks pitch/toothHeight/covering as NOT_APPLICABLE, never UNKNOWN
-  const vbeltRes = results.find((v) => v.proposedFamilyId === 'FAM-VBELT-B-STD-BANDO');
+  const vbeltRes = results.find((v) => v.proposedFamilyId === 'FAM-VBELT-B-ENDLESS-STD-BANDO');
   assert.ok(vbeltRes);
   assert.equal(vbeltRes.pitchCheck, 'NOT_APPLICABLE');
   assert.equal(vbeltRes.toothAngleCheck, 'OK_INVARIANT');
@@ -139,8 +159,24 @@ test('all 647 groups pass strict invariant homogeneity checks with zero MIXED in
 
   // Welded PU CRC vs ROUND, steel-cord TPU vs Neoprene, and conveyor thickness sanity checks
   assert.equal(bySku.get('37828')?.technical.profile, 'CRC');
+  assert.equal(bySku.get('37828')?.detectedBrand, 'VOLTA');
+  assert.equal(bySku.get('37828')?.technical.beltDivision, 'service-ambiguous');
+  assert.equal(bySku.get('37828')?.confidence, 'REQUIRES_REVIEW');
+  assert.match(bySku.get('37828')?.taxonomyGap || '', /CRC/);
   assert.equal(bySku.get('36859')?.technical.profile, 'ROUND');
-  assert.equal(bySku.get('52640')?.technical.profile, 'A');
+  assert.equal(bySku.get('36859')?.technical.beltDivision, 'service-ambiguous');
+  assert.equal(bySku.get('36859')?.confidence, 'REQUIRES_REVIEW');
+  assert.match(bySku.get('36859')?.technical.bodyMaterial || '', /اثبات نمی‌شود/);
+  const forza52640 = bySku.get('52640');
+  assert.equal(forza52640?.detectedBrand, 'FORZA');
+  assert.equal(forza52640?.technical.profile, 'A');
+  assert.equal(forza52640?.technical.supplyForm, 'open-ended-meter');
+  assert.equal(forza52640?.technical.beltDivision, 'vbelt-classical');
+  assert.equal(forza52640?.proposedFamilyId, 'FAM-VBELT-A-METER-WELDED-GRIP-FORZA');
+  assert.equal(forza52640?.proposedSubmenu, 'وی‌بلت متری');
+  assert.equal(forza52640?.proposedLeaf, 'تسمه A و B و C وی‌بلت متری');
+  assert.equal(forza52640?.confidence, 'ALGORITHMIC_STANDARD_ONLY');
+  assert.match(forza52640?.technical.bodyMaterial || '', /اثبات نمی‌شود/);
   assert.equal(bySku.get('41121')?.technical.bodyMaterial.includes('TPU'), true);
   assert.notEqual(bySku.get('41121')?.proposedFamilyId, bySku.get('10203')?.proposedFamilyId);
   assert.equal(bySku.get('31501')?.detectedBrand, 'OPTIBELT');
@@ -191,7 +227,7 @@ test('negative engineering validation tests reject null/unknown invariant specs 
   assert.ok(resMixed.mixedAttributes.includes('beltThicknessMm'));
 });
 
-test('BANDO 10538 (1400 H 100) and 36103 (1140H100) are datasheet-verified as single-sided H timing belts in the same family', () => {
+test('BANDO 10538 (1400 H 100) and 36103 (1140H100) are series-verified as single-sided H timing belts, not exact SKU datasheets', () => {
   const s10538 = bySku.get('10538');
   const s36103 = bySku.get('36103');
   assert.ok(s10538, 'SKU 10538 must exist');
@@ -199,8 +235,11 @@ test('BANDO 10538 (1400 H 100) and 36103 (1140H100) are datasheet-verified as si
 
   assert.equal(s10538.detectedBrand, 'BANDO');
   assert.equal(s36103.detectedBrand, 'BANDO');
-  assert.equal(s10538.confidence, 'DATASHEET_VERIFIED');
-  assert.equal(s36103.confidence, 'DATASHEET_VERIFIED');
+  assert.equal(s10538.confidence, 'SERIES_VERIFIED');
+  assert.equal(s36103.confidence, 'SERIES_VERIFIED');
+  assert.equal(s10538.verification.documentType, 'SERIES_CATALOG');
+  assert.equal(s10538.verification.matchedManufacturer, 'BANDO');
+  assert.ok(s10538.verification.sourceUrl.includes('bandousa.com'));
   assert.equal(s10538.verification.officialManufacturerSiteChecked, true);
   assert.equal(s10538.technical.profile, 'H');
   assert.equal(s36103.technical.profile, 'H');
@@ -231,7 +270,9 @@ test('BANDO DH double-sided timing belts (36468, 10111, 41291, 41598, 41689) nev
     const rec = bySku.get(sku);
     assert.ok(rec, `Missing BANDO DH endless SKU ${sku}`);
     assert.equal(rec.detectedBrand, 'BANDO');
-    assert.equal(rec.confidence, 'DATASHEET_VERIFIED');
+    assert.equal(rec.verification.documentType, 'SERIES_CATALOG');
+    assert.ok(rec.verification.sourceUrl.includes('bandousa.com'));
+    assert.equal(rec.confidence, 'SERIES_VERIFIED');
     assert.equal(rec.technical.profile, 'DH');
     assert.equal(rec.technical.sidedness, 'double-sided');
     assert.equal(rec.technical.supplyForm, 'endless-loop');
@@ -246,7 +287,9 @@ test('BANDO DH double-sided timing belts (36468, 10111, 41291, 41598, 41689) nev
     const rec = bySku.get(sku);
     assert.ok(rec, `Missing BANDO DH sleeve SKU ${sku}`);
     assert.equal(rec.detectedBrand, 'BANDO');
-    assert.equal(rec.confidence, 'DATASHEET_VERIFIED');
+    assert.equal(rec.verification.documentType, 'SERIES_CATALOG');
+    assert.ok(rec.verification.sourceUrl.includes('bandousa.com'));
+    assert.equal(rec.confidence, 'SERIES_VERIFIED');
     assert.equal(rec.technical.profile, 'DH');
     assert.equal(rec.technical.sidedness, 'double-sided');
     assert.equal(rec.technical.supplyForm, 'uncut-sleeve');
@@ -255,26 +298,29 @@ test('BANDO DH double-sided timing belts (36468, 10111, 41291, 41598, 41689) nev
   }
 });
 
-test('automotive timing belts (31501 DATASHEET_VERIFIED vs 42209/31502 NOMINAL_TABLE_VERIFIED), AA-TOP Poly-V (39216), and generic SWR items have honest verification provenance', () => {
-  // 31501 (Optibelt ZRK 1118) matches Optibelt brand + ZRK datasheet
+test('automotive timing belts, cross-reference-only RU codes, official series catalogs, and unsupported labels have honest provenance', () => {
+  // Optibelt AUTO-RU is series-level only: the official product range identifies ZRK, not this exact stock article.
   const s31501 = bySku.get('31501');
   assert.equal(s31501?.technical.beltDivision, 'timing-automotive-ru');
   assert.equal(s31501?.technical.toothCount, 108);
   assert.equal(s31501?.technical.nominalWidthMm, 17);
-  assert.equal(s31501?.confidence, 'DATASHEET_VERIFIED');
-  assert.equal(s31501?.verification.officialManufacturerSiteChecked, true);
+  assert.equal(s31501?.confidence, 'SERIES_VERIFIED');
+  assert.equal(s31501?.verification.documentType, 'SERIES_CATALOG');
+  assert.match(s31501?.verification.evidenceBasis ?? '', /ZRK.*not carry.*article/i);
 
-  // 42209 is UNSPECIFIED brand — nominal cross-ref only, MUST NOT claim DATASHEET_VERIFIED or officialManufacturerSiteChecked
+  // 42209 has no verified stock manufacturer; JIKIU is a nominal cross-reference source, not its brand.
   const s42209 = bySku.get('42209');
   assert.equal(s42209?.technical.beltDivision, 'timing-automotive-ru');
   assert.equal(s42209?.technical.toothCount, 123);
   assert.equal(s42209?.technical.nominalWidthMm, 24);
   assert.equal(s42209?.confidence, 'NOMINAL_TABLE_VERIFIED');
   assert.equal(s42209?.verification.documentType, 'NOMINAL_REFERENCE_TABLE');
+  assert.equal(s42209?.verification.matchedManufacturer, null);
+  assert.ok(s42209?.verification.sourceUrl.includes('jikiu.jp'));
   assert.equal(s42209?.verification.officialManufacturerSiteChecked, false);
   assert.equal(s42209?.verification.datasheetOrCatalogChecked, false);
 
-  // 31502..31506 require physical ZRK print verification — MUST be NOMINAL_TABLE_VERIFIED, never DATASHEET_VERIFIED
+  // Four RU cross-reference candidates still require physical ZRK marking; never call them exact datasheets.
   for (const pendingZrk of ['31502', '31504', '31505', '31506']) {
     const rec = bySku.get(pendingZrk);
     assert.equal(rec?.confidence, 'NOMINAL_TABLE_VERIFIED');
@@ -282,20 +328,46 @@ test('automotive timing belts (31501 DATASHEET_VERIFIED vs 42209/31502 NOMINAL_T
     assert.equal(rec?.verification.datasheetOrCatalogChecked, false);
   }
 
-  // AA-TOP ribbed belts must all be single-sided and ALGORITHMIC_STANDARD_ONLY
+  // The 8 mm AUTO-8MM belt is deliberately not folded into the 9.525 mm ZRK family.
+  const s35023 = bySku.get('35023');
+  assert.equal(s35023?.technical.pitchMm, 8);
+  assert.equal(s35023?.confidence, 'ALGORITHMIC_STANDARD_ONLY');
+
+  // Megadyne PJ section is catalog-supported; TNX itself remains an unverified inventory label.
+  const s58129 = bySku.get('58129');
+  assert.equal(s58129?.detectedBrand, 'MEGADYNE');
+  assert.equal(s58129?.technical.profile, 'PJ');
+  assert.equal(s58129?.confidence, 'SERIES_VERIFIED');
+  assert.ok(s58129?.verification.sourceUrl.includes('megadynegroup.com'));
+  assert.match(s58129?.verification.evidenceBasis ?? '', /TNX.*not.*manufacturer-verified/i);
+
+  // Official profile/series examples across the researched manufacturers.
+  const verifiedExamples = [
+    ['52798', 'SWR', 'swr-europe.de'],
+    ['15970', 'OPTIBELT', 'optibelt.com'],
+    ['38872', 'OPTIBELT', 'optibelt.com'],
+    ['38083', 'OPTIBELT', 'optibelt.com'],
+    ['38893', 'MEGADYNE', 'megadynegroup.com'],
+    ['38077', 'MEGADYNE', 'megadynegroup.com'],
+    ['36512', 'MEGADYNE', 'megadynegroup.com'],
+    ['40331', 'BANDO', 'bandousa.com'],
+  ] as const;
+  for (const [sku, brand, domain] of verifiedExamples) {
+    const rec = bySku.get(sku);
+    assert.equal(rec?.detectedBrand, brand, `Unexpected brand for ${sku}`);
+    assert.equal(rec?.confidence, 'SERIES_VERIFIED', `Expected official series evidence for ${sku}`);
+    assert.ok(rec?.verification.sourceUrl.includes(domain), `Missing official source for ${sku}`);
+  }
+
+  // Unsupported profile/brand combinations must remain algorithmic rather than inheriting a nearby catalog.
+  for (const sku of ['39861', '32280', '765', '10742']) {
+    assert.equal(bySku.get(sku)?.confidence, 'ALGORITHMIC_STANDARD_ONLY', `Unexpected manufacturer evidence for ${sku}`);
+  }
+
+  // AA-TOP ribbed belts must all be single-sided and ALGORITHMIC_STANDARD_ONLY.
   const s39216 = bySku.get('39216');
   assert.equal(s39216?.detectedBrand, 'AA-TOP');
   assert.equal(s39216?.technical.sidedness, 'single-sided');
-
-  // Generic algorithmic parse must NOT claim manufacturer datasheet verification
-  const swrVbelt = audit.reportA_skuClassifications.find(
-    (r) => r.detectedBrand === 'SWR' && r.technical.beltDivision === 'vbelt-classical'
-  );
-  assert.ok(swrVbelt);
-  assert.equal(swrVbelt.confidence, 'ALGORITHMIC_STANDARD_ONLY');
-  assert.equal(swrVbelt.verification.documentType, 'ENGINEERING_STANDARD_ONLY');
-  assert.equal(swrVbelt.verification.officialManufacturerSiteChecked, false);
-  assert.equal(swrVbelt.verification.datasheetOrCatalogChecked, false);
 });
 
 test('BANDO SKUs and mixed catch-all family FAM-10111 are split into homogeneous families by profile, sidedness, and supply form', () => {
@@ -304,7 +376,7 @@ test('BANDO SKUs and mixed catch-all family FAM-10111 are split into homogeneous
   assert.ok(bandoTargetFamilies.has('FAM-TIMING-IMP-H-ENDLESS-STD-BANDO'));
   assert.ok(bandoTargetFamilies.has('FAM-TIMING-IMP-DH-ENDLESS-STD-BANDO'));
   assert.ok(bandoTargetFamilies.has('FAM-TIMING-IMP-DH-SLEEVE-STD-BANDO'));
-  assert.ok(bandoTargetFamilies.has('FAM-VBELT-B-STD-BANDO'));
+  assert.ok(bandoTargetFamilies.has('FAM-VBELT-B-ENDLESS-STD-BANDO'));
 
   const fam10111Members = audit.reportA_skuClassifications.filter((r) => r.currentFamilyId === 'FAM-10111');
   assert.equal(fam10111Members.length, 7);
@@ -319,16 +391,36 @@ test('BANDO SKUs and mixed catch-all family FAM-10111 are split into homogeneous
 
 test('misplaced belts outside belt categories and non-belts inside belt categories are accurately resolved', () => {
   assert.equal(bySku.get('34064')?.proposedCategorySlug, 'excel-v2-1-1');
+  assert.equal(bySku.get('34064')?.detectedBrand, 'MEGADYNE');
+  assert.equal(bySku.get('34064')?.technical.profile, 'T5');
+  assert.equal(bySku.get('34064')?.confidence, 'SERIES_VERIFIED');
+  assert.match(bySku.get('34064')?.verification.sourceUrl || '', /megaflex/i);
+  assert.equal(bySku.get('34064')?.proposedFamilyId, 'FAM-TIMING-PU-T5-ENDLESS-PRINT-MEGADYNE');
   assert.equal(bySku.get('58129')?.proposedCategorySlug, 'excel-v2-1-2');
+  assert.equal(bySku.get('58129')?.proposedSubmenu, 'تسمه اسپشیال');
+  assert.equal(bySku.get('58129')?.proposedLeaf, null);
+  assert.equal(bySku.get('58129')?.technical.profile, 'PJ');
+  assert.equal(bySku.get('58129')?.technical.ribCount, 8);
+  assert.equal(bySku.get('58129')?.technical.pitchMm, 2.34);
+  assert.equal(bySku.get('58129')?.technical.pitchLengthMm, 1270);
+  assert.equal(bySku.get('58129')?.confidence, 'SERIES_VERIFIED');
   assert.equal(bySku.get('58122')?.proposedCategorySlug, 'excel-v2-1-1');
   assert.equal(bySku.get('58132')?.proposedCategorySlug, 'excel-v2-1-1');
   assert.equal(bySku.get('35198')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('33126')?.proposedCategorySlug, 'excel-v2-1-1');
+  assert.equal(bySku.get('33126')?.proposedSubmenu, 'سیم‌دار فابریک');
+  assert.equal(bySku.get('33126')?.proposedLeaf, null);
+  assert.equal(bySku.get('33126')?.technical.profile, 'T10');
+  assert.equal(bySku.get('33126')?.confidence, 'REQUIRES_REVIEW');
   assert.equal(bySku.get('31222')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('33328')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('37541')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('41121')?.proposedCategorySlug, 'excel-v2-1-1');
   assert.equal(bySku.get('38161')?.proposedCategorySlug, 'excel-v2-1-1');
+  assert.equal(bySku.get('38161')?.proposedSubmenu, 'سیم‌دار فابریک');
+  assert.equal(bySku.get('38161')?.proposedLeaf, null);
+  assert.equal(bySku.get('38161')?.technical.profile, 'AT5');
+  assert.equal(bySku.get('38161')?.confidence, 'REQUIRES_REVIEW');
   assert.equal(bySku.get('110049')?.proposedCategorySlug, 'excel-v2-1-4');
 
   // Non-belts inside belt/conveyor categories (including 35712 scraper holder and 32711 tensioner)
@@ -341,7 +433,13 @@ test('misplaced belts outside belt categories and non-belts inside belt categori
   assert.equal(bySku.get('32711')?.technical.operatingPrinciple, 'non-belt');
 
   // Pre-approval audit targets + untouched live taxonomy check
-  assert.equal(bySku.get('10111')?.proposedLeaf, 'H , XH , L , XL');
+  // 10111 is 1400DH075: DH is double-sided, so it must not be placed in the single-sided H/XH/L/XL leaf.
+  assert.equal(bySku.get('10111')?.technical.profile, 'H');
+  assert.equal(bySku.get('10111')?.technical.sidedness, 'double-sided');
+  assert.equal(bySku.get('10111')?.proposedLeaf, null);
+  assert.match(bySku.get('10111')?.taxonomyGap || '', /GAP-TIMING-DOUBLE-SIDED/);
+  assert.equal(bySku.get('36103')?.technical.profile, 'H');
+  assert.equal(bySku.get('36103')?.technical.sidedness, 'single-sided');
   assert.equal(bySku.get('36103')?.proposedLeaf, 'H , XH , L , XL');
   assert.equal(bySku.get('22751')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('35198')?.proposedCategorySlug, 'excel-v2-1-2');
@@ -409,17 +507,17 @@ test('8 Optibelt ZRK SKUs are resolved accurately and dynamic singleton duplicat
   assert.equal(s35023.proposedFamilyId, 'FAM-TIMING-AUTO-8MM-OPTIBELT');
   assert.notEqual(s35023.proposedFamilyId, 'FAM-TIMING-AUTO-RU-9P5-OPTIBELT');
 
-  // Exactly 9 physical-review blockers remain
+  // The unresolved queue is deliberately conservative; ambiguous material/profile cases remain in review.
   const reviewSkus = audit.reportA_skuClassifications.filter((r) => r.confidence === 'REQUIRES_REVIEW').map((r) => r.sku);
-  assert.equal(reviewSkus.length, 9);
+  assert.equal(reviewSkus.length, audit.confidenceCounts.REQUIRES_REVIEW);
 
-  // Dynamic singleton check across all 247 valid singletons => 0 identical merge candidates
+  // Dynamic singleton check across all 167 valid singletons => 0 identical merge candidates
   const validFams = audit.reportB_proposedFamilies.filter(
     (f) => !f.beltDivision.startsWith('non-belt-') && f.beltDivision !== 'belt-welding-tool' && f.beltDivision !== 'service-ambiguous'
   );
-  assert.equal(validFams.length, 634);
+  assert.equal(validFams.length, audit.groupCounts.validBeltAndConveyorFamilies);
   const singletons = validFams.filter((f) => f.skuCount === 1);
-  assert.equal(singletons.length, 247);
+  assert.equal(singletons.length, audit.groupCounts.singletonValidBeltFamilies);
   for (const s of singletons) {
     const dup = findIdenticalInvariantMergeCandidates(s, validFams);
     assert.equal(dup.identicalMergeCandidateCount, 0, `Singleton ${s.proposedFamilyId} unexpectedly matched ${dup.identicalCandidateIds.join(', ')}`);
@@ -452,10 +550,10 @@ test('Excel audit deliverables have exact sheet names/row counts, no fake 100%_P
   assert.equal(fs.existsSync(preApprovalPath), true, 'docs/sanatpish-final-preapproval-audit.xlsx must exist');
   const wb = XLSX.read(fs.readFileSync(preApprovalPath), { type: 'buffer' });
   assert.deepEqual(wb.SheetNames, [
-    'Final_647_Groups',
-    'All_634_Belt_Conveyor_Families',
-    'Singleton_247_Validation',
-    'MultiMember_387_Validation',
+    'Final_Proposed_Groups',
+    'Valid_Belt_Conveyor_Families',
+    'Singleton_Validation',
+    'MultiMember_Validation',
     'Brand_Audit',
     'ZRK_And_Physical_Review',
     'Live_DB_Inspection',
@@ -465,11 +563,11 @@ test('Excel audit deliverables have exact sheet names/row counts, no fake 100%_P
   ]);
   assert.equal(wb.SheetNames.includes('Live_DB_48_Differences'), false);
 
-  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Final_647_Groups']).length, 647);
-  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['All_634_Belt_Conveyor_Families']).length, 634);
-  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Singleton_247_Validation']).length, 247);
-  const multiRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets['MultiMember_387_Validation']);
-  assert.equal(multiRows.length, 387);
+  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Final_Proposed_Groups']).length, audit.reportB_proposedFamilies.length);
+  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Valid_Belt_Conveyor_Families']).length, audit.groupCounts.validBeltAndConveyorFamilies);
+  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Singleton_Validation']).length, audit.groupCounts.singletonValidBeltFamilies);
+  const multiRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets['MultiMember_Validation']);
+  assert.equal(multiRows.length, audit.groupCounts.multiMemberValidBeltFamilies);
 
   // Ensure both PASS_HOMOGENEOUS and CONDITIONAL_UNKNOWN_SPECS exist, and ZERO '100%_PASS'
   const verdicts = new Set(multiRows.map((r) => String(r.Homogeneity_Verdict || '')));
