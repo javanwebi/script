@@ -112,7 +112,9 @@ test('FORZA opens its voice controller without putting Three.js in the first cal
 
 test('mobile call uses one live message card and removes floating bottom action groups',()=>{
   assert.match(ui,/const showCustomerTranscript = Boolean\(userText\.trim\(\)\)/);
-  assert.match(ui,/const showAssistantTranscript = !showCustomerTranscript && Boolean\(displayedAi\)/);
+  assert.match(ui,/const showAssistantTranscript = Boolean\(displayedAi\)/);
+  assert.match(ui,/showCustomerTranscript && showAssistantTranscript/);
+  assert.match(ui,/شما · متن کامل مکالمه/);
   assert.match(ui,/forza-message-card--customer/);
   assert.match(ui,/forza-message-card--assistant/);
   assert.doesNotMatch(ui,/QUICK_TOPICS|Restore button when HUD hidden/);
