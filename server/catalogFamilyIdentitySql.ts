@@ -25,6 +25,7 @@ left join lateral (
         then max(coalesce(nullif(v.identity_specs->>'profile',''), technical_identity.profile))
       else 'MIXED'
     end as profile,
+    count(v.code)::integer as variant_count,
     string_agg(distinct v.name,' | ' order by v.name) as variant_names
   from public.catalog_variants v
   left join lateral (
