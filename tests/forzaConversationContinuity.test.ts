@@ -52,6 +52,8 @@ test('FORZA keeps a call-wide transcript and continuation-aware model context',(
   const server=readFileSync('server.ts','utf8');
   assert.match(ui,/sessionTranscriptRef\s*=\s*useRef<string>\(''\)/);
   assert.match(ui,/pendingCommittedTranscriptRef/);
+  assert.match(ui,/historyRef\.current=\[\.\.\.prior,\{role:'user',text:q\}\]/,
+    'the recognized user turn must enter conversation history before async STT can be interrupted');
   assert.match(ui,/sessionTranscriptRef\.current=appendForzaSessionTurn\(sessionTranscriptRef\.current,candidate\)/);
   assert.match(ui,/setUserText\(composeForzaSessionTranscript\(sessionTranscriptRef\.current,mergedSpeech\)\)/);
   assert.match(ui,/mapForzaSegmentsInOrder\(audioBlobs,2/);
