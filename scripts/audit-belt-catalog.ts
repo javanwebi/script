@@ -686,9 +686,9 @@ function buildExcelWorkbook(audit: ReturnType<typeof runBeltCatalogAudit>): XLSX
     { Section: 'PRODUCT_IDENTITY', Metric: 'Non-Belt Items in Audit Universe (Inside + Outside)', Count: audit.auditedSkuCount - audit.trueBeltSkuCount - audit.beltEquipmentSkuCount - audit.confidenceCounts.REQUIRES_REVIEW, Notes: `${p.nonBeltRemovedFromBeltCat} در دسته تسمه + ${p.nonConveyorRemovedFromConvCat} در نقاله + ${p.nonBeltAlreadyOutsideBeltOrConv} از ابتدا خارج از این دو دسته (= 68 در 7 گروه غیرتسمه‌ای)` },
     { Section: 'GROUP_SEPARATION', Metric: 'Valid Belt & Conveyor Families (Singleton + Multi)', Count: gc.validBeltAndConveyorFamilies, Notes: `${gc.singletonValidBeltFamilies} تک‌عضوی + ${gc.multiMemberValidBeltFamilies} چندعضوی` },
     { Section: 'GROUP_SEPARATION', Metric: 'Welding Clamp Equipment Groups', Count: gc.weldingToolGroups, Notes: '110049 و 35852' },
-    { Section: 'GROUP_SEPARATION', Metric: 'Provisional Physical Review Groups', Count: gc.provisionalReviewGroups, Notes: '۴ گروه موقت برای ۹ کد مبهم' },
+    { Section: 'GROUP_SEPARATION', Metric: 'Provisional Physical Review Groups', Count: gc.provisionalReviewGroups, Notes: `${gc.provisionalReviewGroups} گروه موقت؛ ${audit.confidenceCounts.REQUIRES_REVIEW} SKU در صف بررسی فنی` },
     { Section: 'GROUP_SEPARATION', Metric: 'Separated Non-Belt Families', Count: gc.separatedNonBeltFamilies, Notes: '۷ گروه غیرتسمه‌ای خارج‌شده' },
-    { Section: 'GROUP_SEPARATION', Metric: 'TOTAL PROPOSED GROUPS (634 + 2 + 4 + 7)', Count: gc.totalProposedGroups, Notes: 'جمع کل برابر دقیق 647' },
+    { Section: 'GROUP_SEPARATION', Metric: `TOTAL PROPOSED GROUPS (${gc.validBeltAndConveyorFamilies} + ${gc.weldingToolGroups} + ${gc.provisionalReviewGroups} + ${gc.separatedNonBeltFamilies})`, Count: gc.totalProposedGroups, Notes: `جمع کل برابر دقیق ${gc.totalProposedGroups}` },
     { Section: 'PARTITION_7709', Metric: '1. Misplaced Belt/Equipment Outside Belt/Conv Moved In', Count: p.misplacedBeltOrEquipOutsideMovedIn, Notes: 'انتقال از دسته‌های دیگر به دسته صحیح تسمه/بارکش' },
     { Section: 'PARTITION_7709', Metric: '2. Non-Belt Removed From تسمه و انتقال نیرو', Count: p.nonBeltRemovedFromBeltCat, Notes: 'پولی، تسمه‌پاک‌کن، تیغه نگهدارنده و تسمه آهنی' },
     { Section: 'PARTITION_7709', Metric: '3. Non-Conveyor Removed From نوار و تسمه نقاله', Count: p.nonConveyorRemovedFromConvCat, Notes: 'نوار اسفنجی، سیلیکونی و اسپاتول چاپ' },
@@ -1146,7 +1146,7 @@ function buildFinalValidationWorkbook(
     { Section: 'FAMILY_VALIDATION_VERDICT', Metric: 'Previous Proposed Families Count', Value: 397, Notes: 'ممیزی عمیق ۱۴ ویژگی نشان داد ۳۹۷ خانواده کافی نیست' },
     {
       Section: 'FAMILY_VALIDATION_VERDICT',
-      Metric: 'Total Proposed Groups (634 + 2 + 4 + 7)',
+      Metric: `Total Proposed Groups (${gc.validBeltAndConveyorFamilies} + ${gc.weldingToolGroups} + ${gc.provisionalReviewGroups} + ${gc.separatedNonBeltFamilies})`,
       Value: gc.totalProposedGroups,
       Notes: `${gc.validBeltAndConveyorFamilies} خانواده واقعی تسمه/نقاله + ${gc.weldingToolGroups} ابزار جوشی + ${gc.provisionalReviewGroups} گروه نیازمند بازبینی + ${gc.separatedNonBeltFamilies} غیرتسمه‌ای`,
     },
@@ -1470,7 +1470,7 @@ function buildPreApprovalWorkbook(
     crossBrandGroups.set(eqKey, set);
   }
 
-  // Sheet 1: Final_647_Groups
+  // Sheet 1: Final_Proposed_Groups
   const gc = audit.groupCounts;
   const sheet1Rows = audit.reportB_proposedFamilies.map((f, idx) => {
     const members = byFamilySkus.get(f.proposedFamilyId) || [];
@@ -1514,9 +1514,9 @@ function buildPreApprovalWorkbook(
       Confidence_Summary: [...new Set(members.map((m) => m.confidence))].join(', '),
     };
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet1Rows), 'Final_647_Groups');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet1Rows), 'Final_Proposed_Groups');
 
-  // Sheet 2: All_634_Belt_Conveyor_Families
+  // Sheet 2: Valid_Belt_Conveyor_Families
   const sheet2Rows = validBeltConveyorFams.map((f, idx) => {
     const members = byFamilySkus.get(f.proposedFamilyId) || [];
     const eqKey = [
@@ -1557,9 +1557,9 @@ function buildPreApprovalWorkbook(
       Cross_Brand_Equivalents: equivalents.join(', '),
     };
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet2Rows), 'All_634_Belt_Conveyor_Families');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet2Rows), 'Valid_Belt_Conveyor_Families');
 
-  // Sheet 3: Singleton_247_Validation (dynamically computed duplicate/invariant scan)
+  // Sheet 3: Singleton_Validation (dynamically computed duplicate/invariant scan)
   let totalIdenticalMergeCandidates = 0;
   const sheet3Rows = singletonValidFams.map((f) => {
     const m = (byFamilySkus.get(f.proposedFamilyId) || [])[0];
@@ -1613,9 +1613,9 @@ function buildPreApprovalWorkbook(
       Verification_Evidence_Class: m.verification.evidenceClass7,
     };
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet3Rows), 'Singleton_247_Validation');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet3Rows), 'Singleton_Validation');
 
-  // Sheet 4: MultiMember_387_Validation (dynamically computed across ALL 14+ attributes)
+  // Sheet 4: MultiMember_Validation (dynamically computed across ALL 14+ attributes)
   const multiValidationResults = multiMemberValidFams.map((f) =>
     validateFamilyEngineeringHomogeneity(f, byFamilySkus.get(f.proposedFamilyId) || [])
   );
@@ -1657,7 +1657,7 @@ function buildPreApprovalWorkbook(
       Homogeneity_Verdict: val.verdictDetail,
     };
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet4Rows), 'MultiMember_387_Validation');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet4Rows), 'MultiMember_Validation');
 
   // Sheet 5: Brand_Audit
   const brandGroups = new Map<string, typeof audit.reportA_skuClassifications>();
