@@ -241,3 +241,18 @@ test('ordinary speech at moderate mic gain remains admitted over an ambient floo
  speak(gate,1050,1450,0.006);
  assert.equal(gate.decide('تسمه صنعتی می خواهم',false,false,1450),'accept');
 });
+
+
+test('qualified near-field speech remains admissible while local ASR finalizes during TTS',()=>{
+ const delayed=calibrated(true);speak(delayed,1050,1400,0.06,true);
+ // Mic polling continues with quiet frames while Vosk finalizes the last phrase.
+ for(let t=1450;t<=1900;t+=50)delayed.sample(0.003,t,true);
+ assert.equal(delayed.acousticSpeech,false,'stale acoustic energy must not keep VAD open');
+ assert.equal(delayed.decide('برای دستگاه تسمه',true,true,1900),'accept',
+  'a qualified customer phrase may be admitted within the bounded ASR-final grace');
+
+ const expired=calibrated(true);speak(expired,1050,1400,0.06,true);
+ for(let t=1450;t<=2350;t+=50)expired.sample(0.003,t,true);
+ assert.equal(expired.decide('برای دستگاه تسمه',true,true,2350),'reject',
+  'old playback-time evidence must expire and cannot admit a later speaker');
+});
