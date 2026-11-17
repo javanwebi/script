@@ -192,6 +192,14 @@ test('belt audit keeps V-belts out of timing APL and keeps Poly-V out of special
   assert.equal(gripV.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(gripV.proposedSubmenu, 'کلاسیک و دنده‌دار');
 
+  const spacedGripV = classifyBelt('تسمه جوشی V روکش گریپ دار پروفیل B', 'لاستیک کلروپرن');
+  assert.equal(spacedGripV.proposedCategorySlug, 'excel-v2-1-2');
+  assert.equal(spacedGripV.proposedSubmenu, 'کلاسیک و دنده‌دار');
+
+  const weldedPuV = classifyBelt('تسمه جوشی V روکش گریپ‌دار پروفیل B', 'TPU پلی‌یورتان');
+  assert.equal(weldedPuV.proposedCategorySlug, 'UNRESOLVED');
+  assert.equal(weldedPuV.technical.beltDivision, 'welded-pu-v-section');
+
   const polyV = classifyBelt('تسمه چندشیاری Poly-V پروفیل PJ', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
   assert.equal(polyV.proposedCategorySlug, 'UNRESOLVED');
 });
