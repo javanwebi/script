@@ -24,7 +24,7 @@ const MODEL_PATH = process.env.FORZA_STT_DIBA_MODEL_PATH || '/opt/diba-stt/model
 const WORKER_SCRIPT = path.resolve(process.cwd(), 'scripts/forza_diba_stt_worker.py');
 const PYTHON = process.env.FORZA_STT_PYTHON || '/opt/forza-pocket/bin/python';
 const WORKER_COUNT = Math.max(1, Math.min(2, Number(process.env.FORZA_STT_WORKERS || 2) || 2));
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 25_000;
 const MAX_PENDING = 24;
 let workers: WorkerState[] = [];
 let warmPromise: Promise<boolean> | null = null;
@@ -123,13 +123,20 @@ export async function warmForzaDibaStt(): Promise<boolean> {
 }
 
 export async function transcribeForzaDibaAudio(
-  audioBase64: string,
+  audioBase64: string | string[],
   options: { signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<string> {
-  const encoded = String(audioBase64 || '').replace(/^data:[^,]*;base64,/i, '').trim();
-  if (!encoded || encoded.length > 8_000_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
+  // A long utterance may span several independently finalized WebM containers.
+  // Decode them as one ordered request so Vosk keeps one recognizer context.
+  const encodedSegments = (Array.isArray(audioBase64) ? audioBase64 : [audioBase64])
+    .map(value => String(value || '').replace(/^data:[^,]*;base64,/i, '').trim());
+  const totalEncodedLength = encodedSegments.reduce((sum, value) => sum + value.length, 0);
+  if (!encodedSegments.length || encodedSegments.length > 4 ||
+      totalEncodedLength > 8_000_000 ||
+      encodedSegments.some(encoded => !encoded || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded))) {
     throw new Error('invalid_audio');
   }
+  const workerAudio = encodedSegments.length === 1 ? encodedSegments[0] : encodedSegments;
   if (options.signal?.aborted) throw new Error('stt_aborted');
   if (!isForzaDibaSttReady() && !(await warmForzaDibaStt())) {
     throw new Error(hasForzaDibaSttModel() ? 'diba_worker_unavailable' : 'diba_model_missing');
@@ -140,7 +147,7 @@ export async function transcribeForzaDibaAudio(
   if (totalPending >= MAX_PENDING) throw new Error('diba_stt_busy');
   const worker = available.sort((a, b) => a.inflight - b.inflight)[0];
   const id = randomUUID();
-  const timeoutMs = Math.max(1500, Math.min(20_000, options.timeoutMs ?? REQUEST_TIMEOUT_MS));
+  const timeoutMs = Math.max(1500, Math.min(30_000, options.timeoutMs ?? REQUEST_TIMEOUT_MS));
 
   return new Promise<string>((resolve, reject) => {
     const abort = () => settlePending(worker, id, new Error('stt_aborted'));
@@ -152,7 +159,7 @@ export async function transcribeForzaDibaAudio(
       if (options.signal.aborted) { abort(); return; }
     }
     try {
-      worker.child.stdin.write(JSON.stringify({ id, audioBase64: encoded }) + '\n', error => {
+      worker.child.stdin.write(JSON.stringify({ id, audioBase64: workerAudio }) + '\n', error => {
         if (error) settlePending(worker, id, new Error('diba_worker_write_failed'));
       });
     } catch {
