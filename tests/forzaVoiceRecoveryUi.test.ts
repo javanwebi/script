@@ -160,3 +160,20 @@ test('ending a call clears buffered audio segments from memory',()=>{
   assert.ok(teardown.includes('audioChunksRef.current=[]'));
   assert.ok(teardown.includes('audioSegmentsRef.current=[]'));
 });
+
+
+test('TTS failures expose a safe provider code and preserve the readable AI response',()=>{
+  assert.match(ui,/const failure:any=await response\.json\(\)\.catch\(\(\)=>null\)/);
+  assert.match(ui,/FORZA_TTS_HTTP/);
+  assert.match(ui,/pocket_rate_limited_network/);
+  assert.match(ui,/pocket_rate_limited_turn/);
+  assert.match(ui,/pocket_http_503_private_voice_/);
+  assert.match(ui,/موتور صوتی نیما موقتاً مشغول یا در حال بازیابی است/);
+});
+
+test('Diba server fallback batches all rotated audio containers under one bounded timeout',()=>{
+  assert.match(ui,/const audioBase64Segments=await Promise\.all\(audioBlobs\.map/);
+  assert.match(ui,/audioBase64:audioBase64Segments/);
+  assert.match(ui,/26_000/);
+  assert.doesNotMatch(ui,/for\(const segment of audioBlobs\)/);
+});
