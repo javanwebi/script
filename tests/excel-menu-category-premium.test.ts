@@ -32,6 +32,14 @@ test('approved category totals include direct SKUs without changing the approved
   assert.match(page, /directSkus\.filter\(item => item\.categorySlug === slug\)\.length/);
 });
 
+test('deployment refuses belt categories that regress to zero or disagree with detail counts', () => {
+  const canary = source('ops/verify-single-port-canary.mjs');
+  assert.match(canary, /BELT_CATEGORY_ZERO_OR_MISSING/);
+  assert.match(canary, /BELT_CATEGORY_FAMILY_COUNT_MISMATCH/);
+  assert.match(canary, /BELT_CATEGORY_DETAILS_EMPTY/);
+  assert.match(canary, /excel-v2-1-4/);
+});
+
 test('category detail reads real family records and never falls back to repository fixtures', () => {
   assert.match(page, /body\.success/);
   assert.match(page, /Array\.isArray\(body\.families\)/);
