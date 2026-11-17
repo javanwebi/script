@@ -89,7 +89,7 @@ export function registerCatalogNavigationApi(app:Express){
   app.get('/api/catalog/categories',async(_req,res)=>{
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,categories:[]});
-      const [result,familyRows]=await Promise.all([
+      const [result,familyRows,directSkuRows]=await Promise.all([
         database().query(
           `select c.id,c.slug,c.name,c.icon,c.image_url as image,c.description,
             c.sort_order as "sortOrder",c.is_active as active,c.metadata,
@@ -110,15 +110,23 @@ export function registerCatalogNavigationApi(app:Express){
         database().query(
           `select f.code,f.name as "familyName",coalesce(identity.product_type,f.name) as "productType",
              coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
-             coalesce(f.item_count,0) as "skuCount",
+             coalesce(identity.variant_count,0) as "skuCount",
              a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
              a.leaf_name as "assignedLeaf",a.method
            from public.catalog_families f
            left join public.catalog_family_menu_assignments a on a.family_code=f.code
            ${CATALOG_FAMILY_IDENTITY_LATERAL_SQL}
            where f.is_active=true and f.is_deleted=false
-           order by f.code limit 10000`)
+           order by f.code limit 10000`),
+        database().query(
+          `select category_slug,count(*)::integer as "skuCount"
+           from public.catalog_direct_skus
+           where is_active=true
+           group by category_slug`)
       ]);
+      const directSkuCountByCategory=new Map<string,number>(
+        directSkuRows.rows.map((row:any)=>[String(row.category_slug),Number(row.skuCount)||0])
+      );
       const menuStats=new Map<string,{familyCount:number;skuCount:number}>();
       for(const row of familyRows.rows){
         const assignment=resolveFamilyMenuAssignment(row);
@@ -137,16 +145,19 @@ export function registerCatalogNavigationApi(app:Express){
         const familyCount=isApprovedMenuCategory
           ? Number(menuStatsForCategory?.familyCount)||0
           : Number(row.familyCount)||0;
-        const skuCount=isApprovedMenuCategory
+        const familySkuCount=isApprovedMenuCategory
           ? Number(menuStatsForCategory?.skuCount)||0
           : Number(row.skuCount)||0;
+        // Direct SKUs do not belong to a published family: count them once.
+        const directSkuCount=directSkuCountByCategory.get(row.slug)||0;
+        const skuCount=familySkuCount+directSkuCount;
         const subcategories=Array.isArray(metadata.subcategories)?metadata.subcategories:
           children.map((node:any)=>String(node?.name||'')).filter(Boolean);
         return {
           id:row.id,slug:row.slug,name:row.name,nameEn:typeof metadata.nameEn==='string'?metadata.nameEn:'',
           icon:row.icon||metadata.icon||'Package',image:row.image||metadata.image||undefined,
           description:row.description||metadata.description||children.map((node:any)=>String(node?.name||'')).filter(Boolean).join('، '),
-          active:row.active===true,sortOrder:Number(row.sortOrder)||0,count:familyCount,familyCount,skuCount,
+          active:row.active===true,sortOrder:Number(row.sortOrder)||0,count:familyCount,familyCount,skuCount,directSkuCount,
           children,subcategories,
           menuSource:typeof metadata.source==='string'?metadata.source:'',
           routeSlug:typeof metadata.routeSlug==='string'?metadata.routeSlug:row.slug,
@@ -206,7 +217,7 @@ export function registerCatalogNavigationApi(app:Express){
         `select f.code,f.name,f.name as "familyName",coalesce(f.brand,'') as brand,
            coalesce(identity.product_type,f.name) as "productType",
            coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
-           coalesce(f.item_count,0) as "skuCount",
+           coalesce(identity.variant_count,0) as "skuCount",
            a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
            a.leaf_name as "assignedLeaf",a.method
           from public.catalog_families f
@@ -280,7 +291,7 @@ export function registerCatalogNavigationApi(app:Express){
         `select f.code,f.name,f.name as "familyName",f.category_slug as "oldCategory",f.submenu as "oldSubmenu",
            coalesce(identity.product_type,f.name) as "productType",
            coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames",
-           coalesce(f.item_count,0) as "skuCount",
+           coalesce(identity.variant_count,0) as "skuCount",
            a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
            a.leaf_name as "assignedLeaf",a.method as "assignmentMethod"
           from public.catalog_families f

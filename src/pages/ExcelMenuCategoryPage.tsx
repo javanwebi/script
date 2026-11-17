@@ -841,7 +841,8 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const families = data?.families || [];
   const category = data?.category;
   const isVBeltCategory = slug === 'excel-v2-1-2' || Boolean(category && /وی.?بلت|v-belt/i.test(category.name));
-  const skuTotal = families.reduce((total, family) => total + Math.max(0, Number(family.skuCount) || 0), 0);
+  const skuTotal = families.reduce((total, family) => total + Math.max(0, Number(family.skuCount) || 0), 0)
+    + directSkus.filter(item => item.categorySlug === slug).length;
 
   const familyBrandLists = useMemo(() => {
     const map = new Map<string, string[]>();
