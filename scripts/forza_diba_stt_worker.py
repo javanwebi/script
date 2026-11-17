@@ -14,7 +14,7 @@ from pathlib import Path
 
 MODEL_PATH = Path(os.environ.get("FORZA_STT_DIBA_MODEL_PATH", "/opt/diba-stt/model"))
 MAX_AUDIO_B64 = 8_000_000
-MAX_PCM_BYTES = 16000 * 2 * 45
+MAX_PCM_BYTES = 16000 * 2 * 180
 
 
 def emit(payload):
@@ -43,15 +43,37 @@ def decode_audio(raw):
 
 
 def transcribe(model, encoded):
-    if not isinstance(encoded, str) or not encoded or len(encoded) > MAX_AUDIO_B64:
+    # Each MediaRecorder rotation is a separate WebM container with its own
+    # header. Decode each in memory, then feed the ordered PCM into ONE Vosk
+    # recognizer so pauses/container boundaries never reset the transcript.
+    encoded_segments = encoded if isinstance(encoded, list) else [encoded]
+    if not encoded_segments or len(encoded_segments) > 4:
         raise ValueError("invalid_audio")
-    try:
-        raw = base64.b64decode(encoded, validate=True)
-    except (binascii.Error, ValueError):
-        raise ValueError("invalid_audio")
-    if not raw or len(raw) > 6_000_000:
-        raise ValueError("invalid_audio")
-    pcm = decode_audio(raw)
+
+    total_encoded = 0
+    total_pcm = 0
+    pcm_parts = []
+    for item in encoded_segments:
+        if not isinstance(item, str) or not item or len(item) > MAX_AUDIO_B64:
+            raise ValueError("invalid_audio")
+        total_encoded += len(item)
+        if total_encoded > MAX_AUDIO_B64:
+            raise ValueError("invalid_audio")
+        try:
+            raw = base64.b64decode(item, validate=True)
+        except (binascii.Error, ValueError):
+            raise ValueError("invalid_audio")
+        if not raw or len(raw) > 6_000_000:
+            raise ValueError("invalid_audio")
+        pcm_part = decode_audio(raw)
+        total_pcm += len(pcm_part)
+        if total_pcm > MAX_PCM_BYTES:
+            raise ValueError("audio_too_long")
+        pcm_parts.append(pcm_part)
+
+    pcm = b"".join(pcm_parts)
+    if len(pcm) < 3200:
+        raise ValueError("audio_decode_failed")
 
     from vosk import KaldiRecognizer
     recognizer = KaldiRecognizer(model, 16000)
