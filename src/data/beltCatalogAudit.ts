@@ -612,6 +612,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   const isPolyurethaneMaterial = /پلی.?یورتان|polyurethane|thermoplastic.?pu|\btpu\b|\bpu\b/.test(
     normalize(`${normalizedMaterialEvidence} ${normName}`)
   );
+  const isVoltaWeldedCrc =
+    brand === 'VOLTA' && /\bCRC\b/.test(upperName) && /تسمه\s+جوشی/.test(normName);
   const isRubberMaterial = /لاستیک|الاستومر|rubber|elastomer|nbr|epdm|fkm|viton|neoprene|کلروپرن/.test(
     normalize(`${normalizedMaterialEvidence} ${normName}`)
   );
@@ -1152,11 +1154,11 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       currentSubmenu: product.submenu || '',
       currentSubcategory: product.subcategory,
       detectedBrand: brand,
-      proposedCategorySlug: 'UNRESOLVED',
-      proposedCategoryName: 'نیازمند تعیین تکلیف',
-      proposedSubmenu: 'مسیر مصوب ندارد',
-      proposedLeaf: `تسمه چندشیاری ${ribProfile} (فاقد برگ مصوب)`,
-      taxonomyGap: `GAP-RIBBED-POLY-V: تسمه چندشیاری Poly-V پروفیل ${ribProfile} مطابق ISO 9982 خانواده فنی مستقل است؛ در منوی مصوب فعلی برگ مستقلی ندارد و نباید زیر «تسمه اسپشیال» نمایش داده شود.`,
+      proposedCategorySlug: 'excel-v2-1-2',
+      proposedCategoryName: 'تسمه وی‌بلت (V-Belt)',
+      proposedSubmenu: 'تسمه اسپشیال',
+      proposedLeaf: null,
+      taxonomyGap: `GAP-RIBBED-POLY-V: پروفیل چندشیاری ${ribProfile} مطابق ISO 9982 در دسته مصوب تسمه وی‌بلت و زیرمنوی «تسمه اسپشیال» قرار می‌گیرد؛ چون برگ مستقل PJ/PK/PL در اکسل مصوب وجود ندارد، leaf عمداً خالی می‌ماند و به برگ SPA/SPB/SPC منتسب نمی‌شود.`,
       proposedFamilyId: `FAM-RIBBED-${familySuffix.replace(/[^A-Z0-9-]/g, '')}`,
       proposedFamilyNameFa: isCeramicPrint
         ? `تسمه چندشیاری چاپ ${ribProfile} (${brand})`
@@ -1188,21 +1190,20 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         lengthDesignation: effLengthMm ? `${effLengthMm}` : null,
         toothCount: null,
         ribCount,
-        bodyMaterial: 'الاستومر مصنوعی (EPDM / کلروپرن)',
-        tensileCord: 'نخ پلی‌استر کم‌کشش (Low-Stretch Polyester Cord)',
-        backingOrCoating: coatingLabel,
+        bodyMaterial: isCeramicPrint ? 'جنس بدنه از نام انبار تأیید نمی‌شود؛ دیتاشیت دقیق سازنده لازم است' : 'الاستومر مصنوعی (EPDM / کلروپرن)',
+        tensileCord: isCeramicPrint ? 'نوع و آرایش کورد از نام انبار تأیید نمی‌شود؛ دیتاشیت لازم است' : 'نخ پلی‌استر کم‌کشش (Low-Stretch Polyester Cord)',
+        backingOrCoating: isCeramicPrint ? 'توصیف انبار: داخل سبز ویژه چاپ؛ ساختار روکش/پارچه تأیید نشده' : coatingLabel,
         standardReference: rSpec.standard,
         manufacturerSources: [
           'ISO 9982 / DIN 7867 Belt Drives — V-Ribbed Belts',
-          'Optibelt RB Technical Manual',
-          'Megadyne PV / TNX Ceramic Printing Catalog',
+          ...(isCeramicPrint ? [] : ['Optibelt RB Technical Manual']),
         ],
       },
-      confidence: 'ALGORITHMIC_STANDARD_ONLY',
+      confidence: isCeramicPrint ? 'REQUIRES_REVIEW' : 'ALGORITHMIC_STANDARD_ONLY',
       verification: unattachedProvenancePlaceholder(),
       recommendedAction: 'MANUAL_ENGINEERING_REVIEW',
       engineeringReasoning: isCeramicPrint
-        ? `تسمه چندشیاری ${ribProfile} مخصوص دستگاه چاپ کاشی (Megadyne 1270PJ8) که از دسته تجهیزات کاشی به خانواده تسمه‌های چندشیاری ${ribProfile} منتقل شد.`
+        ? `کد 1270PJ8 با پروفیل چندشیاری PJ، هشت شیار و طول اسمی 1270 میلی‌متر در خانواده Poly-V قرار می‌گیرد. نام TNX در شرح انبار حفظ می‌شود، اما سری رسمی TNX و جنس بدنه، کورد و ساختار داخل سبز از روی این نام تأیید نشده و باید با دیتاشیت همان SKU بررسی شود.`
         : `تسمه چندشیاری پروفیل ${ribProfile} با گام شیار ${rSpec.ribPitchMm} میلی‌متر مطابق ISO 9982 / DIN 7867.`,
     };
   }
@@ -2029,7 +2030,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   // 8. Heat-weldable PU belts: require actual PU material evidence. A wrapped rubber
   // V-belt may contain the words "جوشی" or "گریپ" but is not a thermoplastic PU belt.
   if (
-    isPolyurethaneMaterial &&
+    (isPolyurethaneMaterial || isVoltaWeldedCrc) &&
     (/تسمه\s+جوشی/.test(normName) ||
       /^تسمه\s+گرد(?=\s|$)/.test(normName) ||
       /تسمه\s+(?:فلت|تخت)/.test(normName))
