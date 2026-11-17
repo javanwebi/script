@@ -38,6 +38,11 @@ test('deployment refuses belt categories that regress to zero or disagree with d
   assert.match(canary, /BELT_CATEGORY_FAMILY_COUNT_MISMATCH/);
   assert.match(canary, /BELT_CATEGORY_DETAILS_EMPTY/);
   assert.match(canary, /excel-v2-1-4/);
+  const deploy = source('ops/deploy-main-bluegreen-vps.sh');
+  assert.match(deploy, /BELT_CATEGORY_ZERO/);
+  assert.match(deploy, /BELT_CATEGORY_DETAILS_EMPTY/);
+  assert.match(deploy, /BELT_FAMILY_COUNT_DRIFT/);
+  assert.match(deploy, /BELT_SKU_COUNT_DRIFT/);
 });
 
 test('category detail reads real family records and never falls back to repository fixtures', () => {
