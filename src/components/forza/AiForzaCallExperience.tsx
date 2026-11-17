@@ -13,7 +13,7 @@ import {
   Square,
 } from 'lucide-react';
 import type { ParticleAvatarProps, ParticleAvatarRef } from './ParticleAvatar';
-import { checkpointForzaRecognition, extractPersianSpeechSince, appendForzaSpeechSegment, mapForzaSegmentsInOrder, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
+import { checkpointForzaRecognition, extractPersianSpeechSince, appendForzaSpeechSegment, appendForzaSessionTurn, replaceForzaLastSessionTurn, composeForzaSessionTranscript, mapForzaSegmentsInOrder, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { attachForzaAudioEvidence } from '../../utils/forzaAudioEvidence';
@@ -354,7 +354,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
         activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
         hasSpeechSoundRef.current=true;
-        setUserText(appendForzaSpeechSegment(sessionTranscriptRef.current,transcript));
+        setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,transcript));
         setIsUserSpeaking(true);
       };
       recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
@@ -1168,7 +1168,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       if(q && forzaTurnIntent(q)==='stop'){
         // A pure stop command should not trigger an extra AI response.
-        sessionTranscriptRef.current=appendForzaSpeechSegment(sessionTranscriptRef.current,q);
+        sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,q);
         setUserText(sessionTranscriptRef.current);
         setIsUserSpeaking(false);
         setStatus('listening');
@@ -1216,6 +1216,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // Claim the turn synchronously. The voice identity lookup now runs
       // inside the owned/abortable turn below, so speech arriving during that
       // lookup can still barge in instead of being erased by a later reset.
+      // Commit the recognized words before any asynchronous STT verifier or
+      // model request can be interrupted. A resumed customer phrase must never
+      // make this already-heard transcript disappear.
+      if(q){
+        sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,q);
+        setUserText(sessionTranscriptRef.current);
+      }
       turnDispatchPendingRef.current=true;
       stopAcknowledgementRef.current?.cancel();
       // Chrome keeps final results from older turns while recognition stays
@@ -1249,7 +1256,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       recognitionSessionBaseRef.current='';
 
       if (q) {
-        setUserText(appendForzaSpeechSegment(sessionTranscriptRef.current,q));
+        setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,q));
       } else {
         // The raw-audio fallback cannot invent a transcript before recognition;
         // keep previously displayed live words instead of replacing them with
@@ -1352,7 +1359,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 Math.round(performance.now()-sttStartedAt)+' segments='+audioBlobs.length+
                 ' failed='+failedSegments+' source='+(payload.query===q?'browser_guarded':'server_final')+
                 ' transcript_chars='+serverTranscript.length);
-              setUserText(appendForzaSpeechSegment(sessionTranscriptRef.current,payload.query));
+              setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,payload.query));
               setMicrophoneError(null);
             }else if(!q){
               throw new Error('diba_no_complete_transcript');
@@ -1382,7 +1389,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // final recognizer has had a chance to correct the live hypothesis.
         // This ledger is never cleared at pauses or assistant turn boundaries.
         if(resolvedUserQuery){
-          sessionTranscriptRef.current=appendForzaSpeechSegment(sessionTranscriptRef.current,resolvedUserQuery);
+          sessionTranscriptRef.current=q
+            ?replaceForzaLastSessionTurn(sessionTranscriptRef.current,q,resolvedUserQuery)
+            :appendForzaSessionTurn(sessionTranscriptRef.current,resolvedUserQuery);
           setUserText(sessionTranscriptRef.current);
         }
         // Keep the prior conversation snapshot separate from this new user
@@ -1395,7 +1404,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // separate final user message in the streaming request body.
         payload.history=previousHistory;
         historyRef.current=nextHistory;
-        if(resolvedUserQuery)setUserText(resolvedUserQuery);
+        if(resolvedUserQuery)setUserText(sessionTranscriptRef.current);
         let reply='';
         let firstTextDelivered=false;
         let firstPlaybackLogged=false;
@@ -1989,7 +1998,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           speechInterimRef.current = recognized.hasInterim;
           hasSpeechSoundRef.current = true;
           activeTranscriptRef.current = mergedSpeech;
-          setUserText(appendForzaSpeechSegment(sessionTranscriptRef.current,mergedSpeech));
+          setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,mergedSpeech));
           setStatus('listening');
           setTurn('user');
           setIsUserSpeaking(true);
