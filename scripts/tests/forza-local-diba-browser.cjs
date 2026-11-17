@@ -3,8 +3,8 @@
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 
-function wav(){
- const samples=4800,b=Buffer.alloc(44+samples*2);
+function wav(seconds=0.2){
+ const samples=Math.round(24000*seconds),b=Buffer.alloc(44+samples*2);
  b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVEfmt ',8);
  b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);
  b.writeUInt32LE(24000,24);b.writeUInt32LE(48000,28);
@@ -73,7 +73,7 @@ function wav(){
    speech.push(route.request().postDataJSON()?.text||'');
    await page.evaluate(count=>{window.__forzaSpeechRequests=count;},speech.length).catch(()=>{});
    await route.fulfill({status:200,contentType:'audio/wav',
-    headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav()});
+    headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav(5)});
   });
   await page.route('**/api/ai/consult-stream',async route=>{
    const request=route.request().postDataJSON();
@@ -140,7 +140,24 @@ function wav(){
   assert.ok(requests[1].history.some(item=>
    item.role==='model'&&item.text.includes('برای انتخاب تسمه مناسب')),
    'the next turn must retain the assistant answer the customer actually heard');
+
+  // Barge in while the second Nima WAV is still playing. The same Diba
+  // recognizer must interrupt that playback and submit the customer's new turn.
+  await page.waitForFunction(()=>window.__forzaSpeechRequests>=2,null,{timeout:8000});
+  await page.waitForTimeout(300);
+  await page.evaluate(()=>{window.__forzaMicSample=0.008;});
+  await page.waitForTimeout(450);
+  await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('یه سوال جدید درباره تسمه نقاله دارم'));
+  await page.getByText('یه سوال جدید درباره تسمه نقاله دارم',{exact:true}).waitFor({timeout:1500});
+  await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('یه سوال جدید درباره تسمه نقاله دارم'));
+  await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
+  await page.waitForFunction(()=>window.__forzaConsultRequestCount===3,null,{timeout:12000});
+  await page.waitForFunction(()=>window.__forzaSpeechRequests>=3,null,{timeout:8000});
+  assert.equal(queries.length,3,'customer speech during Nima playback must interrupt and start a new turn');
+  assert.ok(speech.length>=3,'Nima must synthesize the barge-in response too');
+  assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
+   'barge-in must reuse the same Diba recognizer instead of discarding its state');
   assert.equal(errors.length,0,errors.join('; '));
-  console.log('PASS: same-origin local Diba streams Persian partials and recovers across two voice turns');
+  console.log('PASS: local Diba accumulates multiple turns, Nima speaks each reply, and barge-in interrupts playback');
  }finally{await browser.close();}
 })().catch(error=>{console.error('FORZA LOCAL DIBA BROWSER FAIL',error);process.exitCode=1;});
