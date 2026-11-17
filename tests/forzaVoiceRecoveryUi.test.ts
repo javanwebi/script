@@ -130,7 +130,7 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 
 
 test('server Diba remains a fallback when browser recognition has no transcript',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) && serverSttConfiguredRef\.current === true && !q/);
+  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true && \(!q \|\| !localSttActiveRef\.current\)/);
   assert.match(ui,/transcribeOnly:true/);
   assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
   assert.match(ui,/info\.serverSttProvider==='diba'/);
@@ -144,8 +144,9 @@ test('a two-second pause preserves the same live transcript across browser recog
   assert.match(ui,/recognitionSessionBaseRef=useRef<string>\(''\)/);
   assert.match(ui,/recognitionSessionBaseRef\.current=activeTranscriptRef\.current\.trim\(\)/);
   assert.match(ui,/appendForzaSpeechSegment\(recognitionSessionBaseRef\.current,currentSpeech\)/);
-  assert.match(ui,/: 2800;/);
-  assert.match(speechPipeline,/hasInterim\?2900:2600/);
+  assert.match(ui,/: 5200;/);
+  assert.match(ui,/Math\.max\(5200,pauseMs\)-acousticSilence/);
+  assert.match(speechPipeline,/hasInterim\?4600:4200/);
 });
 
 test('FORZA hair animation remains visible during the spoken greeting despite microphone echo cancellation',()=>{
@@ -159,4 +160,33 @@ test('ending a call clears buffered audio segments from memory',()=>{
   const teardown=ui.slice(from,to);
   assert.ok(teardown.includes('audioChunksRef.current=[]'));
   assert.ok(teardown.includes('audioSegmentsRef.current=[]'));
+});
+
+test('local Diba keeps one recognizer and appends finalized segments across reply boundaries',()=>{
+  assert.match(ui,/if\(localSttRecognizerRef\.current\)\{/);
+  assert.match(ui,/localSttAdmissionRef\.current=admission/);
+  assert.match(ui,/appendForzaSpeechSegment\(localSttFinalRef\.current,recognized\.text\)/);
+  assert.match(ui,/localSttAdmissionRef\.current\?\.reset\(\)/);
+  assert.match(ui,/localSttActiveRef\.current=false/);
+});
+
+test('VAD waits for delayed speech text before stopping an empty transcript recording',()=>{
+  assert.match(ui,/: 5200;/);
+  assert.match(ui,/Math\.max\(0,Math\.max\(5200,pauseMs\)-acousticSilence\)/);
+  assert.match(ui,/turnDispatchPendingRef\.current=true/);
+  assert.match(ui,/if\(turnDispatchPendingRef\.current && !\(q && forzaTurnIntent\(q\)==='stop'\)\)return/);
+});
+
+test('Nima phrase requests are serialized to match the private single-worker CPU engine',()=>{
+  assert.match(ui,/maxConcurrent:1/);
+  assert.match(ui,/maxAheadPhrases:2/);
+  assert.match(ui,/AbortSignal\.timeout\(65000\)/);
+  assert.match(ui,/phase=http_error status=/);
+});
+
+test('server Diba verification preserves browser text and merges complete recorder segments in order',()=>{
+  assert.match(ui,/Promise\.allSettled\(audioBlobs\.map\(async segment=>/);
+  assert.match(ui,/const sttBudgetMs=q\?5500:22000/);
+  assert.match(ui,/serverTranscript=appendForzaSpeechSegment\(serverTranscript,result\.value\)/);
+  assert.match(ui,/A failed final verifier must never erase a usable live transcript/);
 });
