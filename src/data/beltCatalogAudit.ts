@@ -111,7 +111,7 @@ export type BeltRecommendedAction =
   | 'MANUAL_ENGINEERING_REVIEW';
 
 export interface BeltTechnicalParameters {
-  operatingPrinciple: 'synchronous' | 'friction-v' | 'friction-ribbed' | 'friction-round-welded' | 'conveying' | 'equipment' | 'non-belt';
+  operatingPrinciple: 'synchronous' | 'friction-v' | 'friction-ribbed' | 'friction-round-welded' | 'conveying' | 'equipment' | 'non-belt' | 'unknown';
   beltDivision:
     | 'timing-imperial-single'
     | 'timing-imperial-double'
@@ -1032,6 +1032,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   const isCeramicPrint = /تسمه\s+چاپ/.test(normName);
   const isMegadyneCeramicT5 =
     brand === 'MEGADYNE' && isCeramicPrint && /\bT5\b/.test(upperName);
+  const isSteelCordMetricTimingCandidate =
+    /سیم\s*دار/.test(normName) || isSteelCordMaterial || product.subcategory === 'تسمه سیم‌دار';
   const hasCoating =
     has3APL ||
     has6APL ||
@@ -1199,7 +1201,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
           ...(isCeramicPrint ? [] : ['Optibelt RB Technical Manual']),
         ],
       },
-      confidence: isCeramicPrint ? 'REQUIRES_REVIEW' : 'ALGORITHMIC_STANDARD_ONLY',
+      confidence: 'ALGORITHMIC_STANDARD_ONLY',
       verification: unattachedProvenancePlaceholder(),
       recommendedAction: 'MANUAL_ENGINEERING_REVIEW',
       engineeringReasoning: isCeramicPrint
@@ -1240,7 +1242,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     bareMetricPuProfileMatch ||
     rubber3mProfileMatch;
 
-  if (metricPuMatch && (isPolyurethaneMaterial || rubber3mProfileMatch || isMegadyneCeramicT5)) {
+  if (metricPuMatch && (isPolyurethaneMaterial || rubber3mProfileMatch || isMegadyneCeramicT5 || isSteelCordMetricTimingCandidate)) {
     let profile = 'T10';
     let widthMm: number | null = null;
     let lengthMm: number | null = null;
@@ -1308,7 +1310,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     const spec: { pitchMm: number; toothAngleDeg: number | null; toothHeightMm: number; beltThicknessMm: number; sidedness: 'single-sided' | 'double-sided' } = isRubber3M
       ? { ...CURVILINEAR_TIMING_SPECS['3M'], toothAngleDeg: null }
       : { ...(METRIC_PU_TIMING_SPECS[profile] || METRIC_PU_TIMING_SPECS.T10) };
-    const isSteelCord = /سیم\s*دار/.test(normName) || isSteelCordMaterial || product.subcategory === 'تسمه سیم‌دار';
+    const isSteelCord = isSteelCordMetricTimingCandidate;
     const isEndless = /مدار\s*بسته/.test(normName) || (!mayBeMeterRoll && rawUnit.includes('حلقه')) || lengthMm !== null;
     const supplyForm: BeltTechnicalParameters['supplyForm'] = isEndless ? 'endless-loop' : 'open-ended-meter';
     const puUnit = isEndless ? 'حلقه' : 'متر';
@@ -1323,6 +1325,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     } else if (isSteelCord && isPolyurethaneMaterial) {
       proposedSubmenu = 'سیم‌دار فابریک';
       proposedLeaf = 'پلی‌یورتان';
+    } else if (isSteelCord && !isPolyurethaneMaterial) {
+      proposedSubmenu = 'سیم‌دار فابریک';
+      proposedLeaf = null;
     } else if (profile === '3M' && isRubberMaterial) {
       proposedSubmenu = 'لاستیکی فابریک';
       proposedLeaf = 'لاستیکی فابریک ساده و دنده‌دار';
@@ -1335,7 +1340,11 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     }
 
     const familyKey = [
-      isRubber3M ? 'FAM-TIMING-RUBBER' : 'FAM-TIMING-PU',
+      isRubber3M
+        ? 'FAM-TIMING-RUBBER'
+        : isSteelCord && !isPolyurethaneMaterial
+          ? 'FAM-TIMING-METRIC-STEEL-MATERIAL-REVIEW'
+          : 'FAM-TIMING-PU',
       profile,
       supplyForm === 'endless-loop' ? 'ENDLESS' : 'OPEN',
       coatingCode,
@@ -1347,6 +1356,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       taxonomyGap = `GAP-TIMING-DOUBLE-SIDED: پروفیل دوطرفه ${profile} فعلاً فقط در سطح زیرمنوی گام‌های تایمینگ نمایش داده می‌شود؛ برگ مصوب مستقلی برای آن وجود ندارد.`;
     } else if ((profile === 'T10' || profile === 'T20') && proposedSubmenu === 'انواع گام و کدهای تایمینگ') {
       taxonomyGap = `GAP-TIMING-${profile}-LEAF-MISSING: پروفیل ${profile} در برگ مصوب «T5 , AT5 , AT10 , AT20» وجود ندارد؛ تا افزودن برگ دقیق نباید به آن مسیر منتسب شود.`;
+    } else if (isSteelCord && !isPolyurethaneMaterial) {
+      taxonomyGap = `GAP-TIMING-${profile}-CORD-MATERIAL-UNVERIFIED: مسیر تا سطح زیرمنوی سیم‌دار فابریک محدود می‌شود؛ جنس بدنه و جنس/آرایش کورد باید با دیتاشیت تأیید شود.`;
     }
 
     return {
@@ -1371,7 +1382,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         'تسمه تایمینگ',
         spec.sidedness === 'double-sided' ? 'دوطرفه' : '',
         profile,
-        isRubber3M ? 'لاستیکی' : 'پلی‌یورتان سیم‌دار',
+        isRubber3M ? 'لاستیکی' : isSteelCord && !isPolyurethaneMaterial ? 'سیم‌دار با جنس نامشخص' : 'پلی‌یورتان سیم‌دار',
         coatingLabel ? `(${coatingLabel})` : '',
         supplyForm === 'endless-loop' ? 'مداربسته' : 'متری',
         brand !== 'UNSPECIFIED' ? brand : '',
@@ -1380,10 +1391,14 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         .join(' '),
       proposedFamilyNameEn: isRubber3M
         ? `${brand} 3M Rubber Timing Belt (${supplyForm})`
-        : `${brand} ${profile} ${spec.sidedness === 'double-sided' ? 'Double-Sided ' : ''}Polyurethane Steel-Cord Timing Belt (${supplyForm})`,
+        : isSteelCord && !isPolyurethaneMaterial
+          ? `${brand} ${profile} Steel-Cord Metric Timing Belt (Body Material Unverified; ${supplyForm})`
+          : `${brand} ${profile} ${spec.sidedness === 'double-sided' ? 'Double-Sided ' : ''}Polyurethane Steel-Cord Timing Belt (${supplyForm})`,
       actualProductType: isRubber3M
         ? 'تسمه تایمینگ منحنی‌الخط لاستیکی 3M'
-        : `تسمه تایمینگ متریک پلی‌یورتان پروفیل ${profile} (${supplyForm === 'endless-loop' ? 'مداربسته' : 'کلاف متری'})`,
+        : isSteelCord && !isPolyurethaneMaterial
+          ? `تسمه تایمینگ متریک پروفیل ${profile} با مغزی سیم‌دار؛ جنس بدنه نیازمند دیتاشیت (${supplyForm === 'endless-loop' ? 'مداربسته' : 'کلاف متری'})`
+          : `تسمه تایمینگ متریک پلی‌یورتان پروفیل ${profile} (${supplyForm === 'endless-loop' ? 'مداربسته' : 'کلاف متری'})`,
       technical: {
         operatingPrinciple: 'synchronous',
         beltDivision: isRubber3M ? 'timing-htd-rpp-single' : spec.sidedness === 'double-sided' ? 'timing-metric-double' : 'timing-metric-single',
@@ -1403,31 +1418,44 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         lengthDesignation: lengthMm ? `${lengthMm}` : null,
         toothCount: teeth,
         ribCount: null,
-        bodyMaterial: isRubber3M ? 'لاستیک کلروپرن (Neoprene) مطابق داده جنس کالا' : 'پلی‌یورتان ترموپلاستیک (TPU 92 ShA)',
-        tensileCord: isRubber3M ? 'نامشخص؛ نیازمند دیتاشیت سازنده' : 'کورد فولادی گالوانیزه (Steel Cord)',
+        bodyMaterial: isRubber3M
+          ? 'لاستیک کلروپرن (Neoprene) مطابق داده جنس کالا'
+          : isSteelCord && !isPolyurethaneMaterial
+            ? 'جنس بدنه تأیید نشده؛ عبارت سیم‌دار به‌تنهایی اثبات‌کننده TPU یا پلی‌یورتان نیست'
+            : 'پلی‌یورتان ترموپلاستیک (TPU 92 ShA)',
+        tensileCord: isRubber3M
+          ? 'نامشخص؛ نیازمند دیتاشیت سازنده'
+          : isSteelCord && !isPolyurethaneMaterial
+            ? 'مغزی سیم‌دار طبق شرح انبار؛ جنس فلز و آرایش کورد نیازمند دیتاشیت'
+            : 'کورد فولادی گالوانیزه (Steel Cord)',
         backingOrCoating: coatingLabel,
         standardReference: isRubber3M
           ? 'ISO 13050 / HTD 3M curvilinear profile; compound and tensile member require manufacturer datasheet'
           : 'DIN 7721 / ISO 17396 (تسمه‌های سنکرون متریک پروفیل T و AT)',
         manufacturerSources: isRubber3M
           ? ['ISO 13050 Curvilinear Synchronous Belt Profiles', 'Manufacturer datasheet required for 3M compound and tensile member']
-          : [
-              'DIN 7721 Synchronous Belt Drives — Metric Pitch T and AT',
-              'Megadyne MEGAFLEX Technical Handbook — endless T5, TPU 92 ShA and helical zinc-plated steel cords (series-level evidence)',
-              'Optibelt Alpha Linear / Alpha Flex Datasheet',
-            ],
+          : isSteelCord && !isPolyurethaneMaterial
+            ? ['DIN 7721 / ISO 17396 — metric T/AT timing profile reference', 'Manufacturer datasheet required to verify belt body material and tensile member']
+            : [
+                'DIN 7721 Synchronous Belt Drives — Metric Pitch T and AT',
+                'Megadyne MEGAFLEX Technical Handbook — endless T5, TPU 92 ShA and helical zinc-plated steel cords (series-level evidence)',
+                'Optibelt Alpha Linear / Alpha Flex Datasheet',
+              ],
       },
-      confidence: 'ALGORITHMIC_STANDARD_ONLY',
+      confidence: isSteelCord && !isPolyurethaneMaterial ? 'REQUIRES_REVIEW' : 'ALGORITHMIC_STANDARD_ONLY',
       verification: unattachedProvenancePlaceholder(),
-      recommendedAction:
-        product.categoryName !== 'تسمه و انتقال نیرو'
+      recommendedAction: isSteelCord && !isPolyurethaneMaterial
+        ? 'MANUAL_ENGINEERING_REVIEW'
+        : product.categoryName !== 'تسمه و انتقال نیرو'
           ? 'MOVE_TO_OTHER_CATEGORY'
           : 'MOVE_TO_EXISTING_FAMILY',
       engineeringReasoning: isRubber3M
         ? 'پروفیل منحنی‌الخط 3M با جنس لاستیکی ثبت‌شده؛ نوع کورد و ترکیب دقیق باید از دیتاشیت سازنده تأیید شود.'
-        : isCeramicPrint
-          ? `تسمه تایمینگ متریک ${profile} برند مگاداین برای کاربرد چاپ کاشی؛ عبارت «داخل سبز» فقط توصیف انبار است و نوع پوشش/پارچه‌ای یا سری دقیق از روی نام قابل اثبات نیست.`
-          : `تسمه سنکرون متریک ${profile} با گام ${spec.pitchMm} میلی‌متر مطابق DIN 7721.`,
+        : isSteelCord && !isPolyurethaneMaterial
+          ? `پروفیل متریک ${profile} و وجود مغزی سیم‌دار از شرح انبار استخراج شده است؛ جنس بدنه و جنس/آرایش کورد اثبات نشده، بنابراین فقط دسته و زیرمنوی تایمینگ سیم‌دار پیشنهاد می‌شود و خانواده تا دریافت دیتاشیت در بازبینی می‌ماند.`
+          : isCeramicPrint
+            ? `تسمه تایمینگ متریک ${profile} برند مگاداین برای کاربرد چاپ کاشی؛ عبارت «داخل سبز» فقط توصیف انبار است و نوع پوشش/پارچه‌ای یا سری دقیق از روی نام قابل اثبات نیست.`
+            : `تسمه سنکرون متریک ${profile} با گام ${spec.pitchMm} میلی‌متر مطابق DIN 7721.`,
     };
   }
 
@@ -2027,10 +2055,87 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     };
   }
 
-  // 8. Heat-weldable PU belts: require actual PU material evidence. A wrapped rubber
+  // 8. Welded profiles with incomplete material/profile evidence stay in the review queue.
+  // Volta's official V/Round catalog lists named round sections (RFC/RLC/RMW etc.), not CRC;
+  // the local CRC token must not be converted to a Volta round/PU profile without its datasheet.
+  const isGenericWeldedRoundWithoutMaterial =
+    /تسمه\s+جوشی/.test(normName) && /گرد/.test(normName) && !isPolyurethaneMaterial;
+  if (isVoltaWeldedCrc || isGenericWeldedRoundWithoutMaterial) {
+    const profileCode = isVoltaWeldedCrc ? 'CRC' : 'ROUND';
+    const isRound = profileCode === 'ROUND';
+    const reviewSupplyForm: BeltTechnicalParameters['supplyForm'] =
+      !isMixedFamilyUnit && rawUnit === 'حلقه' ? 'endless-loop' : 'heat-weldable-meter';
+    return {
+      sku: variant.code,
+      originalName: rawName,
+      originalSize: variant.size || '',
+      originalUnit,
+      unit: reviewSupplyForm === 'endless-loop' ? 'حلقه' : 'متر',
+      currentFamilyId: product.code,
+      currentFamilyName: product.name,
+      currentCategory: product.categoryName,
+      currentSubmenu: product.submenu || '',
+      currentSubcategory: product.subcategory,
+      detectedBrand: brand,
+      proposedCategorySlug: 'UNRESOLVED',
+      proposedCategoryName: 'نیازمند تطبیق فنی و دیتاشیت',
+      proposedSubmenu: 'پروفیل جوشی با ماده/سری نامشخص',
+      proposedLeaf: null,
+      taxonomyGap: isVoltaWeldedCrc
+        ? 'GAP-VOLTA-CRC-UNVERIFIED: کاتالوگ رسمی Volta برای Round Profiles کدهای RFC/RLC/RMW و سایر سری‌ها را فهرست می‌کند، نه CRC؛ کد CRC انبار بدون نقشه/دیتاشیت نباید به تسمه گرد PU یا تسمه تاج‌دار نقاله تبدیل شود.'
+        : 'GAP-WELDED-ROUND-MATERIAL-UNVERIFIED: شکل گرد از نام انبار مشخص است، اما جنس PU/TPE و سازنده از شرح موجود اثبات نمی‌شود؛ تا دریافت دیتاشیت در صف بررسی بماند.',
+      proposedFamilyId: `FAM-WELDED-${profileCode}-MATERIAL-REVIEW-${brand}`.replace(/[^A-Z0-9-]/g, ''),
+      proposedFamilyNameFa: isVoltaWeldedCrc
+        ? 'تسمه جوشی پروفیل CRC ولتا (نیازمند تطبیق دیتاشیت)'
+        : 'تسمه جوشی گرد (جنس و سازنده نیازمند تأیید)',
+      proposedFamilyNameEn: isVoltaWeldedCrc
+        ? 'Volta Welded CRC Profile — Exact Profile/Material Unverified'
+        : 'Welded Round Belt — Material and Manufacturer Unverified',
+      actualProductType: isVoltaWeldedCrc
+        ? 'تسمه جوشی با کد انباری CRC (شکل مقطع نیازمند تأیید)'
+        : 'تسمه جوشی با مقطع گرد (جنس بدنه نیازمند تأیید)',
+      technical: {
+        operatingPrinciple: isRound ? 'friction-round-welded' : 'unknown',
+        beltDivision: 'service-ambiguous',
+        supplyForm: reviewSupplyForm,
+        sidedness: isRound ? 'symmetric-round-hex' : 'unknown',
+        profile: profileCode,
+        pitchMm: null,
+        toothAngleDeg: null,
+        toothHeightMm: null,
+        beltThicknessMm: null,
+        topWidthMm: null,
+        nominalWidthMm: null,
+        widthCode: null,
+        pitchLengthMm: null,
+        insideLengthMm: null,
+        outsideLengthMm: null,
+        lengthDesignation: null,
+        toothCount: null,
+        ribCount: null,
+        bodyMaterial: 'جنس بدنه/پلیمر از شرح انبار اثبات نمی‌شود؛ نیازمند دیتاشیت سازنده',
+        tensileCord: /نخ\s*دار/.test(normName)
+          ? 'وجود تقویت‌کننده نخ‌دار در شرح انبار ثبت شده؛ جنس و آرایش نیازمند دیتاشیت'
+          : 'نوع تقویت‌کننده نامشخص؛ نیازمند دیتاشیت',
+        backingOrCoating: /سبز/.test(normName) ? 'رنگ سبز فقط توصیف انبار است؛ پوشش/ساختار سطح تأیید نشده' : null,
+        standardReference: 'NOT_ESTABLISHED — exact Volta/Opti profile and material datasheet required',
+        manufacturerSources: isVoltaWeldedCrc
+          ? ['Volta V & Round Profiles CAT503EN00 (2025) — listed round profiles do not identify the local CRC token']
+          : [],
+      },
+      confidence: 'REQUIRES_REVIEW',
+      verification: unattachedProvenancePlaceholder(),
+      recommendedAction: 'MANUAL_ENGINEERING_REVIEW',
+      engineeringReasoning: isVoltaWeldedCrc
+        ? 'برند Volta از نام کالا شناسایی می‌شود، اما منبع رسمی Round Profiles سری‌های RFC/RLC/RMW و موارد مشابه را فهرست می‌کند و CRC در آن فهرست دیده نمی‌شود. بنابراین نه گرد بودن CRC و نه PU بودن آن ادعا نمی‌شود؛ تطبیق با شماره فنی/نقشه سازنده لازم است.'
+        : 'عبارت «جوشی گرد» شکل مقطع را نشان می‌دهد، اما جنس PU/TPE و سازنده را اثبات نمی‌کند. این SKU نباید تا دریافت دیتاشیت در خانواده تأییدشده PU ادغام شود.',
+    };
+  }
+
+  // Heat-weldable PU belts: require actual PU material evidence. A wrapped rubber
   // V-belt may contain the words "جوشی" or "گریپ" but is not a thermoplastic PU belt.
   if (
-    (isPolyurethaneMaterial || isVoltaWeldedCrc) &&
+    isPolyurethaneMaterial &&
     (/تسمه\s+جوشی/.test(normName) ||
       /^تسمه\s+گرد(?=\s|$)/.test(normName) ||
       /تسمه\s+(?:فلت|تخت)/.test(normName))
