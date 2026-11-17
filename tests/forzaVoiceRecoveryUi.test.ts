@@ -120,6 +120,8 @@ test('mobile call uses one live message card and removes floating bottom action 
   assert.doesNotMatch(ui,/QUICK_TOPICS|Restore button when HUD hidden/);
   assert.match(styles,/\.forza-status-dock/);
   assert.match(styles,/\.forza-message-card/);
+  assert.match(styles,/max-height: min\(26vh, 320px\)/);
+  assert.match(ui,/card\.scrollTop=card\.scrollHeight/);
   assert.match(styles,/bottom: calc\(8px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
