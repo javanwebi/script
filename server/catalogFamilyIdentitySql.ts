@@ -31,34 +31,34 @@ left join lateral (
     select
       case
         when count(distinct nullif(btrim(x->>'value'),'')) filter (
-          where lower(regexp_replace(coalesce(x->>'key',''), '[[:space:]_-]+', '', 'g'))
-            in ('producttype','productkind','نوعمحصول','نوعکالا','نوعتسمه')
+          where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
+            in ('producttype','productkind','نوعمحصول','نوعکالا','نوعتسمه','نوعقطعه')
         ) <= 1
         then max(nullif(btrim(x->>'value'),'')) filter (
-          where lower(regexp_replace(coalesce(x->>'key',''), '[[:space:]_-]+', '', 'g'))
-            in ('producttype','productkind','نوعمحصول','نوعکالا','نوعتسمه')
+          where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
+            in ('producttype','productkind','نوعمحصول','نوعکالا','نوعتسمه','نوعقطعه')
         )
         else 'MIXED'
       end as product_type,
       case
         when count(distinct nullif(btrim(x->>'value'),'')) filter (
-          where lower(regexp_replace(coalesce(x->>'key',''), '[[:space:]_-]+', '', 'g'))
+          where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
             in ('material','beltmaterial','جنس','جنستسمه','ماده')
         ) <= 1
         then max(nullif(btrim(x->>'value'),'')) filter (
-          where lower(regexp_replace(coalesce(x->>'key',''), '[[:space:]_-]+', '', 'g'))
+          where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
             in ('material','beltmaterial','جنس','جنستسمه','ماده')
         )
         else 'MIXED'
       end as material,
       case
         when count(distinct nullif(btrim(x->>'value'),'')) filter (
-          where lower(regexp_replace(coalesce(x->>'key',''), '[[:space:]_-]+', '', 'g'))
-            in ('profile','beltprofile','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','نوعپروفیل')
+          where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
+            in ('profile','beltprofile','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
         ) <= 1
         then max(nullif(btrim(x->>'value'),'')) filter (
-          where lower(regexp_replace(coalesce(x->>'key',''), '[[:space:]_-]+', '', 'g'))
-            in ('profile','beltprofile','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','نوعپروفیل')
+          where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
+            in ('profile','beltprofile','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
         )
         else 'MIXED'
       end as profile
