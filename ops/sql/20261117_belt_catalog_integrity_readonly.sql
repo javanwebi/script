@@ -76,10 +76,16 @@ SELECT
 
 -- 6. Sample engineering spot-check. Rows are evidence, not remapping orders.
 SELECT v.code AS sku_code,v.name AS sku_name,v.family_code,
-       f.category_slug, coalesce(a.submenu_name,'') AS approved_submenu,
-       a.leaf_name, v.identity_specs->>'profile' AS profile
+       CASE WHEN d.sku_code IS NOT NULL THEN 'DIRECT_SKU'
+            WHEN f.is_active THEN 'ACTIVE_FAMILY'
+            ELSE 'ARCHIVED_OR_QUARANTINED' END AS published_source,
+       coalesce(d.category_slug,f.category_slug) AS effective_category_slug,
+       coalesce(d.submenu,a.submenu_name,'') AS effective_submenu,
+       coalesce(nullif(d.subcategory,''),a.leaf_name) AS effective_leaf,
+       v.identity_specs->>'profile' AS profile
 FROM public.catalog_variants v
 JOIN public.catalog_families f ON f.code=v.family_code
+LEFT JOIN public.catalog_direct_skus d ON d.sku_code=v.code AND d.is_active
 LEFT JOIN public.catalog_family_menu_assignments a ON a.family_code=f.code
 WHERE v.code IN ('38285','38828','38920','31997','37985','38974','32245','40642')
 ORDER BY v.code;
