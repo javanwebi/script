@@ -17,7 +17,7 @@ left join lateral (
     end as product_type,
     case
       when count(distinct nullif(coalesce(nullif(v.identity_specs->>'material',''), technical_identity.material, f.materials),'')) <= 1
-        then max(coalesce(nullif(v.identity_specs->>'material',''), technical_identity.material, f.materials, ''))
+        then max(coalesce(nullif(v.identity_specs->>'material',''), technical_identity.material, f.materials))
       else 'MIXED'
     end as material,
     case
@@ -54,11 +54,11 @@ left join lateral (
       case
         when count(distinct nullif(btrim(x->>'value'),'')) filter (
           where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
-            in ('profile','profilecode','beltprofile','beltprofilecode','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیل/مدل','پروفایل/مدل','پروفیلمدل','پروفیلومدل','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
+            in ('profile','profilecode','beltprofile','beltprofilecode','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیل/مدل','پروفایل/مدل','پروفیل/مدل','پروفایل/مدل','پروفیلمدل','پروفیلومدل','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
         ) <= 1
         then max(nullif(btrim(x->>'value'),'')) filter (
           where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
-            in ('profile','profilecode','beltprofile','beltprofilecode','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیلمدل','پروفیلومدل','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
+            in ('profile','profilecode','beltprofile','beltprofilecode','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیل/مدل','پروفایل/مدل','پروفیلمدل','پروفیلومدل','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
         )
         else 'MIXED'
       end as profile
