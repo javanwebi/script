@@ -20,9 +20,16 @@ test('category detail API returns only the approved database taxonomy and active
   assert.match(api, /metadata->>'source'='industrial_megamenu_hierarchy_v2'/);
   assert.match(api, /catalog_family_menu_assignments/);
   assert.match(api, /f\.is_active=true and f\.is_deleted=false/);
-  assert.match(api, /coalesce\(f\.item_count,0\) as "skuCount"/);
+  assert.match(api, /coalesce\(identity\.variant_count,0\) as "skuCount"/);
   assert.match(api, /Cache-Control','no-store'/);
   assert.doesNotMatch(api.slice(api.indexOf("app.get('/api/catalog/menu-category/:slug'"), api.indexOf('// Admin-only taxonomy review')), /price_snapshot|retail_price|wholesale_price/);
+});
+
+test('approved category totals include direct SKUs without changing the approved Excel hierarchy', () => {
+  assert.match(api, /const \[result,familyRows,directSkuRows\]=await Promise\.all/);
+  assert.match(api, /from public\.catalog_direct_skus/);
+  assert.match(api, /const skuCount=familySkuCount\+directSkuCount/);
+  assert.match(page, /directSkus\.filter\(item => item\.categorySlug === slug\)\.length/);
 });
 
 test('category detail reads real family records and never falls back to repository fixtures', () => {
