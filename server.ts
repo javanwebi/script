@@ -7320,7 +7320,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
     }
 
     // 1. Direct Voice Audio Comprehension (if user spoke and audio was captured)
-    if (!userQuery && audioBase64 && sttApiKey) {
+    if (!userQuery && typeof audioBase64 === 'string' && sttApiKey) {
       try {
         const cleanAudioData = audioBase64.replace(/^data:[^;]+;base64,/, '');
         let cleanAudioMime = (audioMimeType || 'audio/webm').split(';')[0].trim().toLowerCase();
@@ -7368,7 +7368,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
     // When the provider key resides in Cloudflare, send audio to its
     // authenticated STT endpoint instead of silently substituting a generic
     // question. This is essential for accurate spoken conversations.
-    if (!userQuery && audioBase64 && !sttApiKey && configuredForzaWorkerUrl()) {
+    if (!userQuery && typeof audioBase64 === 'string' && !sttApiKey && configuredForzaWorkerUrl()) {
       try {
         const workerUrl = configuredForzaWorkerUrl();
         const sameRecognitionOrigin = new URL(workerUrl).origin === getPartRecognitionWorkerUrl();
