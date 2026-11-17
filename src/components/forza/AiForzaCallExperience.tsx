@@ -206,6 +206,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [aiText, setAiText] = useState(GREETING_TEXT);
   const [displayedAi, setDisplayedAi] = useState('');
   const [userText, setUserText] = useState('');
+  const transcriptCardRef=useRef<HTMLDivElement|null>(null);
   const [seconds, setSeconds] = useState(0);
 
   const statusRef = useRef<ForzaStatus>('idle');
@@ -681,6 +682,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   useEffect(() => {
     setDisplayedAi(aiText || '');
   }, [aiText]);
+
+  // Keep the newest live words visible while retaining the complete scrollback.
+  useEffect(()=>{
+    const card=transcriptCardRef.current;
+    if(card)card.scrollTop=card.scrollHeight;
+  },[userText,displayedAi]);
 
   // Keep the first-audio wait observable instead of showing an indefinitely
   // frozen spinner while the CPU-based Pocket model is synthesizing speech.
@@ -2748,6 +2755,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         {consultationImage && <img src={consultationImage} alt="قطعه مورد مشاوره" className="w-20 h-20 object-contain rounded-xl bg-white pointer-events-auto" />}
         {(showCustomerTranscript || showAssistantTranscript) && (
           <div
+            ref={transcriptCardRef}
             className={`forza-message-card pointer-events-auto animate-fadeInCard ${showAssistantTranscript ? 'forza-message-card--assistant' : 'forza-message-card--customer'}`}
             aria-live="polite"
             aria-atomic="false"
