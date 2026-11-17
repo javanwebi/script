@@ -69,7 +69,9 @@ export class ForzaSpeechAdmission {
       this.strongFrames++;
       this.duration=now-this.onset;
       this.lastStrong=now;
-    }else if(now-this.lastStrong>100){
+    }else if(now-this.lastStrong>900){
+      // Keep a qualified acoustic burst briefly while delayed local ASR emits
+      // its final hypothesis. Freshness checks below still reject stale speech.
       this.onset=null;this.duration=0;this.strongFrames=0;
     }
   }
@@ -84,7 +86,7 @@ export class ForzaSpeechAdmission {
     // authorize a later background speaker after the customer has stopped.
     // Previously accepted interim words remain preserved when their final
     // hypothesis arrives late; no stale new text is admitted.
-    const fresh=now-this.lastStrong<=(final?900:300);
+    const fresh=now-this.lastStrong<=(final?900:playback?650:300);
     if(!fresh)return 'reject';
     const continuing=this.utteranceLatched&&this.utteranceStartedAt!==null&&
       now-this.utteranceStartedAt>=needed;
@@ -115,6 +117,7 @@ export class ForzaSpeechAdmission {
     // A loud TTS echo can satisfy the raw RMS threshold. Do not let it become
     // VAD evidence until an actual recognized customer phrase is admitted.
     return (!this.mode||this.utteranceLatched)&&
+      this.lastSample-this.lastStrong<=250&&
       this.onset!==null&&this.duration>=160&&this.strongFrames>=3;
   }
   reset(){
