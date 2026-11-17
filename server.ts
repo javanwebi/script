@@ -7183,7 +7183,7 @@ app.post('/api/ai/transcribe', async (req, res) => {
       const onClose=()=>abort.abort();
       res.once('close',onClose);
       try{
-        const text=await transcribeForzaDibaAudio(cleanAudioData,{signal:abort.signal,timeoutMs:10_000});
+        const text=await transcribeForzaDibaAudio(cleanAudioData,{signal:abort.signal,timeoutMs:15_000});
         return res.json({success:true,text,provider:'diba-vosk'});
       }catch(error){
         if(abort.signal.aborted)return;
@@ -7293,7 +7293,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       const onClose=()=>abort.abort();
       res.once('close',onClose);
       try{
-        const transcript=await transcribeForzaDibaAudio(audioBase64,{signal:abort.signal,timeoutMs:10_000});
+        const transcript=await transcribeForzaDibaAudio(audioBase64,{signal:abort.signal,timeoutMs:15_000});
         userQuery=normalizePersianTranscript(transcript).slice(0,2500);
         console.info('[AI FORZA STT] provider=diba transcript_chars='+userQuery.length);
       }catch(sttErr:any){
