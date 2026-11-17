@@ -1,6 +1,7 @@
 import type {Express,Request,Response} from 'express';
 import crypto from 'node:crypto';
 import {database,databaseEnabled} from './db/connection';
+import {CATALOG_FAMILY_IDENTITY_LATERAL_SQL} from './catalogFamilyIdentitySql';
 import {invalidatePublicCatalogCache} from './db/runtimeApi';
 import {getFamilyMenuAssignment,getStaticFamilyCodesForCategory} from '../src/services/catalogTaxonomyResolver';
 import {validateFamilyMenuAssignment} from '../src/data/catalogMenuSemanticGuard';
@@ -106,17 +107,7 @@ export function registerCatalogNavigationApi(app:Express){
              a.leaf_name as "assignedLeaf",a.method
            from public.catalog_families f
            left join public.catalog_family_menu_assignments a on a.family_code=f.code
-           left join lateral (
-             select
-               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
-                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
-               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
-                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
-               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
-               string_agg(distinct v.name,' | ' order by v.name) as variant_names
-             from public.catalog_variants v where v.family_code=f.code and v.active=true
-           ) identity on true
+           ${CATALOG_FAMILY_IDENTITY_LATERAL_SQL}
            where f.is_active=true and f.is_deleted=false
            order by f.code limit 10000`)
       ]);
@@ -171,17 +162,7 @@ export function registerCatalogNavigationApi(app:Express){
             a.leaf_name as "assignedLeaf",a.method
           from public.catalog_families f
           left join public.catalog_family_menu_assignments a on a.family_code=f.code
-          left join lateral (
-            select
-               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
-                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
-               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
-                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
-               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
-               string_agg(distinct v.name,' | ' order by v.name) as variant_names
-             from public.catalog_variants v where v.family_code=f.code and v.active=true
-          ) identity on true
+          ${CATALOG_FAMILY_IDENTITY_LATERAL_SQL}
           where f.is_active=true and f.is_deleted=false
           order by a.category_slug,a.submenu_name,a.leaf_name,f.code
           limit 10000`);
@@ -222,17 +203,7 @@ export function registerCatalogNavigationApi(app:Express){
            a.leaf_name as "assignedLeaf",a.method
           from public.catalog_families f
           left join public.catalog_family_menu_assignments a on a.family_code=f.code
-          left join lateral (
-            select
-               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
-                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
-               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
-                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
-               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
-               string_agg(distinct v.name,' | ' order by v.name) as variant_names
-             from public.catalog_variants v where v.family_code=f.code and v.active=true
-          ) identity on true
+          ${CATALOG_FAMILY_IDENTITY_LATERAL_SQL}
           where f.is_active=true and f.is_deleted=false
             and (a.category_slug=$1 or f.code=any($2::text[]))
           order by f.name,f.code limit 10000`,[slug,staticFamilyCodes]);
@@ -274,17 +245,7 @@ export function registerCatalogNavigationApi(app:Express){
             a.leaf_name as "assignedLeaf",a.method
           from public.catalog_families f
           left join public.catalog_family_menu_assignments a on a.family_code=f.code
-          left join lateral (
-            select
-               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
-                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
-               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
-                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
-               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
-               string_agg(distinct v.name,' | ' order by v.name) as variant_names
-             from public.catalog_variants v where v.family_code=f.code and v.active=true
-          ) identity on true
+          ${CATALOG_FAMILY_IDENTITY_LATERAL_SQL}
           where f.is_active=true and f.is_deleted=false
           order by f.code limit 10000`);
       const assignments=rows.rows.map((row:any)=>{
@@ -316,17 +277,7 @@ export function registerCatalogNavigationApi(app:Express){
            a.leaf_name as "assignedLeaf",a.method as "assignmentMethod"
           from public.catalog_families f
           left join public.catalog_family_menu_assignments a on a.family_code=f.code
-          left join lateral (
-            select
-               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
-                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
-               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
-                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
-               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
-               string_agg(distinct v.name,' | ' order by v.name) as variant_names
-             from public.catalog_variants v where v.family_code=f.code and v.active=true
-          ) identity on true
+          ${CATALOG_FAMILY_IDENTITY_LATERAL_SQL}
           where f.is_active=true and f.is_deleted=false
           order by f.category_slug,f.name limit 10000`);
       const families=rows.rows.flatMap((row)=>{
@@ -367,17 +318,7 @@ export function registerCatalogNavigationApi(app:Express){
          `select f.code,f.name as "familyName",coalesce(identity.product_type,f.name) as "productType",
             coalesce(identity.material,f.materials,'') as material,identity.profile as profile,identity.variant_names as "variantNames"
           from public.catalog_families f
-          left join lateral (
-            select
-               case when count(distinct nullif(v.identity_specs->>'productType',''))<=1
-                 then max(v.identity_specs->>'productType') else 'MIXED' end as product_type,
-               case when count(distinct nullif(v.identity_specs->>'material',''))<=1
-                 then max(v.identity_specs->>'material') else 'MIXED' end as material,
-               case when count(distinct nullif(v.identity_specs->>'profile',''))<=1
-                 then max(v.identity_specs->>'profile') else 'MIXED' end as profile,
-               string_agg(distinct v.name,' | ' order by v.name) as variant_names
-             from public.catalog_variants v where v.family_code=f.code and v.active=true
-          ) identity on true
+          ${CATALOG_FAMILY_IDENTITY_LATERAL_SQL}
           where f.code=$1 and f.is_active=true and f.is_deleted=false limit 1`,[familyCode]);
       if(!category.rows.length||!family.rows.length)return res.status(404).json({success:false,message:'خانواده یا دسته مقصد یافت نشد.'});
       const nodes=Array.isArray(category.rows[0].metadata?.children)?category.rows[0].metadata.children:[];
