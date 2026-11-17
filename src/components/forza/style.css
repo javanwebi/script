@@ -539,6 +539,9 @@
   color: #f1f3f5;
   box-shadow: 0 16px 42px rgba(0, 0, 0, .34);
   overflow-wrap: anywhere;
+  max-height: min(26vh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .forza-message-card--customer {
   border-color: rgba(255,255,255,.18);
