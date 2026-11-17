@@ -69,10 +69,13 @@ export class ForzaSpeechAdmission {
       this.strongFrames++;
       this.duration=now-this.onset;
       this.lastStrong=now;
-    }else if(now-this.lastStrong>900){
-      // Keep a qualified acoustic burst briefly while delayed local ASR emits
-      // its final hypothesis. Freshness checks below still reject stale speech.
-      this.onset=null;this.duration=0;this.strongFrames=0;
+    }else{
+      // Keep only a qualified acoustic burst briefly while delayed local ASR
+      // emits its final hypothesis. A single transient still expires quickly.
+      const qualified=this.duration>=160&&this.strongFrames>=3;
+      if(now-this.lastStrong>(qualified?900:100)){
+        this.onset=null;this.duration=0;this.strongFrames=0;
+      }
     }
   }
 
