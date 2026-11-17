@@ -1,3 +1,4 @@
+import { resolveManufacturerSeriesEvidence } from './beltManufacturerEvidence';
 import type { Product, ProductVariant } from '../types';
 
 export type BeltConfidenceLevel =
@@ -121,9 +122,10 @@ export interface BeltTechnicalParameters {
     | 'timing-automotive-ru'
     | 'vbelt-classical'
     | 'vbelt-narrow-wedge'
+    | 'vbelt-wedge'
     | 'vbelt-hexagonal'
     | 'vbelt-banded'
-    | 'vbelt-crowned-crc'
+    | 'conveyor-crowned-crc'
     | 'ribbed-poly-v'
     | 'welded-pu-round-crc'
     | 'welded-pu-v-flat'
@@ -430,8 +432,9 @@ const VBELT_SPECS: Record<
   CX: { topWidthMm: 22, thicknessMm: 14, division: 'vbelt-classical', sidedness: 'single-sided', standard: 'DIN 2215 / ISO 4184 (پروفیل دنده‌ای CX 22×14 mm)' },
   D: { topWidthMm: 32, thicknessMm: 20, division: 'vbelt-classical', sidedness: 'single-sided', standard: 'DIN 2215 / ISO 4184 (پروفیل کلاسیک D 32×20 mm)' },
   E: { topWidthMm: 40, thicknessMm: 25, division: 'vbelt-classical', sidedness: 'single-sided', standard: 'DIN 2215 / ISO 4184 (پروفیل کلاسیک E 40×25 mm)' },
-  AA: { topWidthMm: 13, thicknessMm: 10, division: 'vbelt-hexagonal', sidedness: 'double-sided', standard: 'ISO 5289 / DIN 7722 (تسمه شش‌ضلعی دوطرفه AA / HAA)' },
-  BB: { topWidthMm: 17, thicknessMm: 13, division: 'vbelt-hexagonal', sidedness: 'double-sided', standard: 'ISO 5289 / DIN 7722 (تسمه شش‌ضلعی دوطرفه BB / HBB)' },
+  AA: { topWidthMm: 13, thicknessMm: 10, division: 'vbelt-hexagonal', sidedness: 'double-sided', standard: 'ISO 5289 / DIN 7722 (تسمه V دوطرفه AA / HAA)' },
+  BB: { topWidthMm: 17, thicknessMm: 13, division: 'vbelt-hexagonal', sidedness: 'double-sided', standard: 'ISO 5289 / DIN 7722 (تسمه V دوطرفه BB / HBB)' },
+  CC: { topWidthMm: 22, thicknessMm: 17, division: 'vbelt-hexagonal', sidedness: 'double-sided', standard: 'ISO 5289 / DIN 7722 (تسمه V دوطرفه CC / HCC)' },
   SPZ: { topWidthMm: 9.7, thicknessMm: 8, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'DIN 7753-1 / ISO 4184 (پروفیل باریک SPZ 9.7×8 mm)' },
   XPZ: { topWidthMm: 9.7, thicknessMm: 8, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'DIN 7753-1 / ISO 4184 (پروفیل باریک دنده‌ای XPZ 9.7×8 mm)' },
   SPA: { topWidthMm: 12.7, thicknessMm: 10, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'DIN 7753-1 / ISO 4184 (پروفیل باریک SPA 12.7×10 mm)' },
@@ -440,12 +443,12 @@ const VBELT_SPECS: Record<
   XPB: { topWidthMm: 16.3, thicknessMm: 13, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'DIN 7753-1 / ISO 4184 (پروفیل باریک دنده‌ای XPB 16.3×13 mm)' },
   SPC: { topWidthMm: 22, thicknessMm: 18, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'DIN 7753-1 / ISO 4184 (پروفیل باریک SPC 22×18 mm)' },
   XPC: { topWidthMm: 22, thicknessMm: 18, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'DIN 7753-1 / ISO 4184 (پروفیل باریک دنده‌ای XPC 22×18 mm)' },
-  '3V': { topWidthMm: 9.5, thicknessMm: 8, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای 3V / 9N)' },
-  '3VX': { topWidthMm: 9.5, thicknessMm: 8, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای دنده‌ای 3VX / 9NX)' },
-  '5V': { topWidthMm: 15.9, thicknessMm: 13.5, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای 5V / 15N)' },
-  '5VX': { topWidthMm: 15.9, thicknessMm: 13.5, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای دنده‌ای 5VX)' },
-  '8V': { topWidthMm: 25.4, thicknessMm: 23, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای سنگین 8V / 25N)' },
-  '8VX': { topWidthMm: 25.4, thicknessMm: 23, division: 'vbelt-narrow-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای سنگین دنده‌ای 8VX)' },
+  '3V': { topWidthMm: 9.5, thicknessMm: 8, division: 'vbelt-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای 3V / 9N)' },
+  '3VX': { topWidthMm: 9.5, thicknessMm: 8, division: 'vbelt-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای دنده‌ای 3VX / 9NX)' },
+  '5V': { topWidthMm: 15.9, thicknessMm: 13.5, division: 'vbelt-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای 5V / 15N)' },
+  '5VX': { topWidthMm: 15.9, thicknessMm: 13.5, division: 'vbelt-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای دنده‌ای 5VX)' },
+  '8V': { topWidthMm: 25.4, thicknessMm: 23, division: 'vbelt-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای سنگین 8V / 25N)' },
+  '8VX': { topWidthMm: 25.4, thicknessMm: 23, division: 'vbelt-wedge', sidedness: 'single-sided', standard: 'RMA IP-22 / ISO 4184 (پروفیل گُوه‌ای سنگین دنده‌ای 8VX)' },
 };
 
 const RIBBED_SPECS: Record<string, { ribPitchMm: number; thicknessMm: number; standard: string }> = {
@@ -2249,41 +2252,40 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         'GAP-RIDGE-TOP-CRC-LEAF: تسمه تاج‌دار CRC/TRC یک تسمه انتقال/بارکش مداربسته است، نه تسمه گرد جوشی PU. چون اکسل برگ مستقل Ridge-Top ندارد، فقط در برگ مصوب عمومی «تسمه بارکش» نمایش داده می‌شود و پروفیل CRC/TRC در مشخصات فنی حفظ می‌گردد.',
       proposedFamilyId: `FAM-CROWNED-ENDLESS-${profile}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
       proposedFamilyNameFa: `تسمه گرده‌ماهی (تاج‌دار) مداربسته ${profile} ${brand !== 'UNSPECIFIED' ? brand : ''}`.trim(),
-      proposedFamilyNameEn: `${brand} Endless Crowned / Ridge-Top Ceramic Transport V-Belt (${profile})`,
-      actualProductType: `تسمه ذوزنقه‌ای تاج‌دار (گرده‌ماهی / Ridge-Top ${profile}) مداربسته خطوط کاشی و سرامیک`,
+      proposedFamilyNameEn: `${brand} Endless Crowned / Ridge-Top Transport Belt (${profile})`,
+      actualProductType: `تسمه انتقال مداربسته تاج‌دار (گرده‌ماهی / Ridge-Top ${profile})`,
       technical: {
         operatingPrinciple: 'conveying',
-        beltDivision: 'vbelt-crowned-crc',
+        beltDivision: 'conveyor-crowned-crc',
         supplyForm: 'endless-loop',
         sidedness: 'single-sided',
         profile,
         pitchMm: null,
-        toothAngleDeg: 40,
+        toothAngleDeg: null,
         toothHeightMm: null,
         beltThicknessMm: 19,
         topWidthMm: 22,
         nominalWidthMm: 22,
-        widthCode: '22mm (C-Base)',
-        pitchLengthMm: lenVal,
-        insideLengthMm: lenVal,
+        widthCode: '22mm nominal (inventory-derived; manufacturer confirmation required)',
+        pitchLengthMm: null,
+        insideLengthMm: null,
         outsideLengthMm: null,
         lengthDesignation: lenVal ? `${profile}${lenVal}` : null,
         toothCount: null,
         ribCount: null,
-        bodyMaterial: 'لاستیک کلروپرن/طبیعی ضدسایش با تاج محدب (Crowned Top)',
-        tensileCord: 'کورد پلی‌استر پرتاب (High-Tensile Polyester Cord)',
-        backingOrCoating: 'سطح فوقانی محدب (گرده‌ماهی / Ridge-Top) جهت تماس خطی با کاشی',
-        standardReference: 'Ceramic Tile Roller Kiln & Glazing Line Ridge-Top C-Belt Standard',
+        bodyMaterial: 'لاستیک/الاستومر با سطح تاج‌دار (Crowned / Ridge-Top); ترکیب دقیق نیازمند دیتاشیت سازنده است',
+        tensileCord: 'عضو کششی داخلی؛ جنس و آرایش دقیق کورد نیازمند دیتاشیت سازنده است',
+        backingOrCoating: 'سطح فوقانی محدب (گرده‌ماهی / Ridge-Top)',
+        standardReference: 'استاندارد رسمی CRC/TRC در منابع موجود تأیید نشده؛ دیتاشیت سازنده لازم است',
         manufacturerSources: [
-          'Megadyne / Sit / PiBelt Ceramic Industry Ridge-Top (Crowned C-Section) Endless Belts',
-          'Volta Belting CRC Ceramic Tile Transport Profile Guide',
+          'Esbelt official ceramics-sector application reference (application evidence only; not an exact CRC manufacturer datasheet)',
         ],
       },
-      confidence: 'ALGORITHMIC_STANDARD_ONLY',
+      confidence: 'REQUIRES_REVIEW',
       verification: unattachedProvenancePlaceholder(),
       recommendedAction: 'MOVE_TO_EXISTING_FAMILY',
       engineeringReasoning:
-        'تسمه‌های مداربسته گرده‌ماهی (CRC / TRC) دارای پایه ذوزنقه‌ای تیپ C (عرض 22 میلی‌متر) و تاج محدب برای انتقال بدون لغزش کاشی در خطوط لعاب و کوره هستند.',
+        'شرح کالا و کد CRC/TRC به ساختار تاج‌دار مداربسته اشاره می‌کند. منبع کاربردی Esbelt استفاده از تسمه‌های Ridge-Top در خطوط سرامیک را پشتیبانی می‌کند، اما استاندارد، ترکیب لاستیک، کورد و ابعاد دقیق این SKU از آن منبع اثبات نمی‌شود و باید با دیتاشیت همان سازنده تطبیق داده شود.',
     };
   }
 
@@ -2294,9 +2296,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     const baseProf = bandedMatch[2];
     const lenCode = Number(bandedMatch[3]);
     const vSpec = VBELT_SPECS[baseProf] || VBELT_SPECS.C;
-    const isNarrow = ['3V', '3VX', '5V', '5VX', 'SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(baseProf);
-    const isSpecialLeaf = ['SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(baseProf);
-    const isClassicalLeaf = ['Z', 'ZX', 'M', 'A', 'AX', 'B', 'BX', 'C', 'CX', 'D', 'E', '8V', '8VX'].includes(baseProf);
+    const isSpecialSubmenu = ['3V', '3VX', '5V', '5VX', '8V', '8VX', 'SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(baseProf);
 
     return {
       sku: variant.code,
@@ -2312,10 +2312,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       detectedBrand: brand,
       proposedCategorySlug: 'excel-v2-1-2',
       proposedCategoryName: 'تسمه وی‌بلت (V-Belt)',
-      proposedSubmenu: isNarrow ? 'تسمه اسپشیال' : 'کلاسیک و دنده‌دار',
-      proposedLeaf: isNarrow
-        ? isSpecialLeaf ? 'SPA , SPB , SPC و دندانه‌دار' : null
-        : isClassicalLeaf ? 'Z (9.5) , M , A , B , C , D , E , 8V' : null,
+      proposedSubmenu: isSpecialSubmenu ? 'تسمه اسپشیال' : 'کلاسیک و دنده‌دار',
+      proposedLeaf: null,
       taxonomyGap: `GAP-VBELT-BANDED: تسمه به‌پشت‌پیوسته (Banded Powerband) پروفیل ${baseProf} در زیرمنوی پروفیل پایه قرار می‌گیرد؛ فقط پروفیل‌هایی که برگ مصوب دقیق دارند به برگ فرعی متصل می‌شوند.`,
       proposedFamilyId: `FAM-VBELT-BANDED-${baseProf}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
       proposedFamilyNameFa: `تسمه V شکل به‌پشت‌پیوسته (پاورباند) پروفیل ${baseProf} (${brand})`,
@@ -2334,14 +2332,14 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         topWidthMm: Number((bandCount * vSpec.topWidthMm).toFixed(1)),
         nominalWidthMm: vSpec.topWidthMm,
         widthCode: `${bandCount} ribs × ${vSpec.topWidthMm}mm`,
-        pitchLengthMm: isNarrow && baseProf.startsWith('SP') ? lenCode : null,
+        pitchLengthMm: isSpecialSubmenu && baseProf.startsWith('SP') ? lenCode : null,
         insideLengthMm: null,
         outsideLengthMm: baseProf.includes('V') ? Number((lenCode * 2.54).toFixed(1)) : null,
         lengthDesignation: `${bandCount}R${baseProf}${lenCode}`,
         toothCount: null,
         ribCount: bandCount,
-        bodyMaterial: 'لاستیک کلروپرن با نوار پشتی مسلح یکپارچه (Tie-Band Reinforced Neoprene)',
-        tensileCord: 'کورد پلی‌استر یا آرامید مقاوم در برابر بارهای ضربه‌ای',
+        bodyMaterial: 'بدنه لاستیکی با نوار پیونددهنده فوقانی (Tie-Band / Banded V-Belt); ترکیب دقیق لاستیک نیازمند دیتاشیت سازنده است',
+        tensileCord: 'عضو کششی داخلی؛ جنس و آرایش دقیق کورد نیازمند دیتاشیت سازنده است',
         backingOrCoating: 'نوار پیونددهنده فوقانی (Tie-Band)',
         standardReference: 'ISO 5290 / RMA IP-20 / IP-22 (Joined / Banded V-Belts)',
         manufacturerSources: ['Optibelt KRAFTBAND Technical Manual', 'Bando Power-Ace / Red-S II Banded V-Belt Catalog'],
@@ -2356,10 +2354,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   // 12. Classical, Narrow/Wedge, and Hexagonal V-Belts
   const productUpperName = normalize(product.name).toUpperCase();
   const explicitWeldedVProfileMatch = `${upperName} ${productUpperName}`.match(/تسمه\s*جوشی\s*V\b.*?پروفیل\s*(A|B|C)\b/);
-  const explicitVProfileMatch = `${upperName} ${productUpperName}`.match(/(?:تسمه\s*V(?:\s*شکل)?|V[\s-]*BELT|وی[\s‌-]*بلت).*?پروفیل\s*(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\b/);
+  const explicitVProfileMatch = `${upperName} ${productUpperName}`.match(/(?:تسمه\s*V(?:\s*شکل)?|V[\s-]*BELT|وی[\s‌-]*بلت).*?پروفیل\s*(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|CC|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\b/);
   const stdVMatch =
-    upperName.match(/\b(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\s*[-*× ]?\s*(\d{2,5}(?:[./]\d+)?)\b/) ||
-    upperName.match(/\b(\d{2,5}(?:[./]\d+)?)\s*(?:[*×]\s*)?(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|M|K)\b/);
+    upperName.match(/\b(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|CC|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\s*[-*× ]?\s*(\d{2,5}(?:[./]\d+)?)\b/) ||
+    upperName.match(/\b(\d{2,5}(?:[./]\d+)?)\s*(?:[*×]\s*)?(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|CC|ZX|AX|BX|CX|MX|M|K)\b/);
 
   const isExplicitTiming = /تایم|تایمینگ/.test(normName);
   const numericVMatch =
@@ -2400,12 +2398,16 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     }
 
     const vSpec = VBELT_SPECS[vProfile] || VBELT_SPECS.A;
-    const isNarrowProfile = ['SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC', '3V', '3VX', '5V', '5VX'].includes(vProfile);
-    const isSpecialLeaf = ['SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(vProfile);
-    const isClassicalLeaf = ['Z', 'ZX', 'M', 'A', 'AX', 'B', 'BX', 'C', 'CX', 'D', 'E', '8V', '8VX'].includes(vProfile);
+    const isNarrowProfile = ['SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(vProfile);
+    const isAmericanWedgeProfile = ['3V', '3VX', '5V', '5VX', '8V', '8VX'].includes(vProfile);
+    const isSpecialLeaf = ['SPA', 'XPZ', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(vProfile);
+    const isClassicalLeaf = ['Z', 'ZX', 'M', 'A', 'AX', 'B', 'BX', 'C', 'CX', 'D', 'E'].includes(vProfile);
     const isOpenEndedSupply = !isMixedFamilyUnit && rawUnit === 'متر';
     const isMeterLeaf = isOpenEndedSupply && ['A', 'B', 'C'].includes(vProfile);
-    const isHexagonal = ['AA', 'BB'].includes(vProfile);
+    const isHexagonal = ['AA', 'BB', 'CC'].includes(vProfile);
+    const isCoggedProfile = /^(?:XP[ZABC]|[ZABC]X|3VX|5VX|8VX)$/.test(vProfile);
+    const isHeavyWedgeProfile = ['8V', '8VX'].includes(vProfile);
+    const isWedgeProfile = isNarrowProfile || isAmericanWedgeProfile;
     const isUnlistedK = vProfile === 'K';
     const vUnit = isOpenEndedSupply ? 'متر' : 'حلقه';
 
@@ -2415,11 +2417,11 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         ? 'پروفیل K'
         : isMeterLeaf
           ? 'وی‌بلت متری'
-          : isNarrowProfile
+          : isWedgeProfile
             ? 'تسمه اسپشیال'
             : 'کلاسیک و دنده‌دار';
 
-    const proposedLeaf = isHexagonal || isUnlistedK
+    const proposedLeaf = isHexagonal || isUnlistedK || isAmericanWedgeProfile
       ? null
       : isMeterLeaf
         ? 'تسمه A و B و C وی‌بلت متری'
@@ -2428,7 +2430,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
           : isNarrowProfile
             ? null
             : isClassicalLeaf
-              ? 'Z (9.5) , M , A , B , C , D , E , 8V'
+              ? 'Z (9.5) , M , A , B , C , D , E'
               : null;
 
     let taxonomyGap: string | null = null;
@@ -2436,7 +2438,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       taxonomyGap = `GAP-VBELT-HEXAGONAL-LEAF-MISSING: تسمه شش‌ضلعی دوطرفه ${vProfile} خانواده فنی مستقلی است، اما برگ مصوب آن در اکسل وجود ندارد.`;
     } else if (isUnlistedK) {
       taxonomyGap = 'GAP-VBELT-K-LEAF-MISSING: پروفیل K در برگ‌های مصوب کلاسیک/اسپشیال/متری درج نشده است.';
-    } else if (['3V', '3VX', '5V', '5VX', 'MX', 'SPZ', 'XPZ'].includes(vProfile)) {
+    } else if (isAmericanWedgeProfile) {
+      taxonomyGap = `GAP-VBELT-AMERICAN-WEDGE-LEAF-MISSING: پروفیل گوه‌ای آمریکایی ${vProfile} زیرمنوی اسپشیال را می‌گیرد، اما برگ مصوب اختصاصی 3V/5V/8V در اکسل وجود ندارد.`;
+    } else if (['MX', 'SPZ'].includes(vProfile)) {
       taxonomyGap = `GAP-VBELT-PROFILE-LABEL: پروفیل ${vProfile} در نام برگ اکسل صریحاً ذکر نشده؛ هویت آن به‌عنوان تسمه V حفظ می‌شود و باید در بازنگری منبع اکسل تأیید شود.`;
     } else if (hasCoating) {
       taxonomyGap =
@@ -2489,7 +2493,15 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedFamilyId: familyId,
       proposedFamilyNameFa: [
         'تسمه V شکل',
-        vSpec.division === 'vbelt-hexagonal' ? 'شش‌ضلعی دوطرفه' : isNarrowProfile ? 'پروفیل باریک' : 'کلاسیک',
+        vSpec.division === 'vbelt-hexagonal'
+          ? 'شش‌ضلعی دوطرفه'
+          : isHeavyWedgeProfile
+            ? isCoggedProfile ? 'پروفیل گوه‌ای سنگین دنده‌ای لبه‌خام' : 'پروفیل گوه‌ای سنگین'
+            : isAmericanWedgeProfile
+              ? isCoggedProfile ? 'پروفیل گوه‌ای آمریکایی دنده‌ای لبه‌خام' : 'پروفیل گوه‌ای آمریکایی'
+              : isNarrowProfile
+                ? isCoggedProfile ? 'پروفیل باریک دنده‌ای لبه‌خام' : 'پروفیل باریک روکش‌دار'
+                : isCoggedProfile ? 'کلاسیک دنده‌ای لبه‌خام' : 'کلاسیک روکش‌دار',
         vProfile,
         coatingLabel ? `(${coatingLabel})` : '',
         isOpenEndedSupply ? 'متری' : '',
@@ -2498,9 +2510,17 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         .filter(Boolean)
         .join(' '),
       proposedFamilyNameEn: `${brand} ${vProfile} ${
-        vSpec.division === 'vbelt-hexagonal' ? 'Hexagonal Double-Sided' : isNarrowProfile ? 'Narrow Wedge' : 'Classical'
+        vSpec.division === 'vbelt-hexagonal'
+          ? 'Hexagonal Double-Sided'
+          : isHeavyWedgeProfile
+            ? isCoggedProfile ? 'Raw-Edge Cogged Heavy-Duty Wedge' : 'Wrapped Heavy-Duty Wedge'
+            : isAmericanWedgeProfile
+              ? isCoggedProfile ? 'Raw-Edge Cogged American Wedge' : 'Wrapped American Wedge'
+              : isNarrowProfile
+                ? isCoggedProfile ? 'Raw-Edge Cogged Narrow Wedge' : 'Wrapped Narrow Wedge'
+                : isCoggedProfile ? 'Raw-Edge Cogged Classical' : 'Wrapped Classical'
       } V-Belt${hasCoating ? ' (Coated)' : ''}${isOpenEndedSupply ? ' Open-Ended Meter' : ''}`,
-      actualProductType: `تسمه V شکل پروفیل ${vProfile}${hasCoating ? ` همراه با ${coatingLabel}` : ''}`,
+      actualProductType: `تسمه V شکل ${isAmericanWedgeProfile ? 'گوه‌ای آمریکایی ' : ''}${isCoggedProfile ? 'دنده‌ای لبه‌خام ' : ''}${vProfile}${hasCoating ? ` همراه با ${coatingLabel}` : ''}`,
       technical: {
         operatingPrinciple: 'friction-v',
         beltDivision: vSpec.division,
@@ -2520,10 +2540,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         lengthDesignation: rawLen > 0 ? `${vProfile}${rawLen}` : vProfile,
         toothCount: null,
         ribCount: null,
-        bodyMaterial: vProfile.endsWith('X')
-          ? 'الاستومر کلروپرن/EPDM قالب‌گیری‌شده دنده‌ای (Raw-Edge Cogged)'
-          : 'لاستیک کلروپرن با روکش بافت پارچه‌ای (Wrapped V-Belt)',
-        tensileCord: 'کورد پلی‌استر کم‌کشش (Polyester Tensile Cord)',
+        bodyMaterial: isCoggedProfile
+          ? 'لاستیک دنده‌ای لبه‌خام (Raw-Edge Cogged Rubber)'
+          : 'لاستیک با روکش پارچه‌ای (Wrapped V-Belt)',
+        tensileCord: 'عضو کششی داخلی؛ جنس و آرایش دقیق کورد باید از دیتاشیت همان سازنده تأیید شود',
         backingOrCoating: coatingLabel,
         standardReference: vSpec.standard,
         manufacturerSources: [
@@ -2683,114 +2703,34 @@ function buildNonBeltRecord(
 }
 
 interface ResearchedSkuProvenanceEntry {
-  manufacturer: string;
+  manufacturer: string | null;
   exactManufacturerMatch: boolean;
   sourceUrl: string;
   documentType: VerificationDocumentType;
   basis: string;
 }
 
-const BANDO_SYNCHRO_LINK_PDF = 'https://www.bandousa.com/wp-content/uploads/bu_synchro_link_catalog.pdf';
-const MEGADYNE_TNX_URL = 'https://www.megadynegroup.com/en/products/polyurethane-belts';
-const MEGADYNE_SILVER_URL = 'https://www.megadynegroup.com/en/products/rubber-timing-belts';
-const OPTIBELT_ZRK_CATALOG_URL = 'https://www.optibelt.com/en/products/timing-belts/';
+const OPTIBELT_ZRK_CATALOG_URL = 'https://www.optibelt.com/fileadmin/pdf/produkte/keilriemen/Optibelt-product-range.pdf';
+const JIKIU_123RU24_URL = 'https://www.jikiu.jp/catalogue/557384';
 const OPTIBELT_TM_PDF_URL =
   'https://www.optibelt.com/fileadmin/pdf/produkte/zahnriemen-gummi/Optibelt-TM-Rubber-Timing-Belt-Drives.pdf';
 const MISUMI_H_URL =
   'https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html';
 
-const RESEARCHED_EXACT_SKU_DATASHEETS: Record<string, ResearchedSkuProvenanceEntry> = {
-  '10538': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1400H100 با دیتاشیت رسمی Bando Synchro-Link H',
-  },
-  '36103': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1140H100 با دیتاشیت رسمی Bando Synchro-Link H',
-  },
-  '36468': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم آستین دوطرفه 1000DH با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '10111': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1400DH075 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '41291': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1400DH150 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '41598': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1000DH100 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '41689': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1250DH075 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '36636': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 1100DH100 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '41322': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم کد 950DH100 با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '39994': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم آستین دوطرفه 1150DH با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '41349': {
-    manufacturer: 'BANDO',
-    exactManufacturerMatch: true,
-    sourceUrl: BANDO_SYNCHRO_LINK_PDF,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم آستین دوطرفه 800DH با دیتاشیت رسمی Bando Synchro-Link DH',
-  },
-  '58129': {
-    manufacturer: 'MEGADYNE',
-    exactManufacturerMatch: true,
-    sourceUrl: MEGADYNE_TNX_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم تسمه چاپ کاشی Megadyne TNX Pluribelt 1270PJ8 در مستندات Megadyne',
-  },
-  '31501': {
-    manufacturer: 'OPTIBELT',
-    exactManufacturerMatch: true,
-    sourceUrl: OPTIBELT_ZRK_CATALOG_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم 108*17 برند OPTIBELT با Optibelt ZRK 1118 (108 دندانه × 17mm، طول 1029mm، گام 9.525mm)',
-  },
+const RESEARCHED_SKU_EVIDENCE_OVERRIDES: Record<string, ResearchedSkuProvenanceEntry> = {
+
+
+
+
+
+
+
+
+
+
+
+
+
   '31502': {
     manufacturer: 'OPTIBELT',
     exactManufacturerMatch: false,
@@ -2819,40 +2759,17 @@ const RESEARCHED_EXACT_SKU_DATASHEETS: Record<string, ResearchedSkuProvenanceEnt
     documentType: 'NOMINAL_REFERENCE_TABLE',
     basis: 'تطبیق مرجع ابعادی 136*25 با Optibelt ZRK 1262 / ZRK 1538 (گام 9.525mm؛ تایید چاپ ZRK روی کاور در فاز 4 باقی است)',
   },
-  '31769': {
-    manufacturer: 'OPTIBELT',
-    exactManufacturerMatch: true,
-    sourceUrl: OPTIBELT_ZRK_CATALOG_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم Optibelt ZRK 1593 (طول مشخص 1305mm = 137 دندانه × 22mm، گام 9.525mm)',
-  },
-  '34722': {
-    manufacturer: 'OPTIBELT',
-    exactManufacturerMatch: true,
-    sourceUrl: OPTIBELT_ZRK_CATALOG_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم Optibelt ZRK 1182 / CT887 (127 دندانه × 25mm، طول 1210mm، گام 9.525mm)',
-  },
-  '35232': {
-    manufacturer: 'OPTIBELT',
-    exactManufacturerMatch: true,
-    sourceUrl: OPTIBELT_ZRK_CATALOG_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم Optibelt ZRK 1176 / Gates T232 (123 دندانه × 29mm، طول 1172mm، گام 9.525mm)',
-  },
-  '35023': {
-    manufacturer: 'OPTIBELT',
-    exactManufacturerMatch: true,
-    sourceUrl: OPTIBELT_ZRK_CATALOG_URL,
-    documentType: 'MANUFACTURER_DATASHEET',
-    basis: 'تطبیق مستقیم Optibelt ZRK 1459 / CT1039 / MD182295 (65 دندانه × 12.7mm، طول 520mm، گام 8.000mm)',
-  },
+
+
+
+
   '42209': {
-    manufacturer: 'MITSUBISHI',
+    manufacturer: null,
     exactManufacturerMatch: false,
-    sourceUrl: 'https://www.gates.com/us/en/power-transmission/synchronous-belts.html',
+    sourceUrl: JIKIU_123RU24_URL,
     documentType: 'NOMINAL_REFERENCE_TABLE',
-    basis: 'تطبیق مرجع ابعاد/کد اسمی لیفتراک 123RU24 با جدول معادل Mitsubishi MD154243 (برند SKU در انبار UNSPECIFIED است)',
+    basis:
+      'JIKIU catalogue entry confirms the 123RU24 designation and nominal geometry (123 teeth, RU profile, 24 mm width, 9.525 mm pitch) and cross-references Mitsubishi MD154243 / Gates T204. The source is a cross-reference only: the stock SKU has no verified manufacturer label, so neither JIKIU nor Mitsubishi is assigned as its brand.',
   },
 };
 
@@ -2943,7 +2860,7 @@ function resolveProvenanceAndConfidence(
   // Strict rule: DATASHEET_VERIFIED ONLY when exact SKU matched against same manufacturer's datasheet
   if (
     exactEntry &&
-    exactEntry.exactManufacturerMatch &&
+    evidenceOverride.exactManufacturerMatch &&
     exactEntry.documentType === 'MANUFACTURER_DATASHEET' &&
     exactEntry.manufacturer === rec.detectedBrand
   ) {
@@ -2968,7 +2885,7 @@ function resolveProvenanceAndConfidence(
   }
 
   // Exact entry that is a dimensional/cross-reference match (e.g. 42209 UNSPECIFIED or ZRK sleeve check needed)
-  if (exactEntry) {
+  if (evidenceOverride) {
     return {
       confidence: 'NOMINAL_TABLE_VERIFIED',
       verification: {
@@ -2985,33 +2902,6 @@ function resolveProvenanceAndConfidence(
         documentType: exactEntry.documentType,
         matchedManufacturer: exactEntry.manufacturer,
         evidenceBasis: exactEntry.basis,
-      },
-    };
-  }
-
-  // Strict rule: Nominal reference tables NEVER upgrade to DATASHEET_VERIFIED even for known brands
-  if (isNominalRefMatched) {
-    const nominalUrl = inImperialRef && inMisumiRef
-      ? `${OPTIBELT_TM_PDF_URL} | ${MISUMI_H_URL}`
-      : inImperialRef
-        ? OPTIBELT_TM_PDF_URL
-        : MISUMI_H_URL;
-    return {
-      confidence: 'NOMINAL_TABLE_VERIFIED',
-      verification: {
-        tier: 'NOMINAL_DESIGNATION_REF_MATCHED',
-        evidenceClass7: '3_Standard_Table_Verified',
-        processedBySoftwareCode: true,
-        extractedFromDatabase: true,
-        manufacturerCodeIdentified: true,
-        officialManufacturerSiteChecked: false,
-        datasheetOrCatalogChecked: false,
-        matchedAgainstReliableSource: true,
-        familyConfirmedByEvidence: true,
-        sourceUrl: nominalUrl,
-        documentType: 'NOMINAL_REFERENCE_TABLE',
-        matchedManufacturer: null,
-        evidenceBasis: `تطبیق کد طول اسمی ${imperialBaseKey} با جدول مرجع نامینال (${inImperialRef ? 'Optibelt TM PDF' : 'MISUMI H Table'})؛ دیتاشیت SKU اختصاصی برند ${rec.detectedBrand} چک نشده است`,
       },
     };
   }
@@ -3040,49 +2930,58 @@ function resolveProvenanceAndConfidence(
     };
   }
 
-  // Strict re-evaluation of SERIES_VERIFIED:
-  // Only SKUs carrying an explicit verified commercial series name in the SKU string (Megadyne TNX or Megadyne Silver)
-  // belong in SERIES_VERIFIED — and still with officialManufacturerSiteChecked = false & datasheetOrCatalogChecked = false
-  // because individual SKU sheets were not verified. Generic major-brand algorithmic regex SKUs stay ALGORITHMIC_STANDARD_ONLY.
-  const upperOrig = normalize(rec.originalName).toUpperCase();
-  if (rec.detectedBrand === 'MEGADYNE' && /\bTNX\b/.test(upperOrig)) {
+
+  const seriesEvidence = resolveManufacturerSeriesEvidence({
+    sku: rec.sku,
+    manufacturer: rec.detectedBrand,
+    division: rec.technical.beltDivision,
+    profile: rec.technical.profile,
+    originalName: rec.originalName,
+  });
+  if (seriesEvidence) {
     return {
       confidence: 'SERIES_VERIFIED',
       verification: {
         tier: 'BRAND_SERIES_AND_ISO_STANDARD',
-        evidenceClass7: '4_Brand_Series_Identified',
+        evidenceClass7: '2_Official_Catalog_Verified',
         processedBySoftwareCode: true,
         extractedFromDatabase: true,
         manufacturerCodeIdentified: hasIdentifiedCode,
-        officialManufacturerSiteChecked: false,
-        datasheetOrCatalogChecked: false,
+        officialManufacturerSiteChecked: true,
+        datasheetOrCatalogChecked: true,
         matchedAgainstReliableSource: true,
         familyConfirmedByEvidence: true,
-        sourceUrl: MEGADYNE_TNX_URL,
+        sourceUrl: seriesEvidence.sourceUrl,
         documentType: 'SERIES_CATALOG',
-        matchedManufacturer: 'MEGADYNE',
-        evidenceBasis: `سری تجاری صریح Megadyne TNX در متن کالا + استاندارد ${rec.technical.standardReference} (استعلام تک‌تک سایزها روی سایت سازنده انجام نشده است)`,
+        matchedManufacturer: seriesEvidence.manufacturer,
+        evidenceBasis: seriesEvidence.evidenceBasis,
       },
     };
   }
 
-  if (rec.detectedBrand === 'MEGADYNE' && /\bSILVER\b/.test(upperOrig)) {
+  // Strict rule: Nominal reference tables NEVER upgrade to DATASHEET_VERIFIED even for known brands
+  if (isNominalRefMatched) {
+    const nominalUrl = inImperialRef && inMisumiRef
+      ? `${OPTIBELT_TM_PDF_URL} | ${MISUMI_H_URL}`
+      : inImperialRef
+        ? OPTIBELT_TM_PDF_URL
+        : MISUMI_H_URL;
     return {
-      confidence: 'SERIES_VERIFIED',
+      confidence: 'NOMINAL_TABLE_VERIFIED',
       verification: {
-        tier: 'BRAND_SERIES_AND_ISO_STANDARD',
-        evidenceClass7: '4_Brand_Series_Identified',
+        tier: 'NOMINAL_DESIGNATION_REF_MATCHED',
+        evidenceClass7: '3_Standard_Table_Verified',
         processedBySoftwareCode: true,
         extractedFromDatabase: true,
-        manufacturerCodeIdentified: hasIdentifiedCode,
+        manufacturerCodeIdentified: true,
         officialManufacturerSiteChecked: false,
         datasheetOrCatalogChecked: false,
         matchedAgainstReliableSource: true,
         familyConfirmedByEvidence: true,
-        sourceUrl: MEGADYNE_SILVER_URL,
-        documentType: 'SERIES_CATALOG',
-        matchedManufacturer: 'MEGADYNE',
-        evidenceBasis: `سری تجاری صریح Megadyne RPP Silver در متن کالا + استاندارد ${rec.technical.standardReference} (استعلام تک‌تک سایزها روی سایت سازنده انجام نشده است)`,
+        sourceUrl: nominalUrl,
+        documentType: 'NOMINAL_REFERENCE_TABLE',
+        matchedManufacturer: null,
+        evidenceBasis: `تطبیق کد طول اسمی ${imperialBaseKey} با جدول مرجع نامینال (${inImperialRef ? 'Optibelt TM PDF' : 'MISUMI H Table'})؛ دیتاشیت SKU اختصاصی برند ${rec.detectedBrand} چک نشده است`,
       },
     };
   }
@@ -3153,6 +3052,13 @@ export function classifyBeltSkuWithProvenance(
   const resolved = resolveProvenanceAndConfidence(rec, refs);
   rec.confidence = resolved.confidence;
   rec.verification = resolved.verification;
+  const sourceUrls = rec.verification.sourceUrl
+    .split('|')
+    .map((url) => url.trim())
+    .filter((url) => /^https?:\/\//i.test(url));
+  rec.technical.manufacturerSources = [
+    ...new Set([...(rec.technical.manufacturerSources ?? []), ...sourceUrls]),
+  ];
   return rec;
 }
 
@@ -3456,11 +3362,10 @@ export function runBeltCatalogAudit(products: Product[], refs?: AuditReferenceTa
       r.technical.operatingPrinciple === 'synchronous' ||
       r.technical.operatingPrinciple === 'friction-v' ||
       r.technical.operatingPrinciple === 'friction-ribbed' ||
-      r.technical.operatingPrinciple === 'friction-round-welded' ||
-      r.technical.beltDivision === 'vbelt-crowned-crc'
+      r.technical.operatingPrinciple === 'friction-round-welded'
   );
   const trueConveyor = skuRecords.filter(
-    (r) => r.technical.beltDivision === 'conveyor-pvc-pu' || r.technical.beltDivision === 'conveyor-grip'
+    (r) => r.technical.beltDivision === 'conveyor-crowned-crc' || r.technical.beltDivision === 'conveyor-pvc-pu' || r.technical.beltDivision === 'conveyor-grip'
   );
   const beltEquipment = skuRecords.filter((r) => r.technical.operatingPrinciple === 'equipment');
 
