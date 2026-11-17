@@ -114,6 +114,74 @@ export function appendForzaSpeechSegment(previousValue:string, incomingValue:str
   return previous+' '+incoming;
 }
 
+/**
+ * Keep finalized customer turns in one session transcript without applying
+ * overlap de-duplication across turn boundaries. Repeating a phrase in a later
+ * turn is still new speech and must remain visible.
+ */
+export function appendForzaSessionTurn(previousValue:string,nextTurnValue:string):string{
+  const previous=String(previousValue||'').trimEnd();
+  const next=normalizePersianTranscript(nextTurnValue);
+  if(!next)return previous;
+  return previous?previous+'\n'+next:next;
+}
+
+/** Replace only the last committed turn when the final Diba hypothesis corrects
+ * the live browser hypothesis. Earlier turns and repeated phrases stay intact.
+ */
+export function replaceForzaLastSessionTurn(
+  sessionValue:string,
+  previousTurnValue:string,
+  correctedTurnValue:string,
+):string{
+  const session=String(sessionValue||'').trimEnd();
+  const previousTurn=normalizePersianTranscript(previousTurnValue);
+  const corrected=normalizePersianTranscript(correctedTurnValue);
+  if(!corrected)return session;
+  if(!previousTurn)return appendForzaSessionTurn(session,corrected);
+  if(session===previousTurn)return corrected;
+  const suffix='\n'+previousTurn;
+  if(session.endsWith(suffix))
+    return session.slice(0,-previousTurn.length)+corrected;
+  return appendForzaSessionTurn(session,corrected);
+}
+
+/** Compose the immutable session transcript with the current live draft. */
+export function composeForzaSessionTranscript(sessionValue:string,activeTurnValue:string):string{
+  const session=String(sessionValue||'').trimEnd();
+  const active=normalizePersianTranscript(activeTurnValue);
+  if(!active)return session;
+  return session?session+'\n'+active:active;
+}
+
+/**
+ * Run a long recording's independent WebM containers through a small bounded
+ * worker pool. Results are always returned in recording order, regardless of
+ * which request finishes first; no segment is silently dropped.
+ */
+export async function mapForzaSegmentsInOrder<T,R>(
+  items:readonly T[],
+  concurrency:number,
+  mapper:(item:T,index:number)=>Promise<R>,
+):Promise<PromiseSettledResult<R>[]>{
+  const results=new Array<PromiseSettledResult<R>>(items.length);
+  if(!items.length)return results;
+  const workerCount=Math.max(1,Math.min(items.length,Math.floor(concurrency)||1));
+  let cursor=0;
+  await Promise.all(Array.from({length:workerCount},async()=>{
+    while(true){
+      const index=cursor++;
+      if(index>=items.length)return;
+      try{
+        results[index]={status:'fulfilled',value:await mapper(items[index],index)};
+      }catch(reason){
+        results[index]={status:'rejected',reason};
+      }
+    }
+  }));
+  return results;
+}
+
 /** Combine live browser interim/final text with the server's final Diba result.
  * Keep browser-recognized industrial part codes when the acoustic model drops
  * them, but otherwise prefer the server transcript as the final authority.

@@ -18,16 +18,16 @@ test('the current customer utterance is appended once and never duplicated in pr
   assert.equal(history.length,2,'the caller-owned history must not be mutated');
 });
 
-test('the rolling window keeps six exchanges rather than only three',()=>{
-  const history=Array.from({length:20},(_,index)=>({
+test('the rolling window retains twenty exchanges for contextual follow-ups',()=>{
+  const history=Array.from({length:60},(_,index)=>({
     role:index%2===0?'user' as const:'model' as const,
     text:'turn-'+index,
   }));
   const {previousHistory,nextHistory}=prepareForzaConversationTurn(history,'قیمتش چنده');
-  assert.equal(FORZA_CONVERSATION_HISTORY_LIMIT,12);
+  assert.equal(FORZA_CONVERSATION_HISTORY_LIMIT,40);
   assert.deepEqual(previousHistory.map(item=>item.text),
-    Array.from({length:12},(_,index)=>'turn-'+(index+8)));
-  assert.equal(nextHistory.length,13);
+    Array.from({length:40},(_,index)=>'turn-'+(index+20)));
+  assert.equal(nextHistory.length,41);
   assert.equal(nextHistory.at(-1)?.text,'قیمتش چنده');
 });
 

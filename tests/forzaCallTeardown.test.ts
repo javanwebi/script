@@ -23,6 +23,7 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
   localSttRecognizerRef:ref({remove(){calls.push('local-stt');}}),
   localSttAdmissionRef:ref({reset(){calls.push('local-stt-admission-reset');}}),
   localSttActiveRef:ref(true),localSttFinalRef:ref('pending words'),turnDispatchPendingRef:ref(true),
+  sessionTranscriptRef:ref('customer transcript'),pendingCommittedTranscriptRef:ref('pending'),pendingHistoryTurnRef:ref('pending'),
   localSttModelRef:ref({terminate(){calls.push('local-stt-model');}}),
   localSttModelLoadingRef:ref(true),
   animFrameAudioRef:ref(10),ctxRef:ref({state:'running',async close(){calls.push('context');}}),
@@ -38,6 +39,9 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
  assert.equal(values.localSttActiveRef.current,false);
  assert.equal(values.localSttFinalRef.current,'');
  assert.equal(values.turnDispatchPendingRef.current,false);
+ assert.equal(values.sessionTranscriptRef.current,'');
+ assert.equal(values.pendingCommittedTranscriptRef.current,'');
+ assert.equal(values.pendingHistoryTurnRef.current,'');
  assert.equal(values.localSttModelLoadingRef.current,false);
  assert.equal(values.callClosedRef.current,true);
  assert.equal(values.microphoneGenerationRef.current,3);

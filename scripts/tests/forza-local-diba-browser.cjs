@@ -126,11 +126,13 @@ function wav(seconds=0.2){
   await page.evaluate(()=>{window.__forzaMicSample=0.003;});
   await page.waitForTimeout(450);
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('برای دستگاه بسته بندی تسمه PU می خواهم'));
-  await page.getByText('برای دستگاه بسته بندی تسمه PU می خواهم',{exact:true}).waitFor({timeout:1500});
+  await page.waitForFunction(text=>document.body.innerText.includes(text),'برای دستگاه بسته بندی تسمه PU می خواهم',{timeout:1500});
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('برای دستگاه بسته بندی تسمه PU می خواهم'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
   await page.waitForFunction(()=>window.__forzaConsultRequestCount===2,null,{timeout:12000});
   assert.equal(queries.length,2,'second local Diba turn must also reach the AI');
+  await page.waitForFunction(([first,second])=>document.body.innerText.includes(first)&&document.body.innerText.includes(second),[queries[0],'برای دستگاه بسته بندی تسمه PU می خواهم'],{timeout:3000});
+  assert.ok(true,'the first customer transcript remains visible after a later turn');
   await page.waitForFunction(()=>window.__forzaSpeechTurnIds?.some(id=>id.endsWith('-turn-2')),null,{timeout:8000});
   const speechAfterSecond=speech.length;
   assert.ok(speechAfterSecond>speechAfterFirst,'Nima must synthesize audio on the second assistant turn too');
@@ -154,12 +156,16 @@ function wav(seconds=0.2){
   await page.evaluate(()=>{window.__forzaMicSample=0.008;});
   await page.waitForTimeout(450);
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('یه سوال جدید درباره تسمه نقاله دارم'));
-  await page.getByText('یه سوال جدید درباره تسمه نقاله دارم',{exact:true}).waitFor({timeout:1500});
+  await page.waitForFunction(text=>document.body.innerText.includes(text),'یه سوال جدید درباره تسمه نقاله دارم',{timeout:1500});
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('یه سوال جدید درباره تسمه نقاله دارم'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
   await page.waitForFunction(()=>window.__forzaConsultRequestCount===3,null,{timeout:12000});
   await page.waitForFunction(()=>window.__forzaSpeechTurnIds?.some(id=>id.endsWith('-turn-3')),null,{timeout:8000});
   assert.equal(queries.length,3,'customer speech during Nima playback must interrupt and start a new turn');
+  await page.waitForFunction(([first,second,third])=>{
+    const text=document.body.innerText;
+    return text.includes(first)&&text.includes(second)&&text.includes(third);
+  },[queries[0],queries[1],'یه سوال جدید درباره تسمه نقاله دارم'],{timeout:3000});
   assert.ok(speech.length>speechAfterSecond,'Nima must synthesize the barge-in response too');
   assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
    'barge-in must reuse the same Diba recognizer instead of discarding its state');

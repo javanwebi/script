@@ -8,7 +8,7 @@ export type ForzaConversationMessage = {
   text: string;
 };
 
-export const FORZA_CONVERSATION_HISTORY_LIMIT = 12;
+export const FORZA_CONVERSATION_HISTORY_LIMIT = 40;
 
 export function prepareForzaConversationTurn(
   history: readonly ForzaConversationMessage[],
@@ -19,7 +19,7 @@ export function prepareForzaConversationTurn(
   nextHistory: ForzaConversationMessage[];
 } {
   const safeLimit = Number.isFinite(limit)
-    ? Math.max(0, Math.min(40, Math.floor(limit)))
+    ? Math.max(0, Math.min(80, Math.floor(limit)))
     : FORZA_CONVERSATION_HISTORY_LIMIT;
   const validHistory = history
     .filter((item) => item && (item.role === 'user' || item.role === 'model') &&

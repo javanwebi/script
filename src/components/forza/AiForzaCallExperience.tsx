@@ -13,7 +13,7 @@ import {
   Square,
 } from 'lucide-react';
 import type { ParticleAvatarProps, ParticleAvatarRef } from './ParticleAvatar';
-import { checkpointForzaRecognition, extractPersianSpeechSince, appendForzaSpeechSegment, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
+import { checkpointForzaRecognition, extractPersianSpeechSince, appendForzaSpeechSegment, appendForzaSessionTurn, replaceForzaLastSessionTurn, composeForzaSessionTranscript, mapForzaSegmentsInOrder, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { attachForzaAudioEvidence } from '../../utils/forzaAudioEvidence';
@@ -206,6 +206,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [aiText, setAiText] = useState(GREETING_TEXT);
   const [displayedAi, setDisplayedAi] = useState('');
   const [userText, setUserText] = useState('');
+  const transcriptCardRef=useRef<HTMLDivElement|null>(null);
   const [seconds, setSeconds] = useState(0);
 
   const statusRef = useRef<ForzaStatus>('idle');
@@ -223,6 +224,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const turnDispatchPendingRef=useRef(false);
   const silenceTimerRef = useRef<number | null>(null);
   const activeTranscriptRef = useRef<string>('');
+  // Full in-call customer transcript. Per-turn buffers may close after a reply,
+  // but this ledger never loses earlier words when the next phrase arrives.
+  const sessionTranscriptRef = useRef<string>('');
+  const pendingCommittedTranscriptRef = useRef<string>('');
+  const pendingHistoryTurnRef = useRef<string>('');
   const pendingTranscriptRef = useRef<string>('');
   const lastTranscriptChangedAtRef = useRef<number>(0);
   const webSpeechFailedRef = useRef<boolean>(false);
@@ -350,7 +356,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           lastTranscriptChangedAtRef.current=Date.now();
         }
         activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
-        hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);
+        hasSpeechSoundRef.current=true;
+        setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,transcript));
+        setIsUserSpeaking(true);
       };
       recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
       recognizer.on('result',msg=>update(String(msg?.result?.text||''),true));
@@ -571,6 +579,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=vad_end_detected silenceMs='+
               Math.round(acousticSilence));
             if(candidate){
+              sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,candidate);
+              pendingCommittedTranscriptRef.current=candidate;
+              setUserText(sessionTranscriptRef.current);
               pendingTranscriptRef.current=candidate;
               activeTranscriptRef.current='';
               recognitionSessionBaseRef.current='';
@@ -671,6 +682,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   useEffect(() => {
     setDisplayedAi(aiText || '');
   }, [aiText]);
+
+  // Keep the newest live words visible while retaining the complete scrollback.
+  useEffect(()=>{
+    const card=transcriptCardRef.current;
+    if(card)card.scrollTop=card.scrollHeight;
+  },[userText,displayedAi]);
 
   // Keep the first-audio wait observable instead of showing an indefinitely
   // frozen spinner while the CPU-based Pocket model is synthesizing speech.
@@ -1163,7 +1180,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       if(q && forzaTurnIntent(q)==='stop'){
         // A pure stop command should not trigger an extra AI response.
-        setUserText(q);
+        sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,q);
+        setUserText(sessionTranscriptRef.current);
         setIsUserSpeaking(false);
         setStatus('listening');
         setTurn('user');
@@ -1210,6 +1228,23 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // Claim the turn synchronously. The voice identity lookup now runs
       // inside the owned/abortable turn below, so speech arriving during that
       // lookup can still barge in instead of being erased by a later reset.
+      // Commit the recognized words before any asynchronous STT verifier or
+      // model request can be interrupted. A resumed customer phrase must never
+      // make this already-heard transcript disappear.
+      const transcriptAlreadyCommitted=Boolean(q&&pendingCommittedTranscriptRef.current===q);
+      pendingCommittedTranscriptRef.current='';
+      if(q){
+        if(!transcriptAlreadyCommitted){
+          sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,q);
+          setUserText(sessionTranscriptRef.current);
+        }
+        // Put the user words into conversation history before any asynchronous
+        // server verifier. If the customer interrupts during STT, the next LLM
+        // request still receives this context instead of losing the last turn.
+        const prior=historyRef.current.slice(-FORZA_CONVERSATION_HISTORY_LIMIT);
+        historyRef.current=[...prior,{role:'user',text:q}];
+        pendingHistoryTurnRef.current=q;
+      }
       turnDispatchPendingRef.current=true;
       stopAcknowledgementRef.current?.cancel();
       // Chrome keeps final results from older turns while recognition stays
@@ -1243,7 +1278,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       recognitionSessionBaseRef.current='';
 
       if (q) {
-        setUserText(q);
+        setUserText(sessionTranscriptRef.current);
       } else {
         // The raw-audio fallback cannot invent a transcript before recognition;
         // keep previously displayed live words instead of replacing them with
@@ -1288,7 +1323,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
           const sttStartedAt=performance.now();
           const sttAbort=new AbortController();
-          const sttBudgetMs=q?5500:22000;
+          // Every rotated WebM segment is transcribed with at most two requests
+          // in flight. Scale the deadline with segment count instead of imposing
+          // a fixed total recording-duration ceiling.
+          const sttBudgetMs=Math.max(25_000,Math.ceil(audioBlobs.length/2)*22_000+5_000);
           const sttTimer=window.setTimeout(
             ()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید.')),
             sttBudgetMs,
@@ -1300,7 +1338,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             // segments in parallel (the server has two bounded Diba workers),
             // then merge in original recording order to avoid dropping the
             // beginning of a long utterance behind a serial 10s timeout.
-            const results=await Promise.allSettled(audioBlobs.map(async segment=>{
+            const results=await mapForzaSegmentsInOrder(audioBlobs,2,async segment=>{
               const reader=new FileReader();
               const base64Promise=new Promise<string>((resolve,reject)=>{
                 reader.onloadend=()=>resolve(reader.result as string);
@@ -1325,7 +1363,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                   String(sttData?.errorCode||'empty').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,32));
               }
               return transcript;
-            }));
+            });
             for(const result of results){
               if(result.status==='fulfilled'){
                 serverTranscript=appendForzaSpeechSegment(serverTranscript,result.value);
@@ -1343,7 +1381,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 Math.round(performance.now()-sttStartedAt)+' segments='+audioBlobs.length+
                 ' failed='+failedSegments+' source='+(payload.query===q?'browser_guarded':'server_final')+
                 ' transcript_chars='+serverTranscript.length);
-              setUserText(payload.query);
+              setUserText(q
+                ?replaceForzaLastSessionTurn(sessionTranscriptRef.current,q,payload.query)
+                :composeForzaSessionTranscript(sessionTranscriptRef.current,payload.query));
               setMicrophoneError(null);
             }else if(!q){
               throw new Error('diba_no_complete_transcript');
@@ -1364,22 +1404,44 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           throw new Error('متن گفتار دریافت نشد و موتور دایبا هم آماده نیست. لطفاً دوباره نزدیک میکروفون صحبت کنید یا پیام را تایپ کنید.');
         }
 
+        if(pocketAbort.signal.aborted||activeTurnRef.current?.generation!==generation)return;
+
         // Render every incoming SSE delta immediately; the selected Nima
         // engine voices complete word groups before the LLM reply finishes.
         // Pocket fallback retains its one-request full-answer path.
         const turnStartedAt=performance.now();
         const resolvedUserQuery=String(payload.query||q).trim();
+        // The live hypothesis was already committed before asynchronous STT.
+        // Replace only this last turn if Diba supplies a better final transcript;
+        // earlier turns remain untouched across pauses and assistant replies.
+        if(resolvedUserQuery){
+          sessionTranscriptRef.current=q
+            ?replaceForzaLastSessionTurn(sessionTranscriptRef.current,q,resolvedUserQuery)
+            :appendForzaSessionTurn(sessionTranscriptRef.current,resolvedUserQuery);
+          setUserText(sessionTranscriptRef.current);
+        }
         // Keep the prior conversation snapshot separate from this new user
         // turn. The API appends query as its final user message; including it
         // in history too would make every customer utterance appear twice.
-        const {previousHistory,nextHistory}=prepareForzaConversationTurn(
-          historyRef.current,resolvedUserQuery,FORZA_CONVERSATION_HISTORY_LIMIT,
-        );
+        let previousHistory:Turn[];
+        const lastHistoryEntry=historyRef.current[historyRef.current.length-1];
+        const canReplacePendingHistory=Boolean(q&&pendingHistoryTurnRef.current===q&&
+          lastHistoryEntry?.role==='user'&&lastHistoryEntry.text===q);
+        if(canReplacePendingHistory){
+          previousHistory=historyRef.current.slice(0,-1).slice(-FORZA_CONVERSATION_HISTORY_LIMIT);
+          historyRef.current=[...previousHistory,{role:'user',text:resolvedUserQuery}];
+        }else{
+          const prepared=prepareForzaConversationTurn(
+            historyRef.current,resolvedUserQuery,FORZA_CONVERSATION_HISTORY_LIMIT,
+          );
+          previousHistory=prepared.previousHistory;
+          historyRef.current=prepared.nextHistory;
+        }
+        pendingHistoryTurnRef.current='';
         // Send only the sanitized prior turns; the current query remains the
         // separate final user message in the streaming request body.
         payload.history=previousHistory;
-        historyRef.current=nextHistory;
-        if(resolvedUserQuery)setUserText(resolvedUserQuery);
+        if(resolvedUserQuery)setUserText(sessionTranscriptRef.current);
         let reply='';
         let firstTextDelivered=false;
         let firstPlaybackLogged=false;
@@ -1746,9 +1808,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(wasRotation){
             if(hadSpeech&&!rejectedSpeech&&chunks.length){
               const completedSegment=new Blob(chunks,{type:safeMime});
-              if(completedSegment.size>1200){
+              if(completedSegment.size>1200&&!localSttActiveRef.current){
+                // Local Diba already consumes the microphone stream continuously;
+                // only retain WebM for the server fallback when local STT is absent.
+                // Never discard an earlier segment from a long browser-fallback turn.
                 audioSegmentsRef.current.push(completedSegment);
-                if(audioSegmentsRef.current.length>4)audioSegmentsRef.current.shift();
               }
             }
             // A rotation is not a user turn boundary. Keep the live transcript
@@ -1971,7 +2035,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           speechInterimRef.current = recognized.hasInterim;
           hasSpeechSoundRef.current = true;
           activeTranscriptRef.current = mergedSpeech;
-          setUserText(mergedSpeech);
+          setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,mergedSpeech));
           setStatus('listening');
           setTurn('user');
           setIsUserSpeaking(true);
@@ -1996,6 +2060,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length+
               ' endToSttFinalMs='+(detectedSpeechEndAtRef.current
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
+            sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,candidate);
+            pendingCommittedTranscriptRef.current=candidate;
+            setUserText(sessionTranscriptRef.current);
             pendingTranscriptRef.current=candidate;
             activeTranscriptRef.current='';
             recognitionSessionBaseRef.current='';
@@ -2347,6 +2414,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     ctxRef.current=null;
     if(context && context.state!=='closed')void context.close().catch(()=>{});
     historyRef.current=[];
+    sessionTranscriptRef.current='';
+    pendingCommittedTranscriptRef.current='';
+    pendingHistoryTurnRef.current='';
     audioChunksRef.current=[];
     audioSegmentsRef.current=[];
     isProcessingTurnRef.current=false;
@@ -2380,10 +2450,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return toFarsiDigits(`${m}:${r}`);
   };
 
-  // One live transcript surface: customer speech is replaced by the first AI chunk,
-  // and the next customer utterance takes over the same card.
-  const showCustomerTranscript = Boolean(userText.trim()) && (turn === 'user' || !displayedAi);
-  const showAssistantTranscript = !showCustomerTranscript && Boolean(displayedAi);
+  // Keep the full customer transcript visible beside the assistant response.
+  // The same scrollable card retains both sides of the live conversation.
+  const showCustomerTranscript = Boolean(userText.trim());
+  const showAssistantTranscript = Boolean(displayedAi);
 
   return (
     <main
@@ -2685,16 +2755,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         {consultationImage && <img src={consultationImage} alt="قطعه مورد مشاوره" className="w-20 h-20 object-contain rounded-xl bg-white pointer-events-auto" />}
         {(showCustomerTranscript || showAssistantTranscript) && (
           <div
-            className={`forza-message-card pointer-events-auto animate-fadeInCard ${showCustomerTranscript ? 'forza-message-card--customer' : 'forza-message-card--assistant'}`}
+            ref={transcriptCardRef}
+            className={`forza-message-card pointer-events-auto animate-fadeInCard ${showAssistantTranscript ? 'forza-message-card--assistant' : 'forza-message-card--customer'}`}
             aria-live="polite"
             aria-atomic="false"
           >
-            {showCustomerTranscript ? (
+            {showCustomerTranscript && (
               <>
-                <div className="forza-persian-label text-[12px] font-bold text-white mb-2">شما</div>
+                <div className="forza-persian-label text-[12px] font-bold text-white mb-2">شما · متن کامل مکالمه</div>
                 <p className="forza-persian-copy text-[13px] sm:text-[15px] text-[#f1f3f5]">{userText}</p>
               </>
-            ) : (
+            )}
+            {showCustomerTranscript && showAssistantTranscript && (
+              <div className="my-3 border-t border-white/10" aria-hidden="true" />
+            )}
+            {showAssistantTranscript && (
               <>
                 <div className="forza-persian-label text-[12px] font-bold text-[#f47a29] mb-2 flex items-center justify-end gap-1.5" dir="rtl">
                   <span><bdi dir="ltr" className="forza-code">AI FORZA</bdi> :</span>

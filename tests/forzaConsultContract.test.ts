@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {buildForzaConsultSystemMessage,streamXkiroConsult,completeXkiroConsult} from '../server/ai/baiConsult';
 
 test('stream and JSON verification use identical consultation context and keep user correction as latest turn',async()=>{
@@ -34,6 +35,15 @@ test('voice prompt behaves like a continuous Persian conversation, not isolated 
   'همونه',
   'فقط همان بخش اصلاح‌شده',
   'از آخرین بخش واقعاً شنیده‌شده ادامه دهید',
-  'معمولاً یک تا سه جمله کوتاه',
+  'مکث طولانی، مکث بین جمله‌ها',
+  'پیش‌فرض شما این باشد که گفتار تازه ادامه',
+  'به تعداد ثابت جمله محدود نکنید',
  ])assert.ok(prompt.includes(phrase),'missing dialogue behavior: '+phrase);
+});
+
+
+test('the live FORZA consultation does not truncate long customer utterances at 6000 characters',()=>{
+ const source=readFileSync('server/ai/baiConsult.ts','utf8');
+ assert.doesNotMatch(source,/String\(query\s*\|\|\s*''\)\.slice\(0,\s*6000\)/);
+ assert.doesNotMatch(source,/String\(query\|\|''\)\.slice\(0,\s*6000\)/);
 });

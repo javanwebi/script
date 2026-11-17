@@ -112,12 +112,16 @@ test('FORZA opens its voice controller without putting Three.js in the first cal
 
 test('mobile call uses one live message card and removes floating bottom action groups',()=>{
   assert.match(ui,/const showCustomerTranscript = Boolean\(userText\.trim\(\)\)/);
-  assert.match(ui,/const showAssistantTranscript = !showCustomerTranscript && Boolean\(displayedAi\)/);
+  assert.match(ui,/const showAssistantTranscript = Boolean\(displayedAi\)/);
+  assert.match(ui,/showCustomerTranscript && showAssistantTranscript/);
+  assert.match(ui,/شما · متن کامل مکالمه/);
   assert.match(ui,/forza-message-card--customer/);
   assert.match(ui,/forza-message-card--assistant/);
   assert.doesNotMatch(ui,/QUICK_TOPICS|Restore button when HUD hidden/);
   assert.match(styles,/\.forza-status-dock/);
   assert.match(styles,/\.forza-message-card/);
+  assert.match(styles,/max-height: min\(26vh, 320px\)/);
+  assert.match(ui,/card\.scrollTop=card\.scrollHeight/);
   assert.match(styles,/bottom: calc\(8px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
@@ -185,8 +189,9 @@ test('Nima phrase requests are serialized to match the private single-worker CPU
 });
 
 test('server Diba verification preserves browser text and merges complete recorder segments in order',()=>{
-  assert.match(ui,/Promise\.allSettled\(audioBlobs\.map\(async segment=>/);
-  assert.match(ui,/const sttBudgetMs=q\?5500:22000/);
+  assert.match(ui,/mapForzaSegmentsInOrder\(audioBlobs,2,async segment=>/);
+  assert.match(ui,/Math\.ceil\(audioBlobs\.length\/2\)\*22_000/);
+  assert.match(ui,/A failed final verifier must never erase a usable live transcript/);
   assert.match(ui,/serverTranscript=appendForzaSpeechSegment\(serverTranscript,result\.value\)/);
   assert.match(ui,/A failed final verifier must never erase a usable live transcript/);
 });
