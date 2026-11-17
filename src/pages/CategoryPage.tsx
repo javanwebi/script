@@ -1,7 +1,6 @@
 import '../category-showcase.css';
 import { STORE_ASSETS } from '../assets/images';
 import { matchesProductSearch, categorySlugFor } from '../data/userProducts';
-import { BeltCategoryExperience } from './BeltCategoryExperience';
 import { ExcelMenuCategoryPage } from './ExcelMenuCategoryPage';
 import { PulleyCatalogPage } from './PulleyCatalogPage';
 import { subscribeCatalogChanges } from '../data/mockGenerator';
@@ -41,17 +40,15 @@ import {
 export const CategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
-  // Keep original legacy category pages unchanged; approved Excel categories get their
-  // own real family listing instead of linking several menu categories to one old page.
+  // The approved Excel taxonomy owns the active belt pages. The former catch-all
+  // category is retired; preserve its old URL as a redirect instead of rendering
+  // the obsolete mixed-family experience.
   if (/^excel-v2-[0-9]+-[0-9]+$/.test(slug || '')) {
     return <ExcelMenuCategoryPage />;
   }
   const canonicalBeltSlug = categorySlugFor('تسمه و انتقال نیرو');
   if (resolveCategorySlug(slug || '') === canonicalBeltSlug) {
-    if (slug !== canonicalBeltSlug) {
-      return <Navigate to={`/category/${canonicalBeltSlug}${location.search}${location.hash}`} replace />;
-    }
-    return <BeltCategoryExperience />;
+    return <Navigate to={`/categories${location.search}${location.hash}`} replace />;
   }
   const canonicalPulleySlug = categorySlugFor('پولی و انتقال نیرو');
   if (resolveCategorySlug(slug || '') === canonicalPulleySlug) {
