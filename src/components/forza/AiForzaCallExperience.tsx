@@ -906,15 +906,44 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const timeoutSignal=voiceModeRef.current==='piper-nima-gyro-medium'
       ? AbortSignal.timeout(35000) : AbortSignal.timeout(420000);
     const requestTurnId=turnId||('call-'+callIdRef.current+'-tts-'+Math.round(performance.now()));
-    const response=await fetch('/api/ai/forza-speech',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({text,turnId:requestTurnId}),
-      signal:signal
-        ? AbortSignal.any([signal,timeoutSignal])
-        : timeoutSignal,
-    });
-    if(!response.ok)throw new Error('pocket_http_'+response.status);
+    const requestSignal=signal
+      ? AbortSignal.any([signal,timeoutSignal])
+      : timeoutSignal;
+    let response:Response|null=null;
+    let lastNetworkError:unknown=null;
+    // A transient private-voice busy response must not permanently poison the
+    // rest of this call. Retry only safe upstream failures; never retry 400,
+    // 401, 403 or 429 (which require configuration/rate-limit recovery).
+    for(let attempt=0;attempt<3;attempt++){
+      try{
+        response=await fetch('/api/ai/forza-speech',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({text,turnId:requestTurnId}),
+          signal:requestSignal,
+        });
+        if(response.ok||![502,503,504].includes(response.status)||attempt===2)break;
+        console.warn('[FORZA_TTS_RETRY] status='+response.status+' attempt='+(attempt+1));
+      }catch(error){
+        lastNetworkError=error;
+        if(requestSignal.aborted||callClosedRef.current||attempt===2)throw error;
+        console.warn('[FORZA_TTS_RETRY] network attempt='+(attempt+1));
+      }
+      await new Promise<void>((resolve,reject)=>{
+        const timer=window.setTimeout(resolve,250*(attempt+1));
+        const abort=()=>{window.clearTimeout(timer);reject(new Error('forza_tts_aborted'));};
+        requestSignal.addEventListener('abort',abort,{once:true});
+      });
+    }
+    if(!response){
+      if(lastNetworkError instanceof Error)throw lastNetworkError;
+      throw new Error('forza_tts_no_response');
+    }
+    if(!response.ok){
+      const errorBody=await response.clone().json().catch(()=>null) as {errorCode?:string;error?:string}|null;
+      const code=String(errorBody?.errorCode||errorBody?.error||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48);
+      throw new Error('pocket_http_'+response.status+(code?'_'+code:''));
+    }
     // The private voice health check is authoritative. Recover gracefully if
     // the first request races voice-info instead of discarding a valid WAV.
     const returnedVoice=response.headers.get('X-Forza-Voice');
