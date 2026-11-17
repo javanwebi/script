@@ -7242,7 +7242,8 @@ app.get('/api/ai/forza-stt-info',async(_req,res)=>{
   res.setHeader('Cache-Control','no-store');
   const choice=selectForzaSttProvider(process.env);
   const dibaConfigured=choice.provider==='diba'&&hasForzaDibaSttModel();
-  if(dibaConfigured&&!isForzaDibaSttReady())await warmForzaDibaStt();
+  // Status must be fast and must distinguish a present model from a warmed
+  // worker. The browser polls readiness; a cold worker is not "unconfigured".
   res.json({
     serverSttConfigured:choice.provider==='gemini'||dibaConfigured,
     serverSttProvider:choice.provider,
@@ -7973,6 +7974,17 @@ async function start() {
       ? 'SET'
       : 'MISSING - AI features will use offline fallback until GEMINI_API_KEY is set in .env';
     console.log(`Server running on http://localhost:${PORT}`);
+    // Warm local Persian Diba workers before the first customer speaks.
+    // This is background work: it never blocks HTTP startup or health checks.
+    const sttChoice=selectForzaSttProvider(process.env);
+    if(sttChoice.provider==='diba'&&hasForzaDibaSttModel()){
+      void warmForzaDibaStt().then(ready=>{
+        console.info('[FORZA_STT_WARMUP] provider=diba ready='+Number(ready));
+      }).catch(error=>{
+        console.warn('[FORZA_STT_WARMUP] provider=diba ready=0 code='+
+          String(error?.message||'warmup_failed').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+      });
+    }
     if(localVisionEnabled && process.env.SANATPISH_DISABLE_LOCAL_VISION_WARMUP!=='1')warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),localImagePublisher);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
