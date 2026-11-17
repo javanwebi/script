@@ -481,9 +481,9 @@ function buildExcelWorkbook(audit: ReturnType<typeof runBeltCatalogAudit>): XLSX
     Catalog_URL: 'https://www.bandousa.com/media/uploads/0/114_BUI-1009_Industrial-Power-Transmission-Products-catalog-Vol-2_9-17.pdf',
     Datasheet_URL: 'https://www.bandousa.com/media/uploads/0/114_BUI-1009_Industrial-Power-Transmission-Products-catalog-Vol-2_9-17.pdf',
     Technical_Standard: 'RMA/IP-24 / ISO 4184 / ISO 13050 / ISO 9982 (profile-dependent)',
-    Extracted_Specifications: 'The official Bando industrial catalog supports the listed product families. 11 H/DH Synchro-Link SKU records retain exact catalog matching; other supported profiles receive series-level evidence only.',
+    Extracted_Specifications: 'The official Bando industrial catalog supports the listed product families. 11 H/DH Synchro-Link inventory records have official Bando profile-level support; no exact manufacturer article-number match is established for the internal SKU codes. All supported profiles receive series-level evidence only.',
     Document_Type: 'OFFICIAL_INDUSTRIAL_PRODUCT_CATALOG',
-    Confidence: '11_EXACT_SKU_MATCHES_PLUS_SERIES_LEVEL_FOR_SUPPORTED_PROFILES',
+    Confidence: 'SERIES_LEVEL_ONLY_NO_EXACT_SKU_ARTICLE_MATCH',
   },
   {
     Manufacturer_Brand: 'OPTIBELT',
