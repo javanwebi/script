@@ -329,8 +329,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(admitted.rejected)rejectedRecordingRef.current=true;
         if(!admitted.changed)return;
         const recognized=extractPersianSpeechSince(admitted.results,0);
-        if(isFinal&&recognized.text)localSttFinalRef.current=[localSttFinalRef.current,recognized.text].filter(Boolean).join(' ');
-        const transcript=[localSttFinalRef.current,isFinal?'':recognized.text].filter(Boolean).join(' ').trim();
+        if(isFinal&&recognized.text)
+          localSttFinalRef.current=appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
+        const transcript=isFinal
+          ?localSttFinalRef.current
+          :appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
         if(!transcript)return;
         if(playback)interruptRequestRef.current();
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
@@ -911,7 +914,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         ? AbortSignal.any([signal,timeoutSignal])
         : timeoutSignal,
     });
-    if(!response.ok)throw new Error('pocket_http_'+response.status);
+    if(!response.ok){
+      const failure:any=await response.json().catch(()=>null);
+      const code=String(failure?.errorCode||failure?.error||'unknown')
+        .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,64);
+      console.warn('[FORZA_TTS_HTTP] turn='+requestTurnId.replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48)+
+        ' status='+response.status+' code='+code);
+      if(response.status===429){
+        throw new Error(code==='forza_network_limit'?'pocket_rate_limited_network':
+          code==='forza_turn_limit'?'pocket_rate_limited_turn':'pocket_http_429');
+      }
+      throw new Error('pocket_http_'+response.status+'_'+code);
+    }
     // The private voice health check is authoritative. Recover gracefully if
     // the first request races voice-info instead of discarding a valid WAV.
     const returnedVoice=response.headers.get('X-Forza-Voice');
@@ -1244,35 +1258,39 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
             const sttStartedAt=performance.now();
             const sttAbort=new AbortController();
-            const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید.')),10_500);
+            // Server Diba has a bounded 24s worker budget. One browser timer
+            // covers base64 conversion plus ONE ordered multi-container request.
+            const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید.')),26_000);
             let serverTranscript='';
             try {
-              for(const segment of audioBlobs){
-                const reader = new FileReader();
-                const base64Promise = new Promise<string>((resolve, reject) => {
-                  reader.onloadend = () => resolve(reader.result as string);
-                  reader.onerror = reject;
+              const audioBase64Segments=await Promise.all(audioBlobs.map(async segment=>{
+                const reader=new FileReader();
+                const base64Promise=new Promise<string>((resolve,reject)=>{
+                  reader.onloadend=()=>resolve(String(reader.result||''));
+                  reader.onerror=()=>reject(reader.error||new Error('forza_audio_read_failed'));
                 });
                 reader.readAsDataURL(segment);
-                const audioBase64 = extractForzaAudioBase64(await base64Promise);
-                const sttResponse = await fetch('/api/ai/forza-live', {
-                  method:'POST',
-                  headers:{'Content-Type':'application/json'},
-                  body:JSON.stringify({
-                    audioBase64,
-                    audioMimeType:audioMime || segment.type || 'audio/webm',
-                    transcribeOnly:true,
-                  }),
-                  signal:AbortSignal.any([sttAbort.signal,pocketAbort.signal]),
-                });
-                const sttData:any=await sttResponse.json().catch(()=>null);
-                const segmentTranscript=String(sttData?.userTranscript||sttData?.text||'').trim();
-                if(sttResponse.ok&&sttData?.success&&segmentTranscript){
-                  serverTranscript=appendForzaSpeechSegment(serverTranscript,segmentTranscript);
-                }else{
-                  console.warn('[FORZA_STT] segment_final_unavailable status='+sttResponse.status+
-                    ' code='+String(sttData?.errorCode||'unknown').slice(0,48));
-                }
+                return extractForzaAudioBase64(await base64Promise);
+              }));
+              const sttResponse=await fetch('/api/ai/forza-live',{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({
+                  audioBase64:audioBase64Segments,
+                  audioMimeType:audioMime||audioBlobs[0]?.type||'audio/webm',
+                  transcribeOnly:true,
+                }),
+                signal:AbortSignal.any([sttAbort.signal,pocketAbort.signal]),
+              });
+              const sttData:any=await sttResponse.json().catch(()=>null);
+              serverTranscript=sttResponse.ok&&sttData?.success
+                ?String(sttData?.userTranscript||sttData?.text||'').trim():'';
+              if(!serverTranscript){
+                const diagnosticCode=String(sttData?.diagnosticCode||sttData?.errorCode||'unknown')
+                  .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48);
+                console.warn('[FORZA_STT] batch_final_unavailable status='+sttResponse.status+
+                  ' code='+diagnosticCode+' segments='+audioBlobs.length);
+                throw new Error('forza_stt_'+diagnosticCode);
               }
               serverTranscript=serverTranscript.trim();
               if(serverTranscript){
@@ -1589,13 +1607,23 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               console.info('[FORZA_TTS_DIAG] stage=turn-cancelled');
             else console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
               String(error?.message||'unknown').slice(0,100));
-            if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
+            if(!callClosedRef.current&&activeTurnRef.current?.generation===generation){
+              const ttsCode=String(error?.message||'');
               setVoiceOutputError(
-              error?.message==='autoplay_permission_required'
-                ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
-                :error?.message==='pocket_http_429'
-                  ?'ظرفیت موقت سرویس صوتی تکمیل است. کمی بعد دوباره تلاش کنید؛ متن پاسخ حفظ شده است.'
-                  :'تولید یا پخش صدای کامل FORZA انجام نشد؛ متن پاسخ همچنان نمایش داده شده است.');
+                ttsCode==='autoplay_permission_required'
+                  ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
+                  :ttsCode==='pocket_rate_limited_network'
+                    ?'سقف درخواست صوتی این شبکه موقتاً پر شده است؛ متن پاسخ حفظ شده و پس از پایان محدودیت می‌توانید دوباره پخش کنید.'
+                    :ttsCode==='pocket_rate_limited_turn'
+                      ?'سقف قطعه‌های صوتی این پاسخ پر شده است؛ متن پاسخ حفظ شده و می‌توانید آن را دوباره بخوانید.'
+                      :ttsCode.startsWith('pocket_http_503_private_voice_')
+                        ?'موتور صوتی نیما موقتاً مشغول یا در حال بازیابی است؛ متن پاسخ حفظ شده است.'
+                        :ttsCode.startsWith('pocket_http_503_')
+                          ?'سرویس صوتی سرور پاسخ معتبر نداد؛ متن پاسخ حفظ شده است.'
+                          :ttsCode==='pocket_http_429'
+                            ?'ظرفیت موقت سرویس صوتی تکمیل است؛ متن پاسخ حفظ شده است.'
+                            :'تولید یا پخش صدای FORZA انجام نشد؛ متن پاسخ همچنان نمایش داده شده است.');
+            }
           }
         }
       } catch (err: any) {
