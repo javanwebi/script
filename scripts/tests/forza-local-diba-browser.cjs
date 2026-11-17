@@ -106,12 +106,16 @@ function wav(){
   assert.ok(await page.evaluate(()=>window.__forzaVoskFrames||0)>0,'local recognizer must receive live PCM frames');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('تسمه تایمینگ چیست؟'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
-  await page.waitForFunction(()=>window.__forzaVoskCreated>=2,null,{timeout:10000});
+  await page.waitForFunction(()=>window.__forzaVoskCreated===1,null,{timeout:10000});
+  assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
+   'the local recognizer must stay alive after the first assistant reply');
   await page.waitForFunction(()=>window.document.body.innerText.includes('برای انتخاب تسمه مناسب'),null,{timeout:12000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:12000});
   assert.equal(queries.length,1,'first local Diba turn must be submitted exactly once');
 
-  await page.waitForFunction(()=>window.__forzaVoskCreated>=3,null,{timeout:8000});
+  await page.waitForFunction(()=>window.__forzaVoskCreated===1,null,{timeout:8000});
+  assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
+   'the same local recognizer must survive the second voice turn too');
   await page.evaluate(()=>{window.__forzaMicSample=0.003;});
   await page.waitForTimeout(450);
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('برای دستگاه بسته بندی تسمه PU می خواهم'));
