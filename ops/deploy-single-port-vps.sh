@@ -426,6 +426,73 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
  }finally{await closeDatabase()}
 ' < "$BELT_TAXONOMY_SQL"
 
+echo '===== APPLY GUARDED BELT FAMILY ENGINEERING CORRECTIONS ====='
+BELT_ENGINEERING_SQL="$STAGE/ops/sql/20261117_belt_family_engineering_corrections.sql"
+test -s "$BELT_ENGINEERING_SQL" || { echo "REQUIRED_BELT_ENGINEERING_SQL_MISSING=$BELT_ENGINEERING_SQL"; exit 1; }
+# Apply only to the audited PFAM production lineage. Legacy FAM-only databases
+# and mixed lineages must never receive PFAM-specific family identifiers.
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+ import {readFileSync} from "node:fs";
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const sql=readFileSync(0,"utf8");
+  const marker=await database().query(
+   "select to_regclass(\x27internal.catalog_belt_family_engineering_backup_20261117\x27) as backup");
+  const hasBackup=Boolean(marker.rows[0].backup);
+  if(hasBackup){
+   const existing=await database().query(
+    "select " +
+    "count(*) filter(where table_name=\x27catalog_variants\x27)::int as variants, " +
+    "count(*) filter(where table_name=\x27catalog_families\x27)::int as families, " +
+    "count(*) filter(where table_name=\x27catalog_family_menu_assignments\x27)::int as assignments, " +
+    "count(*) filter(where table_name=\x27catalog_direct_skus\x27)::int as direct, " +
+    "count(*) filter(where table_name=\x27catalog_categories\x27)::int as categories " +
+    "from internal.catalog_belt_family_engineering_backup_20261117");
+   const backup=existing.rows[0];
+   if(Number(backup.variants)!==292||Number(backup.families)!==19||
+      Number(backup.assignments)!==8||Number(backup.direct)!==14||Number(backup.categories)!==5){
+    throw Error("Existing belt engineering backup is incomplete; refusing to continue");
+   }
+  }
+  const lineage=await database().query(
+   "select " +
+   "count(*) filter(where code like \x27PFAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_pfam, " +
+   "count(*) filter(where code like \x27FAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_fam " +
+   "from public.catalog_families");
+  const activePfam=Number(lineage.rows[0].active_pfam||0);
+  const activeFam=Number(lineage.rows[0].active_fam||0);
+  console.log("PRODUCTION_CATALOG_FAMILY_LINEAGE",JSON.stringify({active_pfam:activePfam,active_fam:activeFam}));
+  if(activePfam===0&&activeFam>0){
+   console.log("PRODUCTION_BELT_ENGINEERING_SKIPPED reason=legacy_fam_catalog active_fam="+activeFam);
+  }else{
+   if(activePfam===0)throw Error("No active PFAM or FAM family baseline found; refusing belt engineering correction");
+   if(activeFam>0)throw Error("Mixed active FAM/PFAM family lineage; refusing PFAM belt engineering correction");
+   if(hasBackup){
+    console.log("PRODUCTION_BELT_ENGINEERING_ALREADY_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5");
+   }else{
+    await database().query(sql);
+    const applied=await database().query(
+     "select " +
+     "count(*) filter(where table_name=\x27catalog_variants\x27)::int as variants, " +
+     "count(*) filter(where table_name=\x27catalog_families\x27)::int as families, " +
+     "count(*) filter(where table_name=\x27catalog_family_menu_assignments\x27)::int as assignments, " +
+     "count(*) filter(where table_name=\x27catalog_direct_skus\x27)::int as direct, " +
+     "count(*) filter(where table_name=\x27catalog_categories\x27)::int as categories " +
+     "from internal.catalog_belt_family_engineering_backup_20261117");
+    const backup=applied.rows[0];
+    if(Number(backup.variants)!==292||Number(backup.families)!==19||
+       Number(backup.assignments)!==8||Number(backup.direct)!==14||Number(backup.categories)!==5){
+     throw Error("Belt engineering migration did not create its complete private backup");
+    }
+    console.log("PRODUCTION_BELT_ENGINEERING_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5");
+   }
+  }
+ }catch(error){
+  console.error("PRODUCTION_BELT_ENGINEERING_MIGRATION_FAILED",error.code||"",error.message);
+  process.exitCode=1;
+ }finally{await closeDatabase()}
+' < "$BELT_ENGINEERING_SQL"
+
 echo '===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA ====='
 for MIGRATION in \
   "$STAGE/supabase/adopted/migrations/20261109010000_customer_360_local_vault.sql" \
