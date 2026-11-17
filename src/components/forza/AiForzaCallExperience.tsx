@@ -2420,10 +2420,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return toFarsiDigits(`${m}:${r}`);
   };
 
-  // One live transcript surface: customer speech is replaced by the first AI chunk,
-  // and the next customer utterance takes over the same card.
-  const showCustomerTranscript = Boolean(userText.trim()) && (turn === 'user' || !displayedAi);
-  const showAssistantTranscript = !showCustomerTranscript && Boolean(displayedAi);
+  // Keep the full customer transcript visible beside the assistant response.
+  // The same scrollable card retains both sides of the live conversation.
+  const showCustomerTranscript = Boolean(userText.trim());
+  const showAssistantTranscript = Boolean(displayedAi);
 
   return (
     <main
@@ -2725,16 +2725,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         {consultationImage && <img src={consultationImage} alt="قطعه مورد مشاوره" className="w-20 h-20 object-contain rounded-xl bg-white pointer-events-auto" />}
         {(showCustomerTranscript || showAssistantTranscript) && (
           <div
-            className={`forza-message-card pointer-events-auto animate-fadeInCard ${showCustomerTranscript ? 'forza-message-card--customer' : 'forza-message-card--assistant'}`}
+            className={`forza-message-card pointer-events-auto animate-fadeInCard ${showAssistantTranscript ? 'forza-message-card--assistant' : 'forza-message-card--customer'}`}
             aria-live="polite"
             aria-atomic="false"
           >
-            {showCustomerTranscript ? (
+            {showCustomerTranscript && (
               <>
-                <div className="forza-persian-label text-[12px] font-bold text-white mb-2">شما</div>
+                <div className="forza-persian-label text-[12px] font-bold text-white mb-2">شما · متن کامل مکالمه</div>
                 <p className="forza-persian-copy text-[13px] sm:text-[15px] text-[#f1f3f5]">{userText}</p>
               </>
-            ) : (
+            )}
+            {showCustomerTranscript && showAssistantTranscript && (
+              <div className="my-3 border-t border-white/10" aria-hidden="true" />
+            )}
+            {showAssistantTranscript && (
               <>
                 <div className="forza-persian-label text-[12px] font-bold text-[#f47a29] mb-2 flex items-center justify-end gap-1.5" dir="rtl">
                   <span><bdi dir="ltr" className="forza-code">AI FORZA</bdi> :</span>
