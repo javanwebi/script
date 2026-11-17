@@ -13,7 +13,7 @@ import {
   Square,
 } from 'lucide-react';
 import type { ParticleAvatarProps, ParticleAvatarRef } from './ParticleAvatar';
-import { checkpointForzaRecognition, extractPersianSpeechSince, appendForzaSpeechSegment, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
+import { checkpointForzaRecognition, extractPersianSpeechSince, appendForzaSpeechSegment, mapForzaSegmentsInOrder, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { attachForzaAudioEvidence } from '../../utils/forzaAudioEvidence';
@@ -223,6 +223,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const turnDispatchPendingRef=useRef(false);
   const silenceTimerRef = useRef<number | null>(null);
   const activeTranscriptRef = useRef<string>('');
+  // Full in-call customer transcript. Per-turn buffers may close after a reply,
+  // but this ledger never loses earlier words when the next phrase arrives.
+  const sessionTranscriptRef = useRef<string>('');
   const pendingTranscriptRef = useRef<string>('');
   const lastTranscriptChangedAtRef = useRef<number>(0);
   const webSpeechFailedRef = useRef<boolean>(false);
@@ -350,7 +353,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           lastTranscriptChangedAtRef.current=Date.now();
         }
         activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
-        hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);
+        hasSpeechSoundRef.current=true;
+        setUserText(appendForzaSpeechSegment(sessionTranscriptRef.current,transcript));
+        setIsUserSpeaking(true);
       };
       recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
       recognizer.on('result',msg=>update(String(msg?.result?.text||''),true));
@@ -1163,7 +1168,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       if(q && forzaTurnIntent(q)==='stop'){
         // A pure stop command should not trigger an extra AI response.
-        setUserText(q);
+        sessionTranscriptRef.current=appendForzaSpeechSegment(sessionTranscriptRef.current,q);
+        setUserText(sessionTranscriptRef.current);
         setIsUserSpeaking(false);
         setStatus('listening');
         setTurn('user');
@@ -1243,7 +1249,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       recognitionSessionBaseRef.current='';
 
       if (q) {
-        setUserText(q);
+        setUserText(appendForzaSpeechSegment(sessionTranscriptRef.current,q));
       } else {
         // The raw-audio fallback cannot invent a transcript before recognition;
         // keep previously displayed live words instead of replacing them with
@@ -1288,7 +1294,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
           const sttStartedAt=performance.now();
           const sttAbort=new AbortController();
-          const sttBudgetMs=q?5500:22000;
+          // Every rotated WebM segment is transcribed with at most two requests
+          // in flight. Scale the deadline with segment count instead of imposing
+          // a fixed total recording-duration ceiling.
+          const sttBudgetMs=Math.max(25_000,Math.ceil(audioBlobs.length/2)*22_000+5_000);
           const sttTimer=window.setTimeout(
             ()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید.')),
             sttBudgetMs,
@@ -1300,7 +1309,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             // segments in parallel (the server has two bounded Diba workers),
             // then merge in original recording order to avoid dropping the
             // beginning of a long utterance behind a serial 10s timeout.
-            const results=await Promise.allSettled(audioBlobs.map(async segment=>{
+            const results=await mapForzaSegmentsInOrder(audioBlobs,2,async segment=>{
               const reader=new FileReader();
               const base64Promise=new Promise<string>((resolve,reject)=>{
                 reader.onloadend=()=>resolve(reader.result as string);
@@ -1325,7 +1334,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                   String(sttData?.errorCode||'empty').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,32));
               }
               return transcript;
-            }));
+            });
             for(const result of results){
               if(result.status==='fulfilled'){
                 serverTranscript=appendForzaSpeechSegment(serverTranscript,result.value);
@@ -1343,7 +1352,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 Math.round(performance.now()-sttStartedAt)+' segments='+audioBlobs.length+
                 ' failed='+failedSegments+' source='+(payload.query===q?'browser_guarded':'server_final')+
                 ' transcript_chars='+serverTranscript.length);
-              setUserText(payload.query);
+              setUserText(appendForzaSpeechSegment(sessionTranscriptRef.current,payload.query));
               setMicrophoneError(null);
             }else if(!q){
               throw new Error('diba_no_complete_transcript');
@@ -1369,6 +1378,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Pocket fallback retains its one-request full-answer path.
         const turnStartedAt=performance.now();
         const resolvedUserQuery=String(payload.query||q).trim();
+        // Commit the verified words to the call-wide transcript only after the
+        // final recognizer has had a chance to correct the live hypothesis.
+        // This ledger is never cleared at pauses or assistant turn boundaries.
+        if(resolvedUserQuery){
+          sessionTranscriptRef.current=appendForzaSpeechSegment(sessionTranscriptRef.current,resolvedUserQuery);
+          setUserText(sessionTranscriptRef.current);
+        }
         // Keep the prior conversation snapshot separate from this new user
         // turn. The API appends query as its final user message; including it
         // in history too would make every customer utterance appear twice.
@@ -1746,9 +1762,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(wasRotation){
             if(hadSpeech&&!rejectedSpeech&&chunks.length){
               const completedSegment=new Blob(chunks,{type:safeMime});
-              if(completedSegment.size>1200){
+              if(completedSegment.size>1200&&!localSttActiveRef.current){
+                // Local Diba already consumes the microphone stream continuously;
+                // only retain WebM for the server fallback when local STT is absent.
+                // Never discard an earlier segment from a long browser-fallback turn.
                 audioSegmentsRef.current.push(completedSegment);
-                if(audioSegmentsRef.current.length>4)audioSegmentsRef.current.shift();
               }
             }
             // A rotation is not a user turn boundary. Keep the live transcript
@@ -1971,7 +1989,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           speechInterimRef.current = recognized.hasInterim;
           hasSpeechSoundRef.current = true;
           activeTranscriptRef.current = mergedSpeech;
-          setUserText(mergedSpeech);
+          setUserText(appendForzaSpeechSegment(sessionTranscriptRef.current,mergedSpeech));
           setStatus('listening');
           setTurn('user');
           setIsUserSpeaking(true);
@@ -2347,6 +2365,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     ctxRef.current=null;
     if(context && context.state!=='closed')void context.close().catch(()=>{});
     historyRef.current=[];
+    sessionTranscriptRef.current='';
     audioChunksRef.current=[];
     audioSegmentsRef.current=[];
     isProcessingTurnRef.current=false;
