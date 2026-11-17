@@ -24,7 +24,7 @@ const MODEL_PATH = process.env.FORZA_STT_DIBA_MODEL_PATH || '/opt/diba-stt/model
 const WORKER_SCRIPT = path.resolve(process.cwd(), 'scripts/forza_diba_stt_worker.py');
 const PYTHON = process.env.FORZA_STT_PYTHON || '/opt/forza-pocket/bin/python';
 const WORKER_COUNT = Math.max(1, Math.min(2, Number(process.env.FORZA_STT_WORKERS || 2) || 2));
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_PENDING = 24;
 let workers: WorkerState[] = [];
 let warmPromise: Promise<boolean> | null = null;
@@ -140,7 +140,7 @@ export async function transcribeForzaDibaAudio(
   if (totalPending >= MAX_PENDING) throw new Error('diba_stt_busy');
   const worker = available.sort((a, b) => a.inflight - b.inflight)[0];
   const id = randomUUID();
-  const timeoutMs = Math.max(1500, Math.min(20_000, options.timeoutMs ?? REQUEST_TIMEOUT_MS));
+  const timeoutMs = Math.max(1500, Math.min(25_000, options.timeoutMs ?? REQUEST_TIMEOUT_MS));
 
   return new Promise<string>((resolve, reject) => {
     const abort = () => settlePending(worker, id, new Error('stt_aborted'));

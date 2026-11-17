@@ -145,14 +145,18 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
  */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
   const normalized=normalizePersianTranscript(text);
-  if(!normalized)return 2600;
+  // No transcript yet is not proof that the customer stopped speaking. Keep
+  // the recorder open long enough for delayed local/browser ASR hypotheses.
+  if(!normalized)return 5200;
   // Only explicit control commands bypass the natural-pause continuation window.
   if(/^(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|توقف|بسه|ساکت|ساکت شو|ادامه بده|ادامه بدید|ادامه)$/.test(normalized))
     return 650;
   const analysis = analyzePersianSentenceCompletion(normalized);
-  if(analysis.isMidThought)return hasInterim?3100:2900;
-  if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?2900:2600;
-  return hasInterim?3000:2800;
+  // A grammatical full stop is not a reliable turn boundary: people pause
+  // mid-thought, breathe, or search for a technical part number.
+  if(analysis.isMidThought)return hasInterim?5600:5200;
+  if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?4600:4200;
+  return hasInterim?5200:4800;
 }
 
 /**
@@ -173,7 +177,7 @@ export function forzaTurnRemainingWaitMs(
   // emitting interim hypotheses while the customer is still speaking. A
   // longer text-only guard is safer than treating that transport stall as
   // acoustic silence. When VAD is available, retain the normal fast endpoint.
-  const requiredMs = vadSilenceMs === null ? Math.max(baseRequiredMs, 4500) : baseRequiredMs;
+  const requiredMs = vadSilenceMs === null ? Math.max(baseRequiredMs, 6000) : baseRequiredMs;
   // Late final ASR hypotheses must not restart the entire acoustic endpoint
   // window. Preserve the full pause for unfinished thoughts and when no VAD
   // is available; allow a short revision guard only for completed final text.

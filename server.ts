@@ -5694,8 +5694,8 @@ async function renderPocketSpeech(
       },
       body:JSON.stringify({text:spoken}),
       signal:cancel
-        ? AbortSignal.any([cancel,AbortSignal.timeout(30_000)])
-        : AbortSignal.timeout(30_000),
+        ? AbortSignal.any([cancel,AbortSignal.timeout(60_000)])
+        : AbortSignal.timeout(60_000),
     });
     // The private CPU engine accepts one active job and one waiter. Preserve
     // ordered audio; retry only known transient 503s within a short budget.
@@ -7292,7 +7292,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       const onClose=()=>abort.abort();
       res.once('close',onClose);
       try{
-        const transcript=await transcribeForzaDibaAudio(audioBase64,{signal:abort.signal,timeoutMs:10_000});
+        const transcript=await transcribeForzaDibaAudio(audioBase64,{signal:abort.signal,timeoutMs:20_000});
         userQuery=normalizePersianTranscript(transcript).slice(0,2500);
         console.info('[AI FORZA STT] provider=diba transcript_chars='+userQuery.length);
       }catch(sttErr:any){

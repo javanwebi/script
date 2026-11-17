@@ -18,7 +18,7 @@ test('unfinished Persian intent must not be submitted as a complete request', ()
   ]) {
     const result = analyzePersianSentenceCompletion(phrase);
     assert.equal(result.isComplete, false, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 2700, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 4800, phrase);
   }
 });
 
@@ -32,7 +32,7 @@ test('a two-second pause never finalizes even a linguistically complete question
   ]) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 2500, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 4200, phrase);
   }
 });
 
@@ -53,7 +53,7 @@ test('only explicit control commands bypass the two-second continuation window',
     assert.ok(forzaTurnRemainingWaitMs(phrase, false, 2100, 2100) > 0, phrase);
   }
   for(const phrase of ['مدل چند است؟','آیا بلبرینگ 6203 موجود است؟']){
-    assert.ok(forzaEndOfTurnPauseMs(phrase,false)>=2500,phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase,false)>=4200,phrase);
   }
   assert.equal(analyzePersianSentenceCompletion('صبر کن تا').isComplete, false);
 });
@@ -61,7 +61,7 @@ test('only explicit control commands bypass the two-second continuation window',
 test('provisional WebSpeech requires more time than a stable finalized hypothesis', () => {
   const phrase='تسمه SPA 1250 موجود دارید';
   assert.ok(forzaEndOfTurnPauseMs(phrase, true)>forzaEndOfTurnPauseMs(phrase, false));
-  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=2800);
+  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=4600);
 });
 
 test('two-second acoustic pauses leave the customer turn open for more words', () => {
@@ -102,7 +102,7 @@ test('missing VAD analyser uses a longer text-only guard without blocking foreve
   const pause=forzaEndOfTurnPauseMs(phrase,false);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,pause+50,null)>0,
     'a browser interim stall must not be mistaken for acoustic silence');
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,4550,null),0);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,6050,null),0);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,0,null)>0);
 });
 
