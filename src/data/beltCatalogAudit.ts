@@ -460,7 +460,8 @@ const RIBBED_SPECS: Record<string, { ribPitchMm: number; thicknessMm: number; st
 export function detectNormalizedBrand(rawName: string, rawBrand = ''): string {
   const text = `${normalize(rawName)} ${normalize(rawBrand)}`.toUpperCase();
   if (/\bBANDO\b|باندو/.test(text)) return 'BANDO';
-  if (/\bOPTI(?:BELT)?\b|او?پتی(?:\s*بلت)?/.test(text)) return 'OPTIBELT';
+  // Do not infer OPTIBELT from the informal word «اپتی» alone; require the full maker token.
+  if (/\bOPTIBELT\b|اوپتی\s*بلت|اپتی\s*بلت/.test(text)) return 'OPTIBELT';
   if (/\bMITSOB?OSHI\b|میتسوبوشی|میتسو\s*بوشی/.test(text)) return 'MITSUBOSHI';
   if (/\bMITSUBI?SH[IH]?\b|\bMITSOBISHI\b|میتسوبیشی/.test(text)) return 'MITSUBISHI';
   if (/\bMEGADYNE\b|MEGA\s*FLEX|مگادین|مگداین|مگدان/.test(text)) return 'MEGADYNE';
