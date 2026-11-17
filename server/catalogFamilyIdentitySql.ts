@@ -11,17 +11,17 @@ export const CATALOG_FAMILY_IDENTITY_LATERAL_SQL = `
 left join lateral (
   select
     case
-      when count(distinct nullif(coalesce(v.identity_specs->>'productType', technical_identity.product_type),'')) <= 1
+      when count(distinct nullif(coalesce(nullif(v.identity_specs->>'productType',''), technical_identity.product_type),'')) <= 1
         then max(coalesce(nullif(v.identity_specs->>'productType',''), technical_identity.product_type))
       else 'MIXED'
     end as product_type,
     case
-      when count(distinct nullif(coalesce(v.identity_specs->>'material', technical_identity.material, f.materials),'')) <= 1
+      when count(distinct nullif(coalesce(nullif(v.identity_specs->>'material',''), technical_identity.material, f.materials),'')) <= 1
         then max(coalesce(nullif(v.identity_specs->>'material',''), technical_identity.material, f.materials, ''))
       else 'MIXED'
     end as material,
     case
-      when count(distinct nullif(coalesce(v.identity_specs->>'profile', technical_identity.profile),'')) <= 1
+      when count(distinct nullif(coalesce(nullif(v.identity_specs->>'profile',''), technical_identity.profile),'')) <= 1
         then max(coalesce(nullif(v.identity_specs->>'profile',''), technical_identity.profile))
       else 'MIXED'
     end as profile,
@@ -43,22 +43,22 @@ left join lateral (
       case
         when count(distinct nullif(btrim(x->>'value'),'')) filter (
           where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
-            in ('material','beltmaterial','جنس','جنستسمه','ماده')
+            in ('material','beltmaterial','جنس','جنستسمه','جنسومتریال','جنسدرجشده','جنسبدنه','ماده')
         ) <= 1
         then max(nullif(btrim(x->>'value'),'')) filter (
           where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
-            in ('material','beltmaterial','جنس','جنستسمه','ماده')
+            in ('material','beltmaterial','جنس','جنستسمه','جنسومتریال','جنسدرجشده','جنسبدنه','ماده')
         )
         else 'MIXED'
       end as material,
       case
         when count(distinct nullif(btrim(x->>'value'),'')) filter (
           where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
-            in ('profile','beltprofile','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
+            in ('profile','profilecode','beltprofile','beltprofilecode','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیلمدل','پروفیلومدل','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
         ) <= 1
         then max(nullif(btrim(x->>'value'),'')) filter (
           where lower(regexp_replace(translate(coalesce(x->>'key',''), '‌‍‎‏', ''), '[[:space:]_-]+', '', 'g'))
-            in ('profile','beltprofile','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
+            in ('profile','profilecode','beltprofile','beltprofilecode','پروفیل','پروفایل','پروفیلتسمه','پروفایلتسمه','پروفیلمدل','پروفیلومدل','پروفیلدرجشده','پروفایلدردجشده','نوعپروفیل')
         )
         else 'MIXED'
       end as profile
