@@ -1256,7 +1256,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       recognitionSessionBaseRef.current='';
 
       if (q) {
-        setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,q));
+        setUserText(sessionTranscriptRef.current);
       } else {
         // The raw-audio fallback cannot invent a transcript before recognition;
         // keep previously displayed live words instead of replacing them with
@@ -1359,7 +1359,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 Math.round(performance.now()-sttStartedAt)+' segments='+audioBlobs.length+
                 ' failed='+failedSegments+' source='+(payload.query===q?'browser_guarded':'server_final')+
                 ' transcript_chars='+serverTranscript.length);
-              setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,payload.query));
+              setUserText(q
+                ?replaceForzaLastSessionTurn(sessionTranscriptRef.current,q,payload.query)
+                :composeForzaSessionTranscript(sessionTranscriptRef.current,payload.query));
               setMicrophoneError(null);
             }else if(!q){
               throw new Error('diba_no_complete_transcript');
