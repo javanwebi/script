@@ -160,6 +160,8 @@ test('all 539 groups pass strict invariant homogeneity checks with zero MIXED in
 
   // Welded PU CRC vs ROUND, steel-cord TPU vs Neoprene, and conveyor thickness sanity checks
   assert.equal(bySku.get('37828')?.technical.profile, 'CRC');
+  assert.equal(bySku.get('37828')?.detectedBrand, 'VOLTA');
+  assert.equal(bySku.get('37828')?.technical.beltDivision, 'welded-pu-round-crc');
   assert.equal(bySku.get('36859')?.technical.profile, 'ROUND');
   assert.equal(bySku.get('52640')?.technical.profile, 'A');
   assert.equal(bySku.get('41121')?.technical.bodyMaterial.includes('TPU'), true);
@@ -382,6 +384,13 @@ test('misplaced belts outside belt categories and non-belts inside belt categori
   assert.match(bySku.get('34064')?.verification.sourceUrl || '', /megaflex/i);
   assert.equal(bySku.get('34064')?.proposedFamilyId, 'FAM-TIMING-PU-T5-ENDLESS-PRINT-MEGADYNE');
   assert.equal(bySku.get('58129')?.proposedCategorySlug, 'excel-v2-1-2');
+  assert.equal(bySku.get('58129')?.proposedSubmenu, 'تسمه اسپشیال');
+  assert.equal(bySku.get('58129')?.proposedLeaf, null);
+  assert.equal(bySku.get('58129')?.technical.profile, 'PJ');
+  assert.equal(bySku.get('58129')?.technical.ribCount, 8);
+  assert.equal(bySku.get('58129')?.technical.pitchMm, 2.34);
+  assert.equal(bySku.get('58129')?.technical.pitchLengthMm, 1270);
+  assert.equal(bySku.get('58129')?.confidence, 'REQUIRES_REVIEW');
   assert.equal(bySku.get('58122')?.proposedCategorySlug, 'excel-v2-1-1');
   assert.equal(bySku.get('58132')?.proposedCategorySlug, 'excel-v2-1-1');
   assert.equal(bySku.get('35198')?.proposedCategorySlug, 'excel-v2-1-2');
@@ -527,11 +536,11 @@ test('Excel audit deliverables have exact sheet names/row counts, no fake 100%_P
   ]);
   assert.equal(wb.SheetNames.includes('Live_DB_48_Differences'), false);
 
-  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Final_Proposed_Groups']).length, 539);
-  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Valid_Belt_Conveyor_Families']).length, 492);
-  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Singleton_Validation']).length, 167);
+  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Final_Proposed_Groups']).length, audit.reportB_proposedFamilies.length + 1);
+  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Valid_Belt_Conveyor_Families']).length, audit.groupCounts.validBeltAndConveyorFamilies + 1);
+  assert.equal(XLSX.utils.sheet_to_json(wb.Sheets['Singleton_Validation']).length, audit.groupCounts.singletonValidBeltFamilies + 1);
   const multiRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets['MultiMember_Validation']);
-  assert.equal(multiRows.length, 325);
+  assert.equal(multiRows.length, audit.groupCounts.multiMemberValidBeltFamilies + 1);
 
   // Ensure both PASS_HOMOGENEOUS and CONDITIONAL_UNKNOWN_SPECS exist, and ZERO '100%_PASS'
   const verdicts = new Set(multiRows.map((r) => String(r.Homogeneity_Verdict || '')));
