@@ -227,6 +227,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // but this ledger never loses earlier words when the next phrase arrives.
   const sessionTranscriptRef = useRef<string>('');
   const pendingCommittedTranscriptRef = useRef<string>('');
+  const pendingHistoryTurnRef = useRef<string>('');
   const pendingTranscriptRef = useRef<string>('');
   const lastTranscriptChangedAtRef = useRef<number>(0);
   const webSpeechFailedRef = useRef<boolean>(false);
@@ -1225,9 +1226,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // make this already-heard transcript disappear.
       const transcriptAlreadyCommitted=Boolean(q&&pendingCommittedTranscriptRef.current===q);
       pendingCommittedTranscriptRef.current='';
-      if(q&&!transcriptAlreadyCommitted){
-        sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,q);
-        setUserText(sessionTranscriptRef.current);
+      if(q){
+        if(!transcriptAlreadyCommitted){
+          sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,q);
+          setUserText(sessionTranscriptRef.current);
+        }
+        // Put the user words into conversation history before any asynchronous
+        // server verifier. If the customer interrupts during STT, the next LLM
+        // request still receives this context instead of losing the last turn.
+        const prior=historyRef.current.slice(-FORZA_CONVERSATION_HISTORY_LIMIT);
+        historyRef.current=[...prior,{role:'user',text:q}];
+        pendingHistoryTurnRef.current=q;
       }
       turnDispatchPendingRef.current=true;
       stopAcknowledgementRef.current?.cancel();
@@ -1405,13 +1414,24 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Keep the prior conversation snapshot separate from this new user
         // turn. The API appends query as its final user message; including it
         // in history too would make every customer utterance appear twice.
-        const {previousHistory,nextHistory}=prepareForzaConversationTurn(
-          historyRef.current,resolvedUserQuery,FORZA_CONVERSATION_HISTORY_LIMIT,
-        );
+        let previousHistory:Turn[];
+        const lastHistoryEntry=historyRef.current[historyRef.current.length-1];
+        const canReplacePendingHistory=Boolean(q&&pendingHistoryTurnRef.current===q&&
+          lastHistoryEntry?.role==='user'&&lastHistoryEntry.text===q);
+        if(canReplacePendingHistory){
+          previousHistory=historyRef.current.slice(0,-1).slice(-FORZA_CONVERSATION_HISTORY_LIMIT);
+          historyRef.current=[...previousHistory,{role:'user',text:resolvedUserQuery}];
+        }else{
+          const prepared=prepareForzaConversationTurn(
+            historyRef.current,resolvedUserQuery,FORZA_CONVERSATION_HISTORY_LIMIT,
+          );
+          previousHistory=prepared.previousHistory;
+          historyRef.current=prepared.nextHistory;
+        }
+        pendingHistoryTurnRef.current='';
         // Send only the sanitized prior turns; the current query remains the
         // separate final user message in the streaming request body.
         payload.history=previousHistory;
-        historyRef.current=nextHistory;
         if(resolvedUserQuery)setUserText(sessionTranscriptRef.current);
         let reply='';
         let firstTextDelivered=false;
@@ -2387,6 +2407,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     historyRef.current=[];
     sessionTranscriptRef.current='';
     pendingCommittedTranscriptRef.current='';
+    pendingHistoryTurnRef.current='';
     audioChunksRef.current=[];
     audioSegmentsRef.current=[];
     isProcessingTurnRef.current=false;
