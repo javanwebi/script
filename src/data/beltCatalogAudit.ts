@@ -2132,6 +2132,74 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     };
   }
 
+  // Profile A/B/C is explicit in the inventory description, but the material
+  // is not. Preserve the real section identity without asserting PU or publishing
+  // a fabricated approved menu leaf until a manufacturer datasheet is attached.
+  const unverifiedWeldedVProfileMatch = upperName.match(/تسمه\s+جوشی\s+(?:پروفیل\s*)?(A|B|C)\b/);
+  if (unverifiedWeldedVProfileMatch && !isPolyurethaneMaterial) {
+    const profileCode = unverifiedWeldedVProfileMatch[1];
+    const isCorded = /نخ\s*دار/.test(normName);
+    const isGrip = /گریپ/.test(normName);
+    const reviewSupplyForm: BeltTechnicalParameters['supplyForm'] =
+      !isMixedFamilyUnit && rawUnit === 'حلقه' ? 'endless-loop' : 'heat-weldable-meter';
+    return {
+      sku: variant.code,
+      originalName: rawName,
+      originalSize: variant.size || '',
+      originalUnit,
+      unit: reviewSupplyForm === 'endless-loop' ? 'حلقه' : 'متر',
+      currentFamilyId: product.code,
+      currentFamilyName: product.name,
+      currentCategory: product.categoryName,
+      currentSubmenu: product.submenu || '',
+      currentSubcategory: product.subcategory,
+      detectedBrand: brand,
+      proposedCategorySlug: 'excel-v2-1-3',
+      proposedCategoryName: 'تسمه جوشی',
+      proposedSubmenu: 'پروفیل V شکل جوشی (جنس نیازمند تأیید)',
+      proposedLeaf: null,
+      taxonomyGap: 'GAP-WELDED-V-' + profileCode + '-MATERIAL-UNVERIFIED: پروفیل ' + profileCode + ' و شکل عرضه جوشی از شرح کالا مشخص است، اما جنس PU/TPE و مشخصات سازنده از داده موجود اثبات نمی‌شود؛ خانواده تا دریافت دیتاشیت در صف بازبینی می‌ماند.',
+      proposedFamilyId: ('FAM-WELDED-V-' + profileCode + '-MATERIAL-REVIEW-' + brand + '-' +
+        (isCorded ? 'CORDED' : 'CORD-UNKNOWN') + '-' + (isGrip ? 'GRIP' : 'PLAIN')).replace(/[^A-Z0-9-]/g, ''),
+      proposedFamilyNameFa: 'تسمه جوشی V شکل پروفیل ' + profileCode + ' (جنس نیازمند تأیید)' +
+        (isCorded ? ' نخ‌دار' : '') + (isGrip ? ' گریپ‌دار' : '') + ' ' + brand,
+      proposedFamilyNameEn: brand + ' Welded V-Section ' + profileCode + ' Belt — Material Unverified (' +
+        (isCorded ? 'Corded' : 'Cord Unknown') + ', ' + (isGrip ? 'Grip' : 'Plain') + ')',
+      actualProductType: 'تسمه جوشی V شکل پروفیل ' + profileCode + '؛ جنس بدنه نیازمند دیتاشیت',
+      technical: {
+        operatingPrinciple: 'friction-v',
+        beltDivision: 'service-ambiguous',
+        supplyForm: reviewSupplyForm,
+        sidedness: 'single-sided',
+        profile: profileCode,
+        pitchMm: null,
+        toothAngleDeg: null,
+        toothHeightMm: null,
+        beltThicknessMm: null,
+        topWidthMm: null,
+        nominalWidthMm: null,
+        widthCode: null,
+        pitchLengthMm: null,
+        insideLengthMm: null,
+        outsideLengthMm: null,
+        lengthDesignation: null,
+        toothCount: null,
+        ribCount: null,
+        bodyMaterial: 'جنس بدنه از شرح انبار اثبات نمی‌شود؛ PU/TPE بودن نیازمند دیتاشیت سازنده است',
+        tensileCord: isCorded
+          ? 'وجود تقویت‌کننده نخ‌دار در شرح انبار ثبت شده؛ جنس و آرایش نیازمند دیتاشیت'
+          : 'نوع تقویت‌کننده نامشخص؛ نیازمند دیتاشیت',
+        backingOrCoating: isGrip ? 'سطح گریپ‌دار طبق شرح انبار؛ جنس و ساختار روکش نیازمند دیتاشیت' : null,
+        standardReference: 'NOT_ESTABLISHED — exact material, profile drawing and manufacturer datasheet required',
+        manufacturerSources: [],
+      },
+      confidence: 'REQUIRES_REVIEW',
+      verification: unattachedProvenancePlaceholder(),
+      recommendedAction: 'MANUAL_ENGINEERING_REVIEW',
+      engineeringReasoning: 'پروفیل ' + profileCode + ' و وجود تسمه جوشی از نام کالا استخراج شده است؛ اما نام کالا و برند به‌تنهایی جنس پلیمر را ثابت نمی‌کنند. این SKU از خانواده‌های PU تأییدشده جدا نگه داشته می‌شود تا دیتاشیت/نقشه سازنده دریافت شود.',
+    };
+  }
+
   // Heat-weldable PU belts: require actual PU material evidence. A wrapped rubber
   // V-belt may contain the words "جوشی" or "گریپ" but is not a thermoplastic PU belt.
   if (
