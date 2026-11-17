@@ -39,7 +39,7 @@ test('FORZA renders live SSE words and sends complete Nima word groups to the ex
 
 test('Nima is incremental while Pocket remains a safe one-WAV fallback; audio stays in memory',()=>{
   assert.match(frontend,/voiceModeRef\.current==='piper-nima-gyro-medium'/);
-  assert.match(frontend,/voiceModeRef\.current==='piper-nima-gyro-medium'\s*\? AbortSignal\.timeout\(35000\) : AbortSignal\.timeout\(420000\)/);
+  assert.match(frontend,/voiceModeRef\.current==='piper-nima-gyro-medium'\s*\? AbortSignal\.timeout\(65000\) : AbortSignal\.timeout\(420000\)/);
   assert.match(frontend,/AbortSignal\.any\(\[signal,timeoutSignal\]\)/);
   assert.match(frontend,/pocketAbort\.abort\(\)/);
   assert.match(frontend,/await response\.arrayBuffer\(\)/);
