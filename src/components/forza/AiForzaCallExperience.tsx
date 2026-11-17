@@ -940,7 +940,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const code=String(failure?.errorCode||failure?.error||'unknown')
         .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,64);
       console.warn('[FORZA_TTS_STAGE] phase=http_error status='+response.status+' code='+code);
-      if(response.status===429)throw new Error('pocket_http_429');
+      if(response.status===429){
+        if(code==='forza_network_limit')throw new Error('pocket_rate_limited_network');
+        if(code==='forza_turn_limit')throw new Error('pocket_rate_limited_turn');
+        throw new Error('pocket_http_429');
+      }
       throw new Error('pocket_http_'+response.status+'_'+code);
     }
     // The private voice health check is authoritative. Recover gracefully if
@@ -1651,14 +1655,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             else console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
               String(error?.message||'unknown').slice(0,100));
             if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
+              const ttsCode=String(error?.message||'');
               setVoiceOutputError(
-              error?.message==='autoplay_permission_required'
-                ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
-                :error?.message==='pocket_http_429'
-                  ?'ظرفیت موقت سرویس صوتی تکمیل است. کمی بعد دوباره تلاش کنید؛ متن پاسخ حفظ شده است.'
-                  :String(error?.message||'').startsWith('pocket_http_503_')
-                    ?'سرویس صدای نیما موقتاً مشغول یا در حال بازیابی است؛ متن پاسخ حفظ شده است. دوباره تلاش کنید.'
-                    :'تولید یا پخش صدای کامل FORZA انجام نشد؛ متن پاسخ همچنان نمایش داده شده است.');
+                ttsCode==='autoplay_permission_required'
+                  ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
+                  :ttsCode==='pocket_rate_limited_network'
+                    ?'سقف درخواست صوتی این اتصال در یک دقیقه تکمیل شده است؛ متن پاسخ حفظ شده و پس از پایان محدودیت می‌توانید دوباره پخش کنید.'
+                    :ttsCode==='pocket_rate_limited_turn'
+                      ?'سقف قطعه‌های صوتی این پاسخ تکمیل شده است؛ متن پاسخ حفظ شده و می‌توانید دوباره آن را بخوانید.'
+                      :ttsCode==='pocket_http_429'
+                        ?'ظرفیت موقت سرویس صوتی تکمیل است؛ متن پاسخ حفظ شده است.'
+                        :ttsCode.startsWith('pocket_http_503_')
+                          ?'سرویس صدای نیما موقتاً مشغول یا در حال بازیابی است؛ متن پاسخ حفظ شده است. دوباره تلاش کنید.'
+                          :'تولید یا پخش صدای FORZA انجام نشد؛ متن پاسخ همچنان نمایش داده شده است.');
           }
         }
       } catch (err: any) {
