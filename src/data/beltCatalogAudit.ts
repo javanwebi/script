@@ -598,14 +598,19 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   const originalUnit = rawUnit || 'عدد';
   const isMixedFamilyUnit = rawUnit.includes(',') || rawUnit.includes('،');
   const unit = isMixedFamilyUnit ? 'حلقه' : rawUnit;
-  const brand = detectNormalizedBrand(rawName, product.brand);
-  const technicalEvidence = [...(product.technicalSpecs || []), ...(variant.technicalSpecs || [])];
-  const materialEvidence = technicalEvidence
+  // A SKU label may omit the maker while its family title carries it.
+  // Use both names for brand evidence, but never inherit family-level material specs.
+  const familyAndVariantName = normalize(`${rawName} ${product.name || ''}`);
+  const brand = detectNormalizedBrand(familyAndVariantName, product.brand);
+  // SKU-level material/construction only. Legacy FAM-level specs can aggregate
+  // several incompatible materials and must never leak into an individual SKU.
+  const skuTechnicalEvidence = variant.technicalSpecs || [];
+  const materialEvidence = skuTechnicalEvidence
     .filter((spec) => /جنس|متریال|material/i.test(String(spec.key || '')))
     .map((spec) => String(spec.value || ''))
     .join(' ');
   const normalizedMaterialEvidence = normalize(materialEvidence);
-  const constructionEvidence = technicalEvidence
+  const constructionEvidence = skuTechnicalEvidence
     .filter((spec) => /ساختار|construction|cord|کورد/i.test(String(spec.key || '')))
     .map((spec) => String(spec.value || ''))
     .join(' ');
@@ -1029,9 +1034,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   const hasRoughTop = /روکش\s*آجدار/.test(normName);
   const hasAntiAbrasion = /با\s*(?:روکش\s*)?ضد\s*سایش|روکش\s*ضد\s*سایش/.test(normName);
   const hasGenericGrip = /گریپ\s*دار|با\s*گریپ/.test(normName);
-  const isCeramicPrint = /تسمه\s+چاپ/.test(normName);
+  const isCeramicPrint = /تسمه\s+چاپ/.test(familyAndVariantName);
   const isMegadyneCeramicT5 =
-    brand === 'MEGADYNE' && isCeramicPrint && /\bT5\b/.test(upperName);
+    brand === 'MEGADYNE' && isCeramicPrint && /\bT5\b/.test(familyAndVariantName.toUpperCase());
   const isSteelCordMetricTimingCandidate =
     /سیم\s*دار/.test(normName) || isSteelCordMaterial || product.subcategory === 'تسمه سیم‌دار';
   const hasCoating =
@@ -1156,11 +1161,11 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       currentSubmenu: product.submenu || '',
       currentSubcategory: product.subcategory,
       detectedBrand: brand,
-      proposedCategorySlug: 'excel-v2-1-2',
-      proposedCategoryName: 'تسمه وی‌بلت (V-Belt)',
-      proposedSubmenu: 'تسمه اسپشیال',
+      proposedCategorySlug: 'UNRESOLVED',
+      proposedCategoryName: 'نیازمند مسیر منوی مصوب',
+      proposedSubmenu: 'نیازمند زیر‌دسته مستقل Poly-V',
       proposedLeaf: null,
-      taxonomyGap: `GAP-RIBBED-POLY-V: پروفیل چندشیاری ${ribProfile} مطابق ISO 9982 در دسته مصوب تسمه وی‌بلت و زیرمنوی «تسمه اسپشیال» قرار می‌گیرد؛ چون برگ مستقل PJ/PK/PL در اکسل مصوب وجود ندارد، leaf عمداً خالی می‌ماند و به برگ SPA/SPB/SPC منتسب نمی‌شود.`,
+      taxonomyGap: `GAP-RIBBED-POLY-V: پروفیل چندشیاری ${ribProfile} مطابق ISO 9982 از V-Belt کلاسیک/اسپشیال متمایز است؛ چون برای PJ/PK/PL مسیر مصوب مستقل در اکسل وجود ندارد، این گروه نباید به V-Belt یا برگ SPA/SPB/SPC منتسب شود و تا تصویب مسیر مستقل، بدون دسته‌بندی فعال می‌ماند.`,
       proposedFamilyId: `FAM-RIBBED-${familySuffix.replace(/[^A-Z0-9-]/g, '')}`,
       proposedFamilyNameFa: isCeramicPrint
         ? `تسمه چندشیاری چاپ ${ribProfile} (${brand})`
@@ -2926,29 +2931,6 @@ function resolveProvenanceAndConfidence(
   rec: BeltSkuAuditRecord,
   refs?: AuditReferenceTables
 ): { confidence: BeltConfidenceLevel; verification: VerificationProvenance } {
-  if (rec.confidence === 'REQUIRES_REVIEW' || rec.technical.beltDivision === 'service-ambiguous') {
-    return {
-      confidence: 'REQUIRES_REVIEW',
-      verification: {
-        tier: 'UNVERIFIED_REQUIRES_PHYSICAL_REVIEW',
-        evidenceClass7: '7_Requires_Physical_Inspection',
-        processedBySoftwareCode: true,
-        extractedFromDatabase: true,
-        manufacturerCodeIdentified: Boolean(
-          rec.technical.lengthDesignation || (rec.technical.profile !== 'UNSPECIFIED' && rec.technical.profile !== 'NON-BELT')
-        ),
-        officialManufacturerSiteChecked: false,
-        datasheetOrCatalogChecked: false,
-        matchedAgainstReliableSource: false,
-        familyConfirmedByEvidence: false,
-        sourceUrl: 'NONE',
-        documentType: 'NONE_UNVERIFIED',
-        matchedManufacturer: null,
-        evidenceBasis: 'نیازمند بررسی فیزیکی/فاکتور خرید — اطلاعات کاتالوگ فعلی برای انتساب قطعی ناکافی یا مبهم است',
-      },
-    };
-  }
-
   const lenKey = rec.technical.lengthDesignation?.toUpperCase() || '';
   const imperialBaseKey =
     lenKey && rec.technical.beltDivision.startsWith('timing-imperial')
@@ -3052,7 +3034,7 @@ function resolveProvenanceAndConfidence(
     supplyForm: rec.technical.supplyForm,
     originalName: rec.originalName,
   });
-  if (seriesEvidence) {
+  if (seriesEvidence && rec.technical.beltDivision !== 'service-ambiguous') {
     return {
       confidence: 'SERIES_VERIFIED',
       verification: {
@@ -3069,6 +3051,29 @@ function resolveProvenanceAndConfidence(
         documentType: 'SERIES_CATALOG',
         matchedManufacturer: seriesEvidence.manufacturer,
         evidenceBasis: seriesEvidence.evidenceBasis,
+      },
+    };
+  }
+
+  if (rec.confidence === 'REQUIRES_REVIEW' || rec.technical.beltDivision === 'service-ambiguous') {
+    return {
+      confidence: 'REQUIRES_REVIEW',
+      verification: {
+        tier: 'UNVERIFIED_REQUIRES_PHYSICAL_REVIEW',
+        evidenceClass7: '7_Requires_Physical_Inspection',
+        processedBySoftwareCode: true,
+        extractedFromDatabase: true,
+        manufacturerCodeIdentified: Boolean(
+          rec.technical.lengthDesignation || (rec.technical.profile !== 'UNSPECIFIED' && rec.technical.profile !== 'NON-BELT')
+        ),
+        officialManufacturerSiteChecked: false,
+        datasheetOrCatalogChecked: false,
+        matchedAgainstReliableSource: false,
+        familyConfirmedByEvidence: false,
+        sourceUrl: 'NONE',
+        documentType: 'NONE_UNVERIFIED',
+        matchedManufacturer: null,
+        evidenceBasis: 'نیازمند بررسی فیزیکی/فاکتور خرید — اطلاعات کاتالوگ فعلی برای انتساب قطعی ناکافی یا مبهم است',
       },
     };
   }
@@ -3487,12 +3492,15 @@ export function runBeltCatalogAudit(products: Product[], refs?: AuditReferenceTa
     (f) =>
       !f.beltDivision.startsWith('non-belt-') &&
       f.beltDivision !== 'belt-welding-tool' &&
-      f.beltDivision !== 'service-ambiguous'
+      f.beltDivision !== 'service-ambiguous' &&
+      f.categorySlug !== 'UNRESOLVED'
   );
   const singletonValidBeltFamilies = validBeltFamilies.filter((f) => f.skuCount === 1).length;
   const multiMemberValidBeltFamilies = validBeltFamilies.filter((f) => f.skuCount > 1).length;
   const weldingToolGroups = proposedFamilies.filter((f) => f.beltDivision === 'belt-welding-tool').length;
-  const provisionalReviewGroups = proposedFamilies.filter((f) => f.beltDivision === 'service-ambiguous').length;
+  const provisionalReviewGroups = proposedFamilies.filter(
+    (f) => f.beltDivision === 'service-ambiguous' || f.categorySlug === 'UNRESOLVED'
+  ).length;
   const separatedNonBeltFamilies = proposedFamilies.filter((f) => f.beltDivision.startsWith('non-belt-')).length;
 
   return {
