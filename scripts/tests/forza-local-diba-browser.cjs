@@ -156,12 +156,16 @@ function wav(seconds=0.2){
   await page.evaluate(()=>{window.__forzaMicSample=0.008;});
   await page.waitForTimeout(450);
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('یه سوال جدید درباره تسمه نقاله دارم'));
-  await page.getByText('یه سوال جدید درباره تسمه نقاله دارم',{exact:true}).waitFor({timeout:1500});
+  await page.waitForFunction(text=>document.body.innerText.includes(text),'یه سوال جدید درباره تسمه نقاله دارم',{timeout:1500});
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('یه سوال جدید درباره تسمه نقاله دارم'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
   await page.waitForFunction(()=>window.__forzaConsultRequestCount===3,null,{timeout:12000});
   await page.waitForFunction(()=>window.__forzaSpeechTurnIds?.some(id=>id.endsWith('-turn-3')),null,{timeout:8000});
   assert.equal(queries.length,3,'customer speech during Nima playback must interrupt and start a new turn');
+  await page.waitForFunction(([first,second,third])=>{
+    const text=document.body.innerText;
+    return text.includes(first)&&text.includes(second)&&text.includes(third);
+  },[queries[0],queries[1],'یه سوال جدید درباره تسمه نقاله دارم'],{timeout:3000});
   assert.ok(speech.length>speechAfterSecond,'Nima must synthesize the barge-in response too');
   assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
    'barge-in must reuse the same Diba recognizer instead of discarding its state');
