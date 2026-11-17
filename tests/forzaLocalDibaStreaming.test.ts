@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { FORZA_DIBA_SAMPLE_RATE, resampleDibaPcm } from '../src/utils/forzaLocalSpeech';
+import { appendForzaSpeechSegment } from '../src/utils/forzaSpeechPipeline';
 
 
 test('Diba receives correctly resampled 16 kHz mono PCM from common 48 kHz browser audio',()=>{
@@ -96,4 +97,33 @@ test('the native browser fallback remains active while local model loading is pe
  assert.ok(load>0&&native>load);
  assert.match(ui,/Chrome keeps transcribing immediately/);
  assert.match(ui,/if\(localReady\)/);
+});
+
+
+test('local Diba final hypotheses append across pauses without duplicating overlap',()=>{
+ const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
+ assert.equal(appendForzaSpeechSegment('شماره فنی بلبرینگ','بلبرینگ 6203 ZZ'),
+  'شماره فنی بلبرینگ 6203 ZZ');
+ assert.equal(appendForzaSpeechSegment('شماره فنی بلبرینگ','و کد 6203 ZZ'),
+  'شماره فنی بلبرینگ و کد 6203 ZZ');
+ assert.match(ui,/localSttFinalRef\.current=appendForzaSpeechSegment\(localSttFinalRef\.current,recognized\.text\)/,
+  'Vosk final segments must append to the same utterance buffer');
+});
+
+test('server Diba decodes ordered MediaRecorder containers into one bounded utterance',()=>{
+ const server=readFileSync('server/ai/forzaDibaStt.ts','utf8');
+ const worker=readFileSync('scripts/forza_diba_stt_worker.py','utf8');
+ const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
+ assert.match(server,/audioBase64: string \| string\[\]/);
+ assert.match(server,/Array\.isArray\(audioBase64\)/);
+ assert.match(server,/REQUEST_TIMEOUT_MS = 25_000/);
+ assert.match(server,/Math\.min\(30_000, options\.timeoutMs/);
+ assert.match(worker,/MAX_PCM_BYTES = 16000 \* 2 \* 180/);
+ assert.match(worker,/encoded_segments = encoded if isinstance\(encoded, list\) else \[encoded\]/);
+ assert.match(worker,/pcm = b"".join\(pcm_parts\)/);
+ assert.match(ui,/const audioBase64Segments=await Promise\.all\(audioBlobs\.map/);
+ assert.match(ui,/audioBase64:audioBase64Segments/);
+ assert.match(ui,/26_000/);
+ assert.doesNotMatch(ui,/for\(const segment of audioBlobs\)/,
+  'rotated WebM segments must not consume one shared timeout in serial requests');
 });
