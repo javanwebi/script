@@ -2466,7 +2466,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
 
   // 12. Classical, Narrow/Wedge, and Hexagonal V-Belts
   const productUpperName = normalize(product.name).toUpperCase();
-  const explicitWeldedVProfileMatch = `${upperName} ${productUpperName}`.match(/تسمه\s*جوشی\s*V\b.*?پروفیل\s*(A|B|C)\b/);
+  const explicitWeldedVProfileMatch = `${upperName} ${productUpperName}`.match(/تسمه\s*جوشی\s*(?:V\b\s*)?(?:شکل\s*)?(?:پروفیل\s*)?(A|B|C)\b/);
   const explicitVProfileMatch = `${upperName} ${productUpperName}`.match(/(?:تسمه\s*V(?:\s*شکل)?|V[\s-]*BELT|وی[\s‌-]*بلت).*?پروفیل\s*(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|CC|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\b/);
   const stdVMatch =
     upperName.match(/\b(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|CC|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\s*[-*× ]?\s*(\d{2,5}(?:[./]\d+)?)\b/) ||
@@ -2480,6 +2480,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       : null;
 
   if (stdVMatch || numericVMatch || explicitWeldedVProfileMatch || explicitVProfileMatch) {
+    const isWeldedVProfile = Boolean(explicitWeldedVProfileMatch);
     let vProfile = 'A';
     let rawLen = 0;
 
@@ -2580,6 +2581,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       'FAM-VBELT',
       vProfile,
       isOpenEndedSupply ? 'METER' : 'ENDLESS',
+      ...(isWeldedVProfile ? ['WELDED'] : []),
       coatingCode,
       brand,
     ]
@@ -2606,6 +2608,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedFamilyId: familyId,
       proposedFamilyNameFa: [
         'تسمه V شکل',
+        isWeldedVProfile ? 'جوشی' : '',
         vSpec.division === 'vbelt-hexagonal'
           ? 'شش‌ضلعی دوطرفه'
           : isHeavyWedgeProfile
@@ -2622,7 +2625,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       ]
         .filter(Boolean)
         .join(' '),
-      proposedFamilyNameEn: `${brand} ${vProfile} ${
+      proposedFamilyNameEn: `${brand} ${isWeldedVProfile ? 'Welded ' : ''}${vProfile} ${
         vSpec.division === 'vbelt-hexagonal'
           ? 'Hexagonal Double-Sided'
           : isHeavyWedgeProfile
@@ -2633,7 +2636,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
                 ? isCoggedProfile ? 'Raw-Edge Cogged Narrow Wedge' : 'Wrapped Narrow Wedge'
                 : isCoggedProfile ? 'Raw-Edge Cogged Classical' : 'Wrapped Classical'
       } V-Belt${hasCoating ? ' (Coated)' : ''}${isOpenEndedSupply ? ' Open-Ended Meter' : ''}`,
-      actualProductType: `تسمه V شکل ${isAmericanWedgeProfile ? 'گوه‌ای آمریکایی ' : ''}${isCoggedProfile ? 'دنده‌ای لبه‌خام ' : ''}${vProfile}${hasCoating ? ` همراه با ${coatingLabel}` : ''}`,
+      actualProductType: `تسمه V شکل ${isWeldedVProfile ? 'جوشی ' : ''}${isAmericanWedgeProfile ? 'گوه‌ای آمریکایی ' : ''}${isCoggedProfile ? 'دنده‌ای لبه‌خام ' : ''}${vProfile}${hasCoating ? ` همراه با ${coatingLabel}` : ''}`, 
       technical: {
         operatingPrinciple: 'friction-v',
         beltDivision: vSpec.division,
@@ -2653,12 +2656,18 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         lengthDesignation: rawLen > 0 ? `${vProfile}${rawLen}` : vProfile,
         toothCount: null,
         ribCount: null,
-        bodyMaterial: isCoggedProfile
-          ? 'لاستیک دنده‌ای لبه‌خام (Raw-Edge Cogged Rubber)'
-          : 'لاستیک با روکش پارچه‌ای (Wrapped V-Belt)',
-        tensileCord: 'عضو کششی داخلی؛ جنس و آرایش دقیق کورد باید از دیتاشیت همان سازنده تأیید شود',
+        bodyMaterial: isWeldedVProfile
+          ? 'جنس پایه تسمه جوشی از شرح انبار اثبات نمی‌شود؛ پلیمر/الاستومر باید با دیتاشیت یا نمونه تأیید شود'
+          : isCoggedProfile
+            ? 'لاستیک دنده‌ای لبه‌خام (Raw-Edge Cogged Rubber)'
+            : 'لاستیک با روکش پارچه‌ای (Wrapped V-Belt)',
+        tensileCord: isWeldedVProfile
+          ? 'نخ تقویتی طبق شرح کالا؛ جنس و آرایش نخ از شرح انبار اثبات نمی‌شود'
+          : 'عضو کششی داخلی؛ جنس و آرایش دقیق کورد باید از دیتاشیت همان سازنده تأیید شود',
         backingOrCoating: coatingLabel,
-        standardReference: vSpec.standard,
+        standardReference: isWeldedVProfile
+          ? `${vSpec.standard}; فقط مرجع هندسه مقطع ${vProfile}، نه اثبات جنس یا فرایند اتصال جوشی`
+          : vSpec.standard,
         manufacturerSources: [
           'DIN 2215 / DIN 7753-1 / ISO 4184 Classical and Narrow V-Belts',
           'Bando Power-King / Red-S / Banflex Technical Catalog',

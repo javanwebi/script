@@ -71,7 +71,7 @@ test('audit accounts for all 1,383 raw families and 10,435 SKUs with a complete,
   assert.equal(audit.confidenceCounts.ALGORITHMIC_STANDARD_ONLY,
     7709 - exactVerified - seriesVerified - audit.confidenceCounts.NOMINAL_TABLE_VERIFIED -
       audit.confidenceCounts.INVENTORY_DESCRIPTION_ONLY - audit.confidenceCounts.REQUIRES_REVIEW);
-  assert.equal(audit.confidenceCounts.REQUIRES_REVIEW, 731);
+  assert.equal(audit.confidenceCounts.REQUIRES_REVIEW, 723);
 
   // Every SKU record must carry an explicit sourceUrl & documentType, and DATASHEET_VERIFIED requires same-brand match
   for (const r of audit.reportA_skuClassifications) {
@@ -103,7 +103,7 @@ test('audit accounts for all 1,383 raw families and 10,435 SKUs with a complete,
   assert.equal(audit.nonBeltInsideBeltCategoryCount, 24);
   assert.equal(audit.nonConveyorInsideConveyorCategoryCount, 32);
   assert.ok(audit.misplacedBeltOutsideBeltCategoryCount >= 45);
-  assert.ok(audit.catchAllIndustrialBeltResolvedCount >= 1180);
+  assert.equal(audit.catchAllIndustrialBeltResolvedCount, 1012);
 });
 
 test('PVC conical-cleat perforation stays SKU-level and does not split the family identity', () => {
@@ -167,7 +167,16 @@ test('all proposed groups pass strict invariant homogeneity checks with zero MIX
   assert.equal(bySku.get('36859')?.technical.beltDivision, 'service-ambiguous');
   assert.equal(bySku.get('36859')?.confidence, 'REQUIRES_REVIEW');
   assert.match(bySku.get('36859')?.technical.bodyMaterial || '', /اثبات نمی‌شود/);
-  assert.equal(bySku.get('52640')?.technical.profile, 'A');
+  const forza52640 = bySku.get('52640');
+  assert.equal(forza52640?.detectedBrand, 'FORZA');
+  assert.equal(forza52640?.technical.profile, 'A');
+  assert.equal(forza52640?.technical.supplyForm, 'open-ended-meter');
+  assert.equal(forza52640?.technical.beltDivision, 'vbelt-classical');
+  assert.equal(forza52640?.proposedFamilyId, 'FAM-VBELT-A-METER-WELDED-GRIP-FORZA');
+  assert.equal(forza52640?.proposedSubmenu, 'وی‌بلت متری');
+  assert.equal(forza52640?.proposedLeaf, 'تسمه A و B و C وی‌بلت متری');
+  assert.equal(forza52640?.confidence, 'ALGORITHMIC_STANDARD_ONLY');
+  assert.match(forza52640?.technical.bodyMaterial || '', /اثبات نمی‌شود/);
   assert.equal(bySku.get('41121')?.technical.bodyMaterial.includes('TPU'), true);
   assert.notEqual(bySku.get('41121')?.proposedFamilyId, bySku.get('10203')?.proposedFamilyId);
   assert.equal(bySku.get('31501')?.detectedBrand, 'OPTIBELT');
@@ -424,7 +433,13 @@ test('misplaced belts outside belt categories and non-belts inside belt categori
   assert.equal(bySku.get('32711')?.technical.operatingPrinciple, 'non-belt');
 
   // Pre-approval audit targets + untouched live taxonomy check
-  assert.equal(bySku.get('10111')?.proposedLeaf, 'H , XH , L , XL');
+  // 10111 is 1400DH075: DH is double-sided, so it must not be placed in the single-sided H/XH/L/XL leaf.
+  assert.equal(bySku.get('10111')?.technical.profile, 'H');
+  assert.equal(bySku.get('10111')?.technical.sidedness, 'double-sided');
+  assert.equal(bySku.get('10111')?.proposedLeaf, null);
+  assert.match(bySku.get('10111')?.taxonomyGap || '', /GAP-TIMING-DOUBLE-SIDED/);
+  assert.equal(bySku.get('36103')?.technical.profile, 'H');
+  assert.equal(bySku.get('36103')?.technical.sidedness, 'single-sided');
   assert.equal(bySku.get('36103')?.proposedLeaf, 'H , XH , L , XL');
   assert.equal(bySku.get('22751')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('35198')?.proposedCategorySlug, 'excel-v2-1-2');
