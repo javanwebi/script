@@ -97,7 +97,7 @@ Primary source:
 
 The official catalog covers Bando Power King, Power King Cog, Power Ace, Power Ace Cog, Power Scrum banded, Double-V, Rib Ace, Synchro-Link and related timing-belt product families.
 
-Only 11 H/DH inventory records retain exact SKU-level catalog matching. Other supported Bando profile combinations are series-level only.
+Eleven H/DH inventory records have Bando profile-level support for the H/DH section, geometry and construction. The catalog does not establish an exact manufacturer article-number match for the internal inventory SKU codes; all eleven are therefore SERIES_VERIFIED, not DATASHEET_VERIFIED.
 
 ### DONGIL / DRB
 
