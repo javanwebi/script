@@ -24,7 +24,8 @@ test('legacy technical_specs supplies belt profile, material and product type wh
       insert into public.catalog_families(code,name,materials) values
         ('FAM-LEGACY','Industrial V-belt',null),
         ('FAM-OVERRIDE','Industrial V-belt',null),
-        ('FAM-MIXED','Industrial V-belt',null);
+        ('FAM-MIXED','Industrial V-belt',null),
+        ('FAM-PERSIAN','تسمه وی‌بلت',null);
       insert into public.catalog_variants(code,family_code,name,identity_specs,technical_specs) values
         ('SKU-LEGACY','FAM-LEGACY','SPZ V-belt', '{}'::jsonb,
           '[{"key":"profile","value":"SPZ"},{"key":"material","value":"Rubber"},{"key":"productType","value":"V-Belt"}]'::jsonb),
@@ -34,7 +35,9 @@ test('legacy technical_specs supplies belt profile, material and product type wh
         ('SKU-MIXED-A','FAM-MIXED','A profile belt', '{}'::jsonb,
           '[{"key":"profile","value":"A"},{"key":"material","value":"Rubber"}]'::jsonb),
         ('SKU-MIXED-B','FAM-MIXED','B profile belt', '{}'::jsonb,
-          '[{"key":"profile","value":"B"},{"key":"material","value":"Rubber"}]'::jsonb);
+          '[{"key":"profile","value":"B"},{"key":"material","value":"Rubber"}]'::jsonb),
+        ('SKU-PERSIAN','FAM-PERSIAN','تسمه وی‌بلت پروفیل A', '{}'::jsonb,
+          '[{"key":"پروفیل درج‌شده","value":"A"},{"key":"نوع قطعه","value":"تسمه وی‌بلت"}]'::jsonb);
     `);
 
     const result = await db.query<{
@@ -53,6 +56,7 @@ test('legacy technical_specs supplies belt profile, material and product type wh
       { code: 'FAM-LEGACY', product_type: 'V-Belt', material: 'Rubber', profile: 'SPZ' },
       { code: 'FAM-MIXED', product_type: 'Industrial V-belt', material: 'Rubber', profile: 'MIXED' },
       { code: 'FAM-OVERRIDE', product_type: 'V-Belt', material: 'EPDM', profile: 'XPA' },
+      { code: 'FAM-PERSIAN', product_type: 'تسمه وی‌بلت', material: null, profile: 'A' },
     ]);
   } finally {
     await db.close();
@@ -64,4 +68,6 @@ test('every public and admin family resolver shares the legacy technical identit
   assert.match(api, /catalogFamilyIdentitySql/);
   assert.equal((api.match(/\$\{CATALOG_FAMILY_IDENTITY_LATERAL_SQL\}/g) || []).length, 6);
   assert.doesNotMatch(api, /from public\.catalog_variants v where v\.family_code=f\.code and v\.active=true\s*\) identity on true/);
+  assert.match(api, /databaseAssignment&&assignmentMethod==='conservative_name_rule'/);
+  assert.match(api, /return assignmentIsValid\(row,databaseAssignment\)\.valid\?databaseAssignment:null/);
 });
