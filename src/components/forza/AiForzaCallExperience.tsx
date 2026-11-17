@@ -1276,7 +1276,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
             const sttStartedAt=performance.now();
             const sttAbort=new AbortController();
-            const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید.')),10_500);
+            const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید.')),16_500);
             let serverTranscript='';
             try {
               for(const segment of audioBlobs){
