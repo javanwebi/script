@@ -127,6 +127,16 @@ test('double-sided and non-listed profiles remain at their valid timing or V-bel
   assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه V شکل پروفیل MX', 'لاستیک', '', 'MX').valid, true);
 });
 
+test('explicit welded round profiles may use the approved CRC leaf without inventing polymer material', () => {
+  assert.equal(check('excel-v2-1-3', 'تسمه گرد (CRC)', 'تسمه گرد جوشی (جنس بدنه نامشخص)', 'جنس بدنه نامشخص', 'انواع تسمه گرد جوشی', 'ROUND').valid, true);
+  assert.equal(check('excel-v2-1-3', 'تسمه گرد (CRC)', 'تسمه جوشی CRC با مقطع نامشخص', 'جنس بدنه نامشخص', 'انواع تسمه گرد جوشی', 'CRC').valid, false);
+  assert.equal(check('excel-v2-1-3', 'تسمه گرد (CRC)', 'تسمه گرده‌ماهی تاج‌دار CRC', 'جنس بدنه نامشخص', 'انواع تسمه گرد جوشی', 'CRC').valid, false);
+});
+
+test('welded A/B/C V profiles with unknown polymer may use the approved V-belt-by-metre leaf', () => {
+  assert.equal(check('excel-v2-1-2', 'وی‌بلت متری', 'تسمه جوشی V شکل پروفیل A', 'جنس بدنه نامشخص', 'تسمه A و B و C وی‌بلت متری', 'A').valid, true);
+});
+
 test('welded PU, ridge-top conveyor and welding equipment are three distinct identities', () => {
   assert.equal(check('excel-v2-1-3', 'تسمه گرد (CRC)', 'تسمه جوشی پلی‌یورتان CRC', 'TPU پلی‌یورتان', 'انواع تسمه گرد جوشی', 'CRC').valid, true);
   assert.equal(check('excel-v2-1-3', 'تسمه فلت', 'تسمه جوشی پلی‌یورتان پروفیل B', 'TPU پلی‌یورتان', 'انواع تسمه تخت و فلت', 'B').valid, false);

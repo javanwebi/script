@@ -1052,9 +1052,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "در سایزها و گام‌های مختلف"
   },
   "FAM-31917": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-31921": {
     "categorySlug": "excel-v2-1-2",
@@ -1062,9 +1062,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "SPA , SPB , SPC و دندانه‌دار"
   },
   "FAM-31931": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-31935": {
     "categorySlug": "excel-v2-1-2",
@@ -1232,9 +1232,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "انواع پایه کشویی تفلونی خط کاشی"
   },
   "FAM-32328": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-32333": {
     "categorySlug": "excel-v2-10-2",
@@ -1287,9 +1287,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": null
   },
   "FAM-32444": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-32448": {
     "categorySlug": "excel-v2-4-1",
@@ -1872,19 +1872,19 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": null
   },
   "FAM-33838": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-33839": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-33840": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-33892": {
     "categorySlug": "excel-v2-1-2",
@@ -2297,9 +2297,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "در سایزها و گام‌های مختلف"
   },
   "FAM-34774": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-34800": {
     "categorySlug": "excel-v2-10-1",
@@ -2652,9 +2652,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "در سایزها و گام‌های مختلف"
   },
   "FAM-35623": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-35625": {
     "categorySlug": "excel-v2-7-3",
@@ -3372,9 +3372,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "SPA , SPB , SPC و دندانه‌دار"
   },
   "FAM-37221": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-37223": {
     "categorySlug": "excel-v2-9-2",
@@ -3567,9 +3567,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "طراحی و تولید قطعات بر اساس نقشه یا نمونه فنی شما"
   },
   "FAM-37819": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-37841": {
     "categorySlug": "excel-v2-12-1",
@@ -3832,9 +3832,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": null
   },
   "FAM-38262": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-38264": {
     "categorySlug": "excel-v2-1-1",
@@ -3842,9 +3842,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": null
   },
   "FAM-38265": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-38294": {
     "categorySlug": "excel-v2-9-1",
@@ -3872,9 +3872,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "زنجیرهای انتقال حرکت صنعتی"
   },
   "FAM-38337": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-38349": {
     "categorySlug": "excel-v2-6-2",
@@ -3952,9 +3952,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "5M , 8M , 11M , 14M"
   },
   "FAM-38828": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-38844": {
     "categorySlug": "excel-v2-9-1",
@@ -4322,9 +4322,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "H , XH , L , XL"
   },
   "FAM-39859": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-39869": {
     "categorySlug": "excel-v2-3-2",
@@ -4412,9 +4412,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "طراحی و تولید قطعات بر اساس نقشه یا نمونه فنی شما"
   },
   "FAM-40003": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-40005": {
     "categorySlug": "excel-v2-3-3",
@@ -4667,19 +4667,19 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "SPA , SPB , SPC و دندانه‌دار"
   },
   "FAM-40605": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-40608": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-40611": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-40628": {
     "categorySlug": "excel-v2-1-1",
@@ -4777,9 +4777,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": null
   },
   "FAM-40754": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-40755": {
     "categorySlug": "excel-v2-5-2",
@@ -5427,9 +5427,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "H , XH , L , XL"
   },
   "FAM-51280": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-51622": {
     "categorySlug": "excel-v2-1-1",
@@ -5492,9 +5492,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": null
   },
   "FAM-52640": {
-    "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
-    "leafName": null
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "وی‌بلت متری",
+    "leafName": "تسمه A و B و C وی‌بلت متری"
   },
   "FAM-52674": {
     "categorySlug": "excel-v2-1-1",

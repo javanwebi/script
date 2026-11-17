@@ -128,6 +128,7 @@ export interface BeltTechnicalParameters {
     | 'conveyor-crowned-crc'
     | 'ribbed-poly-v'
     | 'welded-pu-round-crc'
+    | 'welded-round-material-unverified'
     | 'welded-pu-v-flat'
     | 'welded-pu-v-section'
     | 'perforated-open-v'
@@ -156,6 +157,8 @@ export interface BeltTechnicalParameters {
   toothAngleDeg: number | null;
   toothHeightMm: number | null;
   beltThicknessMm: number | null;
+  /** Round-section diameter parsed from the inventory designation; never inferred from material. */
+  roundDiameterMm?: number | null;
   topWidthMm: number | null;
   nominalWidthMm: number | null;
   widthCode: string | null;
@@ -2055,14 +2058,109 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     };
   }
 
-  // 8. Welded profiles with incomplete material/profile evidence stay in the review queue.
-  // Volta's official V/Round catalog lists named round sections (RFC/RLC/RMW etc.), not CRC;
-  // the local CRC token must not be converted to a Volta round/PU profile without its datasheet.
-  const isGenericWeldedRoundWithoutMaterial =
-    /تسمه\s+جوشی/.test(normName) && /گرد/.test(normName) && !isPolyurethaneMaterial;
-  if (isVoltaWeldedCrc || isGenericWeldedRoundWithoutMaterial) {
-    const profileCode = isVoltaWeldedCrc ? 'CRC' : 'ROUND';
-    const isRound = profileCode === 'ROUND';
+  // 8. Explicit round-welded inventory records: classify the shape/path without inventing polymer.
+  // Material, hardness, cord construction and manufacturer remain unverified until an exact datasheet is attached.
+  const isRidgeTopName = /گرد\\s*ه?\\s*ماهی|تاج.?دار|ridge.?top|crowned/i.test(normName);
+  const isExplicitWeldedRoundWithoutMaterial =
+    /تسمه\s+جوشی/.test(normName) && /گرد/.test(normName) && !isRidgeTopName && !isPolyurethaneMaterial;
+  if (isExplicitWeldedRoundWithoutMaterial) {
+    const sizeText = normalize(String(variant.size || ''));
+    const diameterMatch =
+      sizeText.match(/^(\d+(?:[.,]\d+)?)/) ||
+      normName.match(/(?:نمره|گرد)\s*(\d+(?:[.,]\d+)?)/);
+    const roundDiameterMm = diameterMatch ? Number(diameterMatch[1].replace(',', '.')) : null;
+    const isCorded = /نخ\s*دار/.test(normName);
+    const surfaceCode = /گریپ/.test(normName)
+      ? 'GRIP'
+      : /زبر/.test(normName)
+        ? 'ROUGH'
+        : /صاف/.test(normName)
+          ? 'SMOOTH'
+          : 'UNSPECIFIED';
+    const surfaceLabel =
+      surfaceCode === 'GRIP'
+        ? 'گریپ‌دار طبق شرح انبار؛ جنس پوشش تأیید نشده'
+        : surfaceCode === 'ROUGH'
+          ? 'سطح زبر طبق شرح انبار؛ جنس پوشش تأیید نشده'
+          : surfaceCode === 'SMOOTH'
+            ? 'سطح صاف طبق شرح انبار؛ جنس پوشش تأیید نشده'
+            : null;
+    const surfaceName =
+      surfaceCode === 'GRIP' ? 'گریپ‌دار' :
+      surfaceCode === 'ROUGH' ? 'زبر' :
+      surfaceCode === 'SMOOTH' ? 'صاف' : 'سطح نامشخص';
+    const familyBrandToken = brand === 'UNSPECIFIED' ? 'GENERIC' : brand;
+    const reviewSupplyForm: BeltTechnicalParameters['supplyForm'] =
+      !isMixedFamilyUnit && rawUnit === 'حلقه' ? 'endless-loop' : 'heat-weldable-meter';
+    const weldedRoundUnit = reviewSupplyForm === 'endless-loop' ? 'حلقه' : 'متر';
+
+    return {
+      sku: variant.code,
+      originalName: rawName,
+      originalSize: variant.size || '',
+      originalUnit,
+      unit: weldedRoundUnit,
+      currentFamilyId: product.code,
+      currentFamilyName: product.name,
+      currentCategory: product.categoryName,
+      currentSubmenu: product.submenu || '',
+      currentSubcategory: product.subcategory,
+      detectedBrand: brand,
+      proposedCategorySlug: 'excel-v2-1-3',
+      proposedCategoryName: 'تسمه جوشی با سایت',
+      proposedSubmenu: 'تسمه گرد (CRC)',
+      proposedLeaf: 'انواع تسمه گرد جوشی',
+      taxonomyGap: null,
+      proposedFamilyId: `FAM-WELDED-ROUND-UNVERIFIED-${familyBrandToken}-${surfaceCode}-${isCorded ? 'CORDED' : 'CORD-UNKNOWN'}`.replace(/[^A-Z0-9-]/g, ''),
+      proposedFamilyNameFa: [
+        'تسمه گرد جوشی',
+        surfaceName,
+        isCorded ? 'نخ‌دار' : 'نوع کورد نامشخص',
+        brand !== 'UNSPECIFIED' ? brand : '',
+        '(جنس بدنه نامشخص)',
+      ].filter(Boolean).join(' '),
+      proposedFamilyNameEn: `${brand} Welded Round Belt — Material Unverified (${surfaceCode}; ${isCorded ? 'Corded' : 'Cord Unverified'})`,
+      actualProductType: 'تسمه گرد جوشی (جنس بدنه نامشخص)',
+      technical: {
+        operatingPrinciple: 'friction-round-welded',
+        beltDivision: 'welded-round-material-unverified',
+        supplyForm: reviewSupplyForm,
+        sidedness: 'symmetric-round-hex',
+        profile: 'ROUND',
+        pitchMm: null,
+        toothAngleDeg: null,
+        toothHeightMm: null,
+        beltThicknessMm: null,
+        roundDiameterMm,
+        topWidthMm: null,
+        nominalWidthMm: null,
+        widthCode: null,
+        pitchLengthMm: null,
+        insideLengthMm: null,
+        outsideLengthMm: null,
+        lengthDesignation: null,
+        toothCount: null,
+        ribCount: null,
+        bodyMaterial: 'جنس بدنه/پلیمر از شرح انبار اثبات نمی‌شود؛ نیازمند دیتاشیت سازنده',
+        tensileCord: isCorded
+          ? 'وجود نخ تقویتی طبق شرح انبار؛ جنس و آرایش کورد نیازمند دیتاشیت'
+          : 'نوع کورد از شرح انبار مشخص نیست؛ عدم وجود کورد اثبات نشده',
+        backingOrCoating: surfaceLabel,
+        standardReference: 'NOT_ESTABLISHED — exact polymer grade, hardness and manufacturer profile require a matching datasheet',
+        manufacturerSources: [],
+      },
+      confidence: 'ALGORITHMIC_STANDARD_ONLY',
+      verification: unattachedProvenancePlaceholder(),
+      recommendedAction: 'CREATE_NEW_FAMILY',
+      engineeringReasoning:
+        `شرح انبار به‌صراحت «تسمه جوشی گرد» را مشخص می‌کند؛ بنابراین شکل مقطع و مسیر منوی مصوب روشن است. قطر ${roundDiameterMm ? roundDiameterMm + 'mm' : 'نامشخص'} فقط از نام/سایز موجود استخراج شده است. جنس PU/TPE/TPR، سختی، سازنده و ساختار دقیق کورد اثبات نشده و عمداً نامشخص می‌ماند؛ خانواده‌ها فقط با سازنده/مبدأ ثبت‌شده، سطح و وضعیت کورد همگن می‌شوند.`,
+    };
+  }
+
+  // CRC without an explicit round/ridge-top identity remains in review. Volta's official
+  // V/Round catalogue does not identify the local CRC token as an exact Volta profile.
+  if (isVoltaWeldedCrc && !isRidgeTopName) {
+    const profileCode = 'CRC';
     const reviewSupplyForm: BeltTechnicalParameters['supplyForm'] =
       !isMixedFamilyUnit && rawUnit === 'حلقه' ? 'endless-loop' : 'heat-weldable-meter';
     return {
@@ -2081,24 +2179,16 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedCategoryName: 'نیازمند تطبیق فنی و دیتاشیت',
       proposedSubmenu: 'پروفیل جوشی با ماده/سری نامشخص',
       proposedLeaf: null,
-      taxonomyGap: isVoltaWeldedCrc
-        ? 'GAP-VOLTA-CRC-UNVERIFIED: کاتالوگ رسمی Volta برای Round Profiles کدهای RFC/RLC/RMW و سایر سری‌ها را فهرست می‌کند، نه CRC؛ کد CRC انبار بدون نقشه/دیتاشیت نباید به تسمه گرد PU یا تسمه تاج‌دار نقاله تبدیل شود.'
-        : 'GAP-WELDED-ROUND-MATERIAL-UNVERIFIED: شکل گرد از نام انبار مشخص است، اما جنس PU/TPE و سازنده از شرح موجود اثبات نمی‌شود؛ تا دریافت دیتاشیت در صف بررسی بماند.',
-      proposedFamilyId: `FAM-WELDED-${profileCode}-MATERIAL-REVIEW-${brand}`.replace(/[^A-Z0-9-]/g, ''),
-      proposedFamilyNameFa: isVoltaWeldedCrc
-        ? 'تسمه جوشی پروفیل CRC ولتا (نیازمند تطبیق دیتاشیت)'
-        : 'تسمه جوشی گرد (جنس و سازنده نیازمند تأیید)',
-      proposedFamilyNameEn: isVoltaWeldedCrc
-        ? 'Volta Welded CRC Profile — Exact Profile/Material Unverified'
-        : 'Welded Round Belt — Material and Manufacturer Unverified',
-      actualProductType: isVoltaWeldedCrc
-        ? 'تسمه جوشی با کد انباری CRC (شکل مقطع نیازمند تأیید)'
-        : 'تسمه جوشی با مقطع گرد (جنس بدنه نیازمند تأیید)',
+      taxonomyGap: 'GAP-VOLTA-CRC-UNVERIFIED: کاتالوگ رسمی Volta برای Round Profiles کدهای RFC/RLC/RMW و سایر سری‌ها را فهرست می‌کند، نه CRC؛ کد CRC انبار بدون نقشه/دیتاشیت نباید به تسمه گرد PU یا تسمه تاج‌دار نقاله تبدیل شود.',
+      proposedFamilyId: `FAM-WELDED-CRC-MATERIAL-REVIEW-${brand}`.replace(/[^A-Z0-9-]/g, ''),
+      proposedFamilyNameFa: 'تسمه جوشی پروفیل CRC ولتا (نیازمند تطبیق دیتاشیت)',
+      proposedFamilyNameEn: 'Volta Welded CRC Profile — Exact Profile/Material Unverified',
+      actualProductType: 'تسمه جوشی با کد انباری CRC (شکل مقطع نیازمند تأیید)',
       technical: {
-        operatingPrinciple: isRound ? 'friction-round-welded' : 'unknown',
+        operatingPrinciple: 'unknown',
         beltDivision: 'service-ambiguous',
         supplyForm: reviewSupplyForm,
-        sidedness: isRound ? 'symmetric-round-hex' : 'unknown',
+        sidedness: 'unknown',
         profile: profileCode,
         pitchMm: null,
         toothAngleDeg: null,
@@ -2118,17 +2208,14 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
           ? 'وجود تقویت‌کننده نخ‌دار در شرح انبار ثبت شده؛ جنس و آرایش نیازمند دیتاشیت'
           : 'نوع تقویت‌کننده نامشخص؛ نیازمند دیتاشیت',
         backingOrCoating: /سبز/.test(normName) ? 'رنگ سبز فقط توصیف انبار است؛ پوشش/ساختار سطح تأیید نشده' : null,
-        standardReference: 'NOT_ESTABLISHED — exact Volta/Opti profile and material datasheet required',
-        manufacturerSources: isVoltaWeldedCrc
-          ? ['Volta V & Round Profiles CAT503EN00 (2025) — listed round profiles do not identify the local CRC token']
-          : [],
+        standardReference: 'NOT_ESTABLISHED — exact Volta profile and material datasheet required',
+        manufacturerSources: [],
       },
       confidence: 'REQUIRES_REVIEW',
       verification: unattachedProvenancePlaceholder(),
       recommendedAction: 'MANUAL_ENGINEERING_REVIEW',
-      engineeringReasoning: isVoltaWeldedCrc
-        ? 'برند Volta از نام کالا شناسایی می‌شود، اما منبع رسمی Round Profiles سری‌های RFC/RLC/RMW و موارد مشابه را فهرست می‌کند و CRC در آن فهرست دیده نمی‌شود. بنابراین نه گرد بودن CRC و نه PU بودن آن ادعا نمی‌شود؛ تطبیق با شماره فنی/نقشه سازنده لازم است.'
-        : 'عبارت «جوشی گرد» شکل مقطع را نشان می‌دهد، اما جنس PU/TPE و سازنده را اثبات نمی‌کند. این SKU نباید تا دریافت دیتاشیت در خانواده تأییدشده PU ادغام شود.',
+      engineeringReasoning:
+        'برند Volta از نام کالا شناسایی می‌شود، اما منبع رسمی Round Profiles سری‌های RFC/RLC/RMW و موارد مشابه را فهرست می‌کند و CRC در آن فهرست دیده نمی‌شود. بنابراین نه گرد بودن CRC و نه PU بودن آن ادعا نمی‌شود؛ تطبیق با شماره فنی/نقشه سازنده لازم است.',
     };
   }
 
@@ -2336,21 +2423,23 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     };
   }
 
-  // 10. Endless crowned CRC/TRC ceramic transport belts. CRC alone is not enough:
-  // PU round-welded CRC is handled above; only explicit ridge-top/crowned identity belongs here.
-  const isRidgeTopIdentity = /گرده.?ماهی|تاج.?دار|ridge.?top|crowned/.test(
+  // 10. Explicit crowned / ridge-top CRC/TRC transport belts.
+  // The shape and transport role are identifiable from the inventory wording; exact material,
+  // dimensions, cord construction and supply form are deliberately not inferred.
+  const isRidgeTopIdentity = /گرد\\s*ه?\\s*ماهی|تاج.?دار|ridge.?top|crowned/.test(
     normalize(`${normName} ${materialEvidence}`)
   );
   if ((/\b(?:CRC|TRC)\d*\b|گرد\s*ه?\s*ماهی/.test(upperName)) && isRidgeTopIdentity) {
     const profile = /\bTRC\d*\b/.test(upperName) ? 'TRC' : 'CRC';
-    const lenMatch = upperName.match(/(?:CRC|TRC)\s*(\d{3,5})|\b([ABC])\s*(\d{2,4})\b/);
-    const lenVal = lenMatch ? Number(lenMatch[1] || lenMatch[3]) : null;
+    const ridgeSupplyForm: BeltTechnicalParameters['supplyForm'] =
+      !isMixedFamilyUnit && rawUnit === 'حلقه' ? 'endless-loop' : 'unspecified';
+    const ridgeUnit = ridgeSupplyForm === 'endless-loop' ? 'حلقه' : originalUnit;
     return {
       sku: variant.code,
       originalName: rawName,
       originalSize: variant.size || '',
       originalUnit,
-      unit: 'حلقه',
+      unit: ridgeUnit,
       currentFamilyId: product.code,
       currentFamilyName: product.name,
       currentCategory: product.categoryName,
@@ -2361,44 +2450,41 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedCategoryName: 'تسمه بارکش و تجهیزات جوشی',
       proposedSubmenu: 'تسمه بارکش',
       proposedLeaf: 'انواع تسمه بارکش صنعتی',
-      taxonomyGap:
-        'GAP-RIDGE-TOP-CRC-LEAF: تسمه تاج‌دار CRC/TRC یک تسمه انتقال/بارکش مداربسته است، نه تسمه گرد جوشی PU. چون اکسل برگ مستقل Ridge-Top ندارد، فقط در برگ مصوب عمومی «تسمه بارکش» نمایش داده می‌شود و پروفیل CRC/TRC در مشخصات فنی حفظ می‌گردد.',
-      proposedFamilyId: `FAM-CROWNED-ENDLESS-${profile}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
-      proposedFamilyNameFa: `تسمه گرده‌ماهی (تاج‌دار) مداربسته ${profile} ${brand !== 'UNSPECIFIED' ? brand : ''}`.trim(),
-      proposedFamilyNameEn: `${brand} Endless Crowned / Ridge-Top Transport Belt (${profile})`,
-      actualProductType: `تسمه انتقال مداربسته تاج‌دار (گرده‌ماهی / Ridge-Top ${profile})`,
+      taxonomyGap: null,
+      proposedFamilyId: `FAM-CROWNED-${profile}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
+      proposedFamilyNameFa: `تسمه تاج‌دار / گرده‌ماهی ${profile} ${brand !== 'UNSPECIFIED' ? brand : ''}`.trim(),
+      proposedFamilyNameEn: `${brand} Crowned / Ridge-Top Transport Belt (${profile})`,
+      actualProductType: 'تسمه انتقال تاج‌دار / گرده‌ماهی (Ridge-Top CRC/TRC)',
       technical: {
         operatingPrinciple: 'conveying',
         beltDivision: 'conveyor-crowned-crc',
-        supplyForm: 'endless-loop',
+        supplyForm: ridgeSupplyForm,
         sidedness: 'single-sided',
         profile,
         pitchMm: null,
         toothAngleDeg: null,
         toothHeightMm: null,
-        beltThicknessMm: 19,
-        topWidthMm: 22,
-        nominalWidthMm: 22,
-        widthCode: '22mm nominal (inventory-derived; manufacturer confirmation required)',
+        beltThicknessMm: null,
+        topWidthMm: null,
+        nominalWidthMm: null,
+        widthCode: null,
         pitchLengthMm: null,
         insideLengthMm: null,
         outsideLengthMm: null,
-        lengthDesignation: lenVal ? `${profile}${lenVal}` : null,
+        lengthDesignation: null,
         toothCount: null,
         ribCount: null,
-        bodyMaterial: 'لاستیک/الاستومر با سطح تاج‌دار (Crowned / Ridge-Top); ترکیب دقیق نیازمند دیتاشیت سازنده است',
-        tensileCord: 'عضو کششی داخلی؛ جنس و آرایش دقیق کورد نیازمند دیتاشیت سازنده است',
-        backingOrCoating: 'سطح فوقانی محدب (گرده‌ماهی / Ridge-Top)',
-        standardReference: 'استاندارد رسمی CRC/TRC در منابع موجود تأیید نشده؛ دیتاشیت سازنده لازم است',
-        manufacturerSources: [
-          'Esbelt official ceramics-sector application reference (application evidence only; not an exact CRC manufacturer datasheet)',
-        ],
+        bodyMaterial: 'جنس و ترکیب بدنه از شرح انبار اثبات نمی‌شود؛ نیازمند دیتاشیت سازنده',
+        tensileCord: 'نوع و آرایش عضو کششی از شرح انبار مشخص نیست؛ نیازمند دیتاشیت سازنده',
+        backingOrCoating: 'سطح فوقانی تاج‌دار / گرده‌ماهی طبق شرح انبار؛ جنس و ابعاد تأیید نشده',
+        standardReference: 'NOT_ESTABLISHED — exact CRC/TRC construction, dimensions and material require a manufacturer datasheet',
+        manufacturerSources: [],
       },
-      confidence: 'REQUIRES_REVIEW',
+      confidence: 'ALGORITHMIC_STANDARD_ONLY',
       verification: unattachedProvenancePlaceholder(),
       recommendedAction: 'MOVE_TO_EXISTING_FAMILY',
       engineeringReasoning:
-        'شرح کالا و کد CRC/TRC به ساختار تاج‌دار مداربسته اشاره می‌کند. منبع کاربردی Esbelt استفاده از تسمه‌های Ridge-Top در خطوط سرامیک را پشتیبانی می‌کند، اما استاندارد، ترکیب لاستیک، کورد و ابعاد دقیق این SKU از آن منبع اثبات نمی‌شود و باید با دیتاشیت همان سازنده تطبیق داده شود.',
+        'شرح کالا به ساختار تاج‌دار/گرده‌ماهی CRC/TRC اشاره می‌کند؛ این محصول از تسمه گرد جوشی تفکیک و در برگ عمومی مصوب «تسمه بارکش» قرار می‌گیرد. جنس، کورد، ابعاد، استاندارد و فرم عرضه این SKU از شرح انبار اثبات نمی‌شود و عمداً نامشخص باقی می‌ماند.',
     };
   }
 

@@ -186,18 +186,18 @@ test('invalid menu routes do not fall through to the first approved category',()
 
 test('the current family map has 1,286 retained rows and exposes incomplete assignments for review',()=>{
  assert.equal(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).length,1286);
- assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.submenuName).length,55);
- assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.leafName).length,266);
+ assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.submenuName).length,32);
+ assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.leafName).length,243);
 });
 
-test('21 approved menu leaves have no explicit family leaf mapping after this audit',()=>{
+test('20 approved menu leaves have no explicit family leaf mapping after this audit',()=>{
  const leaves=APPROVED_MENU_CATEGORIES.flatMap(category=>(category.children||[]).flatMap(submenu=>
   (submenu.children||[]).map(leaf=>({categorySlug:category.slug,submenuName:submenu.name,leafName:leaf.name}))
  ));
  const empty=leaves.filter(leaf=>!Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).some(item=>
   item.categorySlug===leaf.categorySlug&&item.submenuName===leaf.submenuName&&item.leafName===leaf.leafName
  ));
- assert.equal(empty.length,21);
+ assert.equal(empty.length,20);
 });
 
 test('the resolver has no first-submenu or first-leaf defaulting rule',()=>{
@@ -206,6 +206,22 @@ test('the resolver has no first-submenu or first-leaf defaulting rule',()=>{
  assert.match(source,/if \(!assignment \|\| assignment\.categorySlug !== cleanSlug\) continue/);
 });
 
+
+test('23 welded A/B/C V-section metre profiles use the approved V-belt-by-metre leaf, not the welded-round category',()=>{
+ const families=[
+  'FAM-31917','FAM-31931','FAM-32328','FAM-32444','FAM-33838','FAM-33839','FAM-33840',
+  'FAM-34774','FAM-35623','FAM-37221','FAM-37819','FAM-38262','FAM-38265','FAM-38337',
+  'FAM-38828','FAM-39859','FAM-40003','FAM-40605','FAM-40608','FAM-40611','FAM-40754',
+  'FAM-51280','FAM-52640',
+ ];
+ for(const code of families){
+  assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS[code],{
+   categorySlug:'excel-v2-1-2',
+   submenuName:'وی‌بلت متری',
+   leafName:'تسمه A و B و C وی‌بلت متری',
+  },code+' must remain in the approved V-belt-by-metre leaf');
+ }
+});
 
 test('the polyurethane timing-belt leaf has no families without explicit PU evidence',()=>{
  const falsePolyurethaneFamilies=[
