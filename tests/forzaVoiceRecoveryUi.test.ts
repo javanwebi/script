@@ -199,3 +199,12 @@ test('voice warmup belongs to the active abortable turn so a customer can barge 
     turn.indexOf('await ensureVoiceMode()'));
   assert.match(turn,/if\(pocketAbort\.signal\.aborted \|\| activeTurnRef\.current\?\.generation!==generation\)return/);
 });
+
+
+test('TTS rate-limit responses distinguish a shared network ceiling from a single turn ceiling',()=>{
+  assert.match(ui,/code==='forza_network_limit'/);
+  assert.match(ui,/code==='forza_turn_limit'/);
+  assert.match(ui,/pocket_rate_limited_network/);
+  assert.match(ui,/pocket_rate_limited_turn/);
+  assert.match(ui,/سقف درخواست صوتی این اتصال در یک دقیقه تکمیل شده است/);
+});

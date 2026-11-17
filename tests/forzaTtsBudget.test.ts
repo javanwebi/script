@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ForzaTtsBudget} from '../server/ai/forzaTtsBudget';
+import {readFileSync} from 'node:fs';
 
 test('one customer turn is limited without exhausting other turns behind same NAT',()=>{
  const limiter=new ForzaTtsBudget(60,12,60_000);
@@ -33,4 +34,14 @@ test('incremental speech limits are configurable and always bounded',async()=>{
  assert.deepEqual(forzaTtsLimits({}),{perNetwork:120,perTurn:24});
  assert.deepEqual(forzaTtsLimits({FORZA_TTS_REQUESTS_PER_NETWORK:'100000',FORZA_TTS_PHRASES_PER_TURN:'-5'}),{perNetwork:600,perTurn:12});
  assert.deepEqual(forzaTtsLimits({FORZA_TTS_REQUESTS_PER_NETWORK:'bad',FORZA_TTS_PHRASES_PER_TURN:'NaN'}),{perNetwork:120,perTurn:24});
+});
+
+
+test('production TTS network budgets use the real visitor IP behind the single Nginx proxy',()=>{
+ const server=readFileSync('server.ts','utf8');
+ const deploy=readFileSync('ops/deploy-single-port-vps.sh','utf8');
+ assert.match(server,/app\.set\('trust proxy', trustProxyHops\)/);
+ assert.match(server,/process\.env\.NODE_ENV === 'production' \? 1 : 0/);
+ assert.match(server,/req\.ip\|\|req\.socket\.remoteAddress/);
+ assert.match(deploy,/proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for/);
 });

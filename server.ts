@@ -199,6 +199,16 @@ async function generateWithModelCascade(
 }
 
 const app = express();
+// Production requests pass through one Nginx reverse proxy. Trust exactly
+// that hop so req.ip (including the FORZA TTS budget) resolves the visitor's
+// address instead of counting every customer as the same proxy/container IP.
+// The Docker image sets NODE_ENV=production; local development remains direct.
+const configuredProxyHops = Number(process.env.SANATPISH_TRUST_PROXY_HOPS);
+const trustProxyHops = process.env.SANATPISH_TRUST_PROXY_HOPS?.trim()
+  ? (Number.isFinite(configuredProxyHops) && configuredProxyHops >= 0
+      ? Math.floor(configuredProxyHops) : 0)
+  : process.env.NODE_ENV === 'production' ? 1 : 0;
+app.set('trust proxy', trustProxyHops);
 const PORT = Number(process.env.PORT) || 3000;
 const IMAGE_AI_DIR = process.env.IMAGE_AI_DIR || path.join(process.cwd(), 'imageai');
 if (!fs.existsSync(IMAGE_AI_DIR)) {

@@ -68,6 +68,9 @@ on:
       - "tests/forzaCallTeardown.test.ts"
       - "ops/Dockerfile.forza-stt-runtime"
       - "server.ts"
+      - "server/ai/forzaTtsBudget.ts"
+      - "tests/forzaTtsBudget.test.ts"
+      - "tests/forzaVoiceRecoveryUi.test.ts"
       - "ops/deploy-single-port-vps.sh"
       - "ops/sanatpish-deploy.sh"
       - "ops/verify-single-port-canary.mjs"
@@ -128,6 +131,8 @@ jobs:
         run: node --import tsx --test tests/belt-category-experience.test.ts
       - name: FORZA local Diba and speech-turn recovery regression suite
         run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
+      - name: FORZA TTS budget and error diagnostics regression suite
+        run: node --import tsx --test tests/forzaTtsBudget.test.ts tests/forzaVoiceRecoveryUi.test.ts
       - name: PVC conveyor Phase 1 classification regression suite
         run: node --import tsx --test tests/pvc-conveyor-phase1-classification.test.ts
       - name: PVC conveyor database split and rollback integration test

@@ -86,7 +86,20 @@ function wav(seconds){
    await page.evaluate(()=>{window.__inputGain.gain.value=0.02;});
    await page.waitForTimeout(400);
    await page.evaluate(text=>{window.__emit(text);window.__inputGain.gain.value=0.001;},query);
-   await page.waitForFunction(text=>document.body.innerText.includes(text),query);
+   try{
+    await page.waitForFunction(text=>document.body.innerText.includes(text),query,{timeout:12000});
+   }catch(error){
+    const runtime=await page.evaluate(()=>({
+     results:window.__results?.map(result=>String(result?.[0]?.transcript||'')),
+     gain:window.__inputGain?.gain?.value,
+     recognition:!!window.__recognition?.onresult,
+    }));
+    console.error('EXHIBITION_QUERY_DIAGNOSTICS',JSON.stringify({
+     query,body:(await page.locator('body').innerText()).slice(-1800),
+     diagnostics,queries,phrases,runtime,
+    }));
+    throw error;
+   }
    await page.waitForFunction(()=>document.body.innerText.includes('AI FORZA در حال صحبت...'),null,{timeout:20000});
    await listening.waitFor({timeout:20000});
    assert.equal(queries.at(-1),query,'next turn must not contain prior words or AI echo');
