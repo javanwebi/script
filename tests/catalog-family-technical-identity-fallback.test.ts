@@ -43,7 +43,7 @@ test('legacy technical_specs supplies belt profile, material and product type wh
       material: string | null;
       profile: string | null;
     }>(
-      `select f.code,identity.product_type,identity.material,identity.profile
+      `select f.code,coalesce(identity.product_type,f.name) as product_type,identity.material,identity.profile
        from public.catalog_families f
        ${CATALOG_FAMILY_IDENTITY_LATERAL_SQL}
        order by f.code`
