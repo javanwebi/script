@@ -62,7 +62,7 @@ test('audit accounts for all 1,383 raw families, 10,435 SKUs, and exact 634 + 2 
   const dsChecked = audit.reportA_skuClassifications.filter((r) => r.verification.datasheetOrCatalogChecked).length;
   const exactVerified = audit.confidenceCounts.DATASHEET_VERIFIED;
   const seriesVerified = audit.confidenceCounts.SERIES_VERIFIED;
-  assert.equal(exactVerified, 11);
+  assert.equal(exactVerified, 0, 'No exact manufacturer article-number datasheet match is established in this pass');
   assert.ok(seriesVerified >= 2058, `Expected broad official series coverage, received ${seriesVerified}`);
   assert.equal(siteChecked, exactVerified + seriesVerified);
   assert.equal(dsChecked, exactVerified + seriesVerified);
@@ -203,7 +203,7 @@ test('negative engineering validation tests reject null/unknown invariant specs 
   assert.ok(resMixed.mixedAttributes.includes('beltThicknessMm'));
 });
 
-test('BANDO 10538 (1400 H 100) and 36103 (1140H100) are datasheet-verified as single-sided H timing belts in the same family', () => {
+test('BANDO 10538 (1400 H 100) and 36103 (1140H100) are series-verified as single-sided H timing belts, not exact SKU datasheets', () => {
   const s10538 = bySku.get('10538');
   const s36103 = bySku.get('36103');
   assert.ok(s10538, 'SKU 10538 must exist');
@@ -211,8 +211,11 @@ test('BANDO 10538 (1400 H 100) and 36103 (1140H100) are datasheet-verified as si
 
   assert.equal(s10538.detectedBrand, 'BANDO');
   assert.equal(s36103.detectedBrand, 'BANDO');
-  assert.equal(s10538.confidence, 'DATASHEET_VERIFIED');
-  assert.equal(s36103.confidence, 'DATASHEET_VERIFIED');
+  assert.equal(s10538.confidence, 'SERIES_VERIFIED');
+  assert.equal(s36103.confidence, 'SERIES_VERIFIED');
+  assert.equal(s10538.verification.documentType, 'SERIES_CATALOG');
+  assert.equal(s10538.verification.matchedManufacturer, 'BANDO');
+  assert.ok(s10538.verification.sourceUrl.includes('bandousa.com'));
   assert.equal(s10538.verification.officialManufacturerSiteChecked, true);
   assert.equal(s10538.technical.profile, 'H');
   assert.equal(s36103.technical.profile, 'H');
@@ -243,7 +246,9 @@ test('BANDO DH double-sided timing belts (36468, 10111, 41291, 41598, 41689) nev
     const rec = bySku.get(sku);
     assert.ok(rec, `Missing BANDO DH endless SKU ${sku}`);
     assert.equal(rec.detectedBrand, 'BANDO');
-    assert.equal(rec.confidence, 'DATASHEET_VERIFIED');
+    assert.equal(rec.verification.documentType, 'SERIES_CATALOG');
+    assert.ok(rec.verification.sourceUrl.includes('bandousa.com'));
+    assert.equal(rec.confidence, 'SERIES_VERIFIED');
     assert.equal(rec.technical.profile, 'DH');
     assert.equal(rec.technical.sidedness, 'double-sided');
     assert.equal(rec.technical.supplyForm, 'endless-loop');
@@ -258,7 +263,9 @@ test('BANDO DH double-sided timing belts (36468, 10111, 41291, 41598, 41689) nev
     const rec = bySku.get(sku);
     assert.ok(rec, `Missing BANDO DH sleeve SKU ${sku}`);
     assert.equal(rec.detectedBrand, 'BANDO');
-    assert.equal(rec.confidence, 'DATASHEET_VERIFIED');
+    assert.equal(rec.verification.documentType, 'SERIES_CATALOG');
+    assert.ok(rec.verification.sourceUrl.includes('bandousa.com'));
+    assert.equal(rec.confidence, 'SERIES_VERIFIED');
     assert.equal(rec.technical.profile, 'DH');
     assert.equal(rec.technical.sidedness, 'double-sided');
     assert.equal(rec.technical.supplyForm, 'uncut-sleeve');
