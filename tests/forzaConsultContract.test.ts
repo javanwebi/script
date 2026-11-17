@@ -47,3 +47,5 @@ test('the live FORZA consultation does not truncate long customer utterances at 
  assert.doesNotMatch(source,/String\(query\s*\|\|\s*''\)\.slice\(0,\s*6000\)/);
  assert.doesNotMatch(source,/String\(query\|\|''\)\.slice\(0,\s*6000\)/);
 });
+
+  'معمولاً یک تا سه جمله کوتاه',

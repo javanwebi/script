@@ -34,7 +34,9 @@ on:
       - "tests/excel-menu-category-premium.test.ts"
       - "scripts/tests/excel-menu-category-responsive-smoke.cjs"
       - "src/textile-industry.css"
+      - "tests/textile-industry-premium.test.ts"
       - "scripts/tests/textile-industry-responsive-smoke.cjs"
+      - "tests/industry-pages-unique-layouts.test.ts"
       - "tests/belt-category-experience.test.ts"
       - "src/data/beltCatalogAudit.ts"
       - "src/data/beltManufacturerEvidence.ts"
@@ -73,6 +75,7 @@ on:
       - "src/utils/forzaConversationHistory.ts"
       - "server/ai/baiConsult.ts"
       - "tests/forzaConversationHistory.test.ts"
+      - "tests/forzaConversationContinuity.test.ts"
       - "tests/forzaConsultContract.test.ts"
       - "tests/forzaLocalDibaStreaming.test.ts"
       - "tests/forzaRecognitionRecovery.test.ts"
@@ -82,12 +85,13 @@ on:
       - "tests/forzaCallTeardown.test.ts"
       - "ops/Dockerfile.forza-stt-runtime"
       - "server.ts"
-      - "ops/sanatpish-deploy.sh"
-      - ".github/workflows/verify-vps-build.yml"
-      - "tests/forzaConversationContinuity.test.ts"
       - "server/ai/forzaTtsBudget.ts"
       - "tests/forzaTtsBudget.test.ts"
       - "tests/forzaVoiceRecoveryUi.test.ts"
+      - "ops/deploy-single-port-vps.sh"
+      - "ops/sanatpish-deploy.sh"
+      - "ops/verify-single-port-canary.mjs"
+      - ".github/workflows/verify-vps-build.yml"
   push:
     branches: [main, feature/textile-industry-page]
     paths:
@@ -145,9 +149,10 @@ jobs:
       - name: Belt category reference and regression suite
         run: node --import tsx --test tests/belt-category-experience.test.ts
       - name: FORZA local Diba and speech-turn recovery regression suite
-        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts tests/forzaConversationContinuity.test.ts
+        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConversationContinuity.test.ts tests/forzaConsultContract.test.ts
       - name: FORZA TTS budget and error diagnostics regression suite
         run: node --import tsx --test tests/forzaTtsBudget.test.ts tests/forzaVoiceRecoveryUi.test.ts
+        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
       - name: Belt menu semantic guard regression suite
         run: node --import tsx --test tests/catalog-menu-semantic-guard.test.ts
       - name: Belt taxonomy follow-up migration and rollback integration
