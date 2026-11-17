@@ -141,7 +141,7 @@ jobs:
       - name: Industry page regression suite
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
       - name: Industrial belt manufacturer evidence audit
-        run: node --import tsx --test tests/belt-catalog-audit.test.ts
+        run: node --import tsx scripts/audit-belt-catalog.ts && node --import tsx --test tests/belt-catalog-audit.test.ts
       - name: Belt category reference and regression suite
         run: node --import tsx --test tests/belt-category-experience.test.ts
       - name: FORZA local Diba and speech-turn recovery regression suite
