@@ -930,9 +930,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         console.warn('[FORZA_TTS_RETRY] network attempt='+(attempt+1));
       }
       await new Promise<void>((resolve,reject)=>{
-        const timer=window.setTimeout(resolve,250*(attempt+1));
-        const abort=()=>{window.clearTimeout(timer);reject(new Error('forza_tts_aborted'));};
-        requestSignal.addEventListener('abort',abort,{once:true});
+        const abort=()=>{
+          window.clearTimeout(timer);
+          requestSignal.removeEventListener('abort',abort);
+          reject(new Error('forza_tts_aborted'));
+        };
+        const timer=window.setTimeout(()=>{
+          requestSignal.removeEventListener('abort',abort);
+          resolve();
+        },250*(attempt+1));
+        if(requestSignal.aborted)abort();
+        else requestSignal.addEventListener('abort',abort,{once:true});
       });
     }
     if(!response){
@@ -1625,7 +1633,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               setVoiceOutputError(
               error?.message==='autoplay_permission_required'
                 ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
-                :error?.message==='pocket_http_429'
+                :String(error?.message||'').startsWith('pocket_http_429')
                   ?'ظرفیت موقت سرویس صوتی تکمیل است. کمی بعد دوباره تلاش کنید؛ متن پاسخ حفظ شده است.'
                   :'تولید یا پخش صدای کامل FORZA انجام نشد؛ متن پاسخ همچنان نمایش داده شده است.');
           }
