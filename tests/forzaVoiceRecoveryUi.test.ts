@@ -190,3 +190,12 @@ test('server Diba verification preserves browser text and merges complete record
   assert.match(ui,/serverTranscript=appendForzaSpeechSegment\(serverTranscript,result\.value\)/);
   assert.match(ui,/A failed final verifier must never erase a usable live transcript/);
 });
+
+test('voice warmup belongs to the active abortable turn so a customer can barge in during lookup',()=>{
+  const from=ui.indexOf('const handleUserFinishedSpeaking = useCallback(');
+  const to=ui.indexOf('// Setup MediaRecorder',from);
+  const turn=ui.slice(from,to);
+  assert.ok(turn.indexOf('activeTurnRef.current={generation,abort:pocketAbort}')<
+    turn.indexOf('await ensureVoiceMode()'));
+  assert.match(turn,/if\(pocketAbort\.signal\.aborted \|\| activeTurnRef\.current\?\.generation!==generation\)return/);
+});
