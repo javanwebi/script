@@ -97,3 +97,32 @@ test('the native browser fallback remains active while local model loading is pe
  assert.match(ui,/Chrome keeps transcribing immediately/);
  assert.match(ui,/if\(localReady\)/);
 });
+
+test('the browser keeps one Diba recognizer alive across listen/monitor transitions',()=>{
+ const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
+ assert.match(ui,/if\(localSttRecognizerRef\.current\)return true/,
+  'startListening(true) must not destroy the active Vosk decoder and its partial/final context');
+ assert.match(ui,/localSttFinalRef\.current=\[localSttFinalRef\.current,recognized\.text\]/,
+  'final Vosk segments must append to the same customer turn');
+});
+
+test('server Diba is warmed before the first customer request and reports configured separately from ready',()=>{
+ const server=readFileSync('server.ts','utf8');
+ assert.match(server,/\[FORZA_STT_WARMUP\] provider=diba ready=/);
+ assert.match(server,/void warmForzaDibaStt\(\)\.then/);
+ const status=server.split("app.get('/api/ai/forza-stt-info'")[1].split("// POST: /api/ai/forza-live")[0];
+ assert.match(status,/serverSttConfigured:choice\.provider==='gemini'\|\|dibaConfigured/);
+ assert.match(status,/serverSttReady:choice\.provider==='diba'\?isForzaDibaSttReady\(\)/);
+ assert.doesNotMatch(status,/await warmForzaDibaStt\(\)/);
+ const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
+ assert.match(ui,/const dibaConfigured=info\.serverSttProvider==='diba'&&info\.serverSttConfigured===true/);
+ assert.match(ui,/retryTimer=window\.setTimeout\(\(\)=>void checkServerStt\(\),2500\)/);
+ assert.match(ui,/16_500/);
+});
+
+test('TTS retries only transient upstream failures and never loops on permission or rate-limit errors',()=>{
+ const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
+ assert.match(ui,/attempt<3/);
+ assert.match(ui,/!\[502,503,504\]\.includes\(response\.status\)/);
+ assert.match(ui,/startsWith\('pocket_http_429'\)/);
+});
