@@ -1404,9 +1404,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Pocket fallback retains its one-request full-answer path.
         const turnStartedAt=performance.now();
         const resolvedUserQuery=String(payload.query||q).trim();
-        // Commit the verified words to the call-wide transcript only after the
-        // final recognizer has had a chance to correct the live hypothesis.
-        // This ledger is never cleared at pauses or assistant turn boundaries.
+        // The live hypothesis was already committed before asynchronous STT.
+        // Replace only this last turn if Diba supplies a better final transcript;
+        // earlier turns remain untouched across pauses and assistant replies.
         if(resolvedUserQuery){
           sessionTranscriptRef.current=q
             ?replaceForzaLastSessionTurn(sessionTranscriptRef.current,q,resolvedUserQuery)
