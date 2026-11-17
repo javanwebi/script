@@ -71,7 +71,7 @@ test('audit accounts for all 1,383 raw families and 10,435 SKUs with a complete,
   assert.equal(audit.confidenceCounts.ALGORITHMIC_STANDARD_ONLY,
     7709 - exactVerified - seriesVerified - audit.confidenceCounts.NOMINAL_TABLE_VERIFIED -
       audit.confidenceCounts.INVENTORY_DESCRIPTION_ONLY - audit.confidenceCounts.REQUIRES_REVIEW);
-  assert.equal(audit.confidenceCounts.REQUIRES_REVIEW, 731);
+  assert.equal(audit.confidenceCounts.REQUIRES_REVIEW, 724);
 
   // Every SKU record must carry an explicit sourceUrl & documentType, and DATASHEET_VERIFIED requires same-brand match
   for (const r of audit.reportA_skuClassifications) {
@@ -168,6 +168,10 @@ test('all proposed groups pass strict invariant homogeneity checks with zero MIX
   assert.equal(bySku.get('36859')?.confidence, 'REQUIRES_REVIEW');
   assert.match(bySku.get('36859')?.technical.bodyMaterial || '', /اثبات نمی‌شود/);
   assert.equal(bySku.get('52640')?.technical.profile, 'A');
+  assert.equal(bySku.get('52640')?.technical.beltDivision, 'service-ambiguous');
+  assert.equal(bySku.get('52640')?.confidence, 'REQUIRES_REVIEW');
+  assert.equal(bySku.get('52640')?.proposedCategorySlug, 'excel-v2-1-3');
+  assert.equal(bySku.get('52640')?.proposedLeaf, null);
   assert.equal(bySku.get('41121')?.technical.bodyMaterial.includes('TPU'), true);
   assert.notEqual(bySku.get('41121')?.proposedFamilyId, bySku.get('10203')?.proposedFamilyId);
   assert.equal(bySku.get('31501')?.detectedBrand, 'OPTIBELT');
@@ -424,7 +428,8 @@ test('misplaced belts outside belt categories and non-belts inside belt categori
   assert.equal(bySku.get('32711')?.technical.operatingPrinciple, 'non-belt');
 
   // Pre-approval audit targets + untouched live taxonomy check
-  assert.equal(bySku.get('10111')?.proposedLeaf, 'H , XH , L , XL');
+  assert.equal(bySku.get('10111')?.technical.sidedness, 'double-sided');
+  assert.equal(bySku.get('10111')?.proposedLeaf, null);
   assert.equal(bySku.get('36103')?.proposedLeaf, 'H , XH , L , XL');
   assert.equal(bySku.get('22751')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('35198')?.proposedCategorySlug, 'excel-v2-1-2');
