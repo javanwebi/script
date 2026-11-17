@@ -226,6 +226,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // Full in-call customer transcript. Per-turn buffers may close after a reply,
   // but this ledger never loses earlier words when the next phrase arrives.
   const sessionTranscriptRef = useRef<string>('');
+  const pendingCommittedTranscriptRef = useRef<string>('');
   const pendingTranscriptRef = useRef<string>('');
   const lastTranscriptChangedAtRef = useRef<number>(0);
   const webSpeechFailedRef = useRef<boolean>(false);
@@ -576,6 +577,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=vad_end_detected silenceMs='+
               Math.round(acousticSilence));
             if(candidate){
+              sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,candidate);
+              pendingCommittedTranscriptRef.current=candidate;
+              setUserText(sessionTranscriptRef.current);
               pendingTranscriptRef.current=candidate;
               activeTranscriptRef.current='';
               recognitionSessionBaseRef.current='';
@@ -1219,7 +1223,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // Commit the recognized words before any asynchronous STT verifier or
       // model request can be interrupted. A resumed customer phrase must never
       // make this already-heard transcript disappear.
-      if(q){
+      const transcriptAlreadyCommitted=Boolean(q&&pendingCommittedTranscriptRef.current===q);
+      pendingCommittedTranscriptRef.current='';
+      if(q&&!transcriptAlreadyCommitted){
         sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,q);
         setUserText(sessionTranscriptRef.current);
       }
@@ -2025,6 +2031,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length+
               ' endToSttFinalMs='+(detectedSpeechEndAtRef.current
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
+            sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,candidate);
+            pendingCommittedTranscriptRef.current=candidate;
+            setUserText(sessionTranscriptRef.current);
             pendingTranscriptRef.current=candidate;
             activeTranscriptRef.current='';
             recognitionSessionBaseRef.current='';
@@ -2377,6 +2386,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(context && context.state!=='closed')void context.close().catch(()=>{});
     historyRef.current=[];
     sessionTranscriptRef.current='';
+    pendingCommittedTranscriptRef.current='';
     audioChunksRef.current=[];
     audioSegmentsRef.current=[];
     isProcessingTurnRef.current=false;
