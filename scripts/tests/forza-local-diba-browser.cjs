@@ -113,6 +113,8 @@ function wav(seconds=0.2){
   await page.waitForFunction(()=>window.document.body.innerText.includes('برای انتخاب تسمه مناسب'),null,{timeout:12000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:12000});
   await page.waitForFunction(()=>window.__forzaSpeechRequests>=1,null,{timeout:8000});
+  const speechAfterFirst=speech.length;
+  assert.ok(speechAfterFirst>=1,'first assistant turn must synthesize Nima audio');
   assert.equal(queries.length,1,'first local Diba turn must be submitted exactly once');
 
   await page.waitForFunction(()=>window.__forzaVoskCreated===1,null,{timeout:8000});
@@ -126,8 +128,9 @@ function wav(seconds=0.2){
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
   await page.waitForFunction(()=>window.__forzaConsultRequestCount===2,null,{timeout:12000});
   assert.equal(queries.length,2,'second local Diba turn must also reach the AI');
-  await page.waitForFunction(()=>window.__forzaSpeechRequests>=2,null,{timeout:8000});
-  assert.ok(speech.length>=2,'Nima must synthesize audio on the second assistant turn too');
+  await page.waitForFunction(count=>window.__forzaSpeechRequests>count,speechAfterFirst,{timeout:8000});
+  const speechAfterSecond=speech.length;
+  assert.ok(speechAfterSecond>speechAfterFirst,'Nima must synthesize audio on the second assistant turn too');
   assert.ok(queries[0].includes('تسمه تایمینگ'));
   assert.ok(queries[1].includes('تسمه PU'));
   const firstTurnInSecondHistory=requests[1].history.filter(item=>
@@ -152,9 +155,9 @@ function wav(seconds=0.2){
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('یه سوال جدید درباره تسمه نقاله دارم'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
   await page.waitForFunction(()=>window.__forzaConsultRequestCount===3,null,{timeout:12000});
-  await page.waitForFunction(()=>window.__forzaSpeechRequests>=3,null,{timeout:8000});
+  await page.waitForFunction(count=>window.__forzaSpeechRequests>count,speechAfterSecond,{timeout:8000});
   assert.equal(queries.length,3,'customer speech during Nima playback must interrupt and start a new turn');
-  assert.ok(speech.length>=3,'Nima must synthesize the barge-in response too');
+  assert.ok(speech.length>speechAfterSecond,'Nima must synthesize the barge-in response too');
   assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
    'barge-in must reuse the same Diba recognizer instead of discarding its state');
   assert.equal(errors.length,0,errors.join('; '));
