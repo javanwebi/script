@@ -324,10 +324,13 @@ test('automotive timing belts, cross-reference-only RU codes, official series ca
   assert.equal(s35023?.technical.pitchMm, 8);
   assert.equal(s35023?.confidence, 'ALGORITHMIC_STANDARD_ONLY');
 
-  // Megadyne PJ section is catalog-supported; TNX itself remains an unverified inventory label.
+  // Megadyne PJ series is catalog-supported, but the approved Excel menu has no Poly-V leaf.
+  // Keep the SKU unassigned while preserving series-level evidence; TNX is not manufacturer-verified.
   const s58129 = bySku.get('58129');
   assert.equal(s58129?.detectedBrand, 'MEGADYNE');
   assert.equal(s58129?.technical.profile, 'PJ');
+  assert.equal(s58129?.proposedCategorySlug, 'UNRESOLVED');
+  assert.equal(s58129?.proposedSubmenu, 'نیازمند زیر‌دسته مستقل Poly-V');
   assert.equal(s58129?.confidence, 'SERIES_VERIFIED');
   assert.ok(s58129?.verification.sourceUrl.includes('megadynegroup.com'));
   assert.match(s58129?.verification.evidenceBasis ?? '', /TNX.*not.*manufacturer-verified/i);
