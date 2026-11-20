@@ -31,6 +31,7 @@ import { ForzaStopAcknowledgement } from '../../utils/forzaStopAcknowledgement';
 import { ForzaPlaybackEchoHistory, forzaTurnIntent, shouldIgnoreForzaSpeakerEcho } from '../../utils/forzaBargeIn';
 import { getForzaAudioContext } from '../../utils/forzaAudioUnlock';
 import { FORZA_CONVERSATION_HISTORY_LIMIT, prepareForzaConversationTurn } from '../../utils/forzaConversationHistory';
+import { ForzaConversationEngine } from '../../utils/forzaConversationEngine';
 const AiVisualPartSearchModal = lazy(() => import('../search/AiVisualPartSearchModal').then(module=>({default:module.AiVisualPartSearchModal})));
 type LazyParticleAvatarProps = ParticleAvatarProps & { ref?: React.Ref<ParticleAvatarRef> };
 const ParticleAvatar = lazy(async () => {
@@ -216,6 +217,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // Not an authentication credential; a per-page correlation label used for
   // fair rate limits and debugging. No speech, audio or identity is stored.
   const callIdRef=useRef(Math.random().toString(36).slice(2,12));
+  // Authoritative per-call coordinator; audio, STT, LLM and TTS stay adapters.
+  const conversationEngineRef=useRef<ForzaConversationEngine|null>(null);
+  if(!conversationEngineRef.current){
+    conversationEngineRef.current=new ForzaConversationEngine({sessionId:callIdRef.current,maxTurns:FORZA_CONVERSATION_HISTORY_LIMIT*2});
+  }
   const interruptRequestRef = useRef<() => void>(()=>{});
   const isAiSpeakingRef = useRef<boolean>(false);
   const recognitionRef = useRef<any>(null);
@@ -351,7 +357,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ?localSttFinalRef.current
           :appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
         if(!transcript)return;
-        if(playback)interruptRequestRef.current();
+        if(playback){conversationEngineRef.current?.interruptWithSpeech(transcript);interruptRequestRef.current();}
+        else conversationEngineRef.current?.updateTranscript(transcript);
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
           lastTranscriptChangedAtRef.current=Date.now();
         }
@@ -579,6 +586,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=vad_end_detected silenceMs='+
               Math.round(acousticSilence));
             if(candidate){
+              const engine=conversationEngineRef.current;
+              if(engine){
+                if(engine.activeTranscript.trim())engine.commitUserTurn(candidate);
+                else if(engine.turns[engine.turns.length-1]?.role!=='user'||engine.turns[engine.turns.length-1]?.text!==candidate){engine.updateTranscript(candidate);engine.commitUserTurn();}
+              }
               sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,candidate);
               pendingCommittedTranscriptRef.current=candidate;
               setUserText(sessionTranscriptRef.current);
@@ -745,6 +757,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, []);
 
   const interruptCurrentTurn = useCallback(() => {
+    conversationEngineRef.current?.cancelAssistantResponse('customer_interrupt');
     const active=activeTurnRef.current;
     if(!active || active.abort.signal.aborted){
       // Manual replay has no LLM turn but must still be interruptible.
@@ -1232,6 +1245,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // model request can be interrupted. A resumed customer phrase must never
       // make this already-heard transcript disappear.
       const transcriptAlreadyCommitted=Boolean(q&&pendingCommittedTranscriptRef.current===q);
+      if(q&&!transcriptAlreadyCommitted){const engine=conversationEngineRef.current;if(engine){engine.updateTranscript(q);engine.commitUserTurn();}}
       pendingCommittedTranscriptRef.current='';
       if(q){
         if(!transcriptAlreadyCommitted){
@@ -1415,6 +1429,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Replace only this last turn if Diba supplies a better final transcript;
         // earlier turns remain untouched across pauses and assistant replies.
         if(resolvedUserQuery){
+          const engine=conversationEngineRef.current;
+          if(engine){
+            const lastEngineTurn=engine.turns[engine.turns.length-1];
+            if(q&&lastEngineTurn?.role==='user'&&lastEngineTurn.text===q){if(q!==resolvedUserQuery)engine.replaceLastUserTurn(q,resolvedUserQuery);}
+            else{engine.updateTranscript(resolvedUserQuery);engine.commitUserTurn();}
+          }
           sessionTranscriptRef.current=q
             ?replaceForzaLastSessionTurn(sessionTranscriptRef.current,q,resolvedUserQuery)
             :appendForzaSessionTurn(sessionTranscriptRef.current,resolvedUserQuery);
@@ -1442,6 +1462,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // separate final user message in the streaming request body.
         payload.history=previousHistory;
         if(resolvedUserQuery)setUserText(sessionTranscriptRef.current);
+        const engine=conversationEngineRef.current;
+        const conversationLease=engine?.beginAssistantResponse()||null;
+        if(conversationLease){
+          conversationLease.signal.addEventListener('abort',()=>{if(!pocketAbort.signal.aborted)pocketAbort.abort(new Error('forza_engine_cancelled'));},{once:true});
+          pocketAbort.signal.addEventListener('abort',()=>{engine.cancelAssistantResponse('turn_abort');},{once:true});
+        }
         let reply='';
         let firstTextDelivered=false;
         let firstPlaybackLogged=false;
@@ -1584,6 +1610,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         };
         const onTextChunk=(_chunk:string,fullText:string)=>{
           if(activeTurnRef.current?.generation!==generation || pocketAbort.signal.aborted)return;
+          if(conversationLease)engine?.appendAssistantText(conversationLease.generation,_chunk);
           reply=callPlainText.push(fullText);
           if(!firstTextDelivered&&reply.trim()){
             firstTextDelivered=true;
@@ -1742,6 +1769,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           String(err?.message || 'پاسخ هوش مصنوعی در دسترس نیست؛ لطفاً دوباره تلاش کنید.').slice(0, 230)
         );
       } finally {
+        if(conversationLease&&!pocketAbort.signal.aborted)conversationEngineRef.current?.completeAssistantResponse(conversationLease.generation);
         // Cancel an in-flight private voice HTTP request if the AI turn
         // failed, the user interrupted it, or the call was closed.
         // This never stops/replaces the actual Pocket voice container.
@@ -2022,6 +2050,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           interruptRequestRef.current();
         }
         const mergedSpeech=appendForzaSpeechSegment(recognitionSessionBaseRef.current,currentSpeech);
+        if(mergedSpeech){
+          if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current)conversationEngineRef.current?.interruptWithSpeech(mergedSpeech);
+          else conversationEngineRef.current?.updateTranscript(mergedSpeech);
+        }
         if(!recognized.hasInterim&&forzaTurnIntent(currentSpeech)==='stop'){
           void handleUserFinishedSpeaking(currentSpeech);
           return;
@@ -2057,6 +2089,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             }
             detectedSpeechEndAtRef.current=vadRef.current.heardSpeech
               ? performance.now()-vadRef.current.silenceDuration(Date.now()) : 0;
+            const engine=conversationEngineRef.current;
+            if(engine){
+              if(engine.activeTranscript.trim())engine.commitUserTurn(candidate);
+              else if(engine.turns[engine.turns.length-1]?.role!=='user'||engine.turns[engine.turns.length-1]?.text!==candidate){engine.updateTranscript(candidate);engine.commitUserTurn();}
+            }
             console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length+
               ' endToSttFinalMs='+(detectedSpeechEndAtRef.current
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
@@ -2364,6 +2401,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     playbackEchoHistoryRef.current.clear();
     ++microphoneGenerationRef.current;
     micAutoStartedRef.current=false;
+    conversationEngineRef.current?.close();
     activeTurnRef.current?.abort.abort(new Error('forza_call_closed'));
     activeTurnRef.current=null;
     if(silenceTimerRef.current)clearTimeout(silenceTimerRef.current);
