@@ -3,15 +3,14 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
+import { ForzaSttQueue, type ForzaQueueWorker } from './forzaSttQueue';
 
 type Pending = {
   resolve: (text: string) => void;
   reject: (error: Error) => void;
   timer: ReturnType<typeof setTimeout>;
-  abort?: () => void;
-  signal?: AbortSignal;
 };
-type WorkerState = {
+type WorkerState = ForzaQueueWorker & {
   child: ChildProcessWithoutNullStreams;
   ready: boolean;
   failed: boolean;
@@ -19,15 +18,19 @@ type WorkerState = {
   pending: Map<string, Pending>;
   readyPromise: Promise<void>;
 };
+type DibaJob = { audioBase64: string; timeoutMs: number };
 
 const MODEL_PATH = process.env.FORZA_STT_DIBA_MODEL_PATH || '/opt/diba-stt/model';
 const WORKER_SCRIPT = path.resolve(process.cwd(), 'scripts/forza_diba_stt_worker.py');
 const PYTHON = process.env.FORZA_STT_PYTHON || '/opt/forza-pocket/bin/python';
 const WORKER_COUNT = Math.max(1, Math.min(2, Number(process.env.FORZA_STT_WORKERS || 2) || 2));
 const REQUEST_TIMEOUT_MS = 20_000;
-const MAX_PENDING = 24;
+const MAX_PENDING = 48;
+const QUEUE_TIMEOUT_MS = 45_000;
 let workers: WorkerState[] = [];
 let warmPromise: Promise<boolean> | null = null;
+let queueWarming = false;
+let lastQueueWarmAttemptAt = 0;
 
 export function hasForzaDibaSttModel(): boolean {
   return existsSync(path.join(MODEL_PATH, 'am')) && existsSync(path.join(MODEL_PATH, 'conf'));
@@ -42,7 +45,6 @@ function settlePending(worker: WorkerState, id: string, error?: Error, text = ''
   worker.pending.delete(id);
   worker.inflight = Math.max(0, worker.inflight - 1);
   clearTimeout(pending.timer);
-  if (pending.abort) pending.signal?.removeEventListener('abort', pending.abort);
   if (error) pending.reject(error);
   else pending.resolve(text);
 }
@@ -51,8 +53,55 @@ function failWorker(worker: WorkerState, reason: string): void {
   if (worker.failed) return;
   worker.failed = true;
   worker.ready = false;
-  for (const id of [...worker.pending.keys()]) settlePending(worker, id, new Error(reason));
+  for (const id of [...worker.pending.keys()]) {
+    settlePending(worker, id, new Error(reason));
+  }
+  queue.notifyWorkersChanged();
 }
+
+function executeOnWorker(worker: WorkerState, job: DibaJob): Promise<string> {
+  const id = randomUUID();
+  return new Promise<string>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      // A timed-out Python process may still be decoding audio. Retire it
+      // before releasing the queue slot so no later request is written into
+      // a worker whose state is unknown.
+      failWorker(worker, 'diba_stt_timeout');
+      worker.child.kill('SIGKILL');
+    }, job.timeoutMs);
+    worker.pending.set(id, { resolve, reject, timer });
+    worker.inflight = 1;
+    try {
+      worker.child.stdin.write(JSON.stringify({ id, audioBase64: job.audioBase64 }) + '\n', error => {
+        if (error) {
+          failWorker(worker, 'diba_worker_write_failed');
+          worker.child.kill('SIGKILL');
+        }
+      });
+    } catch {
+      failWorker(worker, 'diba_worker_write_failed');
+      worker.child.kill('SIGKILL');
+    }
+  });
+}
+
+const queue = new ForzaSttQueue<DibaJob, string, WorkerState>(
+  () => workers.filter(worker => worker.ready && !worker.failed && worker.child.exitCode === null),
+  executeOnWorker,
+  {
+    maxPending: MAX_PENDING,
+    queueTimeoutMs: QUEUE_TIMEOUT_MS,
+    onNoWorkers: () => {
+      if (queueWarming || Date.now() - lastQueueWarmAttemptAt < 5000) return;
+      queueWarming = true;
+      lastQueueWarmAttemptAt = Date.now();
+      void warmForzaDibaStt().finally(() => {
+        queueWarming = false;
+        queue.notifyWorkersChanged();
+      });
+    },
+  },
+);
 
 function startWorker(): WorkerState {
   const child = spawn(PYTHON, [WORKER_SCRIPT], {
@@ -61,7 +110,7 @@ function startWorker(): WorkerState {
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   const state: WorkerState = {
-    child, ready: false, failed: false, inflight: 0,
+    child, ready: false, failed: false, inflight: 0, busy: false,
     pending: new Map(),
     readyPromise: Promise.resolve(),
   };
@@ -69,6 +118,7 @@ function startWorker(): WorkerState {
     const readyTimer = setTimeout(() => {
       failWorker(state, 'diba_worker_start_timeout');
       reject(new Error('diba_worker_start_timeout'));
+      child.kill('SIGKILL');
     }, 20_000);
     const lines = createInterface({ input: child.stdout });
     lines.on('line', line => {
@@ -78,12 +128,14 @@ function startWorker(): WorkerState {
         state.ready = true;
         clearTimeout(readyTimer);
         resolve();
+        queue.notifyWorkersChanged();
         return;
       }
       if (message?.type === 'fatal') {
         clearTimeout(readyTimer);
-        failWorker(state, String(message.code || 'diba_worker_failed'));
-        reject(new Error(String(message.code || 'diba_worker_failed')));
+        const code = String(message.code || 'diba_worker_failed');
+        failWorker(state, code);
+        reject(new Error(code));
         return;
       }
       const id = String(message?.id || '');
@@ -102,6 +154,7 @@ function startWorker(): WorkerState {
       clearTimeout(readyTimer);
       failWorker(state, 'diba_worker_exited');
       if (!state.ready) reject(new Error('diba_worker_exited'));
+      queue.notifyWorkersChanged();
     });
     // Worker diagnostics must never echo audio, transcript or request JSON.
     child.stderr.on('data', () => {});
@@ -111,12 +164,16 @@ function startWorker(): WorkerState {
 
 export async function warmForzaDibaStt(): Promise<boolean> {
   if (!hasForzaDibaSttModel()) return false;
-  if (isForzaDibaSttReady()) return true;
+  const healthyCount = workers.filter(
+    worker => worker.ready && !worker.failed && worker.child.exitCode === null,
+  ).length;
+  if (healthyCount >= WORKER_COUNT) return true;
   if (warmPromise) return warmPromise;
   warmPromise = (async () => {
     workers = workers.filter(worker => !worker.failed && worker.child.exitCode === null);
     while (workers.length < WORKER_COUNT) workers.push(startWorker());
     const results = await Promise.allSettled(workers.map(worker => worker.readyPromise));
+    queue.notifyWorkersChanged();
     return results.some(result => result.status === 'fulfilled') && isForzaDibaSttReady();
   })().catch(() => false).finally(() => { warmPromise = null; });
   return warmPromise;
@@ -131,32 +188,16 @@ export async function transcribeForzaDibaAudio(
     throw new Error('invalid_audio');
   }
   if (options.signal?.aborted) throw new Error('stt_aborted');
+
   if (!isForzaDibaSttReady() && !(await warmForzaDibaStt())) {
     throw new Error(hasForzaDibaSttModel() ? 'diba_worker_unavailable' : 'diba_model_missing');
   }
-  const available = workers.filter(worker => worker.ready && !worker.failed && worker.child.exitCode === null);
-  if (!available.length) throw new Error('diba_worker_unavailable');
-  const totalPending = available.reduce((sum, worker) => sum + worker.inflight, 0);
-  if (totalPending >= MAX_PENDING) throw new Error('diba_stt_busy');
-  const worker = available.sort((a, b) => a.inflight - b.inflight)[0];
-  const id = randomUUID();
-  const timeoutMs = Math.max(1500, Math.min(25_000, options.timeoutMs ?? REQUEST_TIMEOUT_MS));
+  // Refill a failed slot in the background/foreground without blocking use of
+  // the remaining healthy worker longer than the model warmup itself.
+  if (workers.filter(worker => worker.ready && !worker.failed && worker.child.exitCode === null).length < WORKER_COUNT) {
+    void warmForzaDibaStt();
+  }
 
-  return new Promise<string>((resolve, reject) => {
-    const abort = () => settlePending(worker, id, new Error('stt_aborted'));
-    const timer = setTimeout(() => settlePending(worker, id, new Error('diba_stt_timeout')), timeoutMs);
-    worker.pending.set(id, { resolve, reject, timer, abort, signal: options.signal });
-    worker.inflight++;
-    if (options.signal) {
-      options.signal.addEventListener('abort', abort, { once: true });
-      if (options.signal.aborted) { abort(); return; }
-    }
-    try {
-      worker.child.stdin.write(JSON.stringify({ id, audioBase64: encoded }) + '\n', error => {
-        if (error) settlePending(worker, id, new Error('diba_worker_write_failed'));
-      });
-    } catch {
-      settlePending(worker, id, new Error('diba_worker_write_failed'));
-    }
-  });
+  const timeoutMs = Math.max(1500, Math.min(25_000, options.timeoutMs ?? REQUEST_TIMEOUT_MS));
+  return queue.submit({ audioBase64: encoded, timeoutMs }, options.signal);
 }
