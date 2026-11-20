@@ -357,7 +357,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ?localSttFinalRef.current
           :appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
         if(!transcript)return;
-        if(playback)interruptRequestRef.current();
+        if(playback){conversationEngineRef.current?.interruptWithSpeech(transcript);interruptRequestRef.current();}
+        else conversationEngineRef.current?.updateTranscript(transcript);
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
           lastTranscriptChangedAtRef.current=Date.now();
         }
@@ -2045,9 +2046,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_STT] source=browser echo_candidate_ignored=1');
             return;
           }
+          conversationEngineRef.current?.interruptWithSpeech(currentSpeech);
           interruptRequestRef.current();
         }
         const mergedSpeech=appendForzaSpeechSegment(recognitionSessionBaseRef.current,currentSpeech);
+        if(mergedSpeech)conversationEngineRef.current?.updateTranscript(mergedSpeech);
         if(!recognized.hasInterim&&forzaTurnIntent(currentSpeech)==='stop'){
           void handleUserFinishedSpeaking(currentSpeech);
           return;
