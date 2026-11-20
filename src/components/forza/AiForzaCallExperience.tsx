@@ -357,7 +357,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ?localSttFinalRef.current
           :appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
         if(!transcript)return;
-        if(playback){conversationEngineRef.current?.interruptWithSpeech(transcript);interruptRequestRef.current();}
+        if(playback){conversationEngineRef.current?.updateTranscript(transcript);interruptRequestRef.current();}
         else conversationEngineRef.current?.updateTranscript(transcript);
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
           lastTranscriptChangedAtRef.current=Date.now();
@@ -754,7 +754,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, []);
 
   const interruptCurrentTurn = useCallback(() => {
-    conversationEngineRef.current?.cancelAssistantResponse('customer_interrupt');
     const active=activeTurnRef.current;
     if(!active || active.abort.signal.aborted){
       // Manual replay has no LLM turn but must still be interruptible.
@@ -2046,7 +2045,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_STT] source=browser echo_candidate_ignored=1');
             return;
           }
-          conversationEngineRef.current?.interruptWithSpeech(currentSpeech);
+          conversationEngineRef.current?.updateTranscript(currentSpeech);
           interruptRequestRef.current();
         }
         const mergedSpeech=appendForzaSpeechSegment(recognitionSessionBaseRef.current,currentSpeech);
