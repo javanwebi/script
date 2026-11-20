@@ -51,3 +51,14 @@ test('close aborts the response and rejects later mutations', () => {
   assert.equal(lease.signal.aborted, true);
   assert.throws(() => engine.updateTranscript('بعد از پایان'), /forza_call_closed/);
 });
+
+test('assistant streaming preserves exact token boundaries without inserting spaces', () => {
+  const engine = new ForzaConversationEngine({ sessionId: 'call-5' });
+  engine.updateTranscript('سؤال');
+  engine.commitUserTurn();
+  const lease = engine.beginAssistantResponse();
+  engine.appendAssistantText(lease.generation, 'پاس');
+  engine.appendAssistantText(lease.generation, 'خ');
+  engine.appendAssistantText(lease.generation, ' نهایی.');
+  assert.equal(engine.turns.at(-1)?.text, 'پاسخ نهایی.');
+});
