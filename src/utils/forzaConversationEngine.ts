@@ -126,7 +126,10 @@ export class ForzaConversationEngine {
     // At the turn boundary the caller passes the best complete transcript
     // available (often a final STT hypothesis). Treat it as authoritative:
     // merging a corrected final with an older interim can duplicate/reorder words.
-    if (value !== undefined) this.activeTranscriptValue = normalize(value);
+    if (value !== undefined) {
+      const finalText = normalize(value);
+      if (finalText) this.activeTranscriptValue = finalText;
+    }
     const text = normalize(this.activeTranscriptValue);
     if (!text) return null;
     const turn: ForzaConversationTurn = {
