@@ -81,3 +81,20 @@ test('late provider chunks are rejected after a response is completed', () => {
   assert.equal(engine.completeAssistantResponse(lease.generation), true);
   assert.equal(engine.appendAssistantText(lease.generation, 'پاسخ دیررس'), false);
 });
+
+test('forty conversation sessions keep transcripts and response generations isolated', () => {
+  const sessions = Array.from({ length: 40 }, (_, index) =>
+    new ForzaConversationEngine({ sessionId: 'parallel-' + index }),
+  );
+  sessions.forEach((engine, index) => {
+    engine.updateTranscript('پیام مخصوص کاربر ' + index);
+    engine.commitUserTurn();
+    const lease = engine.beginAssistantResponse();
+    engine.appendAssistantText(lease.generation, 'پاسخ ' + index);
+  });
+  sessions.forEach((engine, index) => {
+    assert.equal(engine.sessionId, 'parallel-' + index);
+    assert.equal(engine.turns[0]?.text, 'پیام مخصوص کاربر ' + index);
+    assert.equal(engine.turns[1]?.text, 'پاسخ ' + index);
+  });
+});
