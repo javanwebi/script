@@ -1463,7 +1463,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         conversationLease=engine?.beginAssistantResponse()||null;
         if(conversationLease){
           conversationLease.signal.addEventListener('abort',()=>{if(!pocketAbort.signal.aborted)pocketAbort.abort(new Error('forza_engine_cancelled'));},{once:true});
-          pocketAbort.signal.addEventListener('abort',()=>{engine.cancelAssistantResponse('turn_abort');},{once:true});
+          pocketAbort.signal.addEventListener('abort',()=>{engine?.cancelAssistantResponse('turn_abort');},{once:true});
         }
         let reply='';
         let firstTextDelivered=false;
