@@ -60,7 +60,7 @@ test('assistant streaming preserves exact token boundaries without inserting spa
   engine.appendAssistantText(lease.generation, 'پاس');
   engine.appendAssistantText(lease.generation, 'خ');
   engine.appendAssistantText(lease.generation, ' نهایی.');
-  assert.equal(engine.turns.at(-1)?.text, 'پاسخ نهایی.');
+  assert.equal(engine.turns[engine.turns.length - 1]?.text, 'پاسخ نهایی.');
 });
 
 test('authoritative STT final replaces only the latest committed hypothesis', () => {
