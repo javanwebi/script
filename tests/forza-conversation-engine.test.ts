@@ -108,3 +108,10 @@ test('final STT hypothesis replaces an imperfect interim instead of duplicating 
   assert.equal(committed?.text, 'می خواهم یک تسمه تایمینگ');
   assert.equal(engine.activeTranscript, '');
 });
+
+test('an empty final STT result never erases a usable interim transcript', () => {
+  const engine = new ForzaConversationEngine({ sessionId: 'call-empty-final' });
+  engine.updateTranscript('برای خط تولید تسمه لازم دارم');
+  const committed = engine.commitUserTurn('');
+  assert.equal(committed?.text, 'برای خط تولید تسمه لازم دارم');
+});
