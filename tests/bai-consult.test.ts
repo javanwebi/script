@@ -198,13 +198,13 @@ test('provider error code is preserved without logging provider response bodies'
     !error.message.includes('private provider details'));
 });
 
-test('xKiro first-token budget accommodates observed live VPS latency without changing B.AI', () => {
-  assert.deepEqual(providerStreamTimeouts('avalai', true), { firstTokenMs: 8000, totalMs: 30000 });
-  assert.deepEqual(providerStreamTimeouts('avalai', false), { firstTokenMs: 12000, totalMs: 45000 });
-  assert.deepEqual(providerStreamTimeouts('bai', true), { firstTokenMs: 10000, totalMs: 30000 });
-  assert.deepEqual(providerStreamTimeouts('bai', false), { firstTokenMs: 15000, totalMs: 45000 });
-  assert.deepEqual(providerStreamTimeouts('xkiro', true), { firstTokenMs: 4500, totalMs: 9000 });
-  assert.deepEqual(providerStreamTimeouts('xkiro', false), { firstTokenMs: 4500, totalMs: 9000 });
+test('provider streams use first-token and inactivity budgets, never a total response deadline', () => {
+  assert.deepEqual(providerStreamTimeouts('avalai', true), { firstTokenMs: 8000, idleAfterDeltaMs: 45000 });
+  assert.deepEqual(providerStreamTimeouts('avalai', false), { firstTokenMs: 12000, idleAfterDeltaMs: 45000 });
+  assert.deepEqual(providerStreamTimeouts('bai', true), { firstTokenMs: 10000, idleAfterDeltaMs: 45000 });
+  assert.deepEqual(providerStreamTimeouts('bai', false), { firstTokenMs: 15000, idleAfterDeltaMs: 45000 });
+  assert.deepEqual(providerStreamTimeouts('xkiro', true), { firstTokenMs: 4500, idleAfterDeltaMs: 1100 });
+  assert.deepEqual(providerStreamTimeouts('xkiro', false), { firstTokenMs: 4500, idleAfterDeltaMs: 1100 });
 });
 
 test('provider-specific no-reasoning hint is not sent to B.AI or other xKiro models', async () => {
