@@ -25,9 +25,10 @@ test('one complete answer only is spoken; no partial packet can be replayed',()=
   assert.doesNotMatch(ui,/readForzaWavFrames|scheduledPlaybacks|onScheduled/);
 });
 
-test('text idle deadline and complete WAV TTS timeout remain bounded',()=>{
+test('response stream has an inactivity deadline but no fixed total duration cap',()=>{
+  assert.match(ui,/شروع دریافت پاسخ هوش مصنوعی بیش از حد طول کشید/);
   assert.match(ui,/ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند/);
-  assert.match(ui,/دریافت متن پاسخ هوش مصنوعی بیش از دو دقیقه طول کشید/);
+  assert.doesNotMatch(ui,/totalTimer|120000|بیش از دو دقیقه/);
   assert.match(ui,/AbortSignal\.timeout\(420000\)/);
 });
 
