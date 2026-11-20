@@ -1,0 +1,52 @@
+name: FORZA Conversation Engine
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/components/forza/**"
+      - "src/utils/forzaConversationEngine.ts"
+      - "tests/forza-conversation-engine.test.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/forza-conversation-engine.yml"
+  push:
+    branches:
+      - "feat/forza-conversation-engine-v2-*"
+    paths:
+      - "src/components/forza/**"
+      - "src/utils/forzaConversationEngine.ts"
+      - "tests/forza-conversation-engine.test.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/forza-conversation-engine.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forza-conversation-engine-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conversation-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Test conversation engine
+        run: npm run test:forza-engine
+
+      - name: TypeScript validation
+        run: npm run lint
