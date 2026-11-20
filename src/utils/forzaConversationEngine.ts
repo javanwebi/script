@@ -123,7 +123,10 @@ export class ForzaConversationEngine {
   /** Commit only after the external VAD/turn policy confirms end-of-turn. */
   commitUserTurn(value?: string): ForzaConversationTurn | null {
     this.assertOpen();
-    if (value !== undefined) this.updateTranscript(value);
+    // At the turn boundary the caller passes the best complete transcript
+    // available (often a final STT hypothesis). Treat it as authoritative:
+    // merging a corrected final with an older interim can duplicate/reorder words.
+    if (value !== undefined) this.activeTranscriptValue = normalize(value);
     const text = normalize(this.activeTranscriptValue);
     if (!text) return null;
     const turn: ForzaConversationTurn = {
