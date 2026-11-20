@@ -1311,6 +1311,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       let playerForTurn:ForzaContinuousWav|null=null;
       let bufferedNima:ForzaNimaBufferedSpeech|null=null;
       let terminalIdleTimer:number|null=null;
+      let conversationLease:ReturnType<ForzaConversationEngine['beginAssistantResponse']>|null=null;
       try {
         // A slow voice-health probe must not create an unowned gap before the
         // turn controller exists. This turn is already abortable and the mic
@@ -1463,7 +1464,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         payload.history=previousHistory;
         if(resolvedUserQuery)setUserText(sessionTranscriptRef.current);
         const engine=conversationEngineRef.current;
-        const conversationLease=engine?.beginAssistantResponse()||null;
+        conversationLease=engine?.beginAssistantResponse()||null;
         if(conversationLease){
           conversationLease.signal.addEventListener('abort',()=>{if(!pocketAbort.signal.aborted)pocketAbort.abort(new Error('forza_engine_cancelled'));},{once:true});
           pocketAbort.signal.addEventListener('abort',()=>{engine.cancelAssistantResponse('turn_abort');},{once:true});
