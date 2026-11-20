@@ -88,6 +88,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
   isProcessingTurnRef:ref(true),isAiSpeakingRef:ref(true),
   isManualReplayPendingRef:ref(false),vadRef:ref({heardSpeech:false}),lastMicActivityRef:ref(Date.now()),
   likelySpeakerEcho:()=>echo,interruptRequestRef:ref(()=>interrupted++),
+  conversationEngineRef:ref({interruptWithSpeech:()=>true,updateTranscript:()=>''}),
  };
  const run=new Function(...Object.keys(scope),'event',body);
  const result=(text:string,isFinal=true)=>({0:{transcript:text},isFinal});
