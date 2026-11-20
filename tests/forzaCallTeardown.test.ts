@@ -8,11 +8,13 @@ const source=readFileSync(new URL('../src/components/forza/AiForzaCallExperience
 const body=source.split('const releaseCallResources = useCallback(() => {')[1].split('},[stopAudio]);')[0];
 test('hangup cancels owned resources, detaches restart callbacks, and is repeatable',async()=>{
  const calls:string[]=[];
+ let engineClosed=false;
  const ref=(current:any)=>({current});
  const recognition={onend:()=>{},onerror:()=>{},onresult:()=>{},abort(){assert.equal(this.onend,null);calls.push('recognition');}};
  const recorder={state:'recording',onstop:()=>{},ondataavailable:()=>{},onerror:()=>{},stop(){assert.equal(this.onstop,null);calls.push('recorder');}};
  const track={onended:()=>{},stop(){assert.equal(this.onended,null);calls.push('track');}};
  const values:Record<string,any>={
+  conversationEngineRef:ref({close(){if(!engineClosed){engineClosed=true;calls.push('conversation-engine');}}}),
   audioEvidenceCleanupRef:ref(()=>calls.push('audio-evidence')),speechAdmissionRef:ref({reset(){}}),
   playbackEchoHistoryRef:ref({clear(){}}),stopAcknowledgementRef:ref(null),callClosedRef:ref(false),microphoneGenerationRef:ref(1),micAutoStartedRef:ref(true),
   activeTurnRef:ref({abort:{abort(){calls.push('request');}}}),
@@ -33,7 +35,7 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
  for(const name of ['localSttNodeRef','localSttSinkRef','micSourceNodeRef','micAnalyserRef','audioSourceNodeRef','analyserRef','gainNodeRef'])values[name]=ref({disconnect(){calls.push('disconnect');}});
  const teardown=new Function(...Object.keys(values),body).bind(null,...Object.values(values));
  teardown();teardown();await Promise.resolve();
- for(const resource of ['recognition','recorder','track','request','context','local-stt','local-stt-model','animation','audio-evidence'])assert.equal(calls.filter(x=>x===resource).length,1,resource);
+ for(const resource of ['recognition','recorder','track','request','context','local-stt','local-stt-model','animation','audio-evidence','conversation-engine'])assert.equal(calls.filter(x=>x===resource).length,1,resource);
  assert.equal(values.localSttModelRef.current,null);
  assert.equal(values.localSttAdmissionRef.current,null);
  assert.equal(values.localSttActiveRef.current,false);
