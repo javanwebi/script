@@ -62,3 +62,22 @@ test('assistant streaming preserves exact token boundaries without inserting spa
   engine.appendAssistantText(lease.generation, ' نهایی.');
   assert.equal(engine.turns.at(-1)?.text, 'پاسخ نهایی.');
 });
+
+test('authoritative STT final replaces only the latest committed hypothesis', () => {
+  const engine = new ForzaConversationEngine({ sessionId: 'call-6' });
+  engine.updateTranscript('یک تسمه تایمینگ');
+  engine.commitUserTurn();
+  assert.equal(engine.replaceLastUserTurn('یک تسمه تایمینگ', 'یک تسمه تایمینگ عرض بیست'), true);
+  assert.equal(engine.turns[0]?.text, 'یک تسمه تایمینگ عرض بیست');
+  assert.equal(engine.replaceLastUserTurn('متن قدیمی', 'نباید جایگزین شود'), false);
+});
+
+test('late provider chunks are rejected after a response is completed', () => {
+  const engine = new ForzaConversationEngine({ sessionId: 'call-7' });
+  engine.updateTranscript('سلام');
+  engine.commitUserTurn();
+  const lease = engine.beginAssistantResponse();
+  engine.appendAssistantText(lease.generation, 'سلام.');
+  assert.equal(engine.completeAssistantResponse(lease.generation), true);
+  assert.equal(engine.appendAssistantText(lease.generation, 'پاسخ دیررس'), false);
+});
