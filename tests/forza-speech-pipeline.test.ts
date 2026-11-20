@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  checkpointForzaRecognition, extractPersianSpeechRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs,
+  appendForzaSpeechSegment, checkpointForzaRecognition, extractPersianSpeechRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs,
   normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64,
 } from '../src/utils/forzaSpeechPipeline.ts';
 
@@ -82,4 +82,17 @@ test('final results are consumed while interim prefixes remain revisable',()=>{
  assert.equal(extractPersianSpeechSince(
    [result('سلام',true),result('کد 6202',true),result('ده عدد',true)],
    checkpoint.count,checkpoint.interim).text,'ده عدد');
+});
+
+test('speech session stitching keeps words across recognition restarts and partial-word boundaries',()=>{
+  assert.equal(appendForzaSpeechSegment('من برای خط تولید','خط تولید یک تسمه'), 'من برای خط تولید یک تسمه');
+  assert.equal(appendForzaSpeechSegment('تایم','تایمینگ'), 'تایمینگ');
+  assert.equal(appendForzaSpeechSegment('بلبرینگ 6202','6202ZZ'), 'بلبرینگ 6202ZZ');
+  assert.equal(appendForzaSpeechSegment('جمله اول','جمله اول'), 'جمله اول');
+});
+
+test('turn endpoint waits for both transcript stability and acoustic silence',()=>{
+  assert.equal(forzaTurnRemainingWaitMs('این تسمه را می خواهم',false,5000,1200),3600);
+  assert.equal(forzaTurnRemainingWaitMs('این تسمه را می خواهم چون',true,5500,1000),4200);
+  assert.equal(forzaTurnRemainingWaitMs('سلام',false,6000,null),0);
 });
