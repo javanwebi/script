@@ -138,6 +138,26 @@ export class ForzaConversationEngine {
     return { ...turn };
   }
 
+  /** Replace a committed user hypothesis with a later authoritative STT final. */
+  replaceLastUserTurn(previousText: string, correctedText: string): boolean {
+    this.assertOpen();
+    const last = this.turnsValue[this.turnsValue.length - 1];
+    const previous = normalize(previousText);
+    const corrected = normalize(correctedText);
+    if (!last || last.role !== 'user' || last.text !== previous || !corrected) return false;
+    last.text = corrected;
+    return true;
+  }
+
+  /** Abort the current model/TTS generation without discarding the user transcript. */
+  cancelAssistantResponse(reason = 'cancelled'): boolean {
+    if (this.phaseValue === 'closed' || !this.responseAbort) return false;
+    this.abortResponse(reason);
+    this.generationValue += 1;
+    this.phaseValue = this.activeTranscriptValue ? 'user_speaking' : 'listening';
+    return true;
+  }
+
   /** Start one assistant generation. A newer generation invalidates all older callbacks. */
   beginAssistantResponse(): ForzaResponseLease {
     this.assertOpen();
@@ -183,6 +203,7 @@ export class ForzaConversationEngine {
   completeAssistantResponse(generation: number): boolean {
     if (!this.isCurrent(generation) || this.phaseValue === 'closed') return false;
     this.responseAbort = null;
+    this.generationValue += 1;
     this.phaseValue = 'listening';
     return true;
   }
@@ -196,8 +217,7 @@ export class ForzaConversationEngine {
     const text = normalize(value);
     if (!text) return false;
     if (this.phaseValue === 'thinking' || this.phaseValue === 'speaking') {
-      this.abortResponse('user_barge_in');
-      this.generationValue += 1;
+      this.cancelAssistantResponse('user_barge_in');
     }
     this.activeTranscriptValue = mergeForzaTranscript(this.activeTranscriptValue, text);
     this.phaseValue = 'user_speaking';
