@@ -59,13 +59,12 @@ export function configuredXkiroModel(env: NodeJS.ProcessEnv, voice: boolean): st
  */
 export function providerStreamTimeouts(provider: 'xkiro' | 'bai' | 'avalai', voice: boolean) {
   return {
-    // xKiro's free Qwen gateway can leave the SSE socket open after its last
-    // content delta. Keep the stream attempt bounded; AvalAI gets its own
-    // measured-in-production budget after the first live VPS probe.
+    // Bound only connection establishment / first token and inactivity.
+    // A healthy stream may run as long as the model keeps producing deltas.
     firstTokenMs: provider === 'xkiro' ? 4500 : provider === 'avalai'
       ? (voice ? 8000 : 12000)
       : (voice ? 10000 : 15000),
-    totalMs: provider === 'xkiro' ? 9000 : (voice ? 30000 : 45000),
+    idleAfterDeltaMs: provider === 'xkiro' ? 1100 : 45000,
   };
 }
 
@@ -135,7 +134,6 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   const cancelReader=()=>{void reader?.cancel().catch(()=>{});};
   controller.signal.addEventListener('abort',cancelReader,{once:true});
   signal?.addEventListener('abort',cancelReader,{once:true});
-  const timeout = setTimeout(() => controller.abort(new Error('upstream_total_timeout')), budgets.totalMs);
   let firstTokenTimer: ReturnType<typeof setTimeout> | undefined =
     setTimeout(() => controller.abort(new Error('upstream_first_token_timeout')), firstTokenTimeoutMs ?? budgets.firstTokenMs);
   const upstreamSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
@@ -190,14 +188,12 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
     textSoFar += str;
     lastTokenMs = Date.now() - started;
     onDelta(str, textSoFar);
-    if (isXkiro) {
-      if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {
-        idleAfterDelta = true;
-        void reader?.cancel().catch(() => {});
-        controller.abort(new Error('provider_stream_idle_after_delta'));
-      }, idleAfterDeltaTimeoutMs ?? 1100);
-    }
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      idleAfterDelta = true;
+      void reader?.cancel().catch(() => {});
+      controller.abort(new Error('provider_stream_idle_after_delta'));
+    }, idleAfterDeltaTimeoutMs ?? budgets.idleAfterDeltaMs);
   };
 
   const consumeEvent = (event: string) => {
@@ -300,7 +296,6 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
     }
     throw new BaiConsultError('upstream_network_error');
   } finally {
-    clearTimeout(timeout);
     controller.signal.removeEventListener('abort',cancelReader);
     signal?.removeEventListener('abort',cancelReader);
     if (idleTimer) clearTimeout(idleTimer);

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   appendForzaSpeechSegment, checkpointForzaRecognition, extractPersianSpeechRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs,
   normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64,
@@ -95,4 +96,11 @@ test('turn endpoint waits for both transcript stability and acoustic silence',()
   assert.ok(forzaTurnRemainingWaitMs('این تسمه را می خواهم',false,5000,1200)>0);
   assert.ok(forzaTurnRemainingWaitMs('این تسمه را می خواهم چون',true,5500,1000)>0);
   assert.equal(forzaTurnRemainingWaitMs('سلام',false,6000,6000),0);
+});
+
+
+test('FORZA response stream has no fixed total-duration cutoff',()=>{
+  const source=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
+  assert.doesNotMatch(source,/totalTimer|120000|بیش از دو دقیقه/);
+  assert.match(source,/ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند/);
 });

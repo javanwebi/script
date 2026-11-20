@@ -1646,7 +1646,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         try {
           const streamController=new AbortController();
           let streamTimer=window.setTimeout(()=>streamController.abort(new Error('شروع دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),30000);
-          const totalTimer=window.setTimeout(()=>streamController.abort(new Error('دریافت متن پاسخ هوش مصنوعی بیش از دو دقیقه طول کشید.')),120000);
           try{
             console.info('[FORZA_LATENCY] phase=llm_request_sent turn='+generation+
               ' endToRequestMs='+(detectedSpeechEndAtRef.current
@@ -1685,7 +1684,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(!reply)throw new Error('forza_empty_stream');
           }finally{
             window.clearTimeout(streamTimer);
-            window.clearTimeout(totalTimer);
           }
         } catch(streamError) {
           if(pocketAbort.signal.aborted||activeTurnRef.current?.generation!==generation)throw streamError;
