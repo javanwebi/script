@@ -357,8 +357,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ?localSttFinalRef.current
           :appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
         if(!transcript)return;
-        if(playback){conversationEngineRef.current?.interruptWithSpeech(transcript);interruptRequestRef.current();}
-        else conversationEngineRef.current?.updateTranscript(transcript);
+        if(playback)interruptRequestRef.current();
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
           lastTranscriptChangedAtRef.current=Date.now();
         }
@@ -587,10 +586,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               Math.round(acousticSilence));
             if(candidate){
               const engine=conversationEngineRef.current;
-              if(engine){
-                if(engine.activeTranscript.trim())engine.commitUserTurn(candidate);
-                else if(engine.turns[engine.turns.length-1]?.role!=='user'||engine.turns[engine.turns.length-1]?.text!==candidate){engine.updateTranscript(candidate);engine.commitUserTurn();}
-              }
+              if(engine){engine.updateTranscript(candidate);engine.commitUserTurn();}
               sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,candidate);
               pendingCommittedTranscriptRef.current=candidate;
               setUserText(sessionTranscriptRef.current);
@@ -1502,6 +1498,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ensureCtx,
           ()=>{
             if(activeTurnRef.current?.generation!==generation)return;
+            if(conversationLease)engine?.markSpeaking(conversationLease.generation);
             isAiSpeakingRef.current=true;
             lastForzaPlaybackAtRef.current=Date.now();
             setVoicePending(false);
@@ -2051,10 +2048,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           interruptRequestRef.current();
         }
         const mergedSpeech=appendForzaSpeechSegment(recognitionSessionBaseRef.current,currentSpeech);
-        if(mergedSpeech){
-          if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current)conversationEngineRef.current?.interruptWithSpeech(mergedSpeech);
-          else conversationEngineRef.current?.updateTranscript(mergedSpeech);
-        }
         if(!recognized.hasInterim&&forzaTurnIntent(currentSpeech)==='stop'){
           void handleUserFinishedSpeaking(currentSpeech);
           return;
@@ -2091,10 +2084,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             detectedSpeechEndAtRef.current=vadRef.current.heardSpeech
               ? performance.now()-vadRef.current.silenceDuration(Date.now()) : 0;
             const engine=conversationEngineRef.current;
-            if(engine){
-              if(engine.activeTranscript.trim())engine.commitUserTurn(candidate);
-              else if(engine.turns[engine.turns.length-1]?.role!=='user'||engine.turns[engine.turns.length-1]?.text!==candidate){engine.updateTranscript(candidate);engine.commitUserTurn();}
-            }
+            if(engine){engine.updateTranscript(candidate);engine.commitUserTurn();}
             console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length+
               ' endToSttFinalMs='+(detectedSpeechEndAtRef.current
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
