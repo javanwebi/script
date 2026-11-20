@@ -30,6 +30,8 @@ test('a verified barge-in aborts the previous response and invalidates stale cal
   assert.equal(lease.signal.aborted, true);
   assert.equal(engine.appendAssistantText(lease.generation, 'پاسخ قدیمی'), false);
   assert.equal(engine.phase, 'user_speaking');
+  const committed = engine.commitUserTurn('قیمت این قطعه چقدر است البته تعداد ده عدد می خواهم');
+  assert.equal(committed?.text, 'قیمت این قطعه چقدر است البته تعداد ده عدد می خواهم');
 });
 
 test('old response completion cannot move a newer user turn into listening', () => {
