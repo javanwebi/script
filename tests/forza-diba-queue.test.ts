@@ -135,3 +135,45 @@ test('queued work resumes when a previously unavailable worker becomes ready', a
   queue.notifyWorkersChanged();
   assert.equal(await result, 42);
 });
+
+test('forty simultaneous STT requests are admitted and serialized across two workers', async () => {
+  const workers: Worker[] = [{ id: 1, busy: false }, { id: 2, busy: false }];
+  let active = 0;
+  let maximumActive = 0;
+  const started: number[] = [];
+  const queue = new ForzaSttQueue<number, number, Worker>(
+    () => workers,
+    async (_worker, value) => {
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      started.push(value);
+      await new Promise(resolve => setTimeout(resolve, 2));
+      active -= 1;
+      return value;
+    },
+    { maxPending: 48, queueTimeoutMs: 45_000 },
+  );
+
+  const results = await Promise.all(Array.from({ length: 40 }, (_, index) => queue.submit(index)));
+  assert.deepEqual(results, Array.from({ length: 40 }, (_, index) => index));
+  assert.equal(started.length, 40);
+  assert.equal(maximumActive, 2);
+  assert.equal(queue.pendingCount, 0);
+});
+
+test('a queued request expires cleanly when workers remain busy beyond the queue deadline', async () => {
+  const workers: Worker[] = [{ id: 1, busy: false }];
+  const active = deferred<string>();
+  const queue = new ForzaSttQueue<string, string, Worker>(
+    () => workers,
+    async () => active.promise,
+    { maxPending: 4, queueTimeoutMs: 1000 },
+  );
+
+  const first = queue.submit('active');
+  const queued = queue.submit('expires');
+  await assert.rejects(queued, /diba_stt_queue_timeout/);
+  active.resolve('finished');
+  assert.equal(await first, 'finished');
+  assert.equal(queue.pendingCount, 0);
+});
