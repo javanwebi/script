@@ -98,3 +98,11 @@ test('forty conversation sessions keep transcripts and response generations isol
     assert.equal(engine.turns[1]?.text, 'پاسخ ' + index);
   });
 });
+
+test('final STT hypothesis replaces an imperfect interim instead of duplicating it', () => {
+  const engine = new ForzaConversationEngine({ sessionId: 'call-final-correction' });
+  engine.updateTranscript('من تسمه');
+  const committed = engine.commitUserTurn('می خواهم یک تسمه تایمینگ');
+  assert.equal(committed?.text, 'می خواهم یک تسمه تایمینگ');
+  assert.equal(engine.activeTranscript, '');
+});
