@@ -99,6 +99,8 @@ test('aborting an active request rejects its caller but keeps its worker busy un
   active.resolve('discarded');
   assert.equal(await second, 'next');
   assert.deepEqual(started, ['active', 'next']);
+  // The caller may resolve before the queue's finally handler releases the worker.
+  await tick();
   assert.equal(queue.pendingCount, 0);
 });
 
@@ -173,7 +175,10 @@ test('a queued request expires cleanly when workers remain busy beyond the queue
   const first = queue.submit('active');
   const queued = queue.submit('expires');
   await assert.rejects(queued, /diba_stt_queue_timeout/);
+  // The queued job expires, but the active worker must remain accounted for.
+  assert.equal(queue.pendingCount, 1);
   active.resolve('finished');
   assert.equal(await first, 'finished');
+  await tick();
   assert.equal(queue.pendingCount, 0);
 });
