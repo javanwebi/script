@@ -161,16 +161,18 @@ export class ForzaConversationEngine {
   /** Append assistant text only if it belongs to the current live generation. */
   appendAssistantText(generation: number, delta: string): boolean {
     if (!this.isCurrent(generation) || this.phaseValue === 'closed') return false;
-    const text = normalize(delta);
-    if (!text) return true;
+    // Stream deltas are byte-for-byte text fragments. Do not trim or insert
+    // spaces: providers may split a word, punctuation or whitespace at any
+    // token boundary.
+    if (!String(delta || '').length) return true;
     const last = this.turnsValue[this.turnsValue.length - 1];
     if (last?.role === 'assistant' && last.id === `assistant-${generation}`) {
-      last.text = normalize(last.text + ' ' + text);
+      last.text += delta;
     } else {
       this.pushTurn({
         id: `assistant-${generation}`,
         role: 'assistant',
-        text,
+        text: delta,
         createdAt: this.now(),
       });
     }
