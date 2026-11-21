@@ -28,6 +28,7 @@ on:
       - ".github/workflows/deploy-production-after-main-ci.yml"
   push:
     branches:
+      - main
       - "feat/forza-conversation-engine-v2-*"
     paths:
       - "src/components/forza/**"
