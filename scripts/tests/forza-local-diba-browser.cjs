@@ -179,11 +179,15 @@ function wav(seconds=0.2){
   await page.waitForFunction(()=>window.__forzaVoskCreated===1,null,{timeout:8000});
   assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
    'the same local recognizer must survive the second voice turn too');
-  await page.evaluate(()=>{window.__forzaMicSample=0.008;});
-  await page.waitForTimeout(450);
   const beforeSecondFrames=await page.evaluate(()=>window.__forzaVoskFrames||0);
   const beforeSecondNonZeroFrames=await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0);
-  console.log('FORZA_DIBA_SECOND_TURN_PCM',JSON.stringify({beforeSecondFrames,beforeSecondNonZeroFrames}));
+  await page.evaluate(()=>{window.__forzaMicSample=0.008;});
+  await page.waitForTimeout(1000);
+  const afterSecondFrames=await page.evaluate(()=>window.__forzaVoskFrames||0);
+  const afterSecondNonZeroFrames=await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0);
+  console.log('FORZA_DIBA_SECOND_TURN_PCM',JSON.stringify({beforeSecondFrames,afterSecondFrames,beforeSecondNonZeroFrames,afterSecondNonZeroFrames}));
+  assert.ok(afterSecondFrames-beforeSecondFrames>=15,'second local Diba turn must continue receiving PCM frames');
+  assert.ok(afterSecondNonZeroFrames-beforeSecondNonZeroFrames>=10,'foreground gate must pass second-turn speech PCM');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('برای دستگاه بسته بندی تسمه PU می خواهم'));
   await page.waitForFunction(text=>document.body.innerText.includes(text),'برای دستگاه بسته بندی تسمه PU می خواهم',{timeout:1500});
   console.log('FORZA_DIBA_SECOND_PARTIAL',JSON.stringify(await page.evaluate(()=>window.__forzaDibaHypothesisDebug||null)));
