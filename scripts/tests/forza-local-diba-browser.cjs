@@ -168,16 +168,34 @@ function wav(seconds=0.2){
   const speechAfterFirst=speech.length;
   assert.ok(speechAfterFirst>=1,'first assistant turn must synthesize Nima audio');
   assert.equal(queries.length,1,'first local Diba turn must be submitted exactly once');
+  const afterFirstReply=await page.evaluate(()=>({
+    created:window.__forzaVoskCreated||0,
+    frames:window.__forzaVoskFrames||0,
+    nonZeroFrames:window.__forzaVoskNonZeroFrames||0,
+    removed:Boolean(window.__forzaVoskRecognizer?.removed),
+  }));
+  console.log('FORZA_DIBA_AFTER_FIRST_REPLY',JSON.stringify(afterFirstReply));
 
   await page.waitForFunction(()=>window.__forzaVoskCreated===1,null,{timeout:8000});
   assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
    'the same local recognizer must survive the second voice turn too');
   await page.evaluate(()=>{window.__forzaMicSample=0.008;});
   await page.waitForTimeout(450);
+  const beforeSecondFrames=await page.evaluate(()=>window.__forzaVoskFrames||0);
+  const beforeSecondNonZeroFrames=await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0);
+  console.log('FORZA_DIBA_SECOND_TURN_PCM',JSON.stringify({beforeSecondFrames,beforeSecondNonZeroFrames}));
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('برای دستگاه بسته بندی تسمه PU می خواهم'));
   await page.waitForFunction(text=>document.body.innerText.includes(text),'برای دستگاه بسته بندی تسمه PU می خواهم',{timeout:1500});
+  console.log('FORZA_DIBA_SECOND_PARTIAL',JSON.stringify(await page.evaluate(()=>window.__forzaDibaHypothesisDebug||null)));
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('برای دستگاه بسته بندی تسمه PU می خواهم'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
+  console.log('FORZA_DIBA_SECOND_FINAL',JSON.stringify(await page.evaluate(()=>({
+    created:window.__forzaVoskCreated||0,
+    frames:window.__forzaVoskFrames||0,
+    nonZeroFrames:window.__forzaVoskNonZeroFrames||0,
+    removed:Boolean(window.__forzaVoskRecognizer?.removed),
+    hypothesis:window.__forzaDibaHypothesisDebug||null,
+  }))));
   await page.waitForFunction(()=>window.__forzaConsultRequestCount===2,null,{timeout:12000});
   assert.equal(queries.length,2,'second local Diba turn must also reach the AI');
   await page.waitForFunction(([first,second])=>document.body.innerText.includes(first)&&document.body.innerText.includes(second),[queries[0],'برای دستگاه بسته بندی تسمه PU می خواهم'],{timeout:3000});
