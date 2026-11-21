@@ -73,7 +73,8 @@ test('manual replay keeps microphone monitoring alive and aborts in-flight TTS o
   assert.match(ui,/manualReplayAbortRef\.current\?\.abort\(new Error\('forza_manual_replay_stopped'\)\)/);
   assert.match(ui,/isManualReplayPendingRef\.current=true;\s*startListening\(true\)/);
   assert.match(ui,/await playPocketFullAnswer\(phrase,player,controller\.signal,/);
-  assert.match(ui,/if\s*\(\s*isProcessingTurnRef\.current\s*\|\|\s*isAiSpeakingRef\.current\s*\|\|\s*isManualReplayPendingRef\.current\s*\)/);
+  assert.match(ui,/const playback=isProcessingTurnRef\.current\|\|isAiSpeakingRef\.current\|\|isManualReplayPendingRef\.current/);
+  assert.match(ui,/if\(playback\)\{conversationEngineRef\.current\?\.updateTranscript\(transcript\);interruptRequestRef\.current\(\);\}/);
   assert.match(ui,/if\(!\/aborted\|stopped\|interrupted\|cancelled\/i\.test\(code\)\)/);
 });
 
@@ -141,13 +142,17 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 });
 
 
-test('server Diba is the only fallback and receives foreground-gated recordings',()=>{
+test('server live Diba is the only low-power fallback and receives foreground-gated PCM',()=>{
   assert.ok(ui.includes('const needsServerFinal = Boolean(audioBlob)'));
   assert.ok(ui.includes('transcribeOnly:true'));
   assert.ok(ui.includes("fetch('/api/ai/forza-live'"));
   assert.ok(ui.includes("info.serverSttProvider==='diba'"));
-  assert.ok(ui.includes("info.serverSttReady===true"));
-  assert.ok(ui.includes('دایبا سرور تنظیم نشده؛ تشخیص گفتار در دسترس نیست'));
+  assert.ok(ui.includes("info.serverLiveSttReady===true"));
+  assert.ok(ui.includes("serverLiveSttConfigured?:boolean;serverLiveSttReady?:boolean;"));
+  assert.ok(ui.includes("attachForzaLivePcmTap(ctx,source"));
+  assert.ok(ui.includes("client?.sendPcm(pcm)"));
+  assert.ok(!ui.includes("SpeechRecognition"));
+  assert.ok(ui.includes('دایبا تنظیم نشده؛ تشخیص گفتار در دسترس نیست'));
   assert.ok(ui.includes('serverSttConfiguredRef=useRef(false)'));
   assert.ok(ui.includes('تشخیص گفتار: {serverSttLabel}'));
 });
