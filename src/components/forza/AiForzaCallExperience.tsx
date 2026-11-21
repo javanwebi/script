@@ -2188,9 +2188,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // keeps browser recognition active during warmup, and retains server Diba
   // as a final fallback. Low-power/save-data devices stay on browser STT.
 
-  // Discover the optional transcription fallback independently of the
-  // text AI provider. Browser streaming STT still works when this is false.
-  // A failed discovery does not disable the existing compatibility path.
+  // Discover the independent Diba stream service. Local Vosk remains primary
+  // on capable devices; low-power devices use the same foreground-gated PCM
+  // over the same-origin WebSocket. No raw-microphone browser recognizer exists.
   useEffect(()=>{
     const controller=new AbortController();
     let retryTimer:number|null=null;
@@ -2208,6 +2208,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // because the first status poll raced model startup.
         const dibaConfigured=info.serverSttProvider==='diba'&&info.serverSttConfigured===true;
         serverSttConfiguredRef.current=dibaConfigured;
+        if(dibaConfigured&&micSourceNodeRef.current&&!localSttModelRef.current)
+          void startServerLiveStt();
         setServerSttLabel(localSttModelRef.current
           ? 'دایبا محلی آماده است · تشخیص زنده'
           : localSttModelLoadingRef.current
@@ -2236,7 +2238,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       controller.abort();
       if(retryTimer!==null)window.clearTimeout(retryTimer);
     };
-  },[]);
+  },[startServerLiveStt]);
 
   // Acquire permission while the particle animation forms; audio input stays
   // muted for transcription until the greeting has finished.
