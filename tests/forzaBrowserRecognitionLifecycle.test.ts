@@ -35,3 +35,15 @@ test('monitor listening keeps one Diba session without reopening a raw microphon
  assert.ok(!body.includes('recognitionStartRef.current()'));
  assert.ok(!body.includes('recognitionRef.current?.start()'));
 });
+
+test('ordinary microphones remain usable when optional voice isolation is unsupported',()=>{
+ const start=source.indexOf('const initializeMicrophone = useCallback(async () => {');
+ const end=source.indexOf('},[ensureCtx,setupMediaRecorder,startListening,attachLocalStt,startDibaTurn,startServerLiveStt,stopServerLiveStt]);',start);
+ assert.ok(start>=0&&end>start);
+ const mic=source.slice(start,end);
+ assert.match(mic,/voiceIsolation:true/);
+ assert.match(mic,/errorName!=='OverconstrainedError'/);
+ assert.match(mic,/constraint!=='voiceIsolation'/);
+ assert.match(mic,/getUserMedia\(\{audio:baseAudioConstraints\}\)/);
+ assert.match(mic,/echoCancellation:true,noiseSuppression:true,autoGainControl:false,channelCount:1/);
+});
