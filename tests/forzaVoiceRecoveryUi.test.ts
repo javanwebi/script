@@ -10,7 +10,7 @@ const styles=readFileSync(new URL('../src/components/forza/style.css',import.met
 const routePreload=readFileSync(new URL('../src/components/layout/RouteIntentPreload.tsx',import.meta.url),'utf8');
 const forzaPage=readFileSync(new URL('../src/pages/AiForzaPage.tsx',import.meta.url),'utf8');
 
-test('new FORZA turns retain the mic instead of stopping live WebSpeech before AI playback',()=>{
+test('new FORZA turns retain the filtered Diba stream instead of reopening the microphone',()=>{
   const from=ui.indexOf('const handleUserFinishedSpeaking = useCallback(');
   const to=ui.indexOf('// Setup MediaRecorder',from);
   assert.ok(from>0 && to>from);
@@ -160,7 +160,8 @@ test('all speech consumers receive foreground-gated PCM before STT; native direc
   assert.ok(mic.includes('micSourceNodeRef.current=route.node'));
   assert.ok(mic.includes('route.node.connect(analyser)'));
   assert.ok(mic.includes('setupMediaRecorder(route.stream)'));
-  assert.ok(mic.includes('recognitionRef.current=null'));
+  assert.ok(mic.includes('attachForzaAudioEvidence(ctx,rawSource'));
+  assert.ok(!ui.includes('SpeechRecognition'));
   assert.ok(!mic.includes('initSpeechRecognition()'));
   const gate=readFileSync(new URL('../public/worklets/forza-foreground-gate.js',import.meta.url),'utf8');
   assert.ok(gate.includes('speechSnrDb >= 11'));
