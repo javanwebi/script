@@ -146,6 +146,10 @@ test('server Diba status is non-blocking and the streaming pool warms independen
  const stream=readFileSync('server/ai/forzaDibaLiveStt.ts','utf8');
  assert.match(stream,/MAX_SESSIONS = 40/);
  assert.match(stream,/activeForIp >= MAX_SESSIONS/);
+
+ assert.match(stream,/activeConnections >= MAX_SESSIONS/);
+ assert.match(stream,/diba_stream_start_timeout/);
+ assert.match(stream,/10_000/);
  assert.match(stream,/request\.headers\['x-real-ip'\]/,
   'reverse-proxy visitors must be counted by real client IP, not the shared Nginx socket address');
  assert.match(stream,/MAX_STDIN_BUFFER/);
