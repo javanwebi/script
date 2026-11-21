@@ -1108,10 +1108,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }), [ensureCtx, isSpeakerMuted, setStatus, stopAudio]);
 
 
-  // Exactly one full answer per turn. Do not split at punctuation, SSE tokens,
-  // words or phoneme phrases in the browser. This is the SAME original Pocket
-  // Farsi voice /speak service, not browser SpeechSynthesis or a new model.
-  // WAV stays in RAM: no browser audio cache or blob URL files.
+  // Manual replay and short acknowledgements keep the single-WAV endpoint.
+  // Live Nima answers use the framed streaming endpoint below. Both paths use
+  // the same private voice identity and keep audio only in browser RAM.
   const requestPocketAudio=useCallback(async(
     answer:string,
     signal?:AbortSignal,
@@ -1283,7 +1282,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const wav=await requestPocketAudio(text,signal,turnId);
       onFrame(wav);
     }
-  },[requestPocketAudio,setActiveVoiceLabel]);
+  },[requestPocketAudio]);
 
   useEffect(()=>{
     if(greetingPhase!=='complete'||voiceModeRef.current!=='piper-nima-gyro-medium')return;
@@ -2057,7 +2056,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, startListening, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted,ensureVoiceMode]
+    [setStatus, startListening, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,requestPocketAudioStream,ensureCtx,isSpeakerMuted,ensureVoiceMode]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
