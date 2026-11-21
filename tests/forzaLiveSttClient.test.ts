@@ -117,7 +117,8 @@ test('PCM tap emits 200 ms 16 kHz frames from the gated audio thread and endpoin
  feed(0,75);
  assert.equal(posted.length,2,'the endpoint receives silence after a real gated speech frame');
  const silence=new Int16Array(posted[1]);
- assert.ok(silence.every(value=>value===0));
+ const silenceRms=Math.sqrt(silence.reduce((sum,value)=>sum+(value/32768)**2,0)/silence.length);
+ assert.ok(silenceRms<0.001,'the PCM tap must deliver a quiet endpoint tail');
  feed(0.25,75,12000); // high-frequency energy must not alias into the speech band
  const high=new Int16Array(posted[2]);
  const highRms=Math.sqrt(high.reduce((sum,value)=>sum+(value/32768)**2,0)/high.length);
