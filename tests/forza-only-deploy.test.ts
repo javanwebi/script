@@ -77,8 +77,8 @@ test("main CI deploy routes only the exact Forza-only commit through the safe en
 });
 
 test("Forza Conversation Engine runs on main pushes for the production deploy gate",()=>{
-  const push=engineWorkflow.slice(engineWorkflow.indexOf("\\n  push:"),engineWorkflow.indexOf("\\npermissions:"));
-  assert.match(push,/branches:\\s*\\n\\s*- main/);
+  const push=engineWorkflow.slice(engineWorkflow.indexOf("\n  push:"),engineWorkflow.indexOf("\npermissions:"));
+  assert.match(push,/branches:\s*\n\s*- main/);
 });
 
 test("Forza-only release classifier includes only the reviewed call-engine fix paths",()=>{
