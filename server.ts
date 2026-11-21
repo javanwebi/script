@@ -5725,10 +5725,10 @@ async function renderPocketSpeech(
         ? AbortSignal.any([cancel,AbortSignal.timeout(60_000)])
         : AbortSignal.timeout(60_000),
     });
-    // The private CPU engine accepts one active job and one waiter. Preserve
-    // ordered audio; retry only known transient 503s within a short budget.
-    // The response is an error (no WAV delivered), so a retry cannot replay
-    // audible speech. Never retry auth failures or arbitrary upstream errors.
+    // The private worker uses a bounded FIFO across its verified isolated
+    // CPU processes. Preserve ordered audio; retry only known transient 503s
+    // within a short budget. A retry cannot replay audible speech because no
+    // WAV was delivered; never retry auth failures or arbitrary upstream errors.
     if(response.status===503){
       const reason=await response.json().catch(()=>null) as {error?:string}|null;
       const retryDelay=forzaVoiceRetryDelayMs(reason?.error,attempt,Date.now()-started);
