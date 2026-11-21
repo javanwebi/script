@@ -6,7 +6,6 @@ import React, { lazy, Suspense, useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Sparkles,
-  User,
   ChevronLeft,
   X,
   RotateCcw,
@@ -14,10 +13,7 @@ import {
   Camera,
   PhoneCall,
   FileText,
-  Copy,
   Check,
-  ThumbsUp,
-  ThumbsDown,
   Globe,
   Lightbulb,
   HelpCircle,
@@ -49,7 +45,7 @@ import { apiUrl } from '../config/apiConfig';
 import { consumeForzaTextStream } from '../utils/forzaStreamClient';
 import { buildVisionConsultationPrompt } from '../utils/visionConsultationPrompt';
 import { toPersianDigits, formatPrice } from '../utils/formatters';
-import { renderEngineeringMarkdown } from '../utils/engineeringMarkdown';
+import { WorkspaceMessageItem } from '../components/forza/ForzaWorkspaceMessage';
 import { CognivoGeometricLogo } from '../components/common/AiFloatingButton';
 import {
   aiVisualSearchService,
@@ -1918,115 +1914,15 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                   /* ACTIVE MESSAGE STREAM */
                   <div className="space-y-4">
                     {messages.map(m => (
-                      <div
+                      <WorkspaceMessageItem
                         key={m.id}
-                        className={`flex items-start gap-2.5 sm:gap-3.5 ${
-                          m.sender === 'user' ? 'flex-row-reverse' : ''
-                        }`}
-                      >
-                        <div
-                          className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-sm shadow-2xs ${
-                            m.sender === 'user'
-                              ? 'bg-[#2B313A] text-white'
-                              : 'bg-[#FFFFFF] border border-[#CBD2D8] text-[#E06518]'
-                          }`}
-                        >
-                          {m.sender === 'user' ? (
-                            <User className="w-4 h-4" />
-                          ) : (
-                            <CognivoGeometricLogo className="w-4 h-4 text-[#E06518]" />
-                          )}
-                        </div>
-
-                        <div
-                          className={`max-w-[88%] sm:max-w-[80%] rounded-2xl sm:rounded-3xl p-3.5 sm:p-4.5 space-y-2.5 shadow-2xs transition-all ${
-                            m.sender === 'user'
-                              ? 'bg-[#2B313A] text-white rounded-tr-xs'
-                              : 'bg-[#FFFFFF] text-[#2B313A] border border-[#CBD2D8] rounded-tl-xs'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-[11px] pb-1 border-b border-current/10">
-                            <span className="font-bold">
-                              {m.sender === 'user' ? 'شما' : 'مشاور فنی هوش مصنوعی FORZA'}
-                            </span>
-                            <span className="opacity-60">{m.time}</span>
-                          </div>
-
-                          <div className="text-xs sm:text-sm leading-relaxed font-normal">
-                            {m.sender === 'ai' ? (
-                              renderEngineeringMarkdown(m.text, false)
-                            ) : (
-                              <div className="whitespace-pre-wrap">{m.text}</div>
-                            )}
-                          </div>
-
-                          {m.suggestedAction && m.suggestedAction.link && (
-                            <div className="pt-2">
-                              <button
-                                type="button"
-                                onClick={() => navigate(m.suggestedAction!.link!)}
-                                className="w-full py-2 px-3 rounded-xl bg-[#F4F4F5] hover:bg-[#E06518] hover:text-white text-[#2B313A] font-bold text-xs flex items-center justify-between border border-[#CBD2D8] transition-colors cursor-pointer"
-                              >
-                                <span>{m.suggestedAction.label}</span>
-                                <ChevronLeft className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
-
-                          {m.sender === 'ai' && (
-                            <div className="flex items-center justify-between pt-2 border-t border-[#CBD2D8]/60 text-xs">
-                              <div className="text-[10px] text-[#777A7D]">
-                                کاتالوگ صنعت پیش
-                              </div>
-
-                              <div className="flex items-center gap-1.5 text-[#55565A]">
-                                <button
-                                  type="button"
-                                  onClick={() => copyToClipboard(m.text, m.id)}
-                                  className="p-1 hover:text-[#2B313A] hover:bg-[#F4F4F5] rounded transition-colors flex items-center gap-1"
-                                  title="کپی متن"
-                                >
-                                  {copiedId === m.id ? (
-                                    <span className="text-emerald-600 font-bold text-[10px]">
-                                      کپی شد
-                                    </span>
-                                  ) : (
-                                    <Copy className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setFeedbackState(prev => ({ ...prev, [m.id]: 'up' }))
-                                  }
-                                  className={`p-1 rounded transition-colors ${
-                                    feedbackState[m.id] === 'up'
-                                      ? 'text-emerald-600'
-                                      : 'hover:text-[#2B313A]'
-                                  }`}
-                                  title="مفید بود"
-                                >
-                                  <ThumbsUp className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setFeedbackState(prev => ({ ...prev, [m.id]: 'down' }))
-                                  }
-                                  className={`p-1 rounded transition-colors ${
-                                    feedbackState[m.id] === 'down'
-                                      ? 'text-rose-600'
-                                      : 'hover:text-[#2B313A]'
-                                  }`}
-                                  title="نیاز به بازنگری"
-                                >
-                                  <ThumbsDown className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                        message={m}
+                        isCopied={copiedId === m.id}
+                        feedback={feedbackState[m.id]}
+                        onCopy={copyToClipboard}
+                        onFeedback={(id, vote) => setFeedbackState(prev => ({ ...prev, [id]: vote }))}
+                        onNavigateLink={link => navigate(link)}
+                      />
                     ))}
 
                     {loading && (
