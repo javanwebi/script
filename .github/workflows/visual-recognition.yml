@@ -48,6 +48,15 @@ jobs:
           cache: npm
       - name: Install locked project dependencies
         run: npm ci --no-audit --no-fund
+      - name: Install pinned browser vision runtime
+        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
+      - name: Stage verified local vision model and WASM
+        run: |
+          mkdir -p public/forza-runtime/ort
+          cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/
+          node scripts/prepare-vision-assets.mjs
+      - name: Client-side vision segmentation regressions
+        run: node --import tsx --test tests/client-ai-segmentation.test.ts
       - name: TypeScript check
         run: npm run lint
       - name: Visual recognition ranking, no-match and region tests
