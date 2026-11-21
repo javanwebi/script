@@ -17,7 +17,8 @@ test('new FORZA turns retain the filtered Diba stream instead of reopening the m
   const turn=ui.slice(from,to);
   assert.doesNotMatch(turn,/\bstopListening\(\)/,'no dropped microphone frames at each request');
   assert.match(turn,/startListening\(true\)/,'monitor STT while model/TTS runs');
-  assert.match(turn,/recognitionConsumedCountRef\.current=recognitionCheckpointRef\.current.count/);
+  assert.match(turn,/localSttFinalRef\.current=''/);
+  assert.match(turn,/localSttAdmissionRef\.current\?\.reset\(\)/);
   assert.match(turn,/activeTurnRef\.current\?\.generation!==generation/);
   assert.match(turn,/activeNimaBuffer\.finish\(\)/);
   assert.match(turn,/bounded_idle_flush=1/);
