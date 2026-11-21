@@ -1,14 +1,10 @@
 /** CPU-friendly, in-memory lookahead for FORZA's selected Piper Nima voice.
  *
- * Receive complete Persian phrases while LLM SSE is still arriving, synthesize
- * at most two requests ahead, and schedule decoded WAVs in source order on one
- * existing AudioContext player. Never persist transcripts or generated PCM.
- *
- * Initial playback waits until roughly two seconds of speech have been prepared
- * (or a short bounded startup window elapses). This reduces late next-phrase
- * gaps without forcing a multi-second delay on short answers. The player owns
- * gap detection and sample-clock scheduling; if the LLM truly stalls longer
- * than buffered audio, no client can synthesize text that has not arrived.
+ * Receive Persian phrases while LLM SSE is still arriving and schedule decoded
+ * WAVs in source order on one existing AudioContext player. The legacy
+ * single-WAV path uses bounded lookahead; the live sentence-stream path starts
+ * playback on the first complete frame and synthesizes only one phrase at a
+ * time, while later phrases are prepared during playback. Never persist audio.
  */
 
 import type {ForzaWavPlaybackProgress} from './forzaContinuousWav';
