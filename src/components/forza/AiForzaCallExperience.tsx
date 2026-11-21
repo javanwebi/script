@@ -1339,9 +1339,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       turnDispatchPendingRef.current=true;
       stopAcknowledgementRef.current?.cancel();
       // Keep the single local/server Diba stream open to hear interruptions.
-      recognitionConsumedCountRef.current=recognitionCheckpointRef.current.count;
-        recognitionConsumedInterimRef.current={...recognitionCheckpointRef.current.interim};
-      recognitionSessionBaseRef.current='';
       localSttFinalRef.current='';
       localSttAdmissionRef.current?.reset();
       turnDispatchPendingRef.current=false;
@@ -1363,7 +1360,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setAiText('');
       setDisplayedAi('');
       activeTranscriptRef.current = '';
-      recognitionSessionBaseRef.current='';
 
       if (q) {
         setUserText(sessionTranscriptRef.current);
