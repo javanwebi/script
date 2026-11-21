@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read = (file: string) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
-test('HomeAboutSection removes the 3 mini feature divs, keeps orbital image on right and summary copy on left', () => {
+test('HomeAboutSection presents the Atlas-backed company story, showroom image and industrial metrics', () => {
   const overview = read('src/components/storefront/HomeOverview.tsx');
   const companyCss = read('src/company-pages.css');
 
@@ -12,18 +12,21 @@ test('HomeAboutSection removes the 3 mini feature divs, keeps orbital image on r
   const sectionEnd = overview.indexOf('export function WhySanatPish');
   const homeAboutCode = overview.slice(sectionStart, sectionEnd);
 
-  assert.doesNotMatch(homeAboutCode, /home-about-preview__highlights/);
-  assert.doesNotMatch(homeAboutCode, /whySanatDirectFactory/);
-  assert.match(homeAboutCode, /levitatingOrbitalEngine/);
-  assert.match(homeAboutCode, /orbitalParts\.map/);
-  assert.match(homeAboutCode, /to="\/about"/);
+  assert.match(homeAboutCode, /home-about-preview__atlas/);
+  assert.match(homeAboutCode, /STORE_ASSETS\.companyPages\.aboutSanatpishShowroom/);
+  assert.match(homeAboutCode, /STORE_ASSETS\.industries\.ceramic/);
   assert.match(homeAboutCode, /با پشتوانه بازرگانی تسمه اطلس از سال ۱۳۶۶/);
+  assert.match(homeAboutCode, /مشتری فعال/);
+  assert.match(homeAboutCode, /صنعت تحت پوشش/);
+  assert.match(homeAboutCode, /تصویر واقعی محصول/);
+  assert.match(homeAboutCode, /کد کالای صنعتی/);
+  assert.match(homeAboutCode, /to="\/about"/);
 
-  assert.match(companyCss, /\.home-about-preview\s*\{[\s\S]*?direction:\s*rtl;/);
-  assert.match(companyCss, /\.home-about-preview__visual\s*\{[\s\S]*?grid-column:\s*1;/);
-  assert.match(companyCss, /\.home-about-preview__copy\s*\{[\s\S]*?grid-column:\s*2;/);
+  assert.match(companyCss, /\.home-about-preview\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1\.22fr\) minmax\(0, \.78fr\)/);
+  assert.match(companyCss, /\.home-about-preview__visual\s*\{[\s\S]*?grid-column:\s*2;/);
+  assert.match(companyCss, /\.home-about-preview__copy\s*\{[\s\S]*?grid-column:\s*1;/);
+  assert.match(companyCss, /@media \(max-width: 760px\)/);
 });
-
 test('AboutPage uses the supplied responsive template, accurate Atlas history, live catalogue metrics and real navigation', () => {
   const discovery = read('src/pages/DiscoveryPages.tsx');
   const about = read('src/pages/AboutPageTemplate.tsx');
