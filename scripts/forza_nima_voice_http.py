@@ -415,7 +415,9 @@ class Handler(BaseHTTPRequestHandler):
             phrase = payload.get("text")
             if not isinstance(phrase, str):
                 raise ValueError("bad_text")
-            phrase = " ".join(phrase.strip().split())
+            # Preserve line boundaries for the sentence-frame stream parser.
+            # spoken_text() still normalizes whitespace for the legacy full-WAV path.
+            phrase = phrase.strip()
             if not 0 < len(phrase) <= MAX_TEXT_CHARS:
                 raise ValueError("bad_text")
         except (ValueError, UnicodeError, AttributeError, json.JSONDecodeError):
