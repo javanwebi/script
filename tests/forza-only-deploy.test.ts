@@ -6,6 +6,7 @@ const deploy = readFileSync(new URL("../ops/deploy-single-port-vps.sh", import.m
 const entrypoint = readFileSync(new URL("../ops/deploy-forza-only-vps.sh", import.meta.url), "utf8");
 const canary = readFileSync(new URL("../ops/verify-forza-only-canary.mjs", import.meta.url), "utf8");
 const server = readFileSync(new URL("../server.ts", import.meta.url), "utf8");
+const voiceUpgrade = readFileSync(new URL("../ops/upgrade-forza-realtime-vps.sh", import.meta.url), "utf8");
 const deployWorkflow = readFileSync(new URL("../.github/workflows/deploy-production-after-main-ci.yml", import.meta.url), "utf8");
 const engineWorkflow = readFileSync(new URL("../.github/workflows/forza-conversation-engine.yml", import.meta.url), "utf8");
 const browserWorkflow = readFileSync(new URL("../.github/workflows/forza-browser-smoke.yml", import.meta.url), "utf8");
@@ -27,7 +28,11 @@ test("Forza-only deployment runs voice tests and never promotes unrelated privat
   assert.match(deploy, /npm run test:forza-engine/);
   assert.match(deploy, /tests\/forza\*\.test\.ts/);
   assert.match(deploy, /verify-forza-only-canary\.mjs/);
-  assert.match(deploy, /FORZA_ONLY_PRIVATE_NIMA_CONTAINER_RETAINED=YES/);
+  assert.match(deploy, /upgrade-forza-realtime-vps\\.sh/);
+  assert.doesNotMatch(deploy, /FORZA_ONLY_PRIVATE_NIMA_CONTAINER_RETAINED=YES/);
+  assert.match(voiceUpgrade, /FORZA_SENTENCE_STREAM_CANARY/);
+  assert.match(voiceUpgrade, /FORZA_SITE_SENTENCE_STREAM_OK/);
+  assert.match(voiceUpgrade, /FORZA_NIMA_LENGTH_SCALE/);
   assert.match(deploy, /FORZA_ONLY_EXISTING_VISION_SIDECAR_PRESERVED=YES/);
   assert.match(deploy, /FORZA_ONLY_LIVE_VISION_INDEX_READ_ONLY_BASELINE_OK/);
   assert.match(deploy, /FORZA_ONLY_FRONTEND_AND_DIBA_ASSETS_OK/);
@@ -74,6 +79,7 @@ test("main CI deploy routes only the exact Forza-only commit through the safe en
   assert.match(deployWorkflow, /FORZA Conversation Engine/);
   assert.match(deployWorkflow, /FORZA autoplay\/microphone UX smoke/);
   assert.match(deployWorkflow, /FORZA private Ubuntu Pocket browser integration/);
+  assert.match(deployWorkflow, /FORZA Nima private voice and SSE speech tests/);
   assert.match(deployWorkflow, /if \[\[ "\$FORZA_ONLY" == "true" \]\]; then[\s\S]*FORZA Conversation Engine/);
   assert.match(deployWorkflow, /Verify VPS frontend build before deployment/);
   assert.match(deployWorkflow, /forza_only=true/);
