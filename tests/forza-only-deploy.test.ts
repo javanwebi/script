@@ -28,6 +28,8 @@ test("Forza-only deployment runs voice tests and never promotes unrelated privat
   assert.match(deploy, /FORZA_ONLY_EXISTING_VISION_SIDECAR_PRESERVED=YES/);
   assert.match(deploy, /FORZA_ONLY_LIVE_VISION_INDEX_READ_ONLY_BASELINE_OK/);
   assert.match(deploy, /FORZA_ONLY_FRONTEND_AND_DIBA_ASSETS_OK/);
+  assert.match(deploy, /def wait_json/);
+  assert.match(deploy, /PUBLIC_FORZA_TTS_WAV_OK/);
 });
 
 test("Forza-only canary loads the persisted visual index read-only without changing production warmup", () => {
