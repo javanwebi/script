@@ -4,9 +4,6 @@
 .fv-workbench {
   background-color: #fff;
   color: #2b313a;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
 }
 
 .fv-camera-stage {
@@ -17,7 +14,6 @@
 }
 
 .fv-corner-brackets {
-  position: relative;
   background:
     linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)) top left/28px 3px no-repeat,
     linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)) top left/3px 28px no-repeat,
