@@ -15,15 +15,17 @@ class FakeRecognizer:
         self.model = model
         self.sample_rate = sample_rate
         self.ended = False
+        self.finalized = False
 
     def SetWords(self, enabled):
         self.words = enabled
 
     def AcceptWaveform(self, pcm):
-        return pcm.startswith(b"\xff\xff")
+        self.finalized = pcm.startswith(b"\xff\xff")
+        return self.finalized
 
     def PartialResult(self):
-        return json.dumps({"partial": "سلام"})
+        return json.dumps({"partial": "" if self.finalized else "سلام"})
 
     def Result(self):
         return json.dumps({"text": "سلام وقت بخیر"})
@@ -55,7 +57,7 @@ class ForzaDibaLiveWorkerTests(unittest.TestCase):
              "pcmBase64": base64.b64encode(endpoint_pcm).decode("ascii")}, FakeRecognizer)
         self.assertEqual(final[0]["type"], "final")
         self.assertEqual(final[0]["text"], "سلام وقت بخیر")
-        self.assertEqual(final[1]["type"], "partial")
+        self.assertEqual(len(final), 1)
 
     def test_streams_keep_independent_recognizers(self):
         WORKER.process_command(self.model, self.streams,
