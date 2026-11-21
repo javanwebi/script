@@ -20,13 +20,12 @@ export class ForzaSpeechAdmission {
   private utteranceLatched=false;
   private utteranceStartedAt:number|null=null;
 
-  sample(rms:number,now:number,playback:boolean,foregroundScore=1,gateOpen=true){
+  sample(rms:number,now:number,playback:boolean,gateOpen=true){
     if(!Number.isFinite(rms)||!Number.isFinite(now)){this.reset();return;}
     // The upstream AudioWorklet is the authoritative foreground gate. This
     // class is a short-lived secondary/echo guard and must never resurrect a
     // frame the worklet rejected.
-    const foregroundAccepted=gateOpen&&Number.isFinite(foregroundScore)&&foregroundScore>=0.42;
-    const value=foregroundAccepted?Math.max(0,Math.min(1,rms)):0;
+    const value=gateOpen?Math.max(0,Math.min(1,rms)):0;
     const enteringPlayback=playback&&!this.mode;
     const leavingPlayback=!playback&&this.mode;
     const samplingGap=now-this.lastSample>250||now<this.lastSample;
