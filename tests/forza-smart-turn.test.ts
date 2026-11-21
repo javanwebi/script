@@ -5,9 +5,8 @@ import { appendForzaSpeechSegment, forzaEndOfTurnPauseMs, forzaTurnRemainingWait
 
 test('unfinished Persian intent must not be submitted as a complete request', () => {
   for (const phrase of [
-    'یه تسمه میخوام',
-    'یه تسمه می‌خوام',
-    'من یه بلبرینگ نیاز دارم',
+    'یه تسمه میخوام برای',
+    'من یه بلبرینگ نیاز دارم برای',
     'یه تسمه میخوام برای',
     'برای دستگاه بسته بندی',
     'نه منظورم',
@@ -42,6 +41,19 @@ test('ambiguous multiword industrial requests are not split by a five-second pau
     assert.ok(forzaEndOfTurnPauseMs(phrase,false)>=15_000,phrase);
   }
   assert.ok(forzaEndOfTurnPauseMs('بلبرینگ 6202 نه',false)>=25_000);
+});
+
+test('direct Persian product requests ending in want/need are complete unless a continuation follows',()=>{
+  for(const phrase of ['یه تسمه میخوام','یه تسمه می‌خوام','من یه بلبرینگ نیاز دارم','تسمه تایمینگ میخواهم']){
+    const result=analyzePersianSentenceCompletion(phrase);
+    assert.equal(result.isComplete,true,phrase);
+    assert.equal(result.confidence,0.82,phrase);
+    assert.equal(forzaEndOfTurnPauseMs(phrase,false),9_000,phrase);
+  }
+  for(const phrase of ['یه تسمه میخوام برای','من یه بلبرینگ نیاز دارم برای']){
+    assert.equal(analyzePersianSentenceCompletion(phrase).isComplete,false,phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase,false)>=25_000,phrase);
+  }
 });
 
 test('a fixed word count or an unclosed question is NOT proof of completion', () => {
