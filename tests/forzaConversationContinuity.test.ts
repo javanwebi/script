@@ -56,7 +56,7 @@ test('FORZA keeps a call-wide transcript and continuation-aware model context',(
   assert.match(ui,/historyRef\.current=\[\.\.\.prior,\{role:'user',text:q\}\]/,
     'the recognized user turn must enter conversation history before async STT can be interrupted');
   assert.match(ui,/sessionTranscriptRef\.current=appendForzaSessionTurn\(sessionTranscriptRef\.current,candidate\)/);
-  assert.match(ui,/setUserText\(composeForzaSessionTranscript\(sessionTranscriptRef\.current,mergedSpeech\)\)/);
+  assert.match(ui,/setUserText\(composeForzaSessionTranscript\(sessionTranscriptRef\.current,transcript\)\)/,\n    'the live customer transcript must retain prior call turns while showing the current Diba hypothesis');
   assert.match(ui,/mapForzaSegmentsInOrder\(audioBlobs,2/);
   assert.match(ui,/Math\.ceil\(audioBlobs\.length\/2\)\*22_000/);
   assert.doesNotMatch(ui,/audioSegmentsRef\.current\.length>4/,
