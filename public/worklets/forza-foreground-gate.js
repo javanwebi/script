@@ -205,6 +205,13 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
         for (const previous of this.frameRanges.slice(-3)) {
           if (previous.eligible) this.markRange(previous);
         }
+        // Retain short unvoiced consonants and natural word gaps only while the
+        // foreground lock is latched. This release window cannot open the gate.
+        if (!features.candidate && this.releaseFrames > 0 &&
+            (features.speechRms >= this.noiseSpeech * 1.15 ||
+             features.highRms >= this.noiseHigh * 1.3)) {
+          this.markRange(range);
+        }
       }
     }
 
