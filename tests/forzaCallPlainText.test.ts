@@ -38,12 +38,19 @@ test('spoken dimension operator is meaningful, while original technical codes ar
   assert.equal(chunks('ابعاد 10*20').at(-1),'ابعاد 10×20');
 });
 
-test('first complete short phrase enters Nima without authoritative SSE done',()=>{
+test('short punctuation-ended greeting waits for following words instead of creating a tiny Nima WAV',()=>{
   const planner=new ForzaIncrementalSpeechText();
-  const first=planner.push('سلام.');
-  assert.deepEqual(first,['سلام.']);
-  assert.deepEqual(planner.push('سلام.'),[]);
-  assert.deepEqual(planner.complete('سلام.'),[]);
+  const short='سلام.';
+  assert.deepEqual(planner.push(short),[]);
+  assert.deepEqual(planner.flushTerminalIdle(),[]);
+  const continued='سلام. فورزا آماده است. برای انتخاب قطعه صنعتی مناسب ابتدا مدل دستگاه را بفرمایید.';
+  const first=planner.push(continued);
+  assert.ok(first.length>0);
+  assert.ok(first[0].startsWith('سلام.'));
+  assert.ok(first[0].includes('فورزا'));
+  const final=planner.complete(continued);
+  assert.equal([...first,...final].join(' ').replace(/\s+/g,' ').trim(),continued);
+  assert.equal(planner.complete(continued).length,0);
 });
 
 test('streamed subtitles cannot rewrite text that has already been voiced',()=>{
