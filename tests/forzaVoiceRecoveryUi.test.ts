@@ -141,14 +141,14 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 
 
 test('server Diba is the only fallback and receives foreground-gated recordings',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\\(audioBlob\\) &&\\s+serverSttConfiguredRef\\.current === true && \\(!q \\|\\| !localSttActiveRef\\.current\\)/);
-  assert.match(ui,/transcribeOnly:true/);
-  assert.match(ui,/fetch\\('\\/api\\/ai\\/forza-live'/);
-  assert.match(ui,/info\\.serverSttProvider==='diba'/);
-  assert.match(ui,/info\\.serverSttReady===true/);
-  assert.match(ui,/دایبا سرور تنظیم نشده؛ تشخیص گفتار در دسترس نیست/);
-  assert.match(ui,/serverSttConfiguredRef=useRef\\(false\\)/);
-  assert.match(ui,/تشخیص گفتار: \\{serverSttLabel\\}/);
+  assert.ok(ui.includes('const needsServerFinal = Boolean(audioBlob)'));
+  assert.ok(ui.includes('transcribeOnly:true'));
+  assert.ok(ui.includes("fetch('/api/ai/forza-live'"));
+  assert.ok(ui.includes("info.serverSttProvider==='diba'"));
+  assert.ok(ui.includes("info.serverSttReady===true"));
+  assert.ok(ui.includes('دایبا سرور تنظیم نشده؛ تشخیص گفتار در دسترس نیست'));
+  assert.ok(ui.includes('serverSttConfiguredRef=useRef(false)'));
+  assert.ok(ui.includes('تشخیص گفتار: {serverSttLabel}'));
 });
 
 test('all speech consumers receive foreground-gated PCM before STT; native direct-mic Web Speech is disabled',()=>{
@@ -156,16 +156,16 @@ test('all speech consumers receive foreground-gated PCM before STT; native direc
   const end=ui.indexOf('},[ensureCtx,setupMediaRecorder,startListening,attachLocalStt]);',start);
   assert.ok(start>=0&&end>start);
   const mic=ui.slice(start,end);
-  assert.match(mic,/attachForzaAudioEvidence\\(ctx,rawSource/);
-  assert.match(mic,/micSourceNodeRef\\.current=route\\.node/);
-  assert.match(mic,/route\\.node\\.connect\\(analyser\\)/);
-  assert.match(mic,/setupMediaRecorder\\(route\\.stream\\)/);
-  assert.match(mic,/recognitionRef\\.current=null/);
-  assert.doesNotMatch(mic,/initSpeechRecognition\\(\\)/);
+  assert.ok(mic.includes('attachForzaAudioEvidence(ctx,rawSource'));
+  assert.ok(mic.includes('micSourceNodeRef.current=route.node'));
+  assert.ok(mic.includes('route.node.connect(analyser)'));
+  assert.ok(mic.includes('setupMediaRecorder(route.stream)'));
+  assert.ok(mic.includes('recognitionRef.current=null'));
+  assert.ok(!mic.includes('initSpeechRecognition()'));
   const gate=readFileSync(new URL('../public/worklets/forza-foreground-gate.js',import.meta.url),'utf8');
-  assert.match(gate,/speechSnrDb >= 11/);
-  assert.match(gate,/highSnrDb >= 2/);
-  assert.match(gate,/registerProcessor\\('forza-foreground-gate'/);
+  assert.ok(gate.includes('speechSnrDb >= 11'));
+  assert.ok(gate.includes('highSnrDb >= 2'));
+  assert.ok(gate.includes("registerProcessor('forza-foreground-gate'"));
 });
 
 test('a two-second pause preserves the same live transcript across browser recognizer restarts',()=>{
