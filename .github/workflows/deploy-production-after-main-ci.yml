@@ -100,6 +100,35 @@ jobs:
           echo "ready=true" >> "$GITHUB_OUTPUT"
           echo "ALL_REQUIRED_MAIN_CHECKS_PASSED=$DEPLOY_SHA"
 
+      - name: Classify exact main release as Forza-only or standard
+        id: release-mode
+        if: steps.required-checks.outputs.ready == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "INVALID_DEPLOY_SHA"; exit 1; }
+          COMMIT_JSON="$(curl --fail --silent --show-error --retry 3 --retry-all-errors -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$DEPLOY_SHA")"
+          FILES="$(jq -r '.files[].filename' <<< "$COMMIT_JSON")"
+          FORZA_ONLY=1
+          while IFS= read -r file; do
+            case "$file" in
+              server.ts|ops/deploy-single-port-vps.sh|ops/deploy-forza-only-vps.sh|ops/verify-forza-only-canary.mjs|tests/forza-only-deploy.test.ts|.github/workflows/forza-conversation-engine.yml|.github/workflows/deploy-production-after-main-ci.yml) ;;
+              *) FORZA_ONLY=0 ;;
+            esac
+          done <<< "$FILES"
+          for required in server.ts ops/deploy-single-port-vps.sh ops/deploy-forza-only-vps.sh ops/verify-forza-only-canary.mjs tests/forza-only-deploy.test.ts .github/workflows/forza-conversation-engine.yml .github/workflows/deploy-production-after-main-ci.yml; do
+            grep -Fxq "$required" <<< "$FILES" || FORZA_ONLY=0
+          done
+          if [[ "$FORZA_ONLY" -eq 1 ]]; then
+            echo "forza_only=true" >> "$GITHUB_OUTPUT"
+            echo "RELEASE_MODE=FORZA_ONLY"
+          else
+            echo "forza_only=false" >> "$GITHUB_OUTPUT"
+            echo "RELEASE_MODE=STANDARD_MAIN"
+          fi
+
       - name: Validate pinned release and production secrets
         if: steps.required-checks.outputs.ready == 'true'
         env:
@@ -133,8 +162,8 @@ jobs:
           ssh-keygen -y -f "$HOME/.ssh/sanatpish_deploy_ed25519" >/dev/null
           ssh-keygen -F "$SSH_HOST" -f "$HOME/.ssh/known_hosts" >/dev/null
 
-      - name: Deploy only the exact main commit whose CI passed
-        if: steps.required-checks.outputs.ready == 'true'
+      - name: Deploy exact Forza-only main commit without database migrations
+        if: steps.required-checks.outputs.ready == 'true' && steps.release-mode.outputs.forza_only == 'true'
         env:
           DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
           SSH_HOST: ${{ secrets.SANATPISH_DEPLOY_HOST }}
@@ -142,13 +171,34 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
-          ssh \
-            -i "$HOME/.ssh/sanatpish_deploy_ed25519" \
-            -o IdentitiesOnly=yes \
-            -o BatchMode=yes \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            -o ConnectTimeout=20 \
-            -o ServerAliveInterval=20 \
-            -o ServerAliveCountMax=90 \
+          REMOTE_COMMAND="sudo bash -lc 'cd /opt/sanatpish && git fetch --no-tags origin main && git show ${DEPLOY_SHA}:ops/deploy-forza-only-vps.sh | bash -s -- ${DEPLOY_SHA}'"
+          ssh \\
+            -i "$HOME/.ssh/sanatpish_deploy_ed25519" \\
+            -o IdentitiesOnly=yes \\
+            -o BatchMode=yes \\
+            -o StrictHostKeyChecking=yes \\
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \\
+            -o ConnectTimeout=20 \\
+            -o ServerAliveInterval=20 \\
+            -o ServerAliveCountMax=90 \\
+            "$SSH_USER@$SSH_HOST" "$REMOTE_COMMAND"
+
+      - name: Deploy standard main release
+        if: steps.required-checks.outputs.ready == 'true' && steps.release-mode.outputs.forza_only != 'true'
+        env:
+          DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
+          SSH_HOST: ${{ secrets.SANATPISH_DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.SANATPISH_DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
+          ssh \\
+            -i "$HOME/.ssh/sanatpish_deploy_ed25519" \\
+            -o IdentitiesOnly=yes \\
+            -o BatchMode=yes \\
+            -o StrictHostKeyChecking=yes \\
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \\
+            -o ConnectTimeout=20 \\
+            -o ServerAliveInterval=20 \\
+            -o ServerAliveCountMax=90 \\
             "$SSH_USER@$SSH_HOST" "deploy $DEPLOY_SHA"
