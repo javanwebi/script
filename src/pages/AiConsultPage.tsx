@@ -59,6 +59,8 @@ import {
   ChainCouplingIcon,
   KilnRollerIcon,
   MechanicalSealIcon,
+  CatalogFinderIcon,
+  SpecSheetIcon,
 } from '../components/forza/ForzaWorkspaceIcons';
 import { DinCalculatorModal, WorkspaceSettingsModal } from '../components/forza/ForzaWorkspaceModals';
 import { CognivoGeometricLogo } from '../components/common/AiFloatingButton';
@@ -184,25 +186,25 @@ const PROMPT_SUGGESTIONS = [
     title: 'محاسبه طول تسمه DIN 2215',
     desc: 'فرمول دقیق با فاصله مراکز و قطر پولی‌ها',
     query: 'محاسبه و طراحی فنی: فرمول دقیق محاسبه طول اسمی تسمه، فاصله محور شفت‌ها و نسبت تبدیل دور پولی',
-    icon: Calculator,
+    icon: DinCalculatorIcon,
   },
   {
     title: 'استعلام قطعات FORZA و SWR',
     desc: 'کد، ابعاد و اطلاعات ثبت‌شده محصولات',
     query: 'بررسی مشخصات فنی، موجودی انبار مرکزی و استعلام قیمت برندهای انحصاری SWR آلمان و FORZA ایتالیا',
-    icon: Globe,
+    icon: CatalogFinderIcon,
   },
   {
     title: 'قطعات کوره کاشی و سرامیک',
     desc: 'رولیک‌های سرامیکی، پولی و تسمه‌های نسوز',
     query: 'شرایط نگهداری، طول عمر مفید و دمای کارکرد تسمه‌های صنعتی و رولیک‌های نسوز در کوره کاشی و سرامیک چیست؟',
-    icon: Factory,
+    icon: KilnRollerIcon,
   },
   {
     title: 'تطبیق و استخراج مشخصات',
     desc: 'تبدیل لیست قطعات به کدهای استاندارد',
     query: 'خلاصه‌سازی و استخراج مشخصات فنی: لیست کدهای فنی تسمه، پولی و یاتاقان را با استانداردهای مربوطه مرتب کنید.',
-    icon: FileText,
+    icon: SpecSheetIcon,
   },
 ];
 
