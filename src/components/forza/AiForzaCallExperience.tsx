@@ -1304,7 +1304,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     console.info('[FORZA_TTS_STREAM] turn='+String(turnId||'unknown')+
       ' firstChunkMs='+Math.round((firstChunkAt||performance.now())-started)+
       ' totalMs='+Math.round(performance.now()-started)+
-      ' frames='+stats.frames+' bytes='+stats.totalBytes);
+      ' frames='+stats.frames+' bytes='+stats.totalBytes+
+      ' workerQueueMs='+String(response.headers.get('X-Forza-Queue-Ms')||'unknown'));
   },[]);
 
   useEffect(()=>{

@@ -5868,8 +5868,8 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
 });
 
 // Progressive binary frames: uint32 little-endian WAV length + standalone WAV.
-// The browser can play each generated phoneme chunk while Pocket continues
-// synthesizing the rest of the same phrase; /forza-speech remains as fallback.
+// The browser schedules each completed clause WAV while private Piper
+// synthesizes the next bounded clause; /forza-speech remains the full-WAV path.
 app.post('/api/ai/forza-speech-stream',async(req,res)=>{
   const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
   if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
@@ -5964,11 +5964,17 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('X-Forza-Voice',upstreamVoice);
     res.setHeader('X-Forza-Voice-Backend','private-service');
+    const upstreamQueueMs=upstream.headers.get('x-forza-queue-ms');
+    if(upstreamQueueMs!==null)res.setHeader('X-Forza-Queue-Ms',upstreamQueueMs);
+    res.setHeader('X-Forza-Stream-Protocol',
+      upstream.headers.get('x-forza-stream-protocol')||'length-prefixed-wav-v1');
     res.flushHeaders?.();
 
     let bytes=0;
+    let firstChunkMs:number|null=null;
     for await(const chunk of upstream.body as any){
       if(controller.signal.aborted)break;
+      if(firstChunkMs===null)firstChunkMs=Date.now()-started;
       bytes+=chunk.length;
       if(bytes>32_000_000)throw new Error('private_voice_stream_too_large');
       if(!res.write(chunk)){
@@ -5981,7 +5987,8 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
       }
     }
     if(!controller.signal.aborted){
-      console.info('[FORZA_LATENCY] phase=pocket-server-stream ms='+(Date.now()-started)+' bytes='+bytes);
+      console.info('[FORZA_LATENCY] phase=pocket-server-stream firstChunkMs='+
+        (firstChunkMs??-1)+' totalMs='+(Date.now()-started)+' bytes='+bytes);
       res.end();
     }
   }catch(error:any){
