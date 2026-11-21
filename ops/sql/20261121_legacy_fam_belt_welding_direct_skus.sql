@@ -38,7 +38,7 @@ DECLARE
   active_pfam integer;
   active_fam integer;
   category_count integer;
-  source_count integer;
+  source_mismatches text;
   backup_count integer;
   applied_count integer;
   rolled_back_count integer;
@@ -74,21 +74,28 @@ BEGIN
       category_count;
   END IF;
 
-  SELECT count(*)::integer
-  INTO source_count
+  SELECT string_agg(
+    s.sku_code || ' expected=' || s.expected_family_code ||
+    ' actual=' || coalesce(v.family_code,'<missing>') ||
+    ' active=' || coalesce(v.active::text,'<missing>') ||
+    ' source_family=' || coalesce(f.code,'<missing>'),
+    '; ' ORDER BY s.sku_code
+  )
+  INTO source_mismatches
   FROM legacy_fam_belt_welding_direct_source s
-  JOIN public.catalog_variants v
-    ON v.code=s.sku_code
-   AND v.family_code=s.expected_family_code
-   AND v.active=true
-  JOIN public.catalog_families f
+  LEFT JOIN public.catalog_variants v ON v.code=s.sku_code
+  LEFT JOIN public.catalog_families f
     ON f.code=s.expected_family_code
-   AND coalesce(f.is_deleted,false)=false;
+   AND coalesce(f.is_deleted,false)=false
+  WHERE v.code IS NULL
+     OR v.family_code IS DISTINCT FROM s.expected_family_code
+     OR v.active IS DISTINCT FROM true
+     OR f.code IS NULL;
 
-  IF source_count <> 3 THEN
+  IF source_mismatches IS NOT NULL THEN
     RAISE EXCEPTION
-      'LEGACY_FAM_WELDING_SOURCE_VALIDATION_FAILED expected=3 found=%',
-      source_count;
+      'LEGACY_FAM_WELDING_SOURCE_VALIDATION_FAILED %',
+      source_mismatches;
   END IF;
 
   -- Never override a disabled SKU or an unrelated/admin-selected category.
