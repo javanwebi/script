@@ -28,6 +28,14 @@ BEGIN
       backup_count;
   END IF;
 
+  IF (
+    SELECT count(*)::integer
+    FROM internal.catalog_legacy_fam_belt_welding_direct_backup_20261121
+    WHERE sku_code IN ('41497','35852','110049')
+  ) <> 3 THEN
+    RAISE EXCEPTION 'LEGACY_FAM_WELDING_ROLLBACK_SKU_SET_MISMATCH';
+  END IF;
+
   IF rolled_back_count=3 THEN
     SELECT count(*)::integer
     INTO restored_count
@@ -56,10 +64,16 @@ BEGIN
   INTO target_count
   FROM internal.catalog_legacy_fam_belt_welding_direct_backup_20261121 b
   JOIN public.catalog_direct_skus d ON d.sku_code=b.sku_code
+  JOIN (VALUES
+    ('41497'::text,'FAM-41497'::text),
+    ('35852'::text,'FAM-35852'::text),
+    ('110049'::text,'FAM-90062'::text)
+  ) expected(sku_code,source_family_code)
+    ON expected.sku_code=b.sku_code
+   AND expected.source_family_code=d.source_family_code
   WHERE d.category_slug='excel-v2-1-4'
     AND d.submenu='دستگاه‌های تسمه جوشی'
     AND d.subcategory='دستگاه جوش تسمه صنعتی'
-    AND d.source_family_code IN ('FAM-41497','FAM-35852','FAM-90062')
     AND d.is_active=true;
 
   IF target_count <> 3 THEN
