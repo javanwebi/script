@@ -34,6 +34,12 @@ class FakeRecognizer:
         return json.dumps({"text": "ادامه گفتار"})
 
 
+
+class FakeEmptyFinalRecognizer(FakeRecognizer):
+    def Result(self):
+        return json.dumps({"text": ""})
+
+
 class ForzaDibaLiveWorkerTests(unittest.TestCase):
     def setUp(self):
         self.model = object()
@@ -58,6 +64,16 @@ class ForzaDibaLiveWorkerTests(unittest.TestCase):
         self.assertEqual(final[0]["type"], "final")
         self.assertEqual(final[0]["text"], "سلام وقت بخیر")
         self.assertEqual(len(final), 1)
+
+
+    def test_empty_final_is_emitted_as_a_result_boundary(self):
+        WORKER.process_command(self.model, self.streams,
+            {"type": "start", "streamId": "customer-a"}, FakeEmptyFinalRecognizer)
+        endpoint_pcm = b"\\xff\\xff" + b"\\x00\\x00" * 1599
+        result = WORKER.process_command(self.model, self.streams,
+            {"type": "audio", "streamId": "customer-a",
+             "pcmBase64": base64.b64encode(endpoint_pcm).decode("ascii")}, FakeEmptyFinalRecognizer)
+        self.assertEqual(result, [{"type": "final", "streamId": "customer-a", "text": ""}])
 
     def test_streams_keep_independent_recognizers(self):
         WORKER.process_command(self.model, self.streams,
