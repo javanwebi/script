@@ -24,7 +24,7 @@ test('new FORZA turns retain the mic instead of stopping live WebSpeech before A
 });
 
 test('final STT text is authoritative when the UI commits a customer turn',()=>{
-  assert.equal((ui.match(/engine\.commitUserTurn\(candidate\)/g)||[]).length,2);
+  assert.equal((ui.match(/engine\.commitUserTurn\(candidate\)/g)||[]).length,1);
   assert.match(ui,/engine\.commitUserTurn\(q\)/);
   assert.match(ui,/engine\.commitUserTurn\(resolvedUserQuery\)/);
   assert.doesNotMatch(ui,/engine\.updateTranscript\((?:candidate|q|resolvedUserQuery)\);engine\.commitUserTurn\(\)/);
@@ -72,7 +72,7 @@ test('manual replay keeps microphone monitoring alive and aborts in-flight TTS o
   assert.match(ui,/manualReplayAbortRef\.current\?\.abort\(new Error\('forza_manual_replay_stopped'\)\)/);
   assert.match(ui,/isManualReplayPendingRef\.current=true;\s*startListening\(true\)/);
   assert.match(ui,/await playPocketFullAnswer\(phrase,player,controller\.signal,/);
-  assert.match(ui,/if\(isProcessingTurnRef\.current\|\|isAiSpeakingRef\.current\|\|isManualReplayPendingRef\.current\)/);
+  assert.match(ui,/if\s*\(\s*isProcessingTurnRef\.current\s*\|\|\s*isAiSpeakingRef\.current\s*\|\|\s*isManualReplayPendingRef\.current\s*\)/);
   assert.match(ui,/if\(!\/aborted\|stopped\|interrupted\|cancelled\/i\.test\(code\)\)/);
 });
 
@@ -91,14 +91,14 @@ test('mic VAD is independent of WebGL animation frame rate',()=>{
   assert.doesNotMatch(ui,/Date\.now\(\)-lastMicActivityRef\.current>3500/);
 });
 
-test('a pure stop consumes cumulative Chrome finals instead of replaying the same command',()=>{
+test('a pure stop consumes the active Diba turn without replaying the same command',()=>{
   const start=ui.indexOf("if(q && forzaTurnIntent(q)==='stop')");
-  const end=ui.indexOf('// Chrome keeps final results',start);
-  assert.ok(start>=0 && end>start);
+  const end=ui.indexOf("return;",start);
+  assert.ok(start>=0&&end>start);
   const stop=ui.slice(start,end);
-  assert.match(stop,/recognitionConsumedCountRef\.current=recognitionCheckpointRef\.current.count/);
+  assert.match(stop,/activeTranscriptRef\.current=''/);
   assert.match(stop,/localSttFinalRef\.current=''/);
-  assert.match(stop,/return;/);
+  assert.match(stop,/localSttAdmissionRef\.current\?\.reset\(\)/);
 });
 
 
@@ -153,7 +153,7 @@ test('server Diba is the only fallback and receives foreground-gated recordings'
 
 test('all speech consumers receive foreground-gated PCM before STT; native direct-mic Web Speech is disabled',()=>{
   const start=ui.indexOf('const initializeMicrophone = useCallback(async () => {');
-  const end=ui.indexOf('},[ensureCtx,setupMediaRecorder,startListening,attachLocalStt]);',start);
+  const end=ui.indexOf('},[ensureCtx,setupMediaRecorder,startListening,attachLocalStt,startDibaTurn,startServerLiveStt,stopServerLiveStt]);',start);
   assert.ok(start>=0&&end>start);
   const mic=ui.slice(start,end);
   assert.ok(mic.includes('attachForzaAudioEvidence(ctx,rawSource'));
@@ -168,10 +168,10 @@ test('all speech consumers receive foreground-gated PCM before STT; native direc
   assert.ok(gate.includes("registerProcessor('forza-foreground-gate'"));
 });
 
-test('a two-second pause preserves the same live transcript across browser recognizer restarts',()=>{
-  assert.match(ui,/recognitionSessionBaseRef=useRef<string>\(''\)/);
-  assert.match(ui,/recognitionSessionBaseRef\.current=activeTranscriptRef\.current\.trim\(\)/);
-  assert.match(ui,/appendForzaSpeechSegment\(recognitionSessionBaseRef\.current,currentSpeech\)/);
+test('a long pause keeps the same Diba session and does not erase the active customer transcript',()=>{
+  assert.match(ui,/if\(localSttRecognizerRef\.current\)\{/);
+  assert.match(ui,/serverLiveSttClientRef\.current/);
+  assert.match(ui,/localSttFinalRef\.current=appendForzaSpeechSegment\(localSttFinalRef\.current,recognized\.text\)/);
   assert.match(ui,/: 10_000;/);
   assert.match(ui,/Math\.max\(10_000,pauseMs\)-acousticSilence/);
   assert.match(speechPipeline,/hasInterim\?6_500:5_500/);
