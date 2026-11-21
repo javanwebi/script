@@ -19,7 +19,6 @@ on:
       - 'tests/forza-boot-speech.test.ts'
       - 'src/utils/forzaStreamingSpeech.ts'
       - 'src/utils/forzaContinuousWav.ts'
-      - 'scripts/tests/forza-live-stt-browser.cjs'
       - 'tests/forza-continuous-wav.test.ts'
   push:
     branches:
