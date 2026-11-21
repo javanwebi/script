@@ -8,7 +8,8 @@ const source=readFileSync(new URL('../src/components/forza/AiForzaCallExperience
 const body=source.split('const releaseCallResources = useCallback(() => {')[1].split('},[stopAudio,stopServerLiveStt]);')[0];
 test('hangup cancels owned resources, detaches restart callbacks, and is repeatable',async()=>{
  const calls:string[]=[];
- let engineClosed=false;\n let serverLiveStopped=false;
+ let engineClosed=false;
+ let serverLiveStopped=false;
  const ref=(current:any)=>({current});
  const recorder={state:'recording',onstop:()=>{},ondataavailable:()=>{},onerror:()=>{},stop(){assert.equal(this.onstop,null);calls.push('recorder');}};
  const track={onended:()=>{},stop(){assert.equal(this.onended,null);calls.push('track');}};
