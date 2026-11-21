@@ -84,9 +84,9 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           source = Path("ops/deploy-single-port-vps.sh").read_text()
-          prefix = "python3 - \"$NEXT\" <<'PY'\\n"
+          prefix = "python3 - \"$NEXT\" <<'PY'\n"
           start = source.index(prefix) + len(prefix)
-          end = source.index("\\nPY\\n", start)
+          end = source.index("\nPY\n", start)
           compile(source[start:end], "deploy-public-forza-verifier", "exec")
           PY
           node --import tsx --test tests/forza-only-deploy.test.ts
