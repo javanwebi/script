@@ -466,7 +466,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       serverLiveSttActiveRef.current=false;
       serverLiveSttRetryAfterRef.current=Date.now()+5000;
-      liveSttActiveRef.current=localSttActiveRef.current;
+      liveSttActiveRef.current=forceLocalFallback?false:localSttActiveRef.current;
       setServerSttLabel('اتصال زنده دایبا برقرار نشد؛ ضبط فیلترشده برای تشخیص نهایی نگه داشته می‌شود');
       console.warn('[FORZA_STT] live setup failed code='+
         String((error as any)?.message||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
