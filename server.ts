@@ -65,6 +65,7 @@ import {avalaiFailureMessage, buildForzaConsultSystemMessage, configuredAvalaiMo
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmForzaDibaStt} from './server/ai/forzaDibaStt';
+import {setupForzaDibaLiveSttWebSocket,warmForzaDibaLiveStt} from './server/ai/forzaDibaLiveStt';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
 import { applyPrivateForzaConfig } from './server/ai/privateForzaConfig';
@@ -88,6 +89,8 @@ loadLocalVisionConfig(process.cwd());
 if(selectForzaSttProvider(process.env).provider==='diba'){
   void warmForzaDibaStt().then(ready=>console.info('[FORZA_STT] provider=diba ready='+Number(ready)))
     .catch(()=>console.warn('[FORZA_STT] provider=diba warmup_failed=1'));
+  void warmForzaDibaLiveStt().then(ready=>console.info('[FORZA_STT] provider=diba-live ready='+Number(ready)))
+    .catch(()=>console.warn('[FORZA_STT] provider=diba-live warmup_failed=1'));
 }
 // Example configuration is documentation only; never load placeholder defaults into runtime.
 
@@ -7996,6 +7999,7 @@ async function start() {
 
   const server = http.createServer(app);
   setupGeminiLiveWebSocket(server);
+  setupForzaDibaLiveSttWebSocket(server);
 
   server.listen(PORT, '0.0.0.0', () => {
     const keyStatus = getGeminiKey()
