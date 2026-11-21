@@ -65,9 +65,11 @@ def process_command(model, streams, request, recognizer_type):
 
         events = []
         if recognizer.AcceptWaveform(pcm):
+            # An empty final is still a decoder boundary. The browser uses it
+            # to release a previously rejected partial hypothesis so the next
+            # customer utterance is evaluated as a fresh result slot.
             final_text = text_from_result(recognizer.Result(), "text")
-            if final_text:
-                events.append({"type": "final", "streamId": stream_id, "text": final_text})
+            events.append({"type": "final", "streamId": stream_id, "text": final_text})
         partial_text = text_from_result(recognizer.PartialResult(), "partial")
         if partial_text:
             events.append({"type": "partial", "streamId": stream_id, "text": partial_text})
