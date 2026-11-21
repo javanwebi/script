@@ -150,11 +150,15 @@ jobs:
         id: belt-audit-scope
         shell: bash
         run: |
-          if [[ "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+          elif [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_EVENT_BEFORE" =~ ^[a-f0-9]{40}$ && "$GITHUB_EVENT_BEFORE" != "0000000000000000000000000000000000000000" ]]; then
+            base_sha="$GITHUB_EVENT_BEFORE"
+          else
             echo "run=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          changed="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "$GITHUB_SHA")"
+          changed="$(git diff --name-only "$base_sha" "$GITHUB_SHA")"
           if printf '%s\n' "$changed" | grep -Eq '^(src/data/(beltCatalogAudit|beltManufacturerEvidence|userProducts|catalogPhase1Reconstruction|catalogMenuSemanticGuard)\.ts|src/services/catalogTaxonomyResolver\.ts|scripts/audit-belt-catalog\.ts|tests/(belt-catalog-audit|catalogFixtures|belt-category-experience)\.test\.ts|tests/fixtures/.*TimingReference\.json|docs/.*belt.*|ops/sql/.*belt.*|tests/database/.*belt.*|supabase/migrations/.*belt.*)$'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
