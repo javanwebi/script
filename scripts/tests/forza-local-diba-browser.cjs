@@ -145,6 +145,8 @@ function wav(seconds=0.2){
   assert.ok(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0)>farFrames,
    'only foreground-gated PCM reaches local Diba');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('می خواهم مشخصات تسمه تایمینگ را بدانم'));
+  await page.waitForTimeout(100);
+  console.log('FORZA_DIBA_HYPOTHESIS_DEBUG',JSON.stringify(await page.evaluate(()=>window.__forzaDibaHypothesisDebug||null)));
   await page.waitForFunction(text=>document.body.innerText.includes(text),'می خواهم مشخصات تسمه تایمینگ را بدانم',{timeout:1500});
   assert.ok(await page.evaluate(()=>window.__forzaVoskFrames||0)>0,'local recognizer must receive live PCM frames');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('تسمه تایمینگ چیست؟'));
