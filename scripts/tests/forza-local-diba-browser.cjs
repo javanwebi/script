@@ -114,8 +114,6 @@ function wav(seconds=0.2){
   assert.equal(await page.evaluate(()=>window.__forzaDibaBufferSampleRate),16000,
    'microphone PCM must be resampled before it reaches Vosk');
   assert.ok(await page.evaluate(()=>window.__forzaDibaBufferLength>0));
-  assert.ok(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0)>farFrames,
-   'only foreground-gated PCM reaches local Diba');
   assert.equal(await page.evaluate(()=>window.__forzaBrowserStarts||0),0,
    'native direct-microphone SpeechRecognition must never bypass the gate');
   assert.equal(await page.evaluate(()=>window.__forzaDibaModelUrl),
@@ -134,6 +132,8 @@ function wav(seconds=0.2){
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal(''));
   await page.evaluate(()=>{window.__forzaMicSample=0.008;});
   await page.waitForTimeout(450);
+  assert.ok(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0)>farFrames,
+   'only foreground-gated PCM reaches local Diba');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('می خواهم مشخصات تسمه تایمینگ را بدانم'));
   await page.getByText('می خواهم مشخصات تسمه تایمینگ را بدانم',{exact:true}).waitFor({timeout:1500});
   assert.ok(await page.evaluate(()=>window.__forzaVoskFrames||0)>0,'local recognizer must receive live PCM frames');
