@@ -65,7 +65,7 @@ import {avalaiFailureMessage, buildForzaConsultSystemMessage, configuredAvalaiMo
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmForzaDibaStt} from './server/ai/forzaDibaStt';
-import {setupForzaDibaLiveSttWebSocket,warmForzaDibaLiveStt} from './server/ai/forzaDibaLiveStt';
+import {isForzaDibaLiveSttReady,setupForzaDibaLiveSttWebSocket,warmForzaDibaLiveStt} from './server/ai/forzaDibaLiveStt';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
 import { applyPrivateForzaConfig } from './server/ai/privateForzaConfig';
@@ -7272,6 +7272,8 @@ app.get('/api/ai/forza-stt-info',async(_req,res)=>{
     serverSttConfigured:choice.provider==='gemini'||dibaConfigured,
     serverSttProvider:choice.provider,
     serverSttReady:choice.provider==='diba'?isForzaDibaSttReady():choice.provider==='gemini',
+    serverLiveSttConfigured:dibaConfigured,
+    serverLiveSttReady:choice.provider==='diba'?isForzaDibaLiveSttReady():false,
     reason:choice.provider==='diba'&&!dibaConfigured?'model_missing':choice.reason,
   });
 });
