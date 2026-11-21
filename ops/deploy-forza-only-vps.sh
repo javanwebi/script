@@ -14,9 +14,21 @@ APP=/opt/sanatpish
 
 # Fetching updates Git objects/refs only. It does not checkout, reset, clean,
 # or overwrite the server worktree (which may contain owner-managed files).
+REQUESTED_SHA="${1:-}"
 git -C "$APP" fetch --no-tags origin main
-SHA="$(git -C "$APP" rev-parse FETCH_HEAD)"
-[[ "$SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "INVALID_FETCHED_MAIN_SHA"; exit 1; }
+FETCHED_MAIN_SHA="$(git -C "$APP" rev-parse FETCH_HEAD)"
+[[ "$FETCHED_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "INVALID_FETCHED_MAIN_SHA"; exit 1; }
+if [[ -n "$REQUESTED_SHA" ]]; then
+  [[ "$REQUESTED_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "INVALID_REQUESTED_RELEASE_SHA"; exit 1; }
+  git -C "$APP" cat-file -e "$REQUESTED_SHA^{commit}"
+  git -C "$APP" merge-base --is-ancestor "$REQUESTED_SHA" "$FETCHED_MAIN_SHA" || {
+    echo "REQUESTED_RELEASE_IS_NOT_ON_ORIGIN_MAIN"
+    exit 1
+  }
+  SHA="$REQUESTED_SHA"
+else
+  SHA="$FETCHED_MAIN_SHA"
+fi
 
 INNER="$(mktemp /tmp/sanatpish-forza-only-inner.XXXXXXXX.sh)"
 trap 'rm -f -- "$INNER"' EXIT
