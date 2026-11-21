@@ -114,6 +114,8 @@ jobs:
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -144,7 +146,96 @@ jobs:
         run: node --import tsx --test tests/textile-industry-premium.test.ts
       - name: Industry page regression suite
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
+      - name: Detect whether the belt evidence audit is in scope
+        id: belt-audit-scope
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "$GITHUB_SHA")"
+          if grep -Eq '^(src/data/(beltCatalogAudit|beltManufacturerEvidence|userProducts|catalogPhase1Reconstruction|catalogMenuSemanticGuard)\.ts|src/services/catalogTaxonomyResolver\.ts|scripts/audit-belt-catalog\.ts|tests/(belt-catalog-audit|catalogFixtures|belt-category-experience)\.test\.ts|tests/fixtures/.*TimingReference\.json|docs/.*belt.*|ops/sql/.*belt.*|tests/database/.*belt.*|supabase/migrations/.*belt.*)
+      - name: Belt category reference and regression suite
+        run: node --import tsx --test tests/belt-category-experience.test.ts
+      - name: FORZA local Diba and speech-turn recovery regression suite
+        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConversationContinuity.test.ts tests/forzaConsultContract.test.ts
+      - name: FORZA TTS budget and error diagnostics regression suite
+        run: node --import tsx --test tests/forzaTtsBudget.test.ts tests/forzaVoiceRecoveryUi.test.ts
+        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
+      - name: Belt menu semantic guard regression suite
+        run: node --import tsx --test tests/catalog-menu-semantic-guard.test.ts
+      - name: Belt taxonomy follow-up migration and rollback integration
+        run: node --import tsx --test tests/database/belt-family-taxonomy-followup.test.ts
+      - name: Belt engineering correction migration and rollback integration
+        run: node --import tsx --test tests/database/belt-family-engineering-corrections.test.ts
+      - name: Single-port deployment and migration ordering regression
+        run: node --import tsx --test tests/single-port-deploy.test.ts
+      - name: PVC conveyor Phase 1 classification regression suite
+        run: node --import tsx --test tests/pvc-conveyor-phase1-classification.test.ts
+      - name: PVC conveyor database split and rollback integration test
+        run: node --import tsx --test tests/database/pvc-conveyor-surface-family-split.test.ts
+      - name: Adopted catalogue identity schema compatibility
+        run: node --import tsx --test tests/database/catalog-identity-specs-compat.test.ts
+      - name: Supabase SMS hook signature safety
+        run: node --import tsx --test tests/supabase-sms-hook.test.ts
+      - name: FORZA mobile support panel and swipe gesture
+        run: node --import tsx --test tests/forza-mobile-contact-sheet.test.ts
+      - name: Mobile camera capture and confirmation flow
+        run: node --import tsx --test tests/mobile-scan-ui.test.ts
+      - name: Build as VPS
+        run: |
+          npm run build 2>&1 | tee /tmp/forza-vps-build.log
+          test -s dist/forza-runtime/stt/vosk.js
+      - name: Install Chromium for belt category responsive smoke
+        run: |
+          npm install --no-save --ignore-scripts --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Launch production preview for catalogue browser tests
+        run: |
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/storefront-preview.log 2>&1 &
+          for i in $(seq 1 50); do
+            if curl -sf http://127.0.0.1:4173/products >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/storefront-preview.log
+          exit 1
+      - name: Verify belt category desktop and mobile interactions
+        run: node scripts/tests/belt-category-responsive-smoke.cjs
+      - name: Verify products catalogue desktop and mobile interactions
+        run: node scripts/tests/products-catalogue-responsive-smoke.cjs
+      - name: Verify product detail desktop and mobile interactions
+        run: node scripts/tests/product-detail-responsive-smoke.cjs
+      - name: Verify all categories desktop and mobile interactions
+        run: node scripts/tests/all-categories-responsive-smoke.cjs
+      - name: Verify Excel menu category desktop and mobile interactions
+        run: node scripts/tests/excel-menu-category-responsive-smoke.cjs
+      - name: Verify textile industry desktop and mobile interactions
+        run: node scripts/tests/textile-industry-responsive-smoke.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: storefront-responsive-screenshots
+          path: |
+            /tmp/belt-category-*.png
+            /tmp/products-catalogue-*.png
+            /tmp/product-detail-*.png
+            /tmp/all-categories-*.png
+            /tmp/excel-category-*.png
+            /tmp/textile-industry-*.png
+          if-no-files-found: ignore
+      - name: Print focused Vite failure
+        if: failure()
+        run: |
+          grep -n -E 'error|Error|Could not|Cannot|failed|Failed|resolve|Build' /tmp/forza-vps-build.log | tail -n 90 || true
+ <<< "$changed"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "BELT_AUDIT_SKIPPED_OUT_OF_SCOPE=YES"
+          fi
       - name: Industrial belt manufacturer evidence audit
+        if: steps.belt-audit-scope.outputs.run == 'true'
         run: node --import tsx scripts/audit-belt-catalog.ts && node --import tsx --test tests/belt-catalog-audit.test.ts
       - name: Belt category reference and regression suite
         run: node --import tsx --test tests/belt-category-experience.test.ts
