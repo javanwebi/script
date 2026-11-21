@@ -6,6 +6,13 @@ on:
       - 'server.ts'
       - 'scripts/forza_pocket_worker.py'
       - 'scripts/forza_voice_http.py'
+      - 'scripts/forza_nima_voice_http.py'
+      - 'tests/test_forza_nima_private.py'
+      - 'src/utils/forzaNimaProgressiveSpeech.ts'
+      - 'src/utils/forzaWavFrameStream.ts'
+      - 'tests/forzaNimaProgressiveSpeech.test.ts'
+      - 'tests/forzaWavFrameStream.test.ts'
+      - 'tests/forzaNimaServerStream.test.ts'
       - 'src/components/forza/AiForzaCallExperience.tsx'
       - 'src/utils/forzaWavFrames.ts'
       - 'src/utils/forzaStreamingSpeech.ts'
@@ -23,6 +30,13 @@ on:
       - 'server.ts'
       - 'scripts/forza_pocket_worker.py'
       - 'scripts/forza_voice_http.py'
+      - 'scripts/forza_nima_voice_http.py'
+      - 'tests/test_forza_nima_private.py'
+      - 'src/utils/forzaNimaProgressiveSpeech.ts'
+      - 'src/utils/forzaWavFrameStream.ts'
+      - 'tests/forzaNimaProgressiveSpeech.test.ts'
+      - 'tests/forzaWavFrameStream.test.ts'
+      - 'tests/forzaNimaServerStream.test.ts'
       - 'src/components/forza/AiForzaCallExperience.tsx'
       - 'src/utils/forzaWavFrames.ts'
       - 'src/utils/forzaStreamingSpeech.ts'
@@ -52,11 +66,13 @@ jobs:
         with:
           python-version: '3.11'
       - run: npm ci --no-audit --no-fund
+      - name: Install pinned browser vision runtime required by the shared TypeScript graph
+        run: npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
       - name: TypeScript check
         run: npm run lint
       - name: Progressive WAV framing and voice path tests
-        run: node --import tsx --test tests/forza-wav-frames.test.ts tests/forza-boot-speech.test.ts tests/forza-continuous-wav.test.ts tests/forza-streaming-speech.test.ts tests/forza-speech-chunks.test.ts
+        run: node --import tsx --test tests/forza-wav-frames.test.ts tests/forza-boot-speech.test.ts tests/forza-continuous-wav.test.ts tests/forza-streaming-speech.test.ts tests/forza-speech-chunks.test.ts tests/forzaNimaProgressiveSpeech.test.ts tests/forzaWavFrameStream.test.ts tests/forzaNimaServerStream.test.ts
       - name: Python syntax check
-        run: python -m py_compile scripts/forza_pocket_worker.py scripts/forza_voice_http.py
+        run: python -m py_compile scripts/forza_pocket_worker.py scripts/forza_voice_http.py scripts/forza_nima_voice_http.py && python tests/test_forza_nima_private.py
       - name: VPS script syntax check
-        run: bash -n ops/forza-voice-stream-benchmark-vps.sh ops/forza-voice-stream-promote-vps.sh ops/forza-voice-faststart-benchmark-vps.sh ops/forza-voice-faststart-promote-vps.sh ops/forza-voice-faststart-rollback-vps.sh
+        run: bash -n ops/forza-voice-stream-benchmark-vps.sh ops/forza-voice-stream-promote-vps.sh ops/forza-voice-faststart-benchmark-vps.sh ops/forza-voice-faststart-promote-vps.sh ops/forza-voice-faststart-rollback-vps.sh ops/upgrade-forza-realtime-vps.sh

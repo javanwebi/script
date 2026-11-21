@@ -75,7 +75,7 @@ jobs:
       - name: Validate source and private TTS contract
         run: |
           npm run lint
-          node --import tsx --test tests/forza-boot-speech.test.ts tests/forza-streaming-speech.test.ts tests/forza-continuous-wav.test.ts tests/forza-speech-chunks.test.ts
+          node --import tsx --test tests/forza-boot-speech.test.ts tests/forza-streaming-speech.test.ts tests/forzaNimaProgressiveSpeech.test.ts tests/forzaWavFrameStream.test.ts tests/forzaNimaServerStream.test.ts tests/forza-continuous-wav.test.ts tests/forza-speech-chunks.test.ts
           node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts tests/forzaLiveSttClient.test.ts
       - name: Prepare Vite runtime
         run: |
