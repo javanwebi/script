@@ -56,6 +56,19 @@ on:
       - tests/test_forza_nima_pool.py
       - ops/upgrade-forza-realtime-vps.sh
       - .github/workflows/forza-nima-private.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/forza_nima_voice_http.py
+      - ops/upgrade-forza-realtime-vps.sh
+      - ops/deploy-single-port-vps.sh
+      - src/components/forza/AiForzaCallExperience.tsx
+      - src/utils/forzaNimaBufferedSpeech.ts
+      - src/utils/forzaNimaWavFrames.ts
+      - tests/forzaNimaWavFrames.test.ts
+      - tests/test_forza_nima_private.py
+      - server.ts
+      - .github/workflows/forza-nima-private.yml
   workflow_dispatch:
 permissions:
   contents: read
