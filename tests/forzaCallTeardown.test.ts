@@ -8,7 +8,7 @@ const source=readFileSync(new URL('../src/components/forza/AiForzaCallExperience
 const body=source.split('const releaseCallResources = useCallback(() => {')[1].split('},[stopAudio,stopServerLiveStt]);')[0];
 test('hangup cancels owned resources, detaches restart callbacks, and is repeatable',async()=>{
  const calls:string[]=[];
- let engineClosed=false;
+ let engineClosed=false;\n let serverLiveStopped=false;
  const ref=(current:any)=>({current});
  const recorder={state:'recording',onstop:()=>{},ondataavailable:()=>{},onerror:()=>{},stop(){assert.equal(this.onstop,null);calls.push('recorder');}};
  const track={onended:()=>{},stop(){assert.equal(this.onended,null);calls.push('track');}};
@@ -27,7 +27,7 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
   localSttModelLoadingRef:ref(true),
   animFrameAudioRef:ref(10),ctxRef:ref({state:'running',async close(){calls.push('context');}}),
   historyRef:ref(['private']),audioChunksRef:ref(['audio']),audioSegmentsRef:ref(['audio-segment']),isProcessingTurnRef:ref(true),
-  stopAudio:()=>calls.push('playback'),stopServerLiveStt:()=>calls.push('server-live-stt'),cancelAnimationFrame:()=>calls.push('animation'),
+  stopAudio:()=>calls.push('playback'),stopServerLiveStt:()=>{if(!serverLiveStopped){serverLiveStopped=true;calls.push('server-live-stt');}},cancelAnimationFrame:()=>calls.push('animation'),
  };
  for(const name of ['localSttNodeRef','localSttSinkRef','micSourceNodeRef','micAnalyserRef','audioSourceNodeRef','analyserRef','gainNodeRef'])values[name]=ref({disconnect(){calls.push('disconnect');}});
  const teardown=new Function(...Object.keys(values),body).bind(null,...Object.values(values));
