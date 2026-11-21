@@ -7,6 +7,10 @@ on:
       - "src/components/forza/**"
       - "src/utils/forzaConversationEngine.ts"
       - "src/utils/forzaSpeechPipeline.ts"
+      - "src/utils/forzaIncrementalSpeechText.ts"
+      - "src/utils/forzaTtsConcurrency.ts"
+      - "tests/forzaNimaIncrementalSpeech.test.ts"
+      - "tests/forzaTtsConcurrency.test.ts"
       - "src/utils/forzaAudioEvidence.ts"
       - "src/utils/forzaLiveSttClient.ts"
       - "server/ai/forzaDibaLiveStt.ts"
@@ -46,6 +50,10 @@ on:
       - "src/components/forza/**"
       - "src/utils/forzaConversationEngine.ts"
       - "src/utils/forzaSpeechPipeline.ts"
+      - "src/utils/forzaIncrementalSpeechText.ts"
+      - "src/utils/forzaTtsConcurrency.ts"
+      - "tests/forzaNimaIncrementalSpeech.test.ts"
+      - "tests/forzaTtsConcurrency.test.ts"
       - "src/utils/forzaAudioEvidence.ts"
       - "src/utils/forzaLiveSttClient.ts"
       - "server/ai/forzaDibaLiveStt.ts"
@@ -111,7 +119,7 @@ jobs:
         run: npm run test:forza-engine
 
       - name: Test turn endpoint and final transcript handoff
-        run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts tests/forzaLiveSttClient.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaLocalDibaStreaming.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts
+        run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaTtsConcurrency.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts tests/forzaLiveSttClient.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaLocalDibaStreaming.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts
 
       - name: TypeScript validation
         run: npm run lint
