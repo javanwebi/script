@@ -1235,34 +1235,36 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   ):Promise<void>=>{
     const text=phrase.trim();
     if(!text)throw new Error('forza_empty_answer');
-    const started=performance.now();
     const timeoutSignal=AbortSignal.timeout(65000);
     const requestSignal=signal?AbortSignal.any([signal,timeoutSignal]):timeoutSignal;
-    const response=await fetch('/api/ai/forza-speech-stream',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        text,
-        turnId:turnId||('call-'+callIdRef.current+'-stream-'+Math.round(performance.now())),
-      }),
-      signal:requestSignal,
-    });
-    if(!response.ok){
-      const failure:any=await response.clone().json().catch(()=>null);
-      const code=String(failure?.errorCode||failure?.error||'unknown')
-        .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,64);
-      if(response.status===429)throw new Error('pocket_http_429_'+code);
-      throw new Error('pocket_stream_http_'+response.status+'_'+code);
-    }
-    const returnedVoice=response.headers.get('X-Forza-Voice');
-    if(returnedVoice!=='piper-nima-gyro-medium')
-      throw new Error('forza_stream_wrong_voice');
-    if(!(response.headers.get('Content-Type')||'').includes('application/x-forza-wav-frames'))
-      throw new Error('forza_stream_wrong_content_type');
-    if(!response.body)throw new Error('forza_stream_body_missing');
-
     let frameCount=0;
+    let fallbackAllowed=true;
     try{
+      const response=await fetch('/api/ai/forza-speech-stream',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          text,
+          turnId:turnId||('call-'+callIdRef.current+'-stream-'+Math.round(performance.now())),
+        }),
+        signal:requestSignal,
+      });
+      if(!response.ok){
+        const failure:any=await response.clone().json().catch(()=>null);
+        const code=String(failure?.errorCode||failure?.error||'unknown')
+          .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,64);
+        if(response.status===429){
+          fallbackAllowed=false;
+          throw new Error('pocket_http_429_'+code);
+        }
+        throw new Error('pocket_stream_http_'+response.status+'_'+code);
+      }
+      const returnedVoice=response.headers.get('X-Forza-Voice');
+      if(returnedVoice!=='piper-nima-gyro-medium')
+        throw new Error('forza_stream_wrong_voice');
+      if(!(response.headers.get('Content-Type')||'').includes('application/x-forza-wav-frames'))
+        throw new Error('forza_stream_wrong_content_type');
+      if(!response.body)throw new Error('forza_stream_body_missing');
       const stats=await consumeForzaNimaWavFrames(response.body,wav=>{
         frameCount++;
         onFrame(wav);
@@ -1273,10 +1275,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         ' totalMs='+stats.totalMs+' bytes='+stats.bytes+
         ' queueMs='+String(response.headers.get('X-Forza-Queue-Ms')||'unknown'));
     }catch(error){
-      // If the stream endpoint is temporarily unavailable before audio starts,
-      // use the same verified Nima WAV endpoint once. Never replay after a
-      // partial stream, and never hide an intentional interruption.
-      if(frameCount!==0||requestSignal.aborted||signal?.aborted||callClosedRef.current)throw error;
+      // If the stream endpoint fails before its first audio frame, use the
+      // verified single-WAV endpoint once. Never replay after partial audio,
+      // exhaust a 429 budget, or hide an intentional interruption.
+      if(!fallbackAllowed||frameCount!==0||requestSignal.aborted||signal?.aborted||callClosedRef.current)throw error;
       console.warn('[FORZA_TTS_STREAM] fallback=single_nima_wav reason='+
         String((error as Error)?.message||'stream_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
       const wav=await requestPocketAudio(text,signal,turnId);
