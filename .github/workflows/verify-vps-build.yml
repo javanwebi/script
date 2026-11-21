@@ -191,7 +191,7 @@ jobs:
           test -s dist/forza-runtime/ort/ort-wasm-simd.wasm
       - name: Install Chromium for belt category responsive smoke
         run: |
-          npm install --no-save --ignore-scripts --no-package-lock playwright@1.56.1
+          npm install --no-save --ignore-scripts --no-package-lock playwright@1.56.1 onnxruntime-web@1.18.0
           npx playwright install --with-deps chromium
       - name: Launch production preview for catalogue browser tests
         run: |
