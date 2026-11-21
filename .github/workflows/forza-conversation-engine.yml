@@ -8,6 +8,9 @@ on:
       - "src/utils/forzaConversationEngine.ts"
       - "src/utils/forzaSpeechPipeline.ts"
       - "src/utils/forzaAudioEvidence.ts"
+      - "src/utils/forzaSpeechAdmission.ts"
+      - "tests/forzaSpeechAdmission.test.ts"
+      - "tests/forzaLocalDibaStreaming.test.ts"
       - "public/worklets/forza-foreground-gate.js"
       - "src/utils/silenceDetector.ts"
       - "server/ai/forzaDibaStt.ts"
@@ -37,6 +40,9 @@ on:
       - "src/components/forza/**"
       - "src/utils/forzaConversationEngine.ts"
       - "src/utils/forzaSpeechPipeline.ts"
+      - "src/utils/forzaAudioEvidence.ts"
+      - "src/utils/forzaSpeechAdmission.ts"
+      - "public/worklets/forza-foreground-gate.js"
       - "src/utils/silenceDetector.ts"
       - "server/ai/forzaDibaStt.ts"
       - "server/ai/forzaSttQueue.ts"
@@ -85,7 +91,7 @@ jobs:
         run: npm run test:forza-engine
 
       - name: Test turn endpoint and final transcript handoff
-        run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts
+        run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaLocalDibaStreaming.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts
 
       - name: TypeScript validation
         run: npm run lint
