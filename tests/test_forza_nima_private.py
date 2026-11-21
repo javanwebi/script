@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline source checks for Nima/Piper deploy candidate. No model files/network."""
 from pathlib import Path
+import os
 import subprocess
 import sys
 import types
