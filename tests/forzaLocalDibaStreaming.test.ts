@@ -126,6 +126,8 @@ test('native browser SpeechRecognition is disabled because it bypasses the foreg
  assert.ok(accept.indexOf('lastDibaHypothesisAtRef.current=Date.now()')<
   accept.indexOf('const echo=likelySpeakerEcho(words)'),
   'any non-empty Diba hypothesis proves the decoder is active, even when rejected as speaker echo');
+ assert.match(ui,/if\(isFinal&&silenceTimerRef\.current\)\{\s*window\.clearTimeout\(silenceTimerRef\.current\);\s*silenceTimerRef\.current=null;/,
+  'a final Diba hypothesis must re-arm a stale interim endpoint with the final linguistic classification');
  assert.match(ui,/speechStartedAtRef\.current===0/);
 });
 
