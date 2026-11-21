@@ -110,6 +110,9 @@ test('native browser SpeechRecognition is disabled because it bypasses the foreg
   assert.match(ui,/liveSttActiveRef\.current/);
  assert.match(ui,/serverLiveSttReadyAtRef\.current=Date\.now\(\)/);
  assert.match(ui,/startedBeforeLiveReady/);
+ assert.match(ui,/local_diba_partial_timeout=1 switching_to_server_live=1/);
+ assert.match(ui,/startServerLiveStt\(true\)/);
+ assert.match(ui,/lastDibaHypothesisAtRef\.current>3000/);
  assert.match(ui,/speechStartedAtRef\.current===0/);
 });
 
