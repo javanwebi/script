@@ -9,6 +9,7 @@ const server = readFileSync(new URL("../server.ts", import.meta.url), "utf8");
 const voiceUpgrade = readFileSync(new URL("../ops/upgrade-forza-realtime-vps.sh", import.meta.url), "utf8");
 const deployWorkflow = readFileSync(new URL("../.github/workflows/deploy-production-after-main-ci.yml", import.meta.url), "utf8");
 const engineWorkflow = readFileSync(new URL("../.github/workflows/forza-conversation-engine.yml", import.meta.url), "utf8");
+const nimaWorkflow = readFileSync(new URL("../.github/workflows/forza-nima-private.yml", import.meta.url), "utf8");
 const browserWorkflow = readFileSync(new URL("../.github/workflows/forza-browser-smoke.yml", import.meta.url), "utf8");
 const privateBrowserWorkflow = readFileSync(new URL("../.github/workflows/forza-private-ubuntu-browser.yml", import.meta.url), "utf8");
 
@@ -95,6 +96,16 @@ test("main CI deploy routes only the exact Forza-only commit through the safe en
 test("Forza Conversation Engine runs on main pushes for the production deploy gate",()=>{
   const push=engineWorkflow.slice(engineWorkflow.indexOf("\n  push:"),engineWorkflow.indexOf("\npermissions:"));
   assert.match(push,/branches:\s*\n\s*- main/);
+});
+
+test("private Nima streaming validation runs on main pushes before Forza deployment",()=>{
+  const start=nimaWorkflow.indexOf("\\n  push:");
+  const end=nimaWorkflow.indexOf("\\n  workflow_dispatch:",start);
+  assert.ok(start>=0&&end>start,"private Nima workflow must define a main push trigger");
+  const push=nimaWorkflow.slice(start,end);
+  assert.match(push,/branches:\\s*\\[main\\]/);
+  assert.match(push,/scripts\\/forza_nima_voice_http\\.py/);
+  assert.match(push,/tests\\/forzaNimaWavFrames\\.test\\.ts/);
 });
 
 test("Forza browser and private Pocket integration checks run on main pushes",()=>{
