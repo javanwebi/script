@@ -212,9 +212,12 @@ test('VAD waits for delayed speech text before stopping an empty transcript reco
   assert.match(ui,/if\(turnDispatchPendingRef\.current && !\(q && forzaTurnIntent\(q\)==='stop'\)\)return/);
 });
 
-test('Nima phrase requests are serialized to match the private single-worker CPU engine',()=>{
-  assert.match(ui,/maxConcurrent:1/);
-  assert.match(ui,/maxAheadPhrases:2/);
+test('Nima phrase requests use only verified spare private workers for parallel synthesis',()=>{
+  assert.match(ui,/nimaSynthesisConcurrencyRef=useRef\(1\)/);
+  assert.match(ui,/forzaNimaClientConcurrency\(data\?\.workers\)/);
+  assert.match(ui,/X-Forza-TTS-Workers/);
+  assert.match(ui,/maxConcurrent:nimaConcurrency/);
+  assert.match(ui,/maxAheadPhrases:nimaConcurrency>=2\?3:2/);
   assert.match(ui,/AbortSignal\.timeout\(65000\)/);
   assert.match(ui,/phase=http_error status=/);
 });
