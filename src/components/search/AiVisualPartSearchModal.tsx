@@ -62,6 +62,7 @@ import { useAuth } from "../../context/AuthContext";
 import { pricingCreditService } from "../../services/pricingCreditService";
 import { IMAGES } from "../../assets/images";
 import "./industrial-scan.css";
+import "./vision-camera-design.css";
 import { VisionAnalysisProgress } from "./VisionAnalysisProgress";
 import { saveCustomerDeviceImage, getCustomerDeviceImage, getCustomerDeviceImageMetadata, adoptCustomerDeviceImage, customerImageBlobToDataUrl } from "../../services/customerImageVault";
 import { createCustomerImageIdentification, completeCustomerImageIdentification, selectCustomerImageProduct } from "../../services/customerIntelligenceService";
@@ -905,7 +906,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       }
       noPadding={currentStep === 1 || currentStep === "analyzing"}
     >
-      <div className="sanat-visual-search-shell" dir="rtl">
+      <div className="sanat-visual-search-shell fv-workbench" dir="rtl">
       {!cameraFlowActive && currentStep === 1 && !selectedImage && (
         <nav className="sp-vision-journey" aria-label="مراحل شناسایی قطعه" data-testid="vision-journey">
           {[
@@ -956,7 +957,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             </div>
           </header>
 
-          <div className={`sanat-camera-experience__stage ${cameraReview ? "is-review" : ""}`}>
+          <div className={`sanat-camera-experience__stage fv-camera-stage ${cameraReview ? "is-review" : ""}`}>
             {cameraReview && selectedImage ? (
               <img src={selectedImage} alt="پیش‌نمایش عکس ثبت‌شده از قطعه"
                 className="sanat-camera-experience__preview"/>
@@ -980,8 +981,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
               <Target size={17} aria-hidden="true"/>
               <span>{cameraReview ? "عکس ثبت شد؛ تصویر را تأیید کنید" : "قطعه مورد نظر را در قاب قرار دهید"}</span>
             </div>
-            <span className="sanat-camera-experience__frame" aria-hidden="true"/>
-            {!cameraReview && isCameraReady && <span className="sanat-camera-experience__scan-line" aria-hidden="true"/>}
+            <span className="sanat-camera-experience__frame fv-corner-brackets" aria-hidden="true"/>
+            {!cameraReview && isCameraReady && <span className="sanat-camera-experience__scan-line fv-scan-laser" aria-hidden="true"/>}
             <span className="sanat-camera-experience__live-tag" role="status" aria-live="polite">
               {cameraReview ? "پیش‌نمایش تصویر" : isCameraReady ? "دوربین فعال" : "در حال آماده‌سازی دوربین…"}
             </span>
