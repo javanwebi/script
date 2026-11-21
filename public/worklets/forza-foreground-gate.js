@@ -58,7 +58,10 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
     const down = [];
     for (let i = 0; i < samples.length; i += step) down.push(samples[i]);
     const minLag = Math.max(2, Math.floor(rate / 360));
-    const maxLag = Math.min(Math.floor(rate / 75), Math.floor(down.length * 0.45));
+    // Include the second harmonic of ordinary 80–180 Hz voices. A 75 Hz
+    // floor truncated that peak near the window edge and falsely classified
+    // one speaker as overlapping voices, closing the gate on normal speech.
+    const maxLag = Math.min(Math.floor(rate / 60), Math.floor(down.length * 0.45));
     const correlations = [];
     for (let lag = minLag; lag <= maxLag; lag += 1) {
       let cross = 0, left = 0, right = 0;
