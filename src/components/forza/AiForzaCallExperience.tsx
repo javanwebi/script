@@ -2242,7 +2242,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(callClosedRef.current||microphoneGeneration!==microphoneGenerationRef.current||micMutedRef.current)return;
         speechAdmissionRef.current.sample(rms,at,
           isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current,
-          score??0,gateOpen===true);
+          gateOpen===true);
       },()=>{
         if(microphoneGeneration!==microphoneGenerationRef.current)return;
         audioEvidenceCleanupRef.current=null;
