@@ -405,6 +405,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             // If local Vosk was not producing timely partials, switch the
             // already-filtered PCM source to the server stream without a mic reset.
             if(forceLocalFallback||!localSttRecognizerRef.current){
+              // Commit the complete live local transcript before changing
+              // decoders; an unfinished interim must survive the handoff.
+              if(activeTranscriptRef.current.trim())
+                localSttFinalRef.current=activeTranscriptRef.current.trim();
+              localSttAdmissionRef.current?.reset();
               try{localSttRecognizerRef.current?.remove?.();}catch{}
               localSttRecognizerRef.current=null;
               localSttActiveRef.current=false;
