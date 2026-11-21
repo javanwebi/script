@@ -52,6 +52,7 @@ test("Forza-only canary checks Diba, Nima, and two sequential TTS turns without 
   assert.match(canary, /serverSttReady/);
   assert.match(canary, /FORZA_CANARY_EXISTING_VISION_INDEX_READ_ONLY_OK/);
   assert.match(canary, /piper-nima-gyro-medium/);
+  assert.match(canary, /generated_audio_persisted, false/);
   assert.match(canary, /FORZA_TTS_SEQUENTIAL_TURN_OK/);
   assert.match(canary, /for\s*\(let index = 1; index <= 2/);
   assert.doesNotMatch(canary, /consult-stream|forza-live|database\(\)\.query|INSERT\s+INTO|UPDATE\s+public\./i);
