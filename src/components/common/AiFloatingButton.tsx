@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { ChevronUp, Instagram, MessageCircle, Phone, Send, X } from "lucide-react";
+import { ChevronUp, Instagram, LifeBuoy, MessageCircle, Phone, Send, X } from "lucide-react";
 import "./floating-quick-actions.css";
-import forzaWorkspaceMark from "../../assets/forza-workspace-mark.svg";
+
+const forzaWorkspaceMark = "/images/brand/forza-emblem.webp";
 
 /** FORZA workspace emblem derived from the user-supplied orange triangular logo.
  * Kept under the old component name to preserve every existing call site.
@@ -56,7 +57,13 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
     navigate("/ai-consult");
   };
 
-  const handleLauncherClick = () => navigate("/ai-consult");
+  const handleLauncherClick = () => {
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      setSheetOpen(true);
+    } else {
+      navigate("/ai-consult");
+    }
+  };
 
   useEffect(() => {
     if (!sheetOpen) return;
@@ -125,8 +132,20 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
   ];
   return (
     <>
-    {showAssistant && (
-      <div className="store-ai-quick-actions" role="group" aria-label="دسترسی سریع به میزکار FORZA">
+    <div className="store-ai-quick-actions" role="group" aria-label="دسترسی سریع به راهنمای خرید و FORZA">
+      <button
+        type="button"
+        className="store-help-launcher"
+        onClick={(event) => window.dispatchEvent(
+          new CustomEvent("open-mobile-support", { detail: { opener: event.currentTarget } }),
+        )}
+        title="راهنمای خرید و پشتیبانی"
+        aria-label="باز کردن راهنمای خرید و پشتیبانی"
+        aria-haspopup="dialog"
+      >
+        <LifeBuoy size={23} strokeWidth={1.9} />
+      </button>
+      {showAssistant && (
         <button
           type="button"
           className="store-assistant unified-ai-launcher"
@@ -139,8 +158,8 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
           <CognivoGeometricLogo size={29} />
           <span>میزکار FORZA</span>
         </button>
-      </div>
-    )}
+      )}
+    </div>
     {showAssistant && sheetOpen && createPortal(
       <div className="sp-forza-contact" dir="rtl">
         <div className="sp-forza-contact__backdrop" onClick={() => setSheetOpen(false)} aria-hidden="true" />
