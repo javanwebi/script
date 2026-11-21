@@ -388,6 +388,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         onState:(state,code)=>{
           if(serverLiveSttClientRef.current!==client)return;
           if(state==='ready'){
+            // Local Vosk is the preferred decoder. A server stream may have
+            // started while the model was loading; never run both on one mic.
+            if(!forceLocalFallback&&localSttRecognizerRef.current&&localSttActiveRef.current){
+              stopServerLiveStt();
+              return;
+            }
             if(forceLocalFallback&&localSttActiveRef.current&&
                Date.now()-lastDibaHypothesisAtRef.current<1500){
               // Local Vosk recovered while the server connection was warming.
