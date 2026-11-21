@@ -108,6 +108,9 @@ test('native browser SpeechRecognition is disabled because it bypasses the foreg
   assert.match(ui,/attachForzaLivePcmTap\(ctx,source/);
   assert.match(ui,/client\.sendPcm\(pcm\)/);
   assert.match(ui,/liveSttActiveRef\.current/);
+ assert.match(ui,/serverLiveSttReadyAtRef\.current=Date\.now\(\)/);
+ assert.match(ui,/startedBeforeLiveReady/);
+ assert.match(ui,/speechStartedAtRef\.current===0/);
 });
 
 test('the browser keeps one Diba recognizer alive across listen/monitor transitions',()=>{
