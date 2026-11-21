@@ -1231,7 +1231,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     phrase:string,
     signal:AbortSignal|undefined,
     turnId:string|undefined,
-    onFrame:(wav:Uint8Array)=>void,
+    onFrame:(wav:Uint8Array,frameText?:string)=>void,
   ):Promise<void>=>{
     const text=phrase.trim();
     if(!text)throw new Error('forza_empty_answer');
@@ -1282,7 +1282,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       console.warn('[FORZA_TTS_STREAM] fallback=single_nima_wav reason='+
         String((error as Error)?.message||'stream_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
       const wav=await requestPocketAudio(text,signal,turnId);
-      onFrame(wav);
+      onFrame(wav,text);
     }
   },[requestPocketAudio]);
 
