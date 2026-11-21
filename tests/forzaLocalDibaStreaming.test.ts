@@ -120,6 +120,8 @@ test('the browser keeps one Diba recognizer alive across listen/monitor transiti
  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
  assert.match(ui,/if\(localSttRecognizerRef\.current\)\{/,
   'monitor-only listening must not destroy the active Vosk decoder');
+ assert.match(ui,/if\(!forceLocalFallback&&localSttRecognizerRef\.current&&localSttActiveRef\.current\)\{\s*stopServerLiveStt\(\);\s*return;\}/,
+  'local and server Diba decoders must never consume the same mic session concurrently');
  assert.match(ui,/localSttFinalRef\.current=appendForzaSpeechSegment\(localSttFinalRef\.current,recognized\.text\)/,
   'final Vosk segments must append to the same customer turn');
 });
