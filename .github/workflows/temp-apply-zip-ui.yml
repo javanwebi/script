@@ -1,0 +1,42 @@
+name: Temporary ZIP UI patch import
+on:
+  push:
+    branches:
+      - feat/forza-zip-ui-port-20261121
+    paths:
+      - '.tmp/zip-ui/READY'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/forza-zip-ui-port-20261121
+          sparse-checkout: |
+            src/components/forza
+            src/components/search
+            src/pages
+            tests
+            .github/workflows
+            .tmp/zip-ui
+          sparse-checkout-cone-mode: true
+      - name: Verify and apply ZIP UI patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "feat/forza-zip-ui-port-20261121"
+          cat .tmp/zip-ui/patch.part.* | base64 -d > /tmp/forza-zip-ui.patch.xz
+          xz -t /tmp/forza-zip-ui.patch.xz
+          xz -dc /tmp/forza-zip-ui.patch.xz > /tmp/forza-zip-ui.patch
+          git apply --check /tmp/forza-zip-ui.patch
+          git apply /tmp/forza-zip-ui.patch
+          git diff --check
+          rm -rf .tmp/zip-ui
+          rm .github/workflows/temp-apply-zip-ui.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m "feat(forza): port ZIP workspace and scanner UI"
+          git push origin "HEAD:feat/forza-zip-ui-port-20261121"
