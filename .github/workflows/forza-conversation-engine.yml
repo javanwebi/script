@@ -6,10 +6,13 @@ on:
     paths:
       - "src/components/forza/**"
       - "src/utils/forzaConversationEngine.ts"
+      - "src/utils/forzaSpeechPipeline.ts"
       - "server/ai/forzaDibaStt.ts"
       - "server/ai/forzaSttQueue.ts"
       - "server.ts"
       - "tests/forza-conversation-engine.test.ts"
+      - "tests/forza-smart-turn.test.ts"
+      - "tests/forzaVoiceRecoveryUi.test.ts"
       - "tests/forza-speech-pipeline.test.ts"
       - "tests/forzaBrowserRecognitionLifecycle.test.ts"
       - "tests/forzaCallTeardown.test.ts"
@@ -21,7 +24,6 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/forza-conversation-engine.yml"
-      - ".github/workflows/deploy-production-after-main-ci.yml"
       - ".github/workflows/deploy-production-after-main-ci.yml"
   push:
     branches:
@@ -73,6 +75,9 @@ jobs:
 
       - name: Test conversation engine
         run: npm run test:forza-engine
+
+      - name: Test turn endpoint and final transcript handoff
+        run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forzaVoiceRecoveryUi.test.ts
 
       - name: TypeScript validation
         run: npm run lint
