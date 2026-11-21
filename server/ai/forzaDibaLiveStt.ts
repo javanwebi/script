@@ -206,6 +206,7 @@ function rejectUpgrade(socket: import('node:stream').Duplex, status: number, rea
 export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024, perMessageDeflate: false });
   const connectionsPerIp = new Map<string, number>();
+  let activeConnections = 0;
 
   server.on('upgrade', (request, socket, head) => {
     let url: URL;
@@ -233,20 +234,30 @@ export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
     // would collapse every visitor to 127.0.0.1 behind the reverse proxy.
     const ip = String(request.headers['x-real-ip'] || request.socket.remoteAddress || 'unknown').slice(0, 96);
     const activeForIp = connectionsPerIp.get(ip) || 0;
-    if (activeForIp >= MAX_SESSIONS) {
+    if (activeConnections >= MAX_SESSIONS || activeForIp >= MAX_SESSIONS) {
       send(socket, { type: 'error', code: 'diba_stream_ip_limit' });
       socket.close(1013, 'Too many Diba streams from this address');
       return;
     }
+    activeConnections += 1;
     connectionsPerIp.set(ip, activeForIp + 1);
     let worker: LiveWorker | null = null;
     let streamId = '';
     let startPending = false;
     let closed = false;
+    let handshakeTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      if (closed || worker || startPending) return;
+      send(socket, { type: 'error', code: 'diba_stream_start_timeout' });
+      cleanup(false);
+      socket.close(1008, 'Diba stream start timed out');
+    }, 10_000);
 
     const cleanup = (cancel = true) => {
       if (closed) return;
       closed = true;
+      if (handshakeTimer !== null) clearTimeout(handshakeTimer);
+      handshakeTimer = null;
+      activeConnections = Math.max(0, activeConnections - 1);
       if (worker && streamId) closeSession(worker, streamId, cancel);
       worker = null;
       streamId = '';
@@ -287,6 +298,8 @@ export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
 
       if (message?.type === 'start') {
         if (worker || startPending) return;
+        if (handshakeTimer !== null) clearTimeout(handshakeTimer);
+        handshakeTimer = null;
         if (message.sampleRate !== 16000) {
           send(socket, { type: 'error', code: 'unsupported_sample_rate' });
           socket.close(1003, '16 kHz PCM required');
