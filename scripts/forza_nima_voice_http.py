@@ -2,8 +2,9 @@
 """Private low-memory Piper gyro (Nima in karim23657 demo) for FORZA.
 
 Wire-compatible with /speak and /speak-stream on the previous Pocket worker.
-Each *complete* response is synthesized once and sent as one gap-free PCM WAV
-frame. No customer WAV, transcript or PCM is written to disk or stored in a cache.
+The full /speak endpoint returns one WAV; /speak-stream sends each Piper sentence
+as soon as it is synthesized. No customer WAV, transcript or PCM is written to
+disk or stored in a cache.
 """
 import concurrent.futures
 from concurrent.futures.process import BrokenProcessPool
@@ -307,13 +308,13 @@ class Handler(BaseHTTPRequestHandler):
     def write_stream_payload(self, payload):
         if self.client_disconnected():
             raise InterruptedError("voice_client_disconnected")
-        self.wfile.write(("%X\\r\\n" % len(payload)).encode("ascii"))
+        self.wfile.write(("%X\r\n" % len(payload)).encode("ascii"))
         self.wfile.write(payload)
-        self.wfile.write(b"\\r\\n")
+        self.wfile.write(b"\r\n")
         self.wfile.flush()
 
     def finish_stream(self):
-        self.wfile.write(b"0\\r\\n\\r\\n")
+        self.wfile.write(b"0\r\n\r\n")
         self.wfile.flush()
 
     def client_disconnected(self):
