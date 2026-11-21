@@ -152,6 +152,10 @@ function startWorker(): LiveWorker {
   return worker;
 }
 
+export function isForzaDibaLiveSttConfigured(): boolean {
+  return providerEnabled();
+}
+
 export function isForzaDibaLiveSttReady(): boolean {
   return workers.some(worker => worker.ready && !worker.failed && worker.child.exitCode === null);
 }
@@ -225,9 +229,11 @@ export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
   });
 
   wss.on('connection', (socket, request) => {
-    const ip = String(request.socket.remoteAddress || 'unknown').slice(0, 96);
+    // Nginx sets X-Real-IP from $remote_addr; socket.remoteAddress alone
+    // would collapse every visitor to 127.0.0.1 behind the reverse proxy.
+    const ip = String(request.headers['x-real-ip'] || request.socket.remoteAddress || 'unknown').slice(0, 96);
     const activeForIp = connectionsPerIp.get(ip) || 0;
-    if (activeForIp >= 4) {
+    if (activeForIp >= MAX_SESSIONS) {
       send(socket, { type: 'error', code: 'diba_stream_ip_limit' });
       socket.close(1013, 'Too many Diba streams from this address');
       return;
