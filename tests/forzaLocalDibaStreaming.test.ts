@@ -98,7 +98,8 @@ test('native browser SpeechRecognition is disabled because it bypasses the foreg
   const end=ui.indexOf('},[ensureCtx,setupMediaRecorder,startListening,attachLocalStt,startDibaTurn,startServerLiveStt,stopServerLiveStt]);',start);
   assert.ok(start>0&&end>start);
   const mic=ui.slice(start,end);
-  assert.ok(mic.includes('recognitionRef.current=null'));
+  assert.ok(mic.includes('attachForzaAudioEvidence(ctx,rawSource'));
+  assert.ok(!ui.includes('SpeechRecognition'));
   assert.ok(!mic.includes('initSpeechRecognition()'));
   assert.ok(mic.includes('setupMediaRecorder(route.stream)'));
   assert.ok(!ui.includes('if (!localReady && !micMutedRef.current && recognitionRef.current'));
