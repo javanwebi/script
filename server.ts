@@ -5965,7 +5965,7 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
     res.setHeader('X-Forza-Voice',upstreamVoice);
     res.setHeader('X-Forza-Voice-Backend','private-service');
     const queueMs=upstream.headers.get('x-forza-queue-ms');
-    if(queueMs!==null&&/^\\d{1,8}$/.test(queueMs))
+    if(queueMs!==null&&/^\d{1,8}$/.test(queueMs))
       res.setHeader('X-Forza-Queue-Ms',queueMs);
     res.flushHeaders?.();
 
