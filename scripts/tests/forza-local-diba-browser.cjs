@@ -138,8 +138,8 @@ function wav(seconds=0.2){
   assert.equal(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0),farFrames,
    'distant PCM must not reach the STT recognizer');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal(''));
-  await page.evaluate(()=>{window.__forzaMicSample=0.008;});
-  await page.waitForTimeout(450);
+  await page.evaluate(()=>{window.__forzaMicSample=0.02;});
+  await page.waitForTimeout(1000);
   assert.ok(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0)>farFrames,
    'only foreground-gated PCM reaches local Diba');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('می خواهم مشخصات تسمه تایمینگ را بدانم'));
