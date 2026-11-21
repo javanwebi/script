@@ -51,7 +51,10 @@ export function analyzePersianSentenceCompletion(text: string): PersianSentenceA
   // A short product request ending in "می‌خواهم" or "نیاز دارم" is often
   // a complete spoken request, not an unfinished clause. Only accept it when
   // an object has already been spoken; a following connector was rejected above.
-  const directRequestEnd=/(?:میخوام|می‌خوام|میخواهم|می‌خواهم|نیاز\s+دارم|لازم\s+دارم)$/;
+  // Persian speech-to-text providers emit the "می خواهم" prefix with
+  // either a normal space, ZWNJ, or no separator. Treat all common spellings
+  // as the same direct-request ending after an explicit product/object.
+  const directRequestEnd=/(?:می[ \u200c]*خوام|می[ \u200c]*خواهم|نیاز\s+دارم|لازم\s+دارم)$/;
   if(directRequestEnd.test(clean)&&clean.split(/\s+/).length>=3){
     return decision(true,false,false,0.82,1200,'درخواست مستقیم با موضوع مشخص');
   }
