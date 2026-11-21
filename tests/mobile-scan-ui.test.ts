@@ -60,18 +60,21 @@ test("mobile capsule has four destinations, a detached camera, and no support do
   assert.match(css, /border-radius: 50%/);
 });
 
-test("FORZA button is the sole lowered floating launcher on mobile without an upper popup above it", () => {
+test("FORZA floating actions expose support separately and open the swipe-to-enter contact sheet", () => {
   const floating = source("src/components/common/AiFloatingButton.tsx");
   const layout = source("src/components/layout/Layout.tsx");
   const styles = source("src/components/common/floating-quick-actions.css");
-  assert.doesNotMatch(floating, /store-help-launcher/);
-  assert.doesNotMatch(floating, /open-mobile-support/);
-  assert.match(floating, /className="[^"]*unified-ai-launcher[^"]*"/);
+  const bottomBar = source("src/components/layout/MobileBottomBar.tsx");
+  assert.match(floating, /className="store-help-launcher"/);
+  assert.match(floating, /open-mobile-support/);
+  assert.match(floating, /setSheetOpen\(true\)/);
+  assert.match(floating, /dragOffsetRef\.current > 58/);
+  assert.match(floating, /navigate\("\/ai-consult"\)/);
+  assert.match(bottomBar, /addEventListener\("open-mobile-support", openSupport\)/);
   assert.match(layout, /<AiFloatingButton showAssistant=/);
-  assert.match(styles, /flex-direction: column/);
-  assert.match(styles, /inset-block-end: calc\(88px/);
+  assert.match(styles, /\.storefront \.store-ai-quick-actions > \.store-help-launcher/);
+  assert.match(styles, /inset-block-end: calc\(106px/);
 });
-
 test("RTL pill items follow home, categories, cart, account, camera; active colors follow orange brand", () => {
   const nav = source("src/components/layout/MobileBottomBar.tsx");
   const css = source("src/components/layout/industrial-mobile-nav.css");
