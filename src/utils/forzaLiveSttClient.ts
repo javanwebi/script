@@ -33,7 +33,10 @@ export class ForzaLiveSttClient {
     if (typeof WebSocket === 'undefined') return Promise.reject(new Error('websocket_unavailable'));
     this.running = true;
     this.options.onState?.('connecting');
-    return this.connect(true);
+    return this.connect(true).catch(error => {
+      if (this.running) this.scheduleReconnect();
+      throw error;
+    });
   }
 
   sendPcm(pcm: ArrayBuffer): void {
@@ -126,12 +129,15 @@ export class ForzaLiveSttClient {
 
       socket.onerror = () => {
         if (!settled) finish(new Error('diba_stream_socket_error'));
+        try { socket.close(); } catch {}
       };
 
       socket.onclose = () => {
         if (this.socket === socket) this.socket = null;
         this.ready = false;
-        if (!settled && opened) finish(new Error('diba_stream_closed_before_ready'));
+        if (!settled) finish(new Error(opened
+          ? 'diba_stream_closed_before_ready'
+          : 'diba_stream_closed_before_open'));
         if (!this.running) return;
         if (this.fatal) {
           this.options.onState?.('failed', 'diba_stream_unavailable');
