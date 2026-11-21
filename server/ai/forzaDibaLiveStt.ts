@@ -144,6 +144,10 @@ function startWorker(): LiveWorker {
   return worker;
 }
 
+export function isForzaDibaLiveSttReady(): boolean {
+  return workers.some(worker => worker.ready && !worker.failed && worker.child.exitCode === null);
+}
+
 export async function warmForzaDibaLiveStt(): Promise<boolean> {
   if (!providerEnabled()) return false;
   const healthy = workers.filter(worker => worker.ready && !worker.failed && worker.child.exitCode === null);
