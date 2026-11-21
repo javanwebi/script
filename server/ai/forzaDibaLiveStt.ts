@@ -169,9 +169,19 @@ export async function warmForzaDibaLiveStt(): Promise<boolean> {
       if (worker.failed || worker.child.exitCode !== null) workers.splice(index, 1);
     }
     while (workers.length < workerCount()) workers.push(startWorker());
-    const results = await Promise.allSettled(workers.map(worker => worker.readyPromise));
-    return results.some(result => result.status === 'fulfilled') &&
-      workers.some(worker => worker.ready && !worker.failed && worker.child.exitCode === null);
+    // Let the first healthy Diba process accept a live call immediately while
+    // the remaining pool members continue warming in the background.
+    const readiness = workers.map(worker => worker.readyPromise.then(() => true).catch(() => false));
+    return await new Promise<boolean>(resolve => {
+      let completed = 0;
+      for (const ready of readiness) {
+        ready.then(ok => {
+          if (ok) { resolve(true); return; }
+          completed += 1;
+          if (completed === readiness.length) resolve(false);
+        });
+      }
+    });
   })().catch(() => false).finally(() => { warmPromise = null; });
   return warmPromise;
 }
