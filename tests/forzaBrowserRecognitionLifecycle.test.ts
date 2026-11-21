@@ -104,18 +104,26 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
  fire([result('این رویداد قدیمی است')]);
  assert.equal(interrupted,1);
 });
-test('return to listening preserves a customer sentence arriving at playback completion',()=>{
- const body=source.split('    if(!monitorOnly){')[1].split('    // Prefer the on-device Diba/Vosk partial recognizer')[0];
- const execute=new Function('activeTranscriptRef','lastTranscriptChangedAtRef','hasSpeechSoundRef','audioChunksRef','setStatus','setTurn','if(true){'+body);
- const transcript={current:'ده عدد از همان می خواهم'};
- const changed={current:123},speech={current:true},chunks={current:['audio']};
- execute(transcript,changed,speech,chunks,()=>{},()=>{});
- assert.equal(transcript.current,'ده عدد از همان می خواهم');
- assert.equal(changed.current,123);
- assert.equal(speech.current,true);
- assert.deepEqual(chunks.current,['audio']);
-});
-
+test('return to listening preserves a customer sentence without reopening raw microphone STT',()=>{
+  const start=source.indexOf('const startListening = useCallback(');
+  const block=source.indexOf('if(!monitorOnly){',start);
+  const end=source.indexOf('// Only the foreground-gated stream may reach STT.',block);
+  assert.ok(start>=0&&block>start&&end>block);
+  const body=source.slice(block+'if(!monitorOnly){'.length,end).replace(/\\s*}\\s*$/,'');
+  const execute=new Function('activeTranscriptRef','lastTranscriptChangedAtRef','hasSpeechSoundRef',
+    'audioChunksRef','audioSegmentsRef','recognitionSessionBaseRef','setStatus','setTurn',body);
+  const transcript={current:'ده عدد از همان می خواهم'};
+  const changed={current:123},speech={current:true},chunks={current:['audio']};
+  const segments={current:['segment']},session={current:'ده عدد از همان می خواهم'};
+  execute(transcript,changed,speech,chunks,segments,session,()=>{},()=>{});
+  assert.equal(transcript.current,'ده عدد از همان می خواهم');
+  assert.equal(changed.current,123);
+  assert.equal(speech.current,true);
+  assert.deepEqual(chunks.current,['audio']);
+  assert.deepEqual(segments.current,['segment']);
+  assert.ok(source.includes('recognitionRef.current=null'));
+ });
+ 
 test('the start watchdog retries a recognizer that accepts start() but never emits onstart',()=>{
  assert.match(source,/recognitionStartWatchdogRef\.current=window\.setTimeout/);
  assert.match(source,/recognitionStartPendingRef\.current=false;\s*scheduleRestart\(450\)/);
