@@ -34,17 +34,20 @@ class NimaCandidateTests(unittest.TestCase):
                 self.events.append(event)
 
         class FakeEngine:
+            def __init__(self):
+                self.calls=[]
             def synthesize(self,text):
-                self.text=text
+                self.calls.append(text)
+                pcm=bytes([0,0])*80 if len(self.calls)==1 else bytes([1,0])*120
                 yield types.SimpleNamespace(sample_channels=1,sample_width=2,
-                    sample_rate=22050,audio_int16_bytes=b"\\x00\\x00"*80)
-                yield types.SimpleNamespace(sample_channels=1,sample_width=2,
-                    sample_rate=22050,audio_int16_bytes=b"\\x01\\x00"*120)
+                    sample_rate=22050,audio_int16_bytes=pcm)
 
-        scope["engine"]=FakeEngine()
+        fake_engine=FakeEngine()
+        scope["engine"]=fake_engine
         output=FakeQueue()
         count=scope["synthesize_stream_to_queue"]("سلام. بله.",output,FakeStop())
         self.assertEqual(count,2)
+        self.assertEqual(fake_engine.calls,["سلام","بله"])
         self.assertEqual([event[0] for event in output.events],["frame","frame","done"])
         for index,(kind,wav) in enumerate(output.events[:2]):
             self.assertEqual(kind,"frame")
@@ -52,6 +55,8 @@ class NimaCandidateTests(unittest.TestCase):
             self.assertEqual(wav[8:12],b"WAVE")
             self.assertEqual(int.from_bytes(wav[24:28],"little"),22050)
             self.assertEqual(int.from_bytes(wav[40:44],"little"),[160,240][index])
+        self.assertEqual(scope["spoken_sentences"]("قطر 3.25 و کد SWR.A19. سپس نصب شود."),
+            ["قطر 3 25 و کد SWR A19","سپس نصب شود"])
 
     def test_pinned_original_gyro_voice_and_no_audio_disk_cache(self):
         docker=(ROOT/"Dockerfile.forza-nima").read_text(encoding="utf-8")
