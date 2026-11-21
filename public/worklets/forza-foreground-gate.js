@@ -182,6 +182,7 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
       this.attackFrames = 0;
       this.releaseFrames = 0;
       this.gateOpen = false;
+      this.outputGain = 0;
       for (const previous of this.frameRanges) this.clearRange(previous);
       this.frameRanges = [];
     } else {
