@@ -37,7 +37,7 @@ test('Pocket fallback keeps one complete WAV while selected Nima streams ordered
   assert.match(ui,/await activeNimaBuffer\.finish\(\)/);
   assert.match(ui,/if\(useNima\)/);
   assert.match(ui,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort\.signal,\s*['\"]call-/);
-  assert.match(ui,/const response=await fetch\('\/api\/ai\/forza-speech'/);
+  assert.match(ui,/response=await fetch\('\/api\/ai\/forza-speech'/);
   assert.match(ui,/await player\.enqueueWav\(audio\)/);
   assert.doesNotMatch(ui,/ForzaLiveSpeechQueue|liveSpeech\?\.receive|playPocketProgressive|readForzaWavFrames/);
   assert.match(ui,/const returnedVoice=response\.headers\.get\('X-Forza-Voice'\)/);
