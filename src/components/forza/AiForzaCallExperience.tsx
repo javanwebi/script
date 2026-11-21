@@ -2241,7 +2241,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const route=await attachForzaAudioEvidence(ctx,rawSource,(rms,at)=>{
         if(callClosedRef.current||microphoneGeneration!==microphoneGenerationRef.current||micMutedRef.current)return;
         speechAdmissionRef.current.sample(rms,at,
-          isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current);
+          isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current,
+          score??0,gateOpen===true);
       },()=>{
         if(microphoneGeneration!==microphoneGenerationRef.current)return;
         audioEvidenceCleanupRef.current=null;
