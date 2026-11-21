@@ -220,7 +220,7 @@ BEGIN
   LEFT JOIN public.catalog_direct_skus d ON d.sku_code=s.sku_code
   ON CONFLICT (sku_code) DO UPDATE SET
     name=CASE
-      WHEN trim(catalog_direct_skus.name)='' THEN excluded.name
+      WHEN coalesce(trim(catalog_direct_skus.name),'')='' THEN excluded.name
       ELSE catalog_direct_skus.name
     END,
     category_slug=excluded.category_slug,
@@ -228,12 +228,13 @@ BEGIN
     submenu=excluded.submenu,
     subcategory=excluded.subcategory,
     brand=CASE
-      WHEN trim(catalog_direct_skus.brand)='' THEN excluded.brand
+      WHEN coalesce(trim(catalog_direct_skus.brand),'')='' THEN excluded.brand
       ELSE catalog_direct_skus.brand
     END,
     image_url=coalesce(catalog_direct_skus.image_url,excluded.image_url),
     technical_specs=CASE
-      WHEN catalog_direct_skus.technical_specs='[]'::jsonb
+      WHEN catalog_direct_skus.technical_specs IS NULL
+        OR catalog_direct_skus.technical_specs='[]'::jsonb
         THEN excluded.technical_specs
       ELSE catalog_direct_skus.technical_specs
     END,
