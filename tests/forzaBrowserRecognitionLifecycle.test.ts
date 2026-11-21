@@ -43,7 +43,6 @@ test('ordinary microphones remain usable when optional voice isolation is unsupp
  const mic=source.slice(start,end);
  assert.match(mic,/voiceIsolation:true/);
  assert.match(mic,/constraint!=='voiceIsolation'/);
- assert.match(mic,/constraint!=='voiceIsolation'/);
  assert.match(mic,/getUserMedia\(\{audio:baseAudioConstraints\}\)/);
  assert.match(mic,/echoCancellation:true,noiseSuppression:true,autoGainControl:false,channelCount:1/);
 });
