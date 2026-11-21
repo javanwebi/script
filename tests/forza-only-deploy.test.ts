@@ -52,9 +52,14 @@ test("Forza-only canary loads the persisted visual index read-only without chang
   assert.match(canary, /FORZA_CANARY_VISION_INDEX_HAS_PENDING_WRITES/);
 });
 
-test("Forza-only canary checks Diba, Nima, and two sequential TTS turns without an LLM call", () => {
+test("Forza-only canary checks live Diba streaming, Nima, and two sequential TTS turns without an LLM call", () => {
   assert.match(canary, /serverSttProvider === "diba"/);
   assert.match(canary, /serverSttReady/);
+  assert.match(canary, /serverLiveSttReady === true/);
+  assert.match(canary, /api\/forza-stt-stream/);
+  assert.match(canary, /sampleRate: 16000/);
+  assert.match(canary, /Buffer\.alloc\(6400\)/);
+  assert.match(canary, /FORZA_DIBA_LIVE_STREAM_OK/);
   assert.match(canary, /FORZA_CANARY_EXISTING_VISION_INDEX_READ_ONLY_OK/);
   assert.match(canary, /piper-nima-gyro-medium/);
   assert.match(canary, /generated_audio_persisted, false/);
@@ -103,6 +108,8 @@ test("Forza browser and private Pocket integration checks run on main pushes",()
 test("Forza-only release classifier includes only the reviewed call-engine fix paths",()=>{
   for(const path of [
     "src/components/forza/AiForzaCallExperience.tsx",
+    "server.ts",
+    "ops/verify-forza-only-canary.mjs",
     "src/utils/forzaSpeechPipeline.ts",
     "src/utils/forzaAudioEvidence.ts",
     "src/utils/forzaLiveSttClient.ts",
