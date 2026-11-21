@@ -124,6 +124,51 @@ def spoken_text(value):
     return " ".join("".join(spoken).split())
 
 
+def spoken_sentences(value):
+    """Split only true sentence endings before removing spoken punctuation.
+
+    Decimal values and technical identifiers such as SWR.A19 stay intact.
+    Piper's Python generator emits one AudioChunk per sentence, so invoking it
+    sentence-by-sentence lets the HTTP stream deliver each completed sentence
+    without waiting for the rest of a multi-sentence phrase.
+    """
+    value = re.sub(r"(?i)(?:https?://|www\\.)\\S+", " ", value)
+    value = re.sub(r"(?<=\\d)\\s*\\*\\s*(?=\\d)", " در ", value)
+    value = re.sub(r"[*\\x60#]", " ", value)
+    closers = "»”’\\\"')]}〉"
+    abbreviations = {"dr", "mr", "mrs", "ms", "prof", "e.g", "i.e", "vs", "no"}
+    sentences = []
+    start = 0
+    for index, character in enumerate(value):
+        if character == "\\n":
+            boundary = index + 1
+        elif character in ".!?؟۔":
+            previous = value[index - 1] if index else ""
+            following = value[index + 1] if index + 1 < len(value) else ""
+            if previous.isalnum() and following.isalnum():
+                continue
+            boundary = index + 1
+            while boundary < len(value) and value[boundary] in closers:
+                boundary += 1
+            next_character = value[boundary] if boundary < len(value) else ""
+            if next_character and not next_character.isspace():
+                continue
+            if character == ".":
+                token_match = re.search(r"([A-Za-z](?:[A-Za-z.]*)?)\\s*$", value[start:index])
+                if token_match and token_match.group(1).lower().rstrip(".") in abbreviations:
+                    continue
+        else:
+            continue
+        spoken = spoken_text(value[start:boundary])
+        if spoken:
+            sentences.append(spoken)
+        start = boundary
+    tail = spoken_text(value[start:])
+    if tail:
+        sentences.append(tail)
+    return sentences or ([spoken_text(value)] if spoken_text(value) else [])
+
+
 def generation_error_diagnostics(exc):
     """Non-content error identity for ONNX/Piper failures.
 
@@ -199,17 +244,20 @@ def queue_stream_event(output_queue, stop_event, event):
 
 def synthesize_stream_to_queue(text, output_queue, stop_event):
     """Publish each Piper sentence WAV as soon as its inference completes."""
-    spoken = spoken_text(text)
-    if not spoken:
+    sentences = spoken_sentences(text)
+    if not sentences:
         raise ValueError("empty_spoken_text")
     frames = 0
-    for part in engine.synthesize(spoken):
+    for sentence in sentences:
         if stop_event.is_set():
             break
-        wav = audio_chunk_to_wav(part)
-        if not queue_stream_event(output_queue, stop_event, ("frame", wav)):
-            break
-        frames += 1
+        for part in engine.synthesize(sentence):
+            if stop_event.is_set():
+                break
+            wav = audio_chunk_to_wav(part)
+            if not queue_stream_event(output_queue, stop_event, ("frame", wav)):
+                break
+            frames += 1
     if not stop_event.is_set():
         queue_stream_event(output_queue, stop_event, ("done", frames))
     return frames
@@ -389,13 +437,14 @@ class Handler(BaseHTTPRequestHandler):
                 stream_started = True
                 frames = 0
                 if inference_pool is None:
-                    spoken = spoken_text(phrase)
-                    if not spoken:
+                    sentences = spoken_sentences(phrase)
+                    if not sentences:
                         raise ValueError("empty_spoken_text")
-                    for part in engine.synthesize(spoken):
-                        wav = audio_chunk_to_wav(part)
-                        self.write_stream_payload(struct.pack("<I", len(wav)) + wav)
-                        frames += 1
+                    for sentence in sentences:
+                        for part in engine.synthesize(sentence):
+                            wav = audio_chunk_to_wav(part)
+                            self.write_stream_payload(struct.pack("<I", len(wav)) + wav)
+                            frames += 1
                 else:
                     if stream_manager is None:
                         raise RuntimeError("stream_manager_unavailable")
