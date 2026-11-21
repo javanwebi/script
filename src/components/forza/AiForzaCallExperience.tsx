@@ -1792,7 +1792,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           maxConcurrent:nimaConcurrency,
           maxAheadPhrases:nimaConcurrency>=2?3:2,
           initialBufferSeconds:2,
-          maximumInitialWaitMs:120,
+          maximumInitialWaitMs:180,
           onBuffered:info=>console.info('[FORZA_NIMA_BUFFER] audio_s='+
             info.bufferedSeconds.toFixed(2)+' phrases='+info.queuedPhrases+
             ' started='+Number(info.started)),
