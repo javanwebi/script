@@ -242,7 +242,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recognitionConsumedCountRef=useRef(0);
   const recognitionCheckpointRef=useRef({count:0,interim:{} as Record<number,string>});
   const recognitionConsumedInterimRef=useRef<Record<number,string>>({});
-  // The browser may restart SpeechRecognition after a pause. Keep the current
+  // The local Diba recognizer may emit partials after a pause. Keep the current
   // utterance as the base for the next recognition session instead of losing it.
   const recognitionSessionBaseRef=useRef<string>('');
   // Compare only to speech entering the WebAudio player, not the LLM's
@@ -418,7 +418,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
     // Only the foreground-gated stream may reach STT. Native Web Speech is
     // intentionally disabled because browsers cannot route a filtered stream
-    // into SpeechRecognition; low-power devices use the server Diba fallback.
+    // into a direct-microphone browser recognizer; low-power devices use the server Diba fallback.
     const localReady=startDibaTurn();
     if(localReady){
       if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
@@ -478,7 +478,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Low-latency VAD uses actual mic PCM RMS, not decorative frequency motion.
   // The worker STT fallback receives MediaRecorder audio after a real speech
-  // segment finishes; Chrome SpeechRecognition may finish even sooner.
+  // segment finishes; Local Diba may finish even sooner.
   useEffect(() => {
     let active=true;
     let samples=new Float32Array(512);
@@ -2047,7 +2047,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         previousRecognizer.onend=null;previousRecognizer.onerror=null;previousRecognizer.onresult=null;
         try{previousRecognizer.abort();}catch{}
       }
-      // SpeechRecognition cannot consume the filtered MediaStream. Keeping it
+      // A native browser recognizer cannot consume the filtered MediaStream. Keeping it
       // alive would let background conversations bypass the foreground gate.
       recognitionRef.current=null;
       recognitionFailedRef.current=false;
