@@ -116,7 +116,9 @@ export class ForzaLiveSttClient {
         }
         if (message.type === 'partial' || message.type === 'final') {
           const text = String(message.text || '').trim();
-          if (text) this.options.onHypothesis(text, message.type === 'final');
+          // An empty final closes the previous Vosk result slot and must reach
+          // the admission state machine even though it carries no transcript.
+          if (text || message.type === 'final') this.options.onHypothesis(text, message.type === 'final');
           return;
         }
         if (message.type === 'error') {
