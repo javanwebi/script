@@ -1,6 +1,7 @@
 import {LocalModelResults} from './LocalModelResults';
 import {CatalogResultImage} from './CatalogResultImage';
 import {apiUrl} from '../../config/apiConfig';
+import { getForegroundRegion, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
@@ -168,6 +169,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [regionDetectionId,setRegionDetectionId]=useState<string|null>(null);
   const [fullImageSelected,setFullImageSelected]=useState(false);
   const regionDetectionSequenceRef=useRef(0);
+  const localSegmentationRef=useRef<{source:string;result:ClientAiSegmentationResult;region:ImageRegion}|null>(null);
   const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
@@ -181,7 +183,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
+  React.useEffect(()=>{localSegmentationRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
   React.useEffect(() => {
     if (!isOpen) {
@@ -349,9 +351,29 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setRegionDetectionState('detecting');
     setRegionDetectionMessage('');
     setRegionDetectionId(null);
+
+    const tryClientSegmentation = async (): Promise<boolean> => {
+      const segmented = await segmentImageWithClientAi(imageUrl);
+      if (sequence !== regionDetectionSequenceRef.current) return true;
+      const region = segmented ? getForegroundRegion(segmented) : null;
+      if (!segmented || !region) return false;
+      localSegmentationRef.current = { source: imageUrl, result: segmented, region };
+      setRegionDetectionId(null);
+      setQueryRegion(region);
+      setCandidateRegions([region]);
+      setFullImageSelected(false);
+      setRegionDetectionState('ready');
+      setLocalRegionEnabled(true);
+      setRegionDetectionMessage('ناحیه قطعه با مدل محلی U²-NetP پیشنهاد شده است؛ کادر را بررسی و در صورت نیاز اصلاح کنید.');
+      return true;
+    };
+
     try {
       const detection = await aiVisualSearchService.detectImageRegions(imageUrl);
       if (sequence !== regionDetectionSequenceRef.current) return;
+      if (!detection.queryRegion && !(detection.queryRegions || []).length) {
+        if (await tryClientSegmentation()) return;
+      }
       setRegionDetectionId(detection.detectionId);
       setQueryRegion(detection.queryRegion);
       setCandidateRegions(detection.queryRegions);
@@ -360,6 +382,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setLocalRegionEnabled(true);
       if (!detection.queryRegion) setRegionDetectionMessage('ناحیه خودکار قابل‌اعتماد پیدا نشد؛ می‌توانید کادر را دستی بکشید یا کل تصویر را انتخاب کنید.');
     } catch (error: any) {
+      if (sequence !== regionDetectionSequenceRef.current) return;
+      if (await tryClientSegmentation()) return;
       if (sequence !== regionDetectionSequenceRef.current) return;
       setRegionDetectionId(null);
       setQueryRegion(undefined);
@@ -665,12 +689,26 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     let activeImageEventId: string | null = imageEventId;
     try {
       let imageBase64: string | undefined;
+      let analysisMimeType = mimeType;
       if (selectedImage) {
         if (!effectiveLocalImageId) throw new Error("تصویر در حافظه داخلی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.");
         const localRecord = await getCustomerDeviceImage(effectiveLocalImageId);
         if (!localRecord) throw new Error("تصویر محلی پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.");
         if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
         imageBase64 = await customerImageBlobToDataUrl(localRecord.blob);
+        const localSegmentation = localSegmentationRef.current;
+        if (localSegmentation && localSegmentation.source === temporaryImageDataUrl && requestRegion) {
+          const a = requestRegion;
+          const b = localSegmentation.region;
+          const intersectionWidth = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+          const intersectionHeight = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+          const intersectionArea = intersectionWidth * intersectionHeight;
+          const smallerArea = Math.max(0.0001, Math.min(a.width * a.height, b.width * b.height));
+          if (intersectionArea / smallerArea >= 0.35) {
+            imageBase64 = localSegmentation.result.whiteBgDataUrl;
+            analysisMimeType = 'image/jpeg';
+          }
+        }
         if (currentUser && !activeImageEventId) {
           const metadata = await getCustomerDeviceImageMetadata(effectiveLocalImageId);
           if (!metadata) throw new Error("اطلاعات تصویر محلی پیدا نشد.");
@@ -681,7 +719,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         }
       }
       const result = await aiVisualSearchService.analyzePartWithAi({
-        imageBase64, mimeType,
+        imageBase64, mimeType: analysisMimeType,
         length: length ? parseFloat(length) : undefined, width: width ? parseFloat(width) : undefined, pitch: pitch ? parseFloat(pitch) : undefined,
         application: application.trim() || undefined, features: features.trim() || undefined,
         stage, observationOnly: false, region: requestRegion, detectionId: regionDetectionId || undefined, fullImage: requestFullImage, includeNearest: false,
