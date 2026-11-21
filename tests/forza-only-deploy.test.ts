@@ -82,6 +82,8 @@ test("main CI deploy routes only the exact Forza-only commit through the safe en
   assert.match(deployWorkflow, /FORZA autoplay\/microphone UX smoke/);
   assert.match(deployWorkflow, /FORZA private Ubuntu Pocket browser integration/);
   assert.match(deployWorkflow, /FORZA Nima private voice and SSE speech tests/);
+  assert.ok(deployWorkflow.indexOf('"FORZA Nima private voice and SSE speech tests"') >
+    deployWorkflow.indexOf("REQUIRED_WORKFLOWS = ["),"Nima private test must be a required Forza deploy check");
   assert.match(deployWorkflow, /if \[\[ "\$FORZA_ONLY" == "true" \]\]; then[\s\S]*FORZA Conversation Engine/);
   assert.match(deployWorkflow, /Verify VPS frontend build before deployment/);
   assert.match(deployWorkflow, /forza_only=true/);
@@ -99,13 +101,13 @@ test("Forza Conversation Engine runs on main pushes for the production deploy ga
 });
 
 test("private Nima streaming validation runs on main pushes before Forza deployment",()=>{
-  const start=nimaWorkflow.indexOf("\\n  push:");
-  const end=nimaWorkflow.indexOf("\\n  workflow_dispatch:",start);
+  const start=nimaWorkflow.indexOf("\n  push:");
+  const end=nimaWorkflow.indexOf("\n  workflow_dispatch:",start);
   assert.ok(start>=0&&end>start,"private Nima workflow must define a main push trigger");
   const push=nimaWorkflow.slice(start,end);
-  assert.match(push,/branches:\\s*\\[main\\]/);
-  assert.match(push,/scripts\\/forza_nima_voice_http\\.py/);
-  assert.match(push,/tests\\/forzaNimaWavFrames\\.test\\.ts/);
+  assert.match(push,/branches:\s*\[main\]/);
+  assert.match(push,/scripts\/forza_nima_voice_http\.py/);
+  assert.match(push,/tests\/forzaNimaWavFrames\.test\.ts/);
 });
 
 test("Forza browser and private Pocket integration checks run on main pushes",()=>{
