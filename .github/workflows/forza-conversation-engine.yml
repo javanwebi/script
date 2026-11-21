@@ -8,6 +8,12 @@ on:
       - "src/utils/forzaConversationEngine.ts"
       - "src/utils/forzaSpeechPipeline.ts"
       - "src/utils/forzaAudioEvidence.ts"
+      - "src/utils/forzaLiveSttClient.ts"
+      - "server/ai/forzaDibaLiveStt.ts"
+      - "scripts/forza_diba_live_worker.py"
+      - "public/worklets/forza-stt-pcm.js"
+      - "tests/forzaLiveSttClient.test.ts"
+      - "tests/test_forza_diba_live_worker.py"
       - "src/utils/forzaSpeechAdmission.ts"
       - "tests/forzaSpeechAdmission.test.ts"
       - "tests/forzaLocalDibaStreaming.test.ts"
@@ -41,6 +47,12 @@ on:
       - "src/utils/forzaConversationEngine.ts"
       - "src/utils/forzaSpeechPipeline.ts"
       - "src/utils/forzaAudioEvidence.ts"
+      - "src/utils/forzaLiveSttClient.ts"
+      - "server/ai/forzaDibaLiveStt.ts"
+      - "scripts/forza_diba_live_worker.py"
+      - "public/worklets/forza-stt-pcm.js"
+      - "tests/forzaLiveSttClient.test.ts"
+      - "tests/test_forza_diba_live_worker.py"
       - "src/utils/forzaSpeechAdmission.ts"
       - "public/worklets/forza-foreground-gate.js"
       - "src/utils/silenceDetector.ts"
@@ -92,11 +104,14 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Validate live Diba Python worker protocol
+        run: python3 tests/test_forza_diba_live_worker.py
+
       - name: Test conversation engine
         run: npm run test:forza-engine
 
       - name: Test turn endpoint and final transcript handoff
-        run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaLocalDibaStreaming.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts
+        run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts tests/forzaLiveSttClient.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaLocalDibaStreaming.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts
 
       - name: TypeScript validation
         run: npm run lint
