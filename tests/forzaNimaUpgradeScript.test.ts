@@ -11,6 +11,6 @@ test('private Nima upgrade proves multi-frame streaming in a disposable canary b
   assert.match(script,/frames>=2/);
   assert.ok(script.indexOf('FORZA_PROGRESSIVE_STREAM_CANARY')<script.indexOf('run_voice "\$LIVE"'));
   assert.match(script,/ROLLBACK_CONTAINER/);
-  assert.match(script,/api\\/ai\\/forza-speech-stream/);
+  assert.ok(script.includes('/api/ai/forza-speech-stream'));
   assert.match(script,/FORZA_SITE_PROGRESSIVE_STREAM_OK/);
 });
