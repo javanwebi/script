@@ -48,3 +48,9 @@ test('Pocket fallback keeps one complete WAV while selected Nima streams ordered
   assert.match(worker,/def _stitch\(self, segments\):/);
   assert.match(worker,/segments = \[\(audio, 0\.0\) for audio, _gap in segments\]/);
 });
+
+test('Unicode quotes, Arabic punctuation and clause marks cannot insert TTS pauses',()=>{
+  const original='«سلام»؛ پاسخ آماده است؟ “بله”، نتیجه را بررسی می‌کنم! سپس اعلام می‌کنم.';
+  assert.equal(forzaUnbrokenSpokenText(original),
+    'سلام پاسخ آماده است بله نتیجه را بررسی می‌کنم سپس اعلام می‌کنم');
+});
