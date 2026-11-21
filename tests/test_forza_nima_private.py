@@ -57,6 +57,8 @@ class NimaCandidateTests(unittest.TestCase):
             self.assertEqual(int.from_bytes(wav[40:44],"little"),[160,240][index])
         self.assertEqual(scope["spoken_sentences"]("قطر 3.25 و کد SWR.A19. سپس نصب شود."),
             ["قطر 3.25 و کد SWR A19","سپس نصب شود"])
+        self.assertEqual(scope["spoken_sentences"]("سطر اول\\nسطر دوم"),
+            ["سطر اول","سطر دوم"])
 
     def test_pinned_original_gyro_voice_and_no_audio_disk_cache(self):
         docker=(ROOT/"Dockerfile.forza-nima").read_text(encoding="utf-8")
