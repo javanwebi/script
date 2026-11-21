@@ -350,6 +350,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       return;
     }
     if(!words){debug('empty_hypothesis');return;}
+    // Track decoder activity even when a hypothesis is later rejected as
+    // speaker echo. A healthy Vosk decoder must not trigger a server handoff
+    // merely because it has not accepted customer words.
+    lastDibaHypothesisAtRef.current=Date.now();
     const admission=localSttAdmissionRef.current||
       (localSttAdmissionRef.current=new ForzaRecognitionAdmission());
     const slot={0:{transcript:words},isFinal};
@@ -366,7 +370,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
     if(localSttActiveRef.current&&!serverLiveSttActiveRef.current)
       liveSttActiveRef.current=true;
-    lastDibaHypothesisAtRef.current=Date.now();
     const recognized=extractPersianSpeechSince(admitted.results,0);
     if(isFinal&&recognized.text)
       localSttFinalRef.current=appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
@@ -670,6 +673,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
            !isAiSpeakingRef.current&&!isProcessingTurnRef.current&&!isManualReplayPendingRef.current&&
            micNow-lastMicActivityRef.current<450&&
            micNow-lastDibaHypothesisAtRef.current>3000&&
+           micNow-lastForzaPlaybackAtRef.current>1500&&
            micNow>=serverLiveSttRetryAfterRef.current){
           console.warn('[FORZA_STT] local_diba_partial_timeout=1 switching_to_server_live=1');
           serverLiveSttRetryAfterRef.current=micNow+5000;
