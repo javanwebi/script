@@ -132,15 +132,15 @@ def spoken_sentences(value):
     sentence-by-sentence lets the HTTP stream deliver each completed sentence
     without waiting for the rest of a multi-sentence phrase.
     """
-    value = re.sub(r"(?i)(?:https?://|www\\.)\\S+", " ", value)
-    value = re.sub(r"(?<=\\d)\\s*\\*\\s*(?=\\d)", " در ", value)
-    value = re.sub(r"[*\\x60#]", " ", value)
-    closers = "»”’\\\"')]}〉"
+    value = re.sub(r"(?i)(?:https?://|www\.)\S+", " ", value)
+    value = re.sub(r"(?<=\d)\s*\*\s*(?=\d)", " در ", value)
+    value = re.sub(r"[*\x60#]", " ", value)
+    closers = {"»", "”", "’", '"', "'", ")", "]", "}", "〉"}
     abbreviations = {"dr", "mr", "mrs", "ms", "prof", "e.g", "i.e", "vs", "no"}
     sentences = []
     start = 0
     for index, character in enumerate(value):
-        if character == "\\n":
+        if character == "\n":
             boundary = index + 1
         elif character in ".!?؟۔":
             previous = value[index - 1] if index else ""
@@ -154,7 +154,7 @@ def spoken_sentences(value):
             if next_character and not next_character.isspace():
                 continue
             if character == ".":
-                token_match = re.search(r"([A-Za-z](?:[A-Za-z.]*)?)\\s*$", value[start:index])
+                token_match = re.search(r"([A-Za-z](?:[A-Za-z.]*)?)\s*$", value[start:index])
                 if token_match and token_match.group(1).lower().rstrip(".") in abbreviations:
                     continue
         else:
