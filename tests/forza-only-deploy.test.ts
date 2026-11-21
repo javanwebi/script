@@ -28,7 +28,7 @@ test("Forza-only deployment runs voice tests and never promotes unrelated privat
   assert.match(deploy, /npm run test:forza-engine/);
   assert.match(deploy, /tests\/forza\*\.test\.ts/);
   assert.match(deploy, /verify-forza-only-canary\.mjs/);
-  assert.match(deploy, /upgrade-forza-realtime-vps\\.sh/);
+  assert.match(deploy, /upgrade-forza-realtime-vps\.sh/);
   assert.doesNotMatch(deploy, /FORZA_ONLY_PRIVATE_NIMA_CONTAINER_RETAINED=YES/);
   assert.match(voiceUpgrade, /FORZA_SENTENCE_STREAM_CANARY/);
   assert.match(voiceUpgrade, /FORZA_SITE_SENTENCE_STREAM_OK/);
