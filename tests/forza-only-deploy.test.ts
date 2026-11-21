@@ -24,12 +24,14 @@ test("Forza-only deployment runs voice tests and never promotes unrelated privat
   assert.match(deploy, /verify-forza-only-canary\.mjs/);
   assert.match(deploy, /FORZA_ONLY_PRIVATE_NIMA_CONTAINER_RETAINED=YES/);
   assert.match(deploy, /FORZA_ONLY_EXISTING_VISION_SIDECAR_PRESERVED=YES/);
+  assert.match(deploy, /FORZA_ONLY_LIVE_VISION_INDEX_READ_ONLY_BASELINE_OK/);
   assert.match(deploy, /FORZA_ONLY_FRONTEND_AND_DIBA_ASSETS_OK/);
 });
 
 test("Forza-only canary checks Diba, Nima, and two sequential TTS turns without an LLM call", () => {
   assert.match(canary, /serverSttProvider === "diba"/);
   assert.match(canary, /serverSttReady/);
+  assert.match(canary, /FORZA_CANARY_EXISTING_VISION_INDEX_READ_ONLY_OK/);
   assert.match(canary, /piper-nima-gyro-medium/);
   assert.match(canary, /FORZA_TTS_SEQUENTIAL_TURN_OK/);
   assert.match(canary, /for\s*\(let index = 1; index <= 2/);
