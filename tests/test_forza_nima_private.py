@@ -55,6 +55,19 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertNotIn("*",spoken)
         self.assertNotIn("https",spoken)
         self.assertNotIn("example.com",spoken)
+        punctuation=scope["spoken_text"]("«سلام»؛ پاسخ آماده است؟ “بله”، نتیجه را بررسی می‌کنم! سپس اعلام می‌کنم.")
+        self.assertEqual(punctuation,"سلام پاسخ آماده است بله نتیجه را بررسی می‌کنم سپس اعلام می‌کنم")
+        self.assertEqual(scope["spoken_text"]("کد SWR/A19، تسمه SPA-1250 با قطر 3.25."),"کد SWR/A19 تسمه SPA-1250 با قطر 3.25")
+
+        # The speaking-rate override is deliberately bounded to protect Persian clarity.
+        with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"0.70"}):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),0.85)
+        with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"1.20"}):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),1.0)
+        with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"not-a-number"}):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),0.92)
+        self.assertEqual(scope["NIMA_LENGTH_SCALE"],0.92)
+        self.assertIn("voice_config.length_scale = NIMA_LENGTH_SCALE",worker)
 
         # Filling the bounded admission pool fails fast, without allowing
         # an unbounded queue or simultaneous inference on the same model.
