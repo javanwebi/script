@@ -113,6 +113,46 @@ n=int(os.environ['FORZA_NIMA_WORKERS'])
 with concurrent.futures.ThreadPoolExecutor(max_workers=n) as clients:results=list(clients.map(call,range(n)))
 print('FORZA_CONCURRENCY_CANARY '+json.dumps({'workers':n,'wallMs':round((time.monotonic()-start)*1000),'requests':results}))
 PY
+# Verify the stream endpoint emits separate sentence frames before the full
+# multi-sentence response completes. Only in-memory WAV bytes are inspected.
+docker exec -i "$CANARY" python - <<'PY'
+import json,os,struct,time,urllib.request
+text='سلام، شماره فنی قطعه را بفرمایید. سپس اگر ممکن است مدل دستگاه را هم اعلام کنید.'
+request=urllib.request.Request(
+ 'http://127.0.0.1:8080/speak-stream',
+ data=json.dumps({'text':text},ensure_ascii=False).encode('utf-8'),
+ headers={'Content-Type':'application/json','X-Forza-Voice-Token':os.environ['FORZA_VOICE_TOKEN']})
+start=time.monotonic()
+with urllib.request.urlopen(request,timeout=35) as response:
+ assert response.status==200
+ assert response.headers.get('X-Forza-Voice')=='piper-nima-gyro-medium'
+ assert 'application/x-forza-wav-frames' in response.headers.get('Content-Type','')
+ header=response.read(4)
+ assert len(header)==4,'first_stream_frame_header_missing'
+ first_length=struct.unpack('<I',header)[0]
+ assert 44<=first_length<=8_000_000
+ first_wav=response.read(first_length)
+ assert len(first_wav)==first_length and first_wav[:4]==b'RIFF' and first_wav[8:12]==b'WAVE'
+ first_frame_ms=round((time.monotonic()-start)*1000)
+ remaining=response.read()
+ payload=header+first_wav+remaining
+ frames=[]
+ offset=0
+ while offset<len(payload):
+  assert offset+4<=len(payload),'truncated_frame_header'
+  length=struct.unpack_from('<I',payload,offset)[0]
+  offset+=4
+  assert 44<=length<=8_000_000 and offset+length<=len(payload),'truncated_wav_frame'
+  wav=payload[offset:offset+length]
+  assert wav[:4]==b'RIFF' and wav[8:12]==b'WAVE'
+  frames.append(len(wav))
+  offset+=length
+ assert len(frames)>=2,'sentence_stream_did_not_emit_multiple_frames'
+ print('FORZA_SENTENCE_STREAM_CANARY '+json.dumps({
+  'frames':len(frames),'firstFrameMs':first_frame_ms,
+  'totalMs':round((time.monotonic()-start)*1000),'frameBytes':frames,
+  'queueMs':response.headers.get('X-Forza-Queue-Ms','unknown')}))
+PY
 # Do not contend with the new live pool by leaving the canary's workers running.
 docker rm -f "$CANARY" >/dev/null
 docker stop --time 15 "$LIVE" >/dev/null
