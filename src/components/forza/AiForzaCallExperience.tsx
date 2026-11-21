@@ -518,6 +518,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     // intentionally disabled because browsers cannot route a filtered stream
     // into a direct-microphone browser recognizer; low-power devices use the server Diba fallback.
     const localReady=startDibaTurn();
+    if(!localReady)void startServerLiveStt();
     if(localReady){
       if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
       recognitionRetryTimerRef.current=null;
@@ -552,6 +553,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     localSttRecognizerRef.current=null;
     localSttAdmissionRef.current=null;
     localSttActiveRef.current=false;
+    liveSttActiveRef.current=serverLiveSttActiveRef.current;
     localSttFinalRef.current='';
     if (recognitionRef.current && isRecognitionActiveRef.current) {
       try {
@@ -1454,7 +1456,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // as a bounded final verifier too; on devices already using local Diba,
         // avoid wasting a second inference on the same model.
         const needsServerFinal = Boolean(audioBlob) &&
-          serverSttConfiguredRef.current === true && (!q || !localSttActiveRef.current);
+          serverSttConfiguredRef.current === true && (!q || !liveSttActiveRef.current);
         if(audioBlob && needsServerFinal){
           const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
           const sttStartedAt=performance.now();
@@ -1957,7 +1959,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(wasRotation){
             if(hadSpeech&&!rejectedSpeech&&chunks.length){
               const completedSegment=new Blob(chunks,{type:safeMime});
-              if(completedSegment.size>1200&&!localSttActiveRef.current){
+              if(completedSegment.size>1200&&!liveSttActiveRef.current){
                 // Local Diba already consumes the microphone stream continuously;
                 // only retain WebM for the server fallback when local STT is absent.
                 // Never discard an earlier segment from a long browser-fallback turn.
