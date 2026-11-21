@@ -715,6 +715,24 @@ else
  # Removing the marker must also disable the local mode inherited from the old container.
  sed -i '/^PART_RECOGNITION_MODE=local-embedding$/d' "$ENV_FILE"
 fi
+if [[ "$FORZA_ONLY" == "1" && -f "$APP/.local-vision-enabled" ]]; then
+  # The app's existing startup loader only writes visual embeddings for missing
+  # or changed signatures. Require the live persisted index to be complete
+  # before starting a Forza-only release, so this release cannot trigger catalog
+  # embedding writes as a side effect.
+  LIVE_VISION_STATUS="$(docker exec "$OLD" node -e '
+    fetch("http://127.0.0.1:3000/api/ai/local-vision-status",{signal:AbortSignal.timeout(8000)})
+      .then(async r=>{if(!r.ok)throw new Error("LIVE_VISION_STATUS_HTTP_"+r.status);console.log(JSON.stringify(await r.json()))})
+      .catch(e=>{console.error(e.message);process.exit(1)})')"
+  printf '%s\\n' "$LIVE_VISION_STATUS" | node -e '
+    let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+      const d=JSON.parse(s);
+      if(!d.enabled || !d.ready || !Number.isInteger(d.total) ||
+         d.indexed!==d.total || d.missing!==0 || d.signatureChanged!==0)
+        throw new Error("FORZA_ONLY_REFUSING_TO_TOUCH_INCOMPLETE_LIVE_VISION_INDEX");
+      console.log("FORZA_ONLY_LIVE_VISION_INDEX_READ_ONLY_BASELINE_OK",d.indexed,"/",d.total);
+    });'
+fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
