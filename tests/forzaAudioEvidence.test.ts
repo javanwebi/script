@@ -90,7 +90,7 @@ test('foreground bridge routes the gated stream to consumers and owns its cleanu
  const sink:any={gain:{value:1},connect(){},disconnect(){this.disconnected=true;}};
  class Node{
   port={onmessage:null as any,postMessage:()=>{},close:()=>{}};
-  onprocessorerror:any;connections:any[]=[];
+  onprocessorerror:any;connections:any[]=[];disconnected=false;
   constructor(){worklet=this;}
   connect(target:any){this.connections.push(target);}
   disconnect(){this.disconnected=true;}
