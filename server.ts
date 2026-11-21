@@ -5868,8 +5868,8 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
 });
 
 // Progressive binary frames: uint32 little-endian WAV length + standalone WAV.
-// The browser can play each generated phoneme chunk while Pocket continues
-// synthesizing the rest of the same phrase; /forza-speech remains as fallback.
+// The browser plays each completed Piper sentence as soon as the private worker
+// emits it; /forza-speech remains the single-WAV compatibility path.
 app.post('/api/ai/forza-speech-stream',async(req,res)=>{
   const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
   if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
@@ -5964,6 +5964,9 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('X-Forza-Voice',upstreamVoice);
     res.setHeader('X-Forza-Voice-Backend','private-service');
+    const queueMs=upstream.headers.get('x-forza-queue-ms');
+    if(queueMs!==null&&/^\\d{1,8}$/.test(queueMs))
+      res.setHeader('X-Forza-Queue-Ms',queueMs);
     res.flushHeaders?.();
 
     let bytes=0;
