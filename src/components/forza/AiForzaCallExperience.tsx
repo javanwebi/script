@@ -27,6 +27,7 @@ import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaLiveSttClient, attachForzaLivePcmTap } from '../../utils/forzaLiveSttClient';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
 import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
+import {forzaNimaClientConcurrency} from '../../utils/forzaTtsConcurrency';
 import { ForzaCallPlainText, forzaSpokenPlainText } from '../../utils/forzaCallPlainText';
 import { ForzaStopAcknowledgement } from '../../utils/forzaStopAcknowledgement';
 import { ForzaPlaybackEchoHistory, forzaTurnIntent, shouldIgnoreForzaSpeakerEcho } from '../../utils/forzaBargeIn';
@@ -78,6 +79,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const callClosedRef = useRef(false);
   const stopAcknowledgementRef=useRef<ForzaStopAcknowledgement|null>(null);
   const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'|'piper-amir-medium'>('pocket-farsi-v2');
+  const nimaSynthesisConcurrencyRef=useRef(1);
   const voiceInfoPromiseRef=useRef<Promise<void>>(Promise.resolve());
   const [activeVoiceLabel,setActiveVoiceLabel]=useState('در حال بررسی موتور صوتی');
   useEffect(()=>{
@@ -92,16 +94,22 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(!mounted)return;
         if(data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true){
           voiceModeRef.current='piper-nima-gyro-medium';
+          nimaSynthesisConcurrencyRef.current=forzaNimaClientConcurrency(data?.workers);
+          console.info('[FORZA_NIMA_CAPACITY] workers='+String(data?.workers||1)+
+            ' clientSynthesisConcurrency='+nimaSynthesisConcurrencyRef.current);
           setActiveVoiceLabel('نیما (Piper فارسی)');
         }else if(data?.voice==='piper-amir-medium'){
           voiceModeRef.current='piper-amir-medium';
+          nimaSynthesisConcurrencyRef.current=1;
           setActiveVoiceLabel('امیر (Piper فارسی)');
         }else{
           voiceModeRef.current='pocket-farsi-v2';
+          nimaSynthesisConcurrencyRef.current=1;
           setActiveVoiceLabel(data?.voice==='pocket-farsi-v2'
             ?'Pocket TTS فارسی v2':'موتور فعلی سرور');
         }
       }catch{
+        nimaSynthesisConcurrencyRef.current=1;
         if(mounted)setActiveVoiceLabel('موتور فعلی سرور');
       }finally{
         window.clearTimeout(timeout);
@@ -1175,12 +1183,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const returnedVoice=response.headers.get('X-Forza-Voice');
     if(returnedVoice==='piper-nima-gyro-medium'){
       voiceModeRef.current='piper-nima-gyro-medium';
+      const workerHeader=response.headers.get('X-Forza-TTS-Workers');
+      if(workerHeader!==null)
+        nimaSynthesisConcurrencyRef.current=forzaNimaClientConcurrency(workerHeader);
       setActiveVoiceLabel('نیما (Piper فارسی)');
     }else if(returnedVoice==='piper-amir-medium'){
       voiceModeRef.current='piper-amir-medium';
+      nimaSynthesisConcurrencyRef.current=1;
       setActiveVoiceLabel('امیر (Piper فارسی)');
     }else if(returnedVoice==='pocket-farsi-v2'){
       voiceModeRef.current='pocket-farsi-v2';
+      nimaSynthesisConcurrencyRef.current=1;
       setActiveVoiceLabel('Pocket TTS فارسی v2');
     }else throw new Error('forza_unknown_voice_identity');
     if(!(response.headers.get('Content-Type')||'').includes('audio/wav'))
@@ -1738,6 +1751,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const useNima=voiceModeRef.current==='piper-nima-gyro-medium';
         const phrasePlanner=new ForzaIncrementalSpeechText();
         const callPlainText=new ForzaCallPlainText();
+        const nimaConcurrency=forzaNimaClientConcurrency(nimaSynthesisConcurrencyRef.current);
+        console.info('[FORZA_NIMA_CAPACITY] turn='+generation+
+          ' synthesisConcurrency='+nimaConcurrency);
         // Text updates are displayed immediately. Piper gets its first small,
         // completed word group while SSE continues, then synthesizes further
         // phrases in bounded lookahead on the same AudioContext clock.
@@ -1773,8 +1789,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // The private Nima service defaults to one CPU inference worker.
           // Two parallel phrase requests can fill its 2.5s FIFO waiter and
           // make the second phrase fail, cancelling the rest of the answer.
-          maxConcurrent:1,
-          maxAheadPhrases:2,
+          maxConcurrent:nimaConcurrency,
+          maxAheadPhrases:nimaConcurrency>=2?3:2,
           initialBufferSeconds:2,
           maximumInitialWaitMs:120,
           onBuffered:info=>console.info('[FORZA_NIMA_BUFFER] audio_s='+
