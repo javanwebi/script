@@ -126,6 +126,7 @@ start=time.monotonic()
 with urllib.request.urlopen(request,timeout=35) as response:
  assert response.status==200
  assert response.headers.get('X-Forza-Voice')=='piper-nima-gyro-medium'
+ assert response.headers.get('X-Forza-Stream-Mode')=='sentence-frames'
  assert 'application/x-forza-wav-frames' in response.headers.get('Content-Type','')
  header=response.read(4)
  assert len(header)==4,'first_stream_frame_header_missing'
@@ -169,7 +170,7 @@ docker exec "$APP" node -e '
 const text="سلام، شماره فنی قطعه را بفرمایید. سپس اگر ممکن است مدل دستگاه را هم اعلام کنید.";
 fetch("http://127.0.0.1:3000/api/ai/forza-speech-stream",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,turnId:"realtime-stream-upgrade-check"}),signal:AbortSignal.timeout(35000)})
 .then(async r=>{
- if(!r.ok||r.headers.get("X-Forza-Voice")!=="piper-nima-gyro-medium"||!(r.headers.get("Content-Type")||"").includes("application/x-forza-wav-frames"))process.exit(1);
+ if(!r.ok||r.headers.get("X-Forza-Voice")!=="piper-nima-gyro-medium"||r.headers.get("X-Forza-Stream-Mode")!=="sentence-frames"||!(r.headers.get("Content-Type")||"").includes("application/x-forza-wav-frames"))process.exit(1);
  const reader=r.body.getReader();let buffer=Buffer.alloc(0),frames=0;
  while(true){const {done,value}=await reader.read();if(done)break;if(value)buffer=Buffer.concat([buffer,Buffer.from(value)]);
   while(buffer.length>=4){const length=buffer.readUInt32LE(0);if(length<44||length>8000000)process.exit(1);if(buffer.length<4+length)break;
