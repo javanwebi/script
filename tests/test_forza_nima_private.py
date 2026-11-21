@@ -24,6 +24,9 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertIn("piper-nima-gyro-medium",worker)
         self.assertIn("io.BytesIO()",worker)
         self.assertIn("application/x-forza-wav-frames",worker)
+        self.assertIn("Transfer-Encoding",worker)
+        self.assertIn("self.write_http_chunk(frame)",worker)
+        self.assertIn("first_chunk_ms",worker)
         self.assertIn("queue_condition = threading.Condition()",worker)
         self.assertIn("queue_waiters = deque()",worker)
         self.assertIn("MAX_QUEUE_WAIT_SEC = 2.5",worker)
@@ -59,6 +62,11 @@ class NimaCandidateTests(unittest.TestCase):
         punctuation=scope["spoken_text"]("«سلام»؛ پاسخ آماده است؟ “بله”، نتیجه را بررسی می‌کنم! سپس اعلام می‌کنم.")
         self.assertEqual(punctuation,"سلام پاسخ آماده است بله نتیجه را بررسی می‌کنم سپس اعلام می‌کنم")
         self.assertEqual(scope["spoken_text"]("کد SWR/A19، تسمه SPA-1250 با قطر 3.25."),"کد SWR/A19 تسمه SPA-1250 با قطر 3.25")
+        progressive_source="«سلام»؛ پاسخ آماده است؟ “بله”، نتیجه را بررسی می‌کنم! سپس اعلام می‌کنم. کد SWR/A19 با قطر 3.25."
+        chunks=scope["split_spoken_chunks"](progressive_source)
+        self.assertGreater(len(chunks),1)
+        self.assertEqual(" ".join(chunks),scope["spoken_text"](progressive_source))
+        self.assertTrue(all(chunks))
 
         # The speaking-rate override is deliberately bounded to protect Persian clarity.
         with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"0.70"}):
