@@ -21,6 +21,7 @@ function wav(seconds=0.2){
   const page=await browser.newPage({permissions:['microphone'],viewport:{width:1180,height:750}});
   const errors=[],queries=[],requests=[],speech=[],speechTurnIds=[];
   page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',message=>{const value=message.text();if(value.includes('[FORZA')||value.includes('Diba'))console.log('FORZA_PAGE_CONSOLE',value);});
   await page.addInitScript(()=>{
    window.__FORZA_TEST_MODE__=true;
    Object.defineProperty(navigator,'hardwareConcurrency',{configurable:true,value:8});
@@ -59,7 +60,8 @@ function wav(seconds=0.2){
    body:`window.Vosk={createModel:async url=>{
     window.__forzaDibaModelUrl=url;
     return {KaldiRecognizer:class{
-     constructor(rate){this.rate=rate;this.handlers={};window.__forzaVoskRecognizer=this;
+     constructor(rate){this.rate=rate;this.handlers={};this.id=(window.__forzaVoskCreated||0)+1;window.__forzaVoskRecognizer=this;
+      window.__forzaVoskInstances=window.__forzaVoskInstances||[];window.__forzaVoskInstances.push(this);
       window.__forzaDibaRecognizerSampleRate=rate;
       window.__forzaVoskCreated=(window.__forzaVoskCreated||0)+1;}
      on(name,handler){this.handlers[name]=handler;}
@@ -75,7 +77,7 @@ function wav(seconds=0.2){
      }
      emitPartial(text){this.handlers.partialresult?.({result:{partial:text}});}
      emitFinal(text){this.handlers.result?.({result:{text}});}
-     remove(){this.removed=true;}
+     remove(){this.removed=true;window.__forzaVoskRemoved=(window.__forzaVoskRemoved||0)+1;}
     }};
    }};`,
   }));
@@ -119,7 +121,7 @@ function wav(seconds=0.2){
   await page.waitForFunction(()=>!!window.__forzaVoskRecognizer,null,{timeout:15000});
   await page.waitForFunction(()=>window.__forzaVoskFrames>0,null,{timeout:5000});
   const initialRecognizerCount=await page.evaluate(()=>window.__forzaVoskCreated||0);
-  console.log('FORZA_DIBA_INITIAL_RECOGNIZER_COUNT',initialRecognizerCount);
+  console.log('FORZA_DIBA_INITIAL_RECOGNIZER_COUNT',initialRecognizerCount,JSON.stringify(await page.evaluate(()=>({removed:window.__forzaVoskRemoved||0,instances:(window.__forzaVoskInstances||[]).map(item=>({id:item.id,removed:!!item.removed}))}))));
   assert.equal(initialRecognizerCount,1,'one local Diba recognizer must be created for the whole call');
   assert.equal(await page.evaluate(()=>window.__forzaDibaRecognizerSampleRate),16000,
    'the Vosk decoder must be configured for the Persian model sample rate');
