@@ -182,6 +182,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const serverLiveSttActiveRef=useRef(false);
   const serverLiveSttReadyAtRef=useRef(0);
   const speechStartedAtRef=useRef(0);
+  const lastForegroundAudioAtRef=useRef(0);
+  const lastDibaHypothesisAtRef=useRef(0);
   const serverLiveSttClientRef=useRef<ForzaLiveSttClient|null>(null);
   const serverLivePcmCleanupRef=useRef<(()=>void)|null>(null);
   const serverLiveSttStartingRef=useRef(false);
@@ -339,6 +341,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(isFinal)admission.reset();
     if(admitted.rejected)rejectedRecordingRef.current=true;
     if(!admitted.changed)return;
+    lastDibaHypothesisAtRef.current=Date.now();
     const recognized=extractPersianSpeechSince(admitted.results,0);
     if(isFinal&&recognized.text)
       localSttFinalRef.current=appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
@@ -355,9 +358,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,transcript));
     setIsUserSpeaking(true);
   },[]);
-  const startServerLiveStt=useCallback(async()=>{
-    if(callClosedRef.current||localSttRecognizerRef.current||serverLiveSttClientRef.current||
-       serverLiveSttStartingRef.current)return false;
+  const startServerLiveStt=useCallback(async(forceLocalFallback=false)=>{
+    if(callClosedRef.current||(!forceLocalFallback&&localSttRecognizerRef.current)||
+       serverLiveSttClientRef.current||serverLiveSttStartingRef.current)return false;
     const ctx=ctxRef.current,source=micSourceNodeRef.current;
     if(!ctx||!source)return false;
     serverLiveSttStartingRef.current=true;
@@ -380,8 +383,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         onState:(state,code)=>{
           if(serverLiveSttClientRef.current!==client)return;
           if(state==='ready'){
+            // If local Vosk was not producing timely partials, switch the
+            // already-filtered PCM source to the server stream without a mic reset.
+            if(forceLocalFallback||!localSttRecognizerRef.current){
+              try{localSttRecognizerRef.current?.remove?.();}catch{}
+              localSttRecognizerRef.current=null;
+              localSttActiveRef.current=false;
+              const oldNode=localSttNodeRef.current;
+              if(oldNode){oldNode.onaudioprocess=null;try{oldNode.disconnect();}catch{}}
+              try{localSttSinkRef.current?.disconnect();}catch{}
+              localSttNodeRef.current=null;localSttSinkRef.current=null;
+              setLocalSttStatus('fallback');
+            }
             serverLiveSttActiveRef.current=true;
             serverLiveSttReadyAtRef.current=Date.now();
+            lastDibaHypothesisAtRef.current=Date.now();
             liveSttActiveRef.current=true;
             localSttAdmissionRef.current??=new ForzaRecognitionAdmission();
             setServerSttLabel('دایبا سرور زنده · فقط صدای فیلترشده');
@@ -469,6 +485,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       });
       localSttRecognizerRef.current=recognizer;
       localSttActiveRef.current=true;
+      lastDibaHypothesisAtRef.current=Date.now();
       liveSttActiveRef.current=true;
       stopServerLiveStt();
       return true;
@@ -2032,6 +2049,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         speechAdmissionRef.current.sample(rms,at,
           isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current,
           gateOpen===true);
+      if(gateOpen===true&&rms>=0.00045)lastForegroundAudioAtRef.current=Date.now();
       },()=>{
         if(microphoneGeneration!==microphoneGenerationRef.current)return;
         audioEvidenceCleanupRef.current=null;
