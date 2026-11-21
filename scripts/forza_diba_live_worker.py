@@ -98,6 +98,7 @@ def main():
     emit({"type": "ready", "provider": "diba-vosk", "sampleRate": 16000})
 
     for line in sys.stdin:
+        request = {}
         try:
             request = json.loads(line)
             if not isinstance(request, dict):
@@ -107,7 +108,7 @@ def main():
                 emit(event)
         except Exception as error:
             # Never expose exception messages: decoder errors can contain data.
-            stream_id = str(locals().get("request", {}).get("streamId") or "")[:80]
+            stream_id = str(request.get("streamId") or "")[:80] if isinstance(request, dict) else ""
             emit({"type": "error", "streamId": stream_id,
                   "code": type(error).__name__[:48] or "diba_stream_worker_error"})
 
