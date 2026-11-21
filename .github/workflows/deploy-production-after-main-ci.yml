@@ -172,15 +172,15 @@ jobs:
           set -euo pipefail
           [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
           REMOTE_COMMAND="sudo bash -lc 'cd /opt/sanatpish && git fetch --no-tags origin main && git show ${DEPLOY_SHA}:ops/deploy-forza-only-vps.sh | bash -s -- ${DEPLOY_SHA}'"
-          ssh \\
-            -i "$HOME/.ssh/sanatpish_deploy_ed25519" \\
-            -o IdentitiesOnly=yes \\
-            -o BatchMode=yes \\
-            -o StrictHostKeyChecking=yes \\
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \\
-            -o ConnectTimeout=20 \\
-            -o ServerAliveInterval=20 \\
-            -o ServerAliveCountMax=90 \\
+          ssh \
+            -i "$HOME/.ssh/sanatpish_deploy_ed25519" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=20 \
+            -o ServerAliveCountMax=90 \
             "$SSH_USER@$SSH_HOST" "$REMOTE_COMMAND"
 
       - name: Deploy standard main release
@@ -192,13 +192,13 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
-          ssh \\
-            -i "$HOME/.ssh/sanatpish_deploy_ed25519" \\
-            -o IdentitiesOnly=yes \\
-            -o BatchMode=yes \\
-            -o StrictHostKeyChecking=yes \\
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \\
-            -o ConnectTimeout=20 \\
-            -o ServerAliveInterval=20 \\
-            -o ServerAliveCountMax=90 \\
+          ssh \
+            -i "$HOME/.ssh/sanatpish_deploy_ed25519" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=20 \
+            -o ServerAliveCountMax=90 \
             "$SSH_USER@$SSH_HOST" "deploy $DEPLOY_SHA"
