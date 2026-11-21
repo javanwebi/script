@@ -56,7 +56,7 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
     for (let i = 0; i < samples.length; i += step) down.push(samples[i]);
     const minLag = Math.max(2, Math.floor(rate / 360));
     const maxLag = Math.min(Math.floor(rate / 75), Math.floor(down.length * 0.45));
-    const peaks = [];
+    const correlations = [];
     for (let lag = minLag; lag <= maxLag; lag += 1) {
       let cross = 0, left = 0, right = 0;
       for (let i = lag; i < down.length; i += 2) {
@@ -66,9 +66,14 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
         right += b * b;
       }
       const score = this.clamp(cross / Math.sqrt(Math.max(1e-12, left * right)), 0, 1);
-      peaks.push({ lag, score });
+      correlations.push({ lag, score });
     }
-    peaks.sort((a, b) => b.score - a.score);
+    // Keep local maxima only; adjacent lags around one broad pitch peak are
+    // not evidence of a second speaker.
+    const peaks = correlations.filter((peak, index) =>
+      peak.score >= (correlations[index - 1]?.score ?? -1) &&
+      peak.score >= (correlations[index + 1]?.score ?? -1)
+    ).sort((a, b) => b.score - a.score);
     const primary = peaks[0] || { lag: 0, score: 0 };
     const secondary = peaks.find(peak => {
       if (peak === primary || peak.score < Math.max(0.24, primary.score * 0.70)) return false;
