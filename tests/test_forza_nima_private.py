@@ -15,6 +15,44 @@ class NimaCandidateTests(unittest.TestCase):
         script=ROOT/"scripts/forza_nima_voice_http.py"
         compile(script.read_text(encoding="utf-8"),str(script),"exec")
 
+    def test_sentence_stream_emits_each_piper_chunk_as_a_standalone_wav_frame(self):
+        worker=(ROOT/"scripts/forza_nima_voice_http.py").read_text(encoding="utf-8")
+        scope={"__name__":"forza_nima_stream_probe"}
+        fake_piper=types.ModuleType("piper")
+        fake_piper.PiperVoice=object
+        with patch.dict(sys.modules,{"piper":fake_piper}):
+            exec(compile(worker,"forza_nima_voice_http.py","exec"),scope)
+
+        class FakeStop:
+            def is_set(self):
+                return False
+
+        class FakeQueue:
+            def __init__(self):
+                self.events=[]
+            def put(self,event,timeout=None):
+                self.events.append(event)
+
+        class FakeEngine:
+            def synthesize(self,text):
+                self.text=text
+                yield types.SimpleNamespace(sample_channels=1,sample_width=2,
+                    sample_rate=22050,audio_int16_bytes=b"\\x00\\x00"*80)
+                yield types.SimpleNamespace(sample_channels=1,sample_width=2,
+                    sample_rate=22050,audio_int16_bytes=b"\\x01\\x00"*120)
+
+        scope["engine"]=FakeEngine()
+        output=FakeQueue()
+        count=scope["synthesize_stream_to_queue"]("سلام. بله.",output,FakeStop())
+        self.assertEqual(count,2)
+        self.assertEqual([event[0] for event in output.events],["frame","frame","done"])
+        for kind,wav in output.events[:2]:
+            self.assertEqual(kind,"frame")
+            self.assertEqual(wav[:4],b"RIFF")
+            self.assertEqual(wav[8:12],b"WAVE")
+            self.assertEqual(int.from_bytes(wav[24:28],"little"),22050)
+            self.assertEqual(int.from_bytes(wav[40:44],"little"),160 if len(wav)<300 else 240)
+
     def test_pinned_original_gyro_voice_and_no_audio_disk_cache(self):
         docker=(ROOT/"Dockerfile.forza-nima").read_text(encoding="utf-8")
         worker=(ROOT/"scripts/forza_nima_voice_http.py").read_text(encoding="utf-8")
