@@ -329,20 +329,33 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   },[]);
 
   const acceptDibaHypothesis=useCallback((value:string,isFinal:boolean)=>{
+    const debug=(reason:string,details:Record<string,unknown>={})=>{
+      if(typeof window!=='undefined'&&(window as any).__FORZA_TEST_MODE__===true)
+        (window as any).__forzaDibaHypothesisDebug={reason,...details};
+    };
     if(micMutedRef.current||!greetingFinishedRef.current||
        (statusRef.current!=='listening'&&!isProcessingTurnRef.current&&
-        !isAiSpeakingRef.current&&!isManualReplayPendingRef.current))return;
+        !isAiSpeakingRef.current&&!isManualReplayPendingRef.current)){
+      debug('initial_guard',{muted:micMutedRef.current,greetingFinished:greetingFinishedRef.current,status:statusRef.current,
+        processing:isProcessingTurnRef.current,aiSpeaking:isAiSpeakingRef.current,manualReplay:isManualReplayPendingRef.current});
+      return;
+    }
     const words=value.trim();
-    if(!words)return;
+    if(!words){debug('empty_hypothesis');return;}
     const admission=localSttAdmissionRef.current||
       (localSttAdmissionRef.current=new ForzaRecognitionAdmission());
     const slot={0:{transcript:words},isFinal};
     const playback=isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current;
-    const admitted=admission.filter([slot],(text,final)=>likelySpeakerEcho(text)?'reject':
+    const echo=likelySpeakerEcho(words);
+    const admitted=admission.filter([slot],(text,final)=>echo?'reject':
       speechAdmissionRef.current.decide(text,final,playback,Date.now()));
     if(isFinal)admission.reset();
     if(admitted.rejected)rejectedRecordingRef.current=true;
-    if(!admitted.changed)return;
+    if(!admitted.changed){
+      debug(echo?'speaker_echo':'not_admitted',{words,isFinal,playback,waiting:admitted.waiting,rejected:admitted.rejected,
+        speech:speechAdmissionRef.current.diagnostics(Date.now())});
+      return;
+    }
     if(localSttActiveRef.current&&!serverLiveSttActiveRef.current)
       liveSttActiveRef.current=true;
     lastDibaHypothesisAtRef.current=Date.now();
@@ -352,7 +365,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const transcript=isFinal
       ?localSttFinalRef.current
       :appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
-    if(!transcript)return;
+    if(!transcript){debug('empty_recognized_transcript',{recognized:recognized.text,words});return;}
     if(playback){conversationEngineRef.current?.updateTranscript(transcript);interruptRequestRef.current();}
     else conversationEngineRef.current?.updateTranscript(transcript);
     if(transcript!==activeTranscriptRef.current||speechInterimRef.current===isFinal)
@@ -361,6 +374,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     hasSpeechSoundRef.current=true;
     setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,transcript));
     setIsUserSpeaking(true);
+    debug('accepted',{words,isFinal,transcript,playback,speech:speechAdmissionRef.current.diagnostics(Date.now())});
   },[]);
   const startServerLiveStt=useCallback(async(forceLocalFallback=false)=>{
     if(callClosedRef.current||(!forceLocalFallback&&localSttRecognizerRef.current)||
