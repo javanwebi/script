@@ -28,7 +28,7 @@ test("Forza-only deployment runs voice tests and never promotes unrelated privat
 });
 
 test("Forza-only canary checks Diba, Nima, and two sequential TTS turns without an LLM call", () => {
-  assert.match(canary, /serverSttProvider,\s*"diba"/);
+  assert.match(canary, /serverSttProvider === "diba"/);
   assert.match(canary, /serverSttReady/);
   assert.match(canary, /piper-nima-gyro-medium/);
   assert.match(canary, /FORZA_TTS_SEQUENTIAL_TURN_OK/);
