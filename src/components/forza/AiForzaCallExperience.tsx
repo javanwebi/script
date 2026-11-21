@@ -2056,6 +2056,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         acquiredStream.getTracks().forEach(track=>track.stop());
         return;
       }
+      stopServerLiveStt();
       streamRef.current?.getTracks().forEach(track=>{track.onended=null;track.stop();});
       streamRef.current=acquiredStream;
       micContextWarningRef.current=false;
@@ -2099,6 +2100,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       attachLocalStt();
       // The recorder receives only the AudioWorklet-gated stream, never raw mic.
       setupMediaRecorder(route.stream);
+      // Start the server's streaming Diba path immediately. If the local model
+      // finishes loading, we switch to it and release the server session.
+      void startServerLiveStt();
 
       // Prefer on-device Diba partials when the device has modest headroom.
       // Lower-powered devices still send only gated audio to the server Diba
@@ -2109,7 +2113,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const dibaSaveData=Boolean((navigator as any).connection?.saveData);
       const dibaHasHeadroom=dibaCpuCount>=2&&
         (dibaDeviceMemory>=2||(!dibaDeviceMemory&&dibaCpuCount>=4));
-      if(dibaHasHeadroom&&!dibaSaveData&&!localSttModelRef.current&&!localSttModelLoadingRef.current){
+      if(localSttModelRef.current){
+        attachLocalStt();
+        startDibaTurn();
+      }else if(dibaHasHeadroom&&!dibaSaveData&&!localSttModelLoadingRef.current){
         localSttModelLoadingRef.current=true;
         setLocalSttStatus('loading');
         setServerSttLabel('در حال آماده‌سازی دایبا محلی · فقط صدای نزدیک پردازش می‌شود');
@@ -2120,6 +2127,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setLocalSttStatus('ready');
           setServerSttLabel('دایبا محلی آماده است · صدای فیلترشده');
           console.info('[FORZA_STT] provider=diba-browser foreground_gate=1 ready=1');
+          startDibaTurn();
           if(greetingFinishedRef.current&&!activeTranscriptRef.current.trim()&&
              !vadRef.current.heardSpeech){
             startListening(true);
@@ -2128,8 +2136,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(callClosedRef.current)return;
           setLocalSttStatus('fallback');
           setServerSttLabel(serverSttConfiguredRef.current
-            ? 'دایبا سرور آماده است · تشخیص پس از پایان گفتار'
+            ? 'دایبا سرور زنده · در حال اتصال'
             : 'دایبا سرور تنظیم نشده؛ تشخیص گفتار در دسترس نیست');
+          void startServerLiveStt();
           console.warn('[FORZA_STT] provider=diba-browser unavailable=1 code='+
             String((error as any)?.message||'model_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40));
         }).finally(()=>{localSttModelLoadingRef.current=false;});
@@ -2156,8 +2165,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setServerSttLabel(localSttModelRef.current
         ? 'دایبا محلی آماده است · صدای فیلترشده'
         : serverSttConfiguredRef.current
-          ? 'دایبا سرور · فقط صدای نزدیک پردازش می‌شود'
-          : 'در انتظار آماده‌شدن دایبا؛ صدای خام ارسال نمی‌شود');
+          ? 'دایبا سرور زنده · فقط صدای فیلترشده'
+          : 'در انتظار آماده‌شدن موتور تشخیص زنده؛ صدای خام ارسال نمی‌شود');
       if(greetingFinishedRef.current && !micMutedRef.current) startListening();
     } catch(error:any) {
       if(acquiredStream){
@@ -2173,7 +2182,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ? 'این مرورگر فیلتر امن صدای نزدیک را پشتیبانی نمی‌کند؛ برای جلوگیری از تشخیص صدای اطراف، ورودی صوتی غیرفعال ماند.'
           : 'میکروفون یا فیلتر صدای نزدیک راه‌اندازی نشد. مجوز میکروفون و پشتیبانی مرورگر را بررسی کنید.');
     }
-  },[ensureCtx,setupMediaRecorder,startListening,attachLocalStt]);
+  },[ensureCtx,setupMediaRecorder,startListening,attachLocalStt,startDibaTurn,startServerLiveStt,stopServerLiveStt]);
 
   // STT prefers same-origin local Diba/Vosk partials on capable devices,
   // keeps browser recognition active during warmup, and retains server Diba
