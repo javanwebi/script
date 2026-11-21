@@ -123,7 +123,7 @@ echo '===== ISOLATED BUILD AND TEST ====='
 docker image inspect node:22-bookworm >/dev/null 2>&1 || docker pull node:22-bookworm
 docker run --rm --pull=never --network "$NETWORK" --cpus=4 --memory=6g \
  -v "$STAGE:/app:rw" -w /app node:22-bookworm sh -ec \
- 'npm ci --include=dev --no-audit --no-fund && npm run lint && node --import tsx --test tests/home-fast-preview.test.ts tests/client-logos-hydration.test.ts && npm run build'
+ 'npm ci --include=dev --no-audit --no-fund && npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0 && mkdir -p public/forza-runtime/ort && cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/ && node scripts/prepare-vision-assets.mjs && npm run lint && node --import tsx --test tests/home-fast-preview.test.ts tests/client-logos-hydration.test.ts && npm run build'
 test -s "$STAGE/dist/index.html"
 
 echo "===== START CANDIDATE ON $NEXT ====="
