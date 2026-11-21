@@ -86,18 +86,21 @@ test('local Diba streams partial and final hypotheses and falls back to browser 
  assert.match(ui,/recognizer\.on\('error'/);
  assert.match(ui,/recognitionStartRef\.current\(\)/);
  assert.match(ui,/const localReady=startDibaTurn\(\)/);
- assert.match(ui,/دایبا محلی آماده است · تشخیص زنده/);
+ assert.match(ui,/دایبا محلی آماده است · صدای فیلترشده/);
 });
 
-test('the native browser fallback remains active while local model loading is pending',()=>{
- const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
- const load=ui.indexOf('void loadDibaSttModel().then(model=>');
- const native=ui.indexOf('recognitionRef.current=initSpeechRecognition()',load);
- assert.ok(load>0&&native>load);
- assert.match(ui,/Chrome keeps transcribing immediately/);
- assert.match(ui,/if\(localReady\)/);
+test('native browser SpeechRecognition is disabled because it bypasses the foreground gate',()=>{
+  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
+  const start=ui.indexOf('const initializeMicrophone = useCallback(async () => {');
+  const end=ui.indexOf('},[ensureCtx,setupMediaRecorder,startListening,attachLocalStt]);',start);
+  assert.ok(start>0&&end>start);
+  const mic=ui.slice(start,end);
+  assert.match(mic,/recognitionRef\\.current=null/);
+  assert.doesNotMatch(mic,/initSpeechRecognition\\(\\)/);
+  assert.match(mic,/setupMediaRecorder\\(route\\.stream\\)/);
+  assert.match(ui,/if\\(!localReady && !micMutedRef\\.current && recognitionRef\\.current/);
+  assert.match(ui,/دایبا سرور · فقط صدای نزدیک پردازش می‌شود/);
 });
-
 
 test('the browser keeps one Diba recognizer alive across listen/monitor transitions',()=>{
  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
@@ -107,7 +110,7 @@ test('the browser keeps one Diba recognizer alive across listen/monitor transiti
   'final Vosk segments must append to the same customer turn');
 });
 
-test('server Diba status is non-blocking and browser retains configured fallback while warming',()=>{
+test('server Diba status is non-blocking and only filtered audio is used while local Vosk warms',()=>{
  const server=readFileSync('server.ts','utf8');
  const status=server.split("app.get('/api/ai/forza-stt-info'")[1].split("// POST: /api/ai/forza-live")[0];
  assert.match(status,/serverSttConfigured:choice\.provider==='gemini'\|\|dibaConfigured/);
