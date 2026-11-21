@@ -5,6 +5,12 @@ on:
       - 'src/components/forza/**'
       - 'src/utils/forzaSpeechPipeline.ts'
       - 'src/utils/forzaAudioEvidence.ts'
+      - 'src/utils/forzaLiveSttClient.ts'
+      - 'server/ai/forzaDibaLiveStt.ts'
+      - 'scripts/forza_diba_live_worker.py'
+      - 'public/worklets/forza-stt-pcm.js'
+      - 'tests/forzaLiveSttClient.test.ts'
+      - 'tests/test_forza_diba_live_worker.py'
       - 'public/worklets/forza-foreground-gate.js'
       - 'src/utils/silenceDetector.ts'
       - 'tests/forza-smart-turn.test.ts'
@@ -27,6 +33,12 @@ on:
     paths:
       - 'src/components/forza/**'
       - 'src/utils/forzaSpeechPipeline.ts'
+      - 'src/utils/forzaLiveSttClient.ts'
+      - 'server/ai/forzaDibaLiveStt.ts'
+      - 'scripts/forza_diba_live_worker.py'
+      - 'public/worklets/forza-stt-pcm.js'
+      - 'tests/forzaLiveSttClient.test.ts'
+      - 'tests/test_forza_diba_live_worker.py'
       - 'src/utils/silenceDetector.ts'
       - 'tests/forza-smart-turn.test.ts'
       - 'tests/forza-speech-pipeline.test.ts'
@@ -56,11 +68,13 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Validate live Diba Python worker protocol
+        run: python3 tests/test_forza_diba_live_worker.py
       - name: Validate source and private TTS contract
         run: |
           npm run lint
           node --import tsx --test tests/forza-boot-speech.test.ts tests/forza-streaming-speech.test.ts tests/forza-continuous-wav.test.ts tests/forza-speech-chunks.test.ts
-          node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts
+          node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts tests/forzaLiveSttClient.test.ts
       - name: Prepare Vite runtime
         run: |
           npm pkg set overrides.tslib=2.8.1
