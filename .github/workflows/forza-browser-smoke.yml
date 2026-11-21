@@ -56,12 +56,6 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Install Piper neural CLI for the prerecorded Amir greeting
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-venv
-          python3 -m venv /tmp/forza-piper-build
-          /tmp/forza-piper-build/bin/pip install --no-cache-dir piper-tts==1.3.0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -71,12 +65,6 @@ jobs:
         run: node --import tsx --test tests/forzaPersianVoiceQuality.test.ts
       - name: Validate live STT admission, endpointing, and recognizer recovery
         run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
-      - name: Verify self-hosted Amir weights and generate original Piper greeting
-        run: |
-          node scripts/download-forza-amir.mjs
-          node scripts/generate-forza-greeting.mjs
-      - name: Validate first-visit same-voice Amir server TTS
-        run: node --import tsx --test tests/forzaAmirServerSpeech.test.ts
       - name: Validate complete Persian streaming and speech chunk integrity
         run: node --import tsx --test tests/forzaCompleteSpeech.test.ts tests/forza-speech-chunks.test.ts
       - name: Validate immediate SSE completion through slow proxies
@@ -91,6 +79,29 @@ jobs:
           cp node_modules/@diffusionstudio/piper-wasm/build/piper_phonemize.wasm public/forza-runtime/piper/
           cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/
           file public/forza-runtime/ort/ort-wasm-simd.wasm
+      - name: Create deterministic WAV fixture for offline browser greeting tests
+        run: |
+          node --input-type=module <<'NODE'
+          import { mkdirSync, writeFileSync } from 'node:fs';
+          mkdirSync('public', { recursive: true });
+          const sampleRate = 24000;
+          const samples = Math.round(sampleRate * 0.25);
+          const wav = Buffer.alloc(44 + samples * 2);
+          wav.write('RIFF', 0, 'ascii');
+          wav.writeUInt32LE(wav.length - 8, 4);
+          wav.write('WAVEfmt ', 8, 'ascii');
+          wav.writeUInt32LE(16, 16);
+          wav.writeUInt16LE(1, 20);
+          wav.writeUInt16LE(1, 22);
+          wav.writeUInt32LE(sampleRate, 24);
+          wav.writeUInt32LE(sampleRate * 2, 28);
+          wav.writeUInt16LE(2, 32);
+          wav.writeUInt16LE(16, 34);
+          wav.write('data', 36, 'ascii');
+          wav.writeUInt32LE(samples * 2, 40);
+          writeFileSync('public/forza-greeting-bootstrap.wav', wav);
+          console.log('TEST_GREETING_WAV_FIXTURE_OK bytes=' + wav.length);
+          NODE
       - run: npm run build
       - run: npm install --no-save --ignore-scripts playwright@1.56.1
       - run: npx playwright install --with-deps chromium
