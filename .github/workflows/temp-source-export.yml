@@ -1,0 +1,21 @@
+name: Temporary source export
+on:
+  push:
+    branches:
+      - tmp/export-main-source-20261121
+    paths:
+      - 'tmp/export/READY'
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package tracked repository source
+        run: git archive --format=tar.gz --output=/tmp/sanatpish-main-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sanatpish-main-source
+          path: /tmp/sanatpish-main-source.tar.gz
+          retention-days: 1
