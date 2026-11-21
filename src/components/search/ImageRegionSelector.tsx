@@ -88,11 +88,25 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
       className={"sanat-region-picker__candidate "+(sameRegion(value,region)?"is-selected":"")}
       style={{left:(region.x*100)+"%",top:(region.y*100)+"%",width:(region.width*100)+"%",height:(region.height*100)+"%"}}>
       <span>{toPersianNumber(index+1)}</span>
+      <i className="fv-lens-corner fv-lens-corner--tl" />
+      <i className="fv-lens-corner fv-lens-corner--tr" />
+      <i className="fv-lens-corner fv-lens-corner--bl" />
+      <i className="fv-lens-corner fv-lens-corner--br" />
      </div>)}
      {selected&&!candidates.some(region=>sameRegion(selected,region))&&<div aria-hidden="true" className="sanat-region-picker__candidate is-selected is-manual"
-      style={{left:(selected.x*100)+"%",top:(selected.y*100)+"%",width:(selected.width*100)+"%",height:(selected.height*100)+"%"}}/>}
+      style={{left:(selected.x*100)+"%",top:(selected.y*100)+"%",width:(selected.width*100)+"%",height:(selected.height*100)+"%"}}>
+      <i className="fv-lens-corner fv-lens-corner--tl" />
+      <i className="fv-lens-corner fv-lens-corner--tr" />
+      <i className="fv-lens-corner fv-lens-corner--bl" />
+      <i className="fv-lens-corner fv-lens-corner--br" />
+     </div>}
      {draft&&draft.width>0&&draft.height>0&&<div aria-hidden="true" className="sanat-region-picker__draft"
-      style={{left:(draft.x*100)+"%",top:(draft.y*100)+"%",width:(draft.width*100)+"%",height:(draft.height*100)+"%"}}/>}
+      style={{left:(draft.x*100)+"%",top:(draft.y*100)+"%",width:(draft.width*100)+"%",height:(draft.height*100)+"%"}}>
+      <i className="fv-lens-corner fv-lens-corner--tl" />
+      <i className="fv-lens-corner fv-lens-corner--tr" />
+      <i className="fv-lens-corner fv-lens-corner--bl" />
+      <i className="fv-lens-corner fv-lens-corner--br" />
+     </div>}
     </div>
    </div>
    <aside className="sanat-region-picker__side">

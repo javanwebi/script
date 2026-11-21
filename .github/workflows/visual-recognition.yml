@@ -5,6 +5,16 @@ on:
     paths:
       - 'server.ts'
       - 'src/components/search/AiVisualPartSearchModal.tsx'
+      - 'src/utils/clientAiSegmentation.ts'
+      - 'scripts/prepare-vision-assets.mjs'
+      - 'scripts/tests/client-ai-segmentation-browser.cjs'
+      - 'tests/client-ai-segmentation.test.ts'
+      - 'tests/fixtures/client-ai-segmentation.html'
+      - 'tests/fixtures/client-ai-segmentation.ts'
+      - 'Dockerfile'
+      - 'ops/deploy-new-vps.sh'
+      - 'ops/deploy-single-port-vps.sh'
+      - 'ops/sanatpish-deploy.sh'
       - 'src/components/search/ImageRegionReview.tsx'
       - 'src/components/search/image-region-review.css'
       - 'src/components/search/VisionAnalysisProgress.tsx'
@@ -48,6 +58,15 @@ jobs:
           cache: npm
       - name: Install locked project dependencies
         run: npm ci --no-audit --no-fund
+      - name: Install pinned browser vision runtime
+        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
+      - name: Stage verified local vision model and WASM
+        run: |
+          mkdir -p public/forza-runtime/ort
+          cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/
+          node scripts/prepare-vision-assets.mjs
+      - name: Client-side vision segmentation regressions
+        run: node --import tsx --test tests/client-ai-segmentation.test.ts
       - name: TypeScript check
         run: npm run lint
       - name: Visual recognition ranking, no-match and region tests
@@ -62,9 +81,11 @@ jobs:
           tests/image-region-interaction.test.ts
           tests/local-query-image.test.ts
       - name: Install pinned Playwright browser runner
-        run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1 onnxruntime-web@1.18.0
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      - name: Real U2NetP browser inference on an industrial photo
+        run: node scripts/tests/client-ai-segmentation-browser.cjs
       - name: Real desktop/mobile pointer, crop and upload reuse smoke
         run: node scripts/tests/image-region-interaction.cjs
       - name: Validate private sidecar setup script syntax

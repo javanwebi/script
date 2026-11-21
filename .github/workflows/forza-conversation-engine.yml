@@ -6,6 +6,8 @@ on:
     paths:
       - "src/components/forza/**"
       - "src/utils/forzaConversationEngine.ts"
+      - "src/utils/clientAiSegmentation.ts"
+      - "src/components/search/AiVisualPartSearchModal.tsx"
       - "src/utils/forzaSpeechPipeline.ts"
       - "src/utils/forzaIncrementalSpeechText.ts"
       - "src/utils/forzaTtsConcurrency.ts"
@@ -111,6 +113,9 @@ jobs:
 
       - name: Install locked dependencies
         run: npm ci
+
+      - name: Install pinned ONNX runtime for visual segmentation typecheck
+        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
 
       - name: Validate live Diba Python worker protocol
         run: python3 tests/test_forza_diba_live_worker.py
