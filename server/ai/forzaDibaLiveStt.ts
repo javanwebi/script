@@ -126,7 +126,9 @@ function startWorker(): LiveWorker {
       if (!socket) return;
       if (message?.type === 'partial' || message?.type === 'final') {
         const text = String(message.text || '').trim();
-        if (text) send(socket, { type: message.type, text, streamId });
+        // Empty finals are meaningful result boundaries for the browser's
+        // Diba admission state; do not drop them between worker and client.
+        if (text || message.type === 'final') send(socket, { type: message.type, text, streamId });
       } else if (message?.type === 'error') {
         send(socket, { type: 'error', code: String(message.code || 'diba_stream_error') });
         closeSession(worker, streamId, false);
