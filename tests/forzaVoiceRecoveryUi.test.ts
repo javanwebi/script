@@ -24,10 +24,10 @@ test('new FORZA turns retain the mic instead of stopping live WebSpeech before A
 });
 
 test('final STT text is authoritative when the UI commits a customer turn',()=>{
-  assert.equal((ui.match(/engine\\.commitUserTurn\\(candidate\\)/g)||[]).length,2);
-  assert.match(ui,/engine\\.commitUserTurn\\(q\\)/);
-  assert.match(ui,/engine\\.commitUserTurn\\(resolvedUserQuery\\)/);
-  assert.doesNotMatch(ui,/engine\\.updateTranscript\\((?:candidate|q|resolvedUserQuery)\\);engine\\.commitUserTurn\\(\\)/);
+  assert.equal((ui.match(/engine\.commitUserTurn\(candidate\)/g)||[]).length,2);
+  assert.match(ui,/engine\.commitUserTurn\(q\)/);
+  assert.match(ui,/engine\.commitUserTurn\(resolvedUserQuery\)/);
+  assert.doesNotMatch(ui,/engine\.updateTranscript\((?:candidate|q|resolvedUserQuery)\);engine\.commitUserTurn\(\)/);
 });
 
 test('text correction can stop a pending/playing answer and does not block on UI thinking state',()=>{
