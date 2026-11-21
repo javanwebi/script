@@ -520,7 +520,10 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
     "select count(*)::int as rows from public.catalog_direct_skus " +
     "where sku_code=any(array[\x2741497\x27,\x2735852\x27,\x27110049\x27]::text[]) " +
     "and category_slug=\x27excel-v2-1-4\x27 and submenu=\x27دستگاه‌های تسمه جوشی\x27 " +
-    "and subcategory=\x27دستگاه جوش تسمه صنعتی\x27 and is_active=true");
+    "and subcategory=\x27دستگاه جوش تسمه صنعتی\x27 and is_active=true " +
+    "and ((sku_code=\x2741497\x27 and source_family_code=\x27FAM-41497\x27) or " +
+    "(sku_code=\x2735852\x27 and source_family_code=\x27FAM-35852\x27) or " +
+    "(sku_code=\x27110049\x27 and source_family_code=\x27FAM-90062\x27))");
    if(Number(backup.rows[0].rows)!==3||Number(backup.rows[0].applied)!==3||Number(direct.rows[0].rows)!==3){
     throw Error("Legacy FAM welding direct-SKU migration postcondition failed");
    }
@@ -530,7 +533,10 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
     "select count(*)::int as rows from public.catalog_direct_skus " +
     "where sku_code=any(array[\x2741497\x27,\x2735852\x27,\x27110049\x27]::text[]) " +
     "and category_slug=\x27excel-v2-1-4\x27 and submenu=\x27دستگاه‌های تسمه جوشی\x27 " +
-    "and subcategory=\x27دستگاه جوش تسمه صنعتی\x27 and is_active=true");
+    "and subcategory=\x27دستگاه جوش تسمه صنعتی\x27 and is_active=true " +
+    "and ((sku_code=\x2741497\x27 and source_family_code=\x27FAM-41497\x27) or " +
+    "(sku_code=\x2735852\x27 and source_family_code=\x27FAM-35852\x27) or " +
+    "(sku_code=\x27110049\x27 and source_family_code=\x27FAM-90062\x27))");
    if(Number(direct.rows[0].rows)!==3){
     throw Error("PFAM lineage is missing the three source-verified welding equipment direct SKUs");
    }
