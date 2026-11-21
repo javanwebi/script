@@ -1073,8 +1073,8 @@ if os.environ.get('SANATPISH_FORZA_ONLY') == '1':
           '-H','Content-Type: application/json','-X','POST','--data-binary',body.decode(),
           'https://sanatpish.com/api/ai/forza-speech']
  raw=subprocess.check_output(command)
- if b'\\r\\n\\r\\n' not in raw: raise AssertionError('PUBLIC_FORZA_TTS_HEADERS_MISSING')
- headers,wav=raw.split(b'\\r\\n\\r\\n',1)
+ if b'\r\n\r\n' not in raw: raise AssertionError('PUBLIC_FORZA_TTS_HEADERS_MISSING')
+ headers,wav=raw.split(b'\r\n\r\n',1)
  parsed={}
  for line in headers.split(b'\\r\\n')[1:]:
   if b':' in line:
