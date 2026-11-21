@@ -55,10 +55,10 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
 });
 
 test('late microphone permission result is stopped before attaching to a closed or superseded call',()=>{
- const guard=source.split('const stream=await navigator.mediaDevices.getUserMedia')[1]
+ const guard=source.split('acquiredStream=await navigator.mediaDevices.getUserMedia')[1]
   .split('      streamRef.current?.getTracks()')[0];
  const body=guard.slice(guard.indexOf('      if(callClosedRef.current'));
- const accept=new Function('callClosedRef','microphoneGeneration','microphoneGenerationRef','stream',body+'; return true;');
+ const accept=new Function('callClosedRef','microphoneGeneration','microphoneGenerationRef','acquiredStream',body+'; return true;');
  for(const [closed,generation] of [[true,1],[false,2]] as const){
   let stopped=0;
   assert.equal(accept({current:closed},1,{current:generation},{getTracks:()=>[{stop:()=>++stopped}]}),undefined);
