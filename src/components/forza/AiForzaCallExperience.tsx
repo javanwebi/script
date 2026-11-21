@@ -679,6 +679,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           serverLiveSttRetryAfterRef.current=micNow+5000;
           void startServerLiveStt(true);
         }
+        if((window as any).__FORZA_TEST_MODE__===true){
+          (window as any).__forzaVadDebug={
+            status:statusRef.current,processing:isProcessingTurnRef.current,
+            aiSpeaking:isAiSpeakingRef.current,manualReplay:isManualReplayPendingRef.current,
+            hasSpeechSound:hasSpeechSoundRef.current,transcript:activeTranscriptRef.current,
+            transcriptStableMs:lastTranscriptChangedAtRef.current?micNow-lastTranscriptChangedAtRef.current:null,
+            silenceTimer:Boolean(silenceTimerRef.current),silenceMs:current.silenceMs,
+            speaking:current.speaking,speechStarted:current.speechStarted,
+            vadSilenceMs:vadRef.current.silenceDuration(micNow),
+            admission:speechAdmissionRef.current.diagnostics(micNow),
+            hypothesisAtAgeMs:lastDibaHypothesisAtRef.current?micNow-lastDibaHypothesisAtRef.current:null,
+            recorderState:mediaRecorderRef.current?.state||'none',
+            dispatchPending:turnDispatchPendingRef.current,
+          };
+        }
         setAudioLevel(current.level);
         if(current.speechStarted && speechAdmissionRef.current.acousticSpeech){
           hasSpeechSoundRef.current=true;
