@@ -92,6 +92,7 @@ on:
       - "ops/sanatpish-deploy.sh"
       - "ops/verify-single-port-canary.mjs"
       - ".github/workflows/verify-vps-build.yml"
+      - ".github/workflows/verify-source-db.yml"
   push:
     branches: [main, feature/textile-industry-page]
     paths:
