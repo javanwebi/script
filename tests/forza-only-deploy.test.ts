@@ -67,7 +67,7 @@ test("main CI deploy routes only the exact Forza-only commit through the safe en
   assert.match(deployWorkflow, /Deploy exact Forza-only main commit without database migrations/);
   assert.match(deployWorkflow, /ops\/deploy-forza-only-vps\.sh/);
   assert.match(deployWorkflow, /Deploy standard main release/);
-  assert.match(entrypoint, /REQUESTED_SHA="\\$\\{1:-\\}"/);
+  assert.match(entrypoint, /REQUESTED_SHA="\$\{1:-\}"/);
   assert.match(entrypoint, /merge-base --is-ancestor/);
 });
 
