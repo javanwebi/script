@@ -5964,6 +5964,8 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('X-Forza-Voice',upstreamVoice);
     res.setHeader('X-Forza-Voice-Backend','private-service');
+    const streamMode=upstream.headers.get('x-forza-stream-mode');
+    if(streamMode==='sentence-frames')res.setHeader('X-Forza-Stream-Mode',streamMode);
     const queueMs=upstream.headers.get('x-forza-queue-ms');
     if(queueMs!==null&&/^\d{1,8}$/.test(queueMs))
       res.setHeader('X-Forza-Queue-Ms',queueMs);
