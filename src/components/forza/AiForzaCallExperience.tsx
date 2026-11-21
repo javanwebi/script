@@ -491,9 +491,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setTurn('user');
     }
 
-    // Only the foreground-gated stream may reach STT. Native Web Speech is
-    // intentionally disabled because browsers cannot route a filtered stream
-    // into a direct-microphone browser recognizer; low-power devices use the server Diba fallback.
+    // Only the foreground-gated stream may reach STT. Local Diba is preferred;
+    // low-power devices use the same gated PCM over the server Diba WebSocket.
     const localReady=startDibaTurn();
     if(!localReady)void startServerLiveStt();
     const recorder = mediaRecorderRef.current;
@@ -1402,8 +1401,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Local or server-streaming Diba text stays visible immediately.
         // Use one-shot server verification only if live Diba was unavailable
         // or a pre-stream recorder segment must be recovered.
+        const hasPreStreamSegments=Array.isArray(audioBlob)&&audioBlob.length>1;
         const needsServerFinal = Boolean(audioBlob) &&
-          serverSttConfiguredRef.current === true && (!q || !liveSttActiveRef.current);
+          serverSttConfiguredRef.current === true &&
+          (!q || !liveSttActiveRef.current || hasPreStreamSegments);
         if(audioBlob && needsServerFinal){
           const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
           const sttStartedAt=performance.now();
