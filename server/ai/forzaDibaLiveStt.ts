@@ -330,7 +330,19 @@ export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
     }
   }, 30_000);
   heartbeat.unref();
-  wss.on('close', () => clearInterval(heartbeat));
+  const shutdown = () => {
+    clearInterval(heartbeat);
+    for (const worker of workers) {
+      for (const [streamId, socket] of worker.sessions) {
+        send(socket, { type: 'error', code: 'diba_server_shutdown' });
+        if (socket.readyState === WebSocket.OPEN) socket.close(1012, 'Server restarting');
+        worker.sessions.delete(streamId);
+      }
+      try { worker.child.stdin.end(); } catch {}
+      try { worker.child.kill('SIGTERM'); } catch {}
+    }
+  };
+  server.once('close', shutdown);
 }
 
 function sessionsCount(): number {
