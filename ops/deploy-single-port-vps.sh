@@ -307,238 +307,238 @@ if [[ "$FORZA_ONLY" == "1" ]]; then
   # only SELECT 1 against the existing database connection.
   echo FORZA_ONLY_DATABASE_MIGRATIONS_SKIPPED=YES
 else
-  echo '===== VERIFY PRODUCTION NAVIGATION SCHEMA (SAME LIVE DATABASE) ====='
-  # Executed inside the currently serving container, reusing its exact DATABASE_URL,
-  # SSL configuration and private credentials. Only additive DDL and absent groups.
-  # Do not run this recovery against an unrelated connected Supabase project.
-  if ! docker exec "$OLD" node --import tsx --input-type=module -e '
-    import {database, closeDatabase} from "./server/db/connection.ts";
+echo '===== VERIFY PRODUCTION NAVIGATION SCHEMA (SAME LIVE DATABASE) ====='
+# Executed inside the currently serving container, reusing its exact DATABASE_URL,
+# SSL configuration and private credentials. Only additive DDL and absent groups.
+# Do not run this recovery against an unrelated connected Supabase project.
+if ! docker exec "$OLD" node --import tsx --input-type=module -e '
+  import {database, closeDatabase} from "./server/db/connection.ts";
+  try {
+    const rows=await database().query(
+      "select to_regclass(\x27public.catalog_navigation_groups\x27) as groups, " +
+      "to_regclass(\x27public.catalog_family_menu_assignments\x27) as assignments, " +
+      "to_regclass(\x27public.catalog_direct_skus\x27) as direct");
+    const row=rows.rows[0];
+    const approved=row.groups
+      ? await database().query("select count(*)::int as total from public.catalog_navigation_groups where id ~ \x27^excel-v2-[0-9]+$\x27 and is_active=true")
+      : {rows:[{total:0}]};
+    const categoryCount=await database().query(
+      "select count(*)::int as total from public.catalog_categories where is_active=true and slug ~ \x27^excel-v2-[0-9]+-[0-9]+$\x27 and metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27");
+    if (!row.groups || !row.assignments || !row.direct || Number(approved.rows[0].total)<14 || Number(categoryCount.rows[0].total)<34) process.exitCode=2;
+    else console.log("PRODUCTION_NAV_SCHEMA_ALREADY_OK", approved.rows[0].total, categoryCount.rows[0].total);
+  }catch(error){console.error("PRODUCTION_NAV_SCHEMA_CHECK_FAILED",error.code||"",error.message);process.exitCode=2}
+  finally{await closeDatabase()}
+'; then
+  echo '===== APPLY NON-DESTRUCTIVE CATALOG SCHEMA REPAIR ====='
+  # Database transaction either commits all new tables/groups or rolls back.
+  # The SQL source comes from the same pinned commit as the frontend.
+  docker exec -i "$OLD" node --import tsx --input-type=module -e '
+    import {readFileSync} from "node:fs";
+    import {database,closeDatabase} from "./server/db/connection.ts";
     try {
-      const rows=await database().query(
-        "select to_regclass(\x27public.catalog_navigation_groups\x27) as groups, " +
-        "to_regclass(\x27public.catalog_family_menu_assignments\x27) as assignments, " +
-        "to_regclass(\x27public.catalog_direct_skus\x27) as direct");
-      const row=rows.rows[0];
-      const approved=row.groups
-        ? await database().query("select count(*)::int as total from public.catalog_navigation_groups where id ~ \x27^excel-v2-[0-9]+$\x27 and is_active=true")
-        : {rows:[{total:0}]};
-      const categoryCount=await database().query(
-        "select count(*)::int as total from public.catalog_categories where is_active=true and slug ~ \x27^excel-v2-[0-9]+-[0-9]+$\x27 and metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27");
-      if (!row.groups || !row.assignments || !row.direct || Number(approved.rows[0].total)<14 || Number(categoryCount.rows[0].total)<34) process.exitCode=2;
-      else console.log("PRODUCTION_NAV_SCHEMA_ALREADY_OK", approved.rows[0].total, categoryCount.rows[0].total);
-    }catch(error){console.error("PRODUCTION_NAV_SCHEMA_CHECK_FAILED",error.code||"",error.message);process.exitCode=2}
+      const sql=readFileSync(0,"utf8");
+      await database().query(sql);
+      console.log("PRODUCTION_CATALOG_SCHEMA_RECOVERED");
+    }catch(error){console.error("PRODUCTION_CATALOG_SCHEMA_RECOVERY_FAILED",error.code||"",error.message);process.exitCode=1}
     finally{await closeDatabase()}
-  '; then
-    echo '===== APPLY NON-DESTRUCTIVE CATALOG SCHEMA REPAIR ====='
-    # Database transaction either commits all new tables/groups or rolls back.
-    # The SQL source comes from the same pinned commit as the frontend.
-    docker exec -i "$OLD" node --import tsx --input-type=module -e '
-      import {readFileSync} from "node:fs";
-      import {database,closeDatabase} from "./server/db/connection.ts";
-      try {
-        const sql=readFileSync(0,"utf8");
-        await database().query(sql);
-        console.log("PRODUCTION_CATALOG_SCHEMA_RECOVERED");
-      }catch(error){console.error("PRODUCTION_CATALOG_SCHEMA_RECOVERY_FAILED",error.code||"",error.message);process.exitCode=1}
-      finally{await closeDatabase()}
-    ' < "$STAGE/ops/sql/20261103_recover_missing_production_catalog_navigation.sql"
-  fi
-  # A missing table must never be reported as a successful deploy.
-  docker exec "$OLD" node --import tsx --input-type=module -e '
-   import {database,closeDatabase} from "./server/db/connection.ts";
-   try {
-    const x=await database().query(
-     "select count(*)::int as n from public.catalog_navigation_groups where is_active=true and id ~ \x27^excel-v2-[0-9]+$\x27");
-    if(Number(x.rows[0].n)<14)throw Error("Expected 14 approved menu groups");
-    const c=await database().query(
-     "select count(*)::int as n from public.catalog_categories where is_active=true and slug ~ \x27^excel-v2-[0-9]+-[0-9]+$\x27 and metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27");
-    if(Number(c.rows[0].n)<34)throw Error("Expected 34 active approved categories, found "+c.rows[0].n);
-    console.log("PRODUCTION_NAVIGATION_GROUPS_VERIFIED",x.rows[0].n);
-    console.log("PRODUCTION_APPROVED_CATEGORIES_VERIFIED",c.rows[0].n);
-   }catch(error){console.error("PRODUCTION_NAVIGATION_VERIFY_FAILED",error.code||"",error.message);process.exitCode=1}
-   finally{await closeDatabase()}
-  '
-  echo '===== SKIP UNVERIFIED BULK FAMILY MENU SEED ====='
-  echo 'The 1,286-row family menu seed is intentionally not auto-applied while the 90-to-67 technical taxonomy audit is open.'
-  echo 'Existing admin_verified assignments remain untouched.'
-  
-  echo '===== APPLY TARGETED EXCEL-VERIFIED FAMILY MENU CORRECTIONS ====='
-  CORRECTION_SQL="$STAGE/ops/sql/20261114_catalog_family_menu_audit_corrections.sql"
-  test -s "$CORRECTION_SQL" || { echo "REQUIRED_CATALOG_CORRECTION_SQL_MISSING=$CORRECTION_SQL"; exit 1; }
-  docker exec -i "$OLD" node --import tsx --input-type=module -e '
-   import {readFileSync} from "node:fs";
-   import {database,closeDatabase} from "./server/db/connection.ts";
-   try {
-    const sql=readFileSync(0,"utf8");
+  ' < "$STAGE/ops/sql/20261103_recover_missing_production_catalog_navigation.sql"
+fi
+# A missing table must never be reported as a successful deploy.
+docker exec "$OLD" node --import tsx --input-type=module -e '
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const x=await database().query(
+   "select count(*)::int as n from public.catalog_navigation_groups where is_active=true and id ~ \x27^excel-v2-[0-9]+$\x27");
+  if(Number(x.rows[0].n)<14)throw Error("Expected 14 approved menu groups");
+  const c=await database().query(
+   "select count(*)::int as n from public.catalog_categories where is_active=true and slug ~ \x27^excel-v2-[0-9]+-[0-9]+$\x27 and metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27");
+  if(Number(c.rows[0].n)<34)throw Error("Expected 34 active approved categories, found "+c.rows[0].n);
+  console.log("PRODUCTION_NAVIGATION_GROUPS_VERIFIED",x.rows[0].n);
+  console.log("PRODUCTION_APPROVED_CATEGORIES_VERIFIED",c.rows[0].n);
+ }catch(error){console.error("PRODUCTION_NAVIGATION_VERIFY_FAILED",error.code||"",error.message);process.exitCode=1}
+ finally{await closeDatabase()}
+'
+echo '===== SKIP UNVERIFIED BULK FAMILY MENU SEED ====='
+echo 'The 1,286-row family menu seed is intentionally not auto-applied while the 90-to-67 technical taxonomy audit is open.'
+echo 'Existing admin_verified assignments remain untouched.'
+
+echo '===== APPLY TARGETED EXCEL-VERIFIED FAMILY MENU CORRECTIONS ====='
+CORRECTION_SQL="$STAGE/ops/sql/20261114_catalog_family_menu_audit_corrections.sql"
+test -s "$CORRECTION_SQL" || { echo "REQUIRED_CATALOG_CORRECTION_SQL_MISSING=$CORRECTION_SQL"; exit 1; }
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+ import {readFileSync} from "node:fs";
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const sql=readFileSync(0,"utf8");
+  await database().query(sql);
+  const result=await database().query(
+   "select count(*)::int as total from public.catalog_family_menu_assignments where " +
+   "((family_code in (\x27FAM-35826\x27,\x27FAM-10105\x27,\x27FAM-52948\x27) " +
+   "and (method=\x27admin_verified\x27 or (category_slug=\x27excel-v2-6-2\x27 " +
+   "and submenu_name=\x27نرده استیل\x27 and leaf_name=\x27نرده استیل و متعلقات\x27))) " +
+   "or (family_code=\x27FAM-52858\x27 and (method=\x27admin_verified\x27 or " +
+   "(category_slug=\x27excel-v2-2-1\x27 and submenu_name=\x27بر اساس جنس\x27 " +
+   "and leaf_name IS NULL))))");
+  if(Number(result.rows[0].total)!==4)throw Error("Expected 4 source-verified or admin-locked family assignments");
+  console.log("PRODUCTION_SOURCE_VERIFIED_FAMILY_ASSIGNMENTS_OR_ADMIN_LOCKED",result.rows[0].total);
+ }catch(error){console.error("PRODUCTION_CATALOG_AUDIT_CORRECTION_FAILED",error.code||"",error.message);process.exitCode=1}
+ finally{await closeDatabase()}
+' < "$CORRECTION_SQL"
+
+echo '===== APPLY SOURCE-VERIFIED SKU-LEVEL MENU ASSIGNMENTS ====='
+SKU_MENU_SQL="$STAGE/ops/sql/20261114_catalog_sku_level_menu_assignments.sql"
+test -s "$SKU_MENU_SQL" || { echo "REQUIRED_SKU_MENU_SQL_MISSING=$SKU_MENU_SQL"; exit 1; }
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+ import {readFileSync} from "node:fs";
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const sql=readFileSync(0,"utf8");
+  await database().query(sql);
+  console.log("PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_VERIFIED",305);
+ }catch(error){
+  console.error("PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_FAILED",error.code||"",error.message);
+  process.exitCode=1;
+ }finally{await closeDatabase()}
+' < "$SKU_MENU_SQL"
+
+echo '===== APPLY GUARDED INDUSTRIAL BELT TAXONOMY RECONCILIATION ====='
+BELT_TAXONOMY_SQL="$STAGE/ops/sql/20261116_belt_family_taxonomy_followup.sql"
+test -s "$BELT_TAXONOMY_SQL" || { echo "REQUIRED_BELT_TAXONOMY_SQL_MISSING=$BELT_TAXONOMY_SQL"; exit 1; }
+# This reconciliation targets the separate, engineering-reconstructed PFAM catalog.
+# Legacy FAM-only production databases must not be forced through PFAM-specific IDs.
+# The 138-row backup remains the idempotency marker for databases where this dataset exists.
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+ import {readFileSync} from "node:fs";
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const sql=readFileSync(0,"utf8");
+  const marker=await database().query(
+   "select to_regclass(\x27internal.catalog_belt_taxonomy_followup_backup_20261116\x27) as backup");
+  const hasBackup=Boolean(marker.rows[0].backup);
+  if(hasBackup){
+   const existing=await database().query(
+    "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
+   if(Number(existing.rows[0].rows)!==138)throw Error("Existing belt taxonomy backup is incomplete; refusing to continue");
+  }
+  const lineage=await database().query(
+   "select " +
+   "count(*) filter(where code like \x27PFAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_pfam, " +
+   "count(*) filter(where code like \x27FAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_fam " +
+   "from public.catalog_families");
+  const activePfam=Number(lineage.rows[0].active_pfam||0);
+  const activeFam=Number(lineage.rows[0].active_fam||0);
+  console.log("PRODUCTION_CATALOG_FAMILY_LINEAGE",JSON.stringify({active_pfam:activePfam,active_fam:activeFam}));
+  if(activePfam===0&&activeFam>0){
+   console.log("PRODUCTION_BELT_PFAM_FOLLOWUP_SKIPPED reason=legacy_fam_catalog active_fam="+activeFam);
+   console.log("PRODUCTION_BELT_DIRECT_SKU_FOLLOWUP_DEFERRED reason=pfam_family_baseline_absent");
+  }else{
+   if(activePfam===0)throw Error("No active PFAM or FAM family baseline found; refusing to apply belt taxonomy follow-up");
+   if(activeFam>0)throw Error("Mixed active FAM/PFAM family lineage; refusing to apply PFAM-only belt taxonomy follow-up");
+   if(hasBackup){
+    console.log("PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138");
+   }else{
     await database().query(sql);
-    const result=await database().query(
-     "select count(*)::int as total from public.catalog_family_menu_assignments where " +
-     "((family_code in (\x27FAM-35826\x27,\x27FAM-10105\x27,\x27FAM-52948\x27) " +
-     "and (method=\x27admin_verified\x27 or (category_slug=\x27excel-v2-6-2\x27 " +
-     "and submenu_name=\x27نرده استیل\x27 and leaf_name=\x27نرده استیل و متعلقات\x27))) " +
-     "or (family_code=\x27FAM-52858\x27 and (method=\x27admin_verified\x27 or " +
-     "(category_slug=\x27excel-v2-2-1\x27 and submenu_name=\x27بر اساس جنس\x27 " +
-     "and leaf_name IS NULL))))");
-    if(Number(result.rows[0].total)!==4)throw Error("Expected 4 source-verified or admin-locked family assignments");
-    console.log("PRODUCTION_SOURCE_VERIFIED_FAMILY_ASSIGNMENTS_OR_ADMIN_LOCKED",result.rows[0].total);
-   }catch(error){console.error("PRODUCTION_CATALOG_AUDIT_CORRECTION_FAILED",error.code||"",error.message);process.exitCode=1}
-   finally{await closeDatabase()}
-  ' < "$CORRECTION_SQL"
-  
-  echo '===== APPLY SOURCE-VERIFIED SKU-LEVEL MENU ASSIGNMENTS ====='
-  SKU_MENU_SQL="$STAGE/ops/sql/20261114_catalog_sku_level_menu_assignments.sql"
-  test -s "$SKU_MENU_SQL" || { echo "REQUIRED_SKU_MENU_SQL_MISSING=$SKU_MENU_SQL"; exit 1; }
-  docker exec -i "$OLD" node --import tsx --input-type=module -e '
-   import {readFileSync} from "node:fs";
-   import {database,closeDatabase} from "./server/db/connection.ts";
-   try {
-    const sql=readFileSync(0,"utf8");
+    const applied=await database().query(
+     "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
+    if(Number(applied.rows[0].rows)!==138)throw Error("Belt taxonomy migration did not create its complete 138-row backup");
+    console.log("PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138");
+   }
+  }
+ }catch(error){
+  console.error("PRODUCTION_BELT_TAXONOMY_MIGRATION_FAILED",error.code||"",error.message);
+  process.exitCode=1;
+ }finally{await closeDatabase()}
+' < "$BELT_TAXONOMY_SQL"
+
+echo '===== APPLY GUARDED BELT FAMILY ENGINEERING CORRECTIONS ====='
+BELT_ENGINEERING_SQL="$STAGE/ops/sql/20261117_belt_family_engineering_corrections.sql"
+test -s "$BELT_ENGINEERING_SQL" || { echo "REQUIRED_BELT_ENGINEERING_SQL_MISSING=$BELT_ENGINEERING_SQL"; exit 1; }
+# Apply only to the audited PFAM production lineage. Legacy FAM-only databases
+# and mixed lineages must never receive PFAM-specific family identifiers.
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+ import {readFileSync} from "node:fs";
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const sql=readFileSync(0,"utf8");
+  const marker=await database().query(
+   "select to_regclass(\x27internal.catalog_belt_family_engineering_backup_20261117\x27) as backup");
+  const hasBackup=Boolean(marker.rows[0].backup);
+  if(hasBackup){
+   const existing=await database().query(
+    "select " +
+    "count(*) filter(where table_name=\x27catalog_variants\x27)::int as variants, " +
+    "count(*) filter(where table_name=\x27catalog_families\x27)::int as families, " +
+    "count(*) filter(where table_name=\x27catalog_family_menu_assignments\x27)::int as assignments, " +
+    "count(*) filter(where table_name=\x27catalog_direct_skus\x27)::int as direct, " +
+    "count(*) filter(where table_name=\x27catalog_categories\x27)::int as categories " +
+    "from internal.catalog_belt_family_engineering_backup_20261117");
+   const backup=existing.rows[0];
+   if(Number(backup.variants)!==292||Number(backup.families)!==19||
+      Number(backup.assignments)!==8||Number(backup.direct)!==14||Number(backup.categories)!==5){
+    throw Error("Existing belt engineering backup is incomplete; refusing to continue");
+   }
+  }
+  const lineage=await database().query(
+   "select " +
+   "count(*) filter(where code like \x27PFAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_pfam, " +
+   "count(*) filter(where code like \x27FAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_fam " +
+   "from public.catalog_families");
+  const activePfam=Number(lineage.rows[0].active_pfam||0);
+  const activeFam=Number(lineage.rows[0].active_fam||0);
+  console.log("PRODUCTION_CATALOG_FAMILY_LINEAGE",JSON.stringify({active_pfam:activePfam,active_fam:activeFam}));
+  if(activePfam===0&&activeFam>0){
+   console.log("PRODUCTION_BELT_ENGINEERING_SKIPPED reason=legacy_fam_catalog active_fam="+activeFam);
+  }else{
+   if(activePfam===0)throw Error("No active PFAM or FAM family baseline found; refusing belt engineering correction");
+   if(activeFam>0)throw Error("Mixed active FAM/PFAM family lineage; refusing PFAM belt engineering correction");
+   if(hasBackup){
+    console.log("PRODUCTION_BELT_ENGINEERING_ALREADY_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5");
+   }else{
     await database().query(sql);
-    console.log("PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_VERIFIED",305);
-   }catch(error){
-    console.error("PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_FAILED",error.code||"",error.message);
-    process.exitCode=1;
-   }finally{await closeDatabase()}
-  ' < "$SKU_MENU_SQL"
-  
-  echo '===== APPLY GUARDED INDUSTRIAL BELT TAXONOMY RECONCILIATION ====='
-  BELT_TAXONOMY_SQL="$STAGE/ops/sql/20261116_belt_family_taxonomy_followup.sql"
-  test -s "$BELT_TAXONOMY_SQL" || { echo "REQUIRED_BELT_TAXONOMY_SQL_MISSING=$BELT_TAXONOMY_SQL"; exit 1; }
-  # This reconciliation targets the separate, engineering-reconstructed PFAM catalog.
-  # Legacy FAM-only production databases must not be forced through PFAM-specific IDs.
-  # The 138-row backup remains the idempotency marker for databases where this dataset exists.
-  docker exec -i "$OLD" node --import tsx --input-type=module -e '
-   import {readFileSync} from "node:fs";
-   import {database,closeDatabase} from "./server/db/connection.ts";
-   try {
-    const sql=readFileSync(0,"utf8");
-    const marker=await database().query(
-     "select to_regclass(\x27internal.catalog_belt_taxonomy_followup_backup_20261116\x27) as backup");
-    const hasBackup=Boolean(marker.rows[0].backup);
-    if(hasBackup){
-     const existing=await database().query(
-      "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
-     if(Number(existing.rows[0].rows)!==138)throw Error("Existing belt taxonomy backup is incomplete; refusing to continue");
-    }
-    const lineage=await database().query(
+    const applied=await database().query(
      "select " +
-     "count(*) filter(where code like \x27PFAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_pfam, " +
-     "count(*) filter(where code like \x27FAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_fam " +
-     "from public.catalog_families");
-    const activePfam=Number(lineage.rows[0].active_pfam||0);
-    const activeFam=Number(lineage.rows[0].active_fam||0);
-    console.log("PRODUCTION_CATALOG_FAMILY_LINEAGE",JSON.stringify({active_pfam:activePfam,active_fam:activeFam}));
-    if(activePfam===0&&activeFam>0){
-     console.log("PRODUCTION_BELT_PFAM_FOLLOWUP_SKIPPED reason=legacy_fam_catalog active_fam="+activeFam);
-     console.log("PRODUCTION_BELT_DIRECT_SKU_FOLLOWUP_DEFERRED reason=pfam_family_baseline_absent");
-    }else{
-     if(activePfam===0)throw Error("No active PFAM or FAM family baseline found; refusing to apply belt taxonomy follow-up");
-     if(activeFam>0)throw Error("Mixed active FAM/PFAM family lineage; refusing to apply PFAM-only belt taxonomy follow-up");
-     if(hasBackup){
-      console.log("PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138");
-     }else{
-      await database().query(sql);
-      const applied=await database().query(
-       "select count(*)::int as rows from internal.catalog_belt_taxonomy_followup_backup_20261116");
-      if(Number(applied.rows[0].rows)!==138)throw Error("Belt taxonomy migration did not create its complete 138-row backup");
-      console.log("PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138");
-     }
+     "count(*) filter(where table_name=\x27catalog_variants\x27)::int as variants, " +
+     "count(*) filter(where table_name=\x27catalog_families\x27)::int as families, " +
+     "count(*) filter(where table_name=\x27catalog_family_menu_assignments\x27)::int as assignments, " +
+     "count(*) filter(where table_name=\x27catalog_direct_skus\x27)::int as direct, " +
+     "count(*) filter(where table_name=\x27catalog_categories\x27)::int as categories " +
+     "from internal.catalog_belt_family_engineering_backup_20261117");
+    const backup=applied.rows[0];
+    if(Number(backup.variants)!==292||Number(backup.families)!==19||
+       Number(backup.assignments)!==8||Number(backup.direct)!==14||Number(backup.categories)!==5){
+     throw Error("Belt engineering migration did not create its complete private backup");
     }
-   }catch(error){
-    console.error("PRODUCTION_BELT_TAXONOMY_MIGRATION_FAILED",error.code||"",error.message);
-    process.exitCode=1;
-   }finally{await closeDatabase()}
-  ' < "$BELT_TAXONOMY_SQL"
-  
-  echo '===== APPLY GUARDED BELT FAMILY ENGINEERING CORRECTIONS ====='
-  BELT_ENGINEERING_SQL="$STAGE/ops/sql/20261117_belt_family_engineering_corrections.sql"
-  test -s "$BELT_ENGINEERING_SQL" || { echo "REQUIRED_BELT_ENGINEERING_SQL_MISSING=$BELT_ENGINEERING_SQL"; exit 1; }
-  # Apply only to the audited PFAM production lineage. Legacy FAM-only databases
-  # and mixed lineages must never receive PFAM-specific family identifiers.
+    console.log("PRODUCTION_BELT_ENGINEERING_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5");
+   }
+  }
+ }catch(error){
+  console.error("PRODUCTION_BELT_ENGINEERING_MIGRATION_FAILED",error.code||"",error.message);
+  process.exitCode=1;
+ }finally{await closeDatabase()}
+' < "$BELT_ENGINEERING_SQL"
+
+echo '===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA ====='
+for MIGRATION in \
+  "$STAGE/supabase/adopted/migrations/20261109010000_customer_360_local_vault.sql" \
+  "$STAGE/supabase/adopted/migrations/20261110010000_custom_part_requests.sql" \
+  "$STAGE/supabase/adopted/migrations/20261116010000_catalog_identity_specs_compat.sql"; do
+  test -s "$MIGRATION" || { echo "REQUIRED_MIGRATION_MISSING=$MIGRATION"; exit 1; }
   docker exec -i "$OLD" node --import tsx --input-type=module -e '
-   import {readFileSync} from "node:fs";
-   import {database,closeDatabase} from "./server/db/connection.ts";
-   try {
-    const sql=readFileSync(0,"utf8");
-    const marker=await database().query(
-     "select to_regclass(\x27internal.catalog_belt_family_engineering_backup_20261117\x27) as backup");
-    const hasBackup=Boolean(marker.rows[0].backup);
-    if(hasBackup){
-     const existing=await database().query(
-      "select " +
-      "count(*) filter(where table_name=\x27catalog_variants\x27)::int as variants, " +
-      "count(*) filter(where table_name=\x27catalog_families\x27)::int as families, " +
-      "count(*) filter(where table_name=\x27catalog_family_menu_assignments\x27)::int as assignments, " +
-      "count(*) filter(where table_name=\x27catalog_direct_skus\x27)::int as direct, " +
-      "count(*) filter(where table_name=\x27catalog_categories\x27)::int as categories " +
-      "from internal.catalog_belt_family_engineering_backup_20261117");
-     const backup=existing.rows[0];
-     if(Number(backup.variants)!==292||Number(backup.families)!==19||
-        Number(backup.assignments)!==8||Number(backup.direct)!==14||Number(backup.categories)!==5){
-      throw Error("Existing belt engineering backup is incomplete; refusing to continue");
-     }
-    }
-    const lineage=await database().query(
-     "select " +
-     "count(*) filter(where code like \x27PFAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_pfam, " +
-     "count(*) filter(where code like \x27FAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_fam " +
-     "from public.catalog_families");
-    const activePfam=Number(lineage.rows[0].active_pfam||0);
-    const activeFam=Number(lineage.rows[0].active_fam||0);
-    console.log("PRODUCTION_CATALOG_FAMILY_LINEAGE",JSON.stringify({active_pfam:activePfam,active_fam:activeFam}));
-    if(activePfam===0&&activeFam>0){
-     console.log("PRODUCTION_BELT_ENGINEERING_SKIPPED reason=legacy_fam_catalog active_fam="+activeFam);
-    }else{
-     if(activePfam===0)throw Error("No active PFAM or FAM family baseline found; refusing belt engineering correction");
-     if(activeFam>0)throw Error("Mixed active FAM/PFAM family lineage; refusing PFAM belt engineering correction");
-     if(hasBackup){
-      console.log("PRODUCTION_BELT_ENGINEERING_ALREADY_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5");
-     }else{
+    import {readFileSync} from "node:fs";
+    import {database,closeDatabase} from "./server/db/connection.ts";
+    try {
+      const sql=readFileSync(0,"utf8");
       await database().query(sql);
-      const applied=await database().query(
-       "select " +
-       "count(*) filter(where table_name=\x27catalog_variants\x27)::int as variants, " +
-       "count(*) filter(where table_name=\x27catalog_families\x27)::int as families, " +
-       "count(*) filter(where table_name=\x27catalog_family_menu_assignments\x27)::int as assignments, " +
-       "count(*) filter(where table_name=\x27catalog_direct_skus\x27)::int as direct, " +
-       "count(*) filter(where table_name=\x27catalog_categories\x27)::int as categories " +
-       "from internal.catalog_belt_family_engineering_backup_20261117");
-      const backup=applied.rows[0];
-      if(Number(backup.variants)!==292||Number(backup.families)!==19||
-         Number(backup.assignments)!==8||Number(backup.direct)!==14||Number(backup.categories)!==5){
-       throw Error("Belt engineering migration did not create its complete private backup");
-      }
-      console.log("PRODUCTION_BELT_ENGINEERING_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5");
-     }
-    }
-   }catch(error){
-    console.error("PRODUCTION_BELT_ENGINEERING_MIGRATION_FAILED",error.code||"",error.message);
-    process.exitCode=1;
-   }finally{await closeDatabase()}
-  ' < "$BELT_ENGINEERING_SQL"
-  
-  echo '===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA ====='
-  for MIGRATION in \
-    "$STAGE/supabase/adopted/migrations/20261109010000_customer_360_local_vault.sql" \
-    "$STAGE/supabase/adopted/migrations/20261110010000_custom_part_requests.sql" \
-    "$STAGE/supabase/adopted/migrations/20261116010000_catalog_identity_specs_compat.sql"; do
-    test -s "$MIGRATION" || { echo "REQUIRED_MIGRATION_MISSING=$MIGRATION"; exit 1; }
-    docker exec -i "$OLD" node --import tsx --input-type=module -e '
-      import {readFileSync} from "node:fs";
-      import {database,closeDatabase} from "./server/db/connection.ts";
-      try {
-        const sql=readFileSync(0,"utf8");
-        await database().query(sql);
-        console.log("PRODUCTION_ADDITIVE_MIGRATION_APPLIED");
-      } catch(error) {
-        console.error("PRODUCTION_ADDITIVE_MIGRATION_FAILED",error.code||"",error.message);
-        process.exitCode=1;
-      } finally { await closeDatabase(); }
-    ' < "$MIGRATION"
-  done
-  echo 'PRODUCTION_CATALOG_IDENTITY_SCHEMA_READY'
-  
-  
+      console.log("PRODUCTION_ADDITIVE_MIGRATION_APPLIED");
+    } catch(error) {
+      console.error("PRODUCTION_ADDITIVE_MIGRATION_FAILED",error.code||"",error.message);
+      process.exitCode=1;
+    } finally { await closeDatabase(); }
+  ' < "$MIGRATION"
+done
+echo 'PRODUCTION_CATALOG_IDENTITY_SCHEMA_READY'
+
+
 fi
 
 echo '===== CONTINUE BLUE-GREEN DEPLOY ====='
