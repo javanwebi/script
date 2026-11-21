@@ -160,8 +160,8 @@ test('new text after terminal idle flush is still streamed and voiced once in or
 
 test('middle completed speech group leaves the idle holdback without duplicated words',()=>{
   const planner=new ForzaIncrementalSpeechText();
-  const first='برای انتخاب قطعات صنعتی مورد نیاز ابتدا مدل دستگاه را بفرمایید و ';
-  const next=first+'سپس کد دقیق قطعه را از روی برچسب یا دفترچه فنی ارسال کنید. ';
+  const first='برای انتخاب قطعات صنعتی مورد نیاز ابتدا مدل دستگاه را بفرمایید و شرایط کاری و ابعاد قطعه را هم اعلام کنید تا بررسی کنیم ';
+  const next=first+'سپس کد دقیق قطعه را از روی برچسب یا دفترچه فنی ارسال کنید و برند سازنده را نیز مشخص کنید. ';
   const early=planner.push(first);
   const middle=planner.push(next);
   const idle=planner.flushStableIdle();
