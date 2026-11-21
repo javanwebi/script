@@ -1518,7 +1518,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               payload.query=chooseForzaFinalTranscript(q,serverTranscript);
               console.info('[FORZA_STT] turn='+generation+' provider=diba-vosk duration_ms='+
                 Math.round(performance.now()-sttStartedAt)+' segments='+audioBlobs.length+
-                ' failed='+failedSegments+' source='+(payload.query===q?'browser_guarded':'server_final')+
+                ' failed='+failedSegments+' source='+(payload.query===q?'live_diba_text_preserved':'server_final')+
                 ' transcript_chars='+serverTranscript.length);
               setUserText(q
                 ?replaceForzaLastSessionTurn(sessionTranscriptRef.current,q,payload.query)
@@ -1527,13 +1527,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             }else if(!q){
               throw new Error('diba_no_complete_transcript');
             }else{
-              console.info('[FORZA_STT] browser_fallback=1 server_segments_failed='+failedSegments);
+              console.info('[FORZA_STT] live_diba_text_preserved=1 server_segments_failed='+failedSegments);
             }
           }catch(sttError:any){
             if(pocketAbort.signal.aborted)throw sttError;
             console.warn('[FORZA_STT] server_final_error code='+
               String(sttError?.message||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,64)+
-              ' browser_fallback='+(q?'1':'0'));
+              ' live_text_preserved='+(q?'1':'0'));
             // A failed final verifier must never erase a usable live transcript.
             if(!q)throw new Error('متن گفتار کامل دریافت نشد؛ لطفاً یک‌بار دیگر صحبت کنید. اگر مشکل ادامه داشت، اتصال میکروفون را دوباره برقرار کنید.');
           }finally{
