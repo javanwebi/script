@@ -37,6 +37,18 @@ if (process.env.SANATPISH_RELEASE_SHA) {
 }
 console.log("FORZA_CANARY_APP_HEALTH_OK revision=" + String(health.revision || "unknown"));
 
+// The Forza-only release must not rebuild or mutate the existing catalog image
+// index. The live index is checked before canary startup; confirm the candidate
+// loaded the same complete persisted projection without pending embedding work.
+const vision = await json("/api/ai/local-vision-status");
+if (vision.enabled === true) {
+  assert.equal(vision.ready, true, "FORZA_CANARY_EXISTING_VISION_INDEX_NOT_READY");
+  assert.equal(vision.indexed, vision.total, "FORZA_CANARY_VISION_INDEX_COUNT_CHANGED");
+  assert.equal(vision.missing, 0, "FORZA_CANARY_VISION_INDEX_MISSING_ROWS");
+  assert.equal(vision.signatureChanged, 0, "FORZA_CANARY_VISION_INDEX_HAS_PENDING_WRITES");
+  console.log("FORZA_CANARY_EXISTING_VISION_INDEX_READ_ONLY_OK", vision.indexed, "/", vision.total);
+}
+
 const stt = await waitFor(
   "FORZA_DIBA_STT",
   "/api/ai/forza-stt-info",
