@@ -272,7 +272,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const currentBufferSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const audioSourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const micAnalyserRef = useRef<AnalyserNode | null>(null);
-  const micSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const micSourceNodeRef = useRef<AudioNode | null>(null);
   const animFrameAudioRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const microphoneGenerationRef = useRef(0);
@@ -416,9 +416,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
     }
 
-    // Prefer the on-device Diba/Vosk partial recognizer once its pinned model
-    // is warm. Chrome remains the immediate fallback while that model loads,
-    // and is restarted automatically if local recognition fails.
+    // Only the foreground-gated stream may reach STT. Native Web Speech is
+    // intentionally disabled because browsers cannot route a filtered stream
+    // into SpeechRecognition; low-power devices use the server Diba fallback.
     const localReady=startDibaTurn();
     if(localReady){
       if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
@@ -2204,81 +2204,90 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
   }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus,startDibaTurn]);
 
-  // Request mic access on entry; only start active transcription after greeting.
+  // Acquire a normal mono microphone, then route it through the foreground
+  // AudioWorklet BEFORE any recognizer or recorder can see the signal.
   const initializeMicrophone = useCallback(async () => {
     if(callClosedRef.current)return;
     const microphoneGeneration=++microphoneGenerationRef.current;
+    let acquiredStream:MediaStream|null=null;
     setMicrophoneError(null);
     try {
       if (!window.isSecureContext) throw new Error('insecure_origin');
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
-      // Resuming AudioContext from an explicit click also unlocks analyser VAD.
-      // Never await AudioContext.resume() before getUserMedia: Chrome can
-      // suspend it until a user gesture and otherwise block mic acquisition.
       const ctx=ensureCtx();
-      const stream=await navigator.mediaDevices.getUserMedia({audio:{
+      if(!ctx)throw new Error('audio_context_unavailable');
+      // A single ordinary mic is sufficient; no external array is required.
+      // Disable AGC so proximity/SNR cues are not flattened by automatic gain.
+      acquiredStream=await navigator.mediaDevices.getUserMedia({audio:{
         echoCancellation:true,noiseSuppression:true,autoGainControl:false,channelCount:1,
       }});
       if(callClosedRef.current || microphoneGeneration!==microphoneGenerationRef.current){
-        stream.getTracks().forEach(track=>track.stop());
+        acquiredStream.getTracks().forEach(track=>track.stop());
         return;
       }
       streamRef.current?.getTracks().forEach(track=>{track.onended=null;track.stop();});
-      streamRef.current=stream;
+      streamRef.current=acquiredStream;
       micContextWarningRef.current=false;
       speechAdmissionRef.current.reset();rejectedRecordingRef.current=false;
       vadRef.current.reset();
       lastMicActivityRef.current=0;
-      for (const track of stream.getAudioTracks()) {
+      for (const track of acquiredStream.getAudioTracks()) {
         track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. پس از وصل‌کردن میکروفون، صفحه را بازخوانی کنید.');
       }
+
       audioEvidenceCleanupRef.current?.();audioEvidenceCleanupRef.current=null;
-      if(ctx){
-        micSourceNodeRef.current?.disconnect();
-        const source=ctx.createMediaStreamSource(stream);
-        const analyser=ctx.createAnalyser();
-        analyser.fftSize=512;analyser.smoothingTimeConstant=0.6;
-        source.connect(analyser);
-        micSourceNodeRef.current=source;
-        micAnalyserRef.current=analyser;
-        void attachForzaAudioEvidence(ctx,source,(rms,at)=>{
-          if(callClosedRef.current||microphoneGeneration!==microphoneGenerationRef.current||micMutedRef.current)return;
-          speechAdmissionRef.current.sample(rms,at,
-            isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current);
-        },()=>{
-          if(microphoneGeneration!==microphoneGenerationRef.current)return;
-          audioEvidenceCleanupRef.current=null;speechAdmissionRef.current.reset();
-        }).then(dispose=>{
-          if(callClosedRef.current||microphoneGeneration!==microphoneGenerationRef.current){dispose();return;}
-          speechAdmissionRef.current.reset();audioEvidenceCleanupRef.current=dispose;
-        }).catch(()=>{/* Older browsers retain the conservative analyser fallback. */});
+      micSourceNodeRef.current?.disconnect();micSourceNodeRef.current=null;
+      const rawSource=ctx.createMediaStreamSource(acquiredStream);
+      const route=await attachForzaAudioEvidence(ctx,rawSource,(rms,at)=>{
+        if(callClosedRef.current||microphoneGeneration!==microphoneGenerationRef.current||micMutedRef.current)return;
+        speechAdmissionRef.current.sample(rms,at,
+          isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current);
+      },()=>{
+        if(microphoneGeneration!==microphoneGenerationRef.current)return;
+        audioEvidenceCleanupRef.current=null;
+        speechAdmissionRef.current.reset();
+        setMicrophoneError('فیلتر صدای نزدیک متوقف شد؛ برای جلوگیری از ورود صدای اطراف، تشخیص گفتار تا اتصال دوباره میکروفون متوقف شد.');
+      });
+      if(callClosedRef.current||microphoneGeneration!==microphoneGenerationRef.current){
+        route.dispose();
+        acquiredStream.getTracks().forEach(track=>track.stop());
+        return;
       }
+      speechAdmissionRef.current.reset();
+      audioEvidenceCleanupRef.current=route.dispose;
+      micSourceNodeRef.current=route.node;
+      const analyser=ctx.createAnalyser();
+      analyser.fftSize=512;analyser.smoothingTimeConstant=0.6;
+      route.node.connect(analyser);
+      micAnalyserRef.current=analyser;
+
       if(mediaRecorderRef.current?.state==='recording') mediaRecorderRef.current.stop();
       localSttNodeRef.current?.disconnect();localSttSinkRef.current?.disconnect();
       localSttNodeRef.current=null;localSttSinkRef.current=null;
       attachLocalStt();
-      setupMediaRecorder(stream);
-      // Warm the free local Diba/Vosk browser recognizer in the background on
-      // devices with enough CPU headroom. Chrome keeps transcribing immediately
-      // until the model is ready; low-power/save-data devices stay on Chrome.
+      // The recorder receives only the AudioWorklet-gated stream, never raw mic.
+      setupMediaRecorder(route.stream);
+
+      // Prefer on-device Diba partials when the device has modest headroom.
+      // Lower-powered devices still send only gated audio to the server Diba
+      // after the utterance ends; native Web Speech is not allowed to bypass
+      // the foreground filter with direct microphone access.
       const dibaCpuCount=Number(navigator.hardwareConcurrency||0);
       const dibaDeviceMemory=Number((navigator as any).deviceMemory||0);
       const dibaSaveData=Boolean((navigator as any).connection?.saveData);
-      // Keep the WASM model off low-end phones and memory-constrained browsers.
-      const dibaHasHeadroom=dibaCpuCount>=4&&(dibaDeviceMemory>=4||(!dibaDeviceMemory&&dibaCpuCount>=8));
+      const dibaHasHeadroom=dibaCpuCount>=2&&
+        (dibaDeviceMemory>=2||(!dibaDeviceMemory&&dibaCpuCount>=4));
       if(dibaHasHeadroom&&!dibaSaveData&&!localSttModelRef.current&&!localSttModelLoadingRef.current){
         localSttModelLoadingRef.current=true;
         setLocalSttStatus('loading');
-        setServerSttLabel('در حال آماده‌سازی دایبا محلی · متن مرورگر فعال است');
+        setServerSttLabel('در حال آماده‌سازی دایبا محلی · فقط صدای نزدیک پردازش می‌شود');
         void loadDibaSttModel().then(model=>{
           if(callClosedRef.current){model.terminate?.();return;}
           localSttModelRef.current=model;
           attachLocalStt();
           setLocalSttStatus('ready');
-          setServerSttLabel('دایبا محلی آماده است · تشخیص زنده');
-          console.info('[FORZA_STT] provider=diba-browser ready=1');
-          // Switch only at a clean boundary. If the customer is mid-sentence,
-          // keep Chrome until the current turn has been delivered.
+          setServerSttLabel('دایبا محلی آماده است · صدای فیلترشده');
+          console.info('[FORZA_STT] provider=diba-browser foreground_gate=1 ready=1');
           if(greetingFinishedRef.current&&!activeTranscriptRef.current.trim()&&
              !vadRef.current.heardSpeech){
             startListening(true);
@@ -2287,12 +2296,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(callClosedRef.current)return;
           setLocalSttStatus('fallback');
           setServerSttLabel(serverSttConfiguredRef.current
-            ? 'دایبا سرور آماده است · متن زنده مرورگر'
-            : 'متن زنده مرورگر فعال است');
+            ? 'دایبا سرور آماده است · تشخیص پس از پایان گفتار'
+            : 'دایبا سرور تنظیم نشده؛ تشخیص گفتار در دسترس نیست');
           console.warn('[FORZA_STT] provider=diba-browser unavailable=1 code='+
             String((error as any)?.message||'model_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40));
         }).finally(()=>{localSttModelLoadingRef.current=false;});
       }
+
       if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
       recognitionRetryTimerRef.current=null;
       if(recognitionStartWatchdogRef.current!==null)window.clearTimeout(recognitionStartWatchdogRef.current);
@@ -2301,25 +2311,37 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       recognitionStartRef.current=()=>{};
       recognitionRetryRef.current=0;
       const previousRecognizer=recognitionRef.current;
-      if(previousRecognizer){previousRecognizer.onend=null;previousRecognizer.onerror=null;previousRecognizer.onresult=null;try{previousRecognizer.abort();}catch{}}
-      recognitionFailedRef.current=false;
-      webSpeechFailedRef.current=false;
-      isRecognitionActiveRef.current=false;
-      recognitionRef.current=initSpeechRecognition();
-      if(!recognitionRef.current&&!localSttRecognizerRef.current){
-        recognitionFailedRef.current=true;webSpeechFailedRef.current=true;
-        setMicrophoneError('تشخیص گفتار در این مرورگر راه‌اندازی نشد؛ با Chrome و مجوز میکروفون دوباره امتحان کنید.');
+      if(previousRecognizer){
+        previousRecognizer.onend=null;previousRecognizer.onerror=null;previousRecognizer.onresult=null;
+        try{previousRecognizer.abort();}catch{}
       }
+      // SpeechRecognition cannot consume the filtered MediaStream. Keeping it
+      // alive would let background conversations bypass the foreground gate.
+      recognitionRef.current=null;
+      recognitionFailedRef.current=false;
+      webSpeechFailedRef.current=true;
+      isRecognitionActiveRef.current=false;
+      setServerSttLabel(localSttModelRef.current
+        ? 'دایبا محلی آماده است · صدای فیلترشده'
+        : serverSttConfiguredRef.current
+          ? 'دایبا سرور · فقط صدای نزدیک پردازش می‌شود'
+          : 'در انتظار آماده‌شدن دایبا؛ صدای خام ارسال نمی‌شود');
       if(greetingFinishedRef.current && !micMutedRef.current) startListening();
     } catch(error:any) {
+      if(acquiredStream){
+        acquiredStream.getTracks().forEach(track=>{track.onended=null;track.stop();});
+        if(streamRef.current===acquiredStream)streamRef.current=null;
+      }
       if(callClosedRef.current || microphoneGeneration!==microphoneGenerationRef.current)return;
       setMicrophoneError(error?.message==='insecure_origin'
         ? 'برای استفاده از میکروفون، FORZA را با HTTPS معتبر باز کنید؛ آدرس HTTP روی IP عمومی امن نیست.'
         : error?.name==='NotAllowedError' || error?.name==='PermissionDeniedError'
         ? 'اجازه میکروفون رد شده است. Microphone را در تنظیمات سایت Allow کنید؛ سپس صفحه را بازخوانی کنید.'
-        : 'میکروفون متصل نشد. میکروفون پیش‌فرض و مجوز مرورگر را بررسی کنید.');
+        : error?.message==='audio_worklet_unavailable'
+          ? 'این مرورگر فیلتر امن صدای نزدیک را پشتیبانی نمی‌کند؛ برای جلوگیری از تشخیص صدای اطراف، ورودی صوتی غیرفعال ماند.'
+          : 'میکروفون یا فیلتر صدای نزدیک راه‌اندازی نشد. مجوز میکروفون و پشتیبانی مرورگر را بررسی کنید.');
     }
-  },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt]);
+  },[ensureCtx,setupMediaRecorder,startListening,attachLocalStt]);
 
   // STT prefers same-origin local Diba/Vosk partials on capable devices,
   // keeps browser recognition active during warmup, and retains server Diba
