@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read = (file: string) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
-test('HomeAboutSection presents the Atlas-backed company story, showroom image and industrial metrics', () => {
+test('HomeAboutSection presents the Atlas-backed company story, showroom image and practical capabilities', () => {
   const overview = read('src/components/storefront/HomeOverview.tsx');
   const companyCss = read('src/company-pages.css');
 
@@ -16,10 +16,16 @@ test('HomeAboutSection presents the Atlas-backed company story, showroom image a
   assert.match(homeAboutCode, /STORE_ASSETS\.companyPages\.aboutSanatpishShowroom/);
   assert.match(homeAboutCode, /STORE_ASSETS\.industries\.ceramic/);
   assert.match(homeAboutCode, /با پشتوانه بازرگانی تسمه اطلس از سال ۱۳۶۶/);
-  assert.match(homeAboutCode, /مشتری فعال/);
-  assert.match(homeAboutCode, /صنعت تحت پوشش/);
-  assert.match(homeAboutCode, /تصویر واقعی محصول/);
-  assert.match(homeAboutCode, /کد کالای صنعتی/);
+  assert.match(homeAboutCode, /4 practical capabilities/);
+
+  const whyStart = overview.indexOf('export function WhySanatPish');
+  const whyEnd = overview.indexOf('export function IndustrialServices');
+  const whyCode = overview.slice(whyStart, whyEnd);
+  assert.match(whyCode, /کاتالوگ/);
+  assert.match(whyCode, /FORZA/);
+  assert.match(whyCode, /مشاوره/);
+  assert.match(whyCode, /سفارش‌سازی قطعات/);
+  assert.doesNotMatch(whyCode, /\+5,000|\+24|\+864|\+10,000|۱۰,۰۰۰|۸۶۴|۲۴ صنعت/);
   assert.match(homeAboutCode, /to="\/about"/);
 
   assert.match(companyCss, /\.home-about-preview\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1\.22fr\) minmax\(0, \.78fr\)/);
