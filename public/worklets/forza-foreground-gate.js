@@ -142,6 +142,8 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
       (voicePeriodicity >= 0.10 || highRatio >= 0.13);
     const candidate = speechSnrDb >= 11 && highSnrDb >= 2 &&
       score >= 0.42 && voiceLike && !voice.overlap && speechRms >= 0.00055;
+    const preRollEligible = speechSnrDb >= 9 && highSnrDb >= 1 &&
+      speechRms >= 0.00035 && (voicePeriodicity >= 0.06 || highRatio >= 0.12) && !voice.overlap;
 
     if (!candidate && !this.gateOpen) {
       this.noiseSpeechHistory.push(speechRms);
@@ -154,7 +156,7 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
       }
     }
 
-    return { rms, speechRms, highRms, speechSnrDb, highSnrDb, voicePeriodicity, zcr, score, candidate, overlap: voice.overlap };
+    return { rms, speechRms, highRms, speechSnrDb, highSnrDb, voicePeriodicity, zcr, score, candidate, preRollEligible, overlap: voice.overlap };
   }
 
   markRange(range) {
@@ -172,7 +174,7 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
   finishFrame(timestamp) {
     const features = this.analyzeFrame();
     const start = this.writeIndex - this.frameSize;
-    const range = { start, end: this.writeIndex - 1 };
+    const range = { start, end: this.writeIndex - 1, eligible: features.preRollEligible };
 
     if (features.overlap) {
       // A mono mix with two independent pitch tracks is ambiguous. Fail closed
@@ -200,7 +202,9 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
 
       if (this.gateOpen) {
         // The fixed 80ms output delay lets a confirmed onset release its pre-roll.
-        for (const previous of this.frameRanges.slice(-3)) this.markRange(previous);
+        for (const previous of this.frameRanges.slice(-3)) {
+          if (previous.eligible) this.markRange(previous);
+        }
       }
     }
 
