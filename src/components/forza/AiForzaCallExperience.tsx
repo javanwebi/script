@@ -2088,23 +2088,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }).finally(()=>{localSttModelLoadingRef.current=false;});
       }
 
-      recognitionRetryTimerRef.current=null;
-      if(recognitionStartWatchdogRef.current!==null)window.clearTimeout(recognitionStartWatchdogRef.current);
-      recognitionStartWatchdogRef.current=null;
-      recognitionStartPendingRef.current=false;
-      recognitionStartRef.current=()=>{};
-      recognitionRetryRef.current=0;
-      const previousRecognizer=recognitionRef.current;
-      if(previousRecognizer){
-        previousRecognizer.onend=null;previousRecognizer.onerror=null;previousRecognizer.onresult=null;
-        try{previousRecognizer.abort();}catch{}
-      }
-      // A native browser recognizer cannot consume the filtered MediaStream. Keeping it
-      // alive would let background conversations bypass the foreground gate.
-      recognitionRef.current=null;
-      recognitionFailedRef.current=false;
-      webSpeechFailedRef.current=false;
-      isRecognitionActiveRef.current=false;
       setServerSttLabel(localSttModelRef.current
         ? 'دایبا محلی آماده است · صدای فیلترشده'
         : serverSttConfiguredRef.current
@@ -2230,7 +2213,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       greetingStartedRef.current=false;
       greetingFinishedRef.current=false;
       if(silenceTimerRef.current)clearTimeout(silenceTimerRef.current);
-      if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
       stopListening();
       stopServerLiveStt();
       streamRef.current?.getTracks().forEach(track=>track.stop());
