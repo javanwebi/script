@@ -46,6 +46,23 @@ import { consumeForzaTextStream } from '../utils/forzaStreamClient';
 import { buildVisionConsultationPrompt } from '../utils/visionConsultationPrompt';
 import { toPersianDigits, formatPrice } from '../utils/formatters';
 import { WorkspaceMessageItem } from '../components/forza/ForzaWorkspaceMessage';
+import {
+  NewComposeIcon,
+  SidebarToggleIcon,
+  SendArrowIcon,
+  DinCalculatorIcon,
+  VisualScannerIcon,
+  LiveVoiceIcon,
+  BeltIcon,
+  PulleyIcon,
+  BearingIcon,
+  ChainCouplingIcon,
+  KilnRollerIcon,
+  MechanicalSealIcon,
+  CatalogFinderIcon,
+  SpecSheetIcon,
+} from '../components/forza/ForzaWorkspaceIcons';
+import { DinCalculatorModal, WorkspaceSettingsModal } from '../components/forza/ForzaWorkspaceModals';
 import { CognivoGeometricLogo } from '../components/common/AiFloatingButton';
 import {
   aiVisualSearchService,
@@ -99,11 +116,13 @@ interface PartCategoryOption {
   subtitle: string;
   defaultApplication: string;
   recommendedParams: string;
+  icon: React.ComponentType<{ className?: string; size?: number }>;
 }
 
 const PART_CATEGORIES: PartCategoryOption[] = [
   {
     id: 'belts',
+    icon: BeltIcon,
     title: 'تسمه‌های انتقال قدرت و تایمینگ',
     subtitle: 'V-Belt، تایمینگ PU و کلروپرن، شیاردار، جوشی',
     defaultApplication: 'سیستم‌های انتقال قدرت الکتروموتور و شفت',
@@ -111,6 +130,7 @@ const PART_CATEGORIES: PartCategoryOption[] = [
   },
   {
     id: 'pulleys',
+    icon: PulleyIcon,
     title: 'پولی‌ها و چرخ‌تسمه‌های صنعتی',
     subtitle: 'تایمینگ دندانه‌دار، گوه، تیپرلاک FORZA، چدنی',
     defaultApplication: 'شفت الکتروموتور و گیربکس خطوط تولید',
@@ -118,6 +138,7 @@ const PART_CATEGORIES: PartCategoryOption[] = [
   },
   {
     id: 'bearings',
+    icon: BearingIcon,
     title: 'بلبرینگ‌ها و یاتاقان‌ها',
     subtitle: 'شیار عمیق، رولربیرینگ، یاتاقان بلبرینگ صنعتی',
     defaultApplication: 'محورها و شفت‌های دوار با دور بالا',
@@ -125,6 +146,7 @@ const PART_CATEGORIES: PartCategoryOption[] = [
   },
   {
     id: 'chains',
+    icon: ChainCouplingIcon,
     title: 'زنجیرها، چرخ‌دنده‌ها و کوپلینگ‌ها',
     subtitle: 'زنجیر تک‌ردیفه و دوبل، دنده‌زنجیر، کوپلینگ رابر',
     defaultApplication: 'انتقال گشتاور و نوار نقاله‌های بار سنگین',
@@ -132,6 +154,7 @@ const PART_CATEGORIES: PartCategoryOption[] = [
   },
   {
     id: 'kiln',
+    icon: KilnRollerIcon,
     title: 'قطعات خطوط کوره، کاشی و سرامیک',
     subtitle: 'رولیک نسوز، لاستیک کوره، تسمه‌های حرارتی',
     defaultApplication: 'کوره رولری پخت کاشی و خطوط لعاب‌کاری',
@@ -139,6 +162,7 @@ const PART_CATEGORIES: PartCategoryOption[] = [
   },
   {
     id: 'other',
+    icon: MechanicalSealIcon,
     title: 'سایر قطعات مکانیکی و ساختنی',
     subtitle: 'کاسه‌نمد، بوش‌های برنزی، واشرها و قطعات خاص',
     defaultApplication: 'آب‌بندی و نگهداری تخصصی تجهیزات کارخانه',
@@ -162,25 +186,25 @@ const PROMPT_SUGGESTIONS = [
     title: 'محاسبه طول تسمه DIN 2215',
     desc: 'فرمول دقیق با فاصله مراکز و قطر پولی‌ها',
     query: 'محاسبه و طراحی فنی: فرمول دقیق محاسبه طول اسمی تسمه، فاصله محور شفت‌ها و نسبت تبدیل دور پولی',
-    icon: Calculator,
+    icon: DinCalculatorIcon,
   },
   {
     title: 'استعلام قطعات FORZA و SWR',
     desc: 'کد، ابعاد و اطلاعات ثبت‌شده محصولات',
     query: 'بررسی مشخصات فنی، موجودی انبار مرکزی و استعلام قیمت برندهای انحصاری SWR آلمان و FORZA ایتالیا',
-    icon: Globe,
+    icon: CatalogFinderIcon,
   },
   {
     title: 'قطعات کوره کاشی و سرامیک',
     desc: 'رولیک‌های سرامیکی، پولی و تسمه‌های نسوز',
     query: 'شرایط نگهداری، طول عمر مفید و دمای کارکرد تسمه‌های صنعتی و رولیک‌های نسوز در کوره کاشی و سرامیک چیست؟',
-    icon: Factory,
+    icon: KilnRollerIcon,
   },
   {
     title: 'تطبیق و استخراج مشخصات',
     desc: 'تبدیل لیست قطعات به کدهای استاندارد',
     query: 'خلاصه‌سازی و استخراج مشخصات فنی: لیست کدهای فنی تسمه، پولی و یاتاقان را با استانداردهای مربوطه مرتب کنید.',
-    icon: FileText,
+    icon: SpecSheetIcon,
   },
 ];
 
@@ -939,12 +963,12 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
   // Render Sidebar
   const renderSidebarContent = () => (
-    <div className="h-full flex flex-col justify-between select-none bg-[#F4F4F5] border-l border-[#CBD2D8]">
+    <div className="h-full flex flex-col justify-between select-none bg-[#F5F6F6] border-l border-[#DFE3E6]">
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Sidebar Header */}
-        <div className="p-3.5 sm:p-4 border-b border-[#CBD2D8] bg-[#FFFFFF] flex items-center justify-between">
+        <div className="p-3.5 sm:p-4 border-b border-[#DFE3E6] bg-[#FFFFFF] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#F4F4F5] border border-[#CBD2D8] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-[#F5F6F6] border border-[#DFE3E6] flex items-center justify-center shrink-0">
               <CognivoGeometricLogo className="w-5 h-5 text-[#E06518]" />
             </div>
             <div>
@@ -954,7 +978,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 </span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
-              <span className="block text-[10px] text-[#777A7D] font-medium">
+              <span className="block text-[10px] text-[#74757C] font-medium">
                 مشاور هوشمند خطوط تولید صنعت پیش
               </span>
             </div>
@@ -969,7 +993,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             title="بستن منو"
             className="p-1.5 rounded-lg text-[#55565A] hover:text-[#2B313A] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
           >
-            <PanelLeftClose className="w-4 h-4" />
+            <SidebarToggleIcon size={16} />
           </button>
         </div>
 
@@ -982,7 +1006,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             className="w-full py-2.5 px-3.5 rounded-xl bg-[#E06518] hover:bg-[#C95210] active:scale-98 text-white font-bold text-xs flex items-center justify-between shadow-xs transition-all cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
+              <NewComposeIcon size={16} />
               <span>گفتگوی جدید</span>
             </div>
             <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-white font-mono text-[10px]">
@@ -992,13 +1016,13 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
           {/* Quick Search in History */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-[#777A7D] absolute right-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-[#74757C] absolute right-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={sessionSearchQuery}
               onChange={e => setSessionSearchQuery(e.target.value)}
               placeholder="جستجو در گفتگوها..."
-              className="w-full h-8 pr-8 pl-3 bg-[#FFFFFF] border border-[#CBD2D8] rounded-xl text-xs text-[#2B313A] placeholder-[#777A7D] focus:outline-none focus:border-[#E06518]"
+              className="w-full h-8 pr-8 pl-3 bg-[#FFFFFF] border border-[#DFE3E6] rounded-xl text-xs text-[#2B313A] placeholder-[#777A7D] focus:outline-none focus:border-[#E06518]"
             />
           </div>
 
@@ -1009,20 +1033,20 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
               setIsMobileDrawerOpen(false);
               navigate('/ai-forza');
             }}
-            className="w-full py-2 px-3 rounded-xl bg-[#FFFFFF] border border-[#CBD2D8] hover:border-[#E06518] hover:text-[#E06518] flex items-center justify-between text-right transition-all cursor-pointer shadow-2xs group"
+            className="w-full py-2 px-3 rounded-xl bg-[#FFFFFF] border border-[#DFE3E6] hover:border-[#E06518] hover:text-[#E06518] flex items-center justify-between text-right transition-all cursor-pointer shadow-2xs group"
           >
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                <PhoneCall className="w-3.5 h-3.5 animate-pulse" />
+                <LiveVoiceIcon size={16} className="w-3.5 h-3.5 animate-pulse" />
               </div>
               <div className="text-right">
                 <div className="text-xs font-bold text-[#2B313A] group-hover:text-[#E06518]">
                   تماس زنده چهره‌به‌چهره
                 </div>
-                <div className="text-[10px] text-[#777A7D]">مکالمه بلادرنگ صوتی FORZA</div>
+                <div className="text-[10px] text-[#74757C]">مکالمه بلادرنگ صوتی FORZA</div>
               </div>
             </div>
-            <ChevronLeft className="w-4 h-4 text-[#777A7D] group-hover:text-[#E06518] group-hover:-translate-x-0.5 transition-transform" />
+            <ChevronLeft className="w-4 h-4 text-[#74757C] group-hover:text-[#E06518] group-hover:-translate-x-0.5 transition-transform" />
           </button>
         </div>
 
@@ -1031,7 +1055,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           {/* Today */}
           {todaySessions.length > 0 && (
             <div>
-              <div className="px-3 py-1 text-[11px] font-bold text-[#777A7D]">امروز</div>
+              <div className="px-3 py-1 text-[11px] font-bold text-[#74757C]">امروز</div>
               <div className="space-y-1">
                 {todaySessions.map(session => (
                   <div
@@ -1039,7 +1063,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                     onClick={() => switchSession(session.id)}
                     className={`group px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between cursor-pointer transition-all ${
                       activeSessionId === session.id && activeWorkspaceTab === 'chat'
-                        ? 'bg-[#FFFFFF] text-[#E06518] font-bold shadow-2xs border border-[#CBD2D8]'
+                        ? 'bg-[#FFFFFF] text-[#E06518] font-bold shadow-2xs border border-[#DFE3E6]'
                         : 'text-[#55565A] hover:bg-[#DEE2E5]'
                     }`}
                   >
@@ -1051,7 +1075,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       type="button"
                       onClick={e => deleteSession(session.id, e)}
                       title="حذف گفتگو"
-                      className="opacity-0 group-hover:opacity-100 p-1 text-[#777A7D] hover:text-rose-600 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-[#74757C] hover:text-rose-600 transition-opacity"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1064,7 +1088,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           {/* Yesterday */}
           {yesterdaySessions.length > 0 && (
             <div>
-              <div className="px-3 py-1 text-[11px] font-bold text-[#777A7D]">دیروز</div>
+              <div className="px-3 py-1 text-[11px] font-bold text-[#74757C]">دیروز</div>
               <div className="space-y-1">
                 {yesterdaySessions.map(session => (
                   <div
@@ -1072,7 +1096,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                     onClick={() => switchSession(session.id)}
                     className={`group px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between cursor-pointer transition-all ${
                       activeSessionId === session.id && activeWorkspaceTab === 'chat'
-                        ? 'bg-[#FFFFFF] text-[#E06518] font-bold shadow-2xs border border-[#CBD2D8]'
+                        ? 'bg-[#FFFFFF] text-[#E06518] font-bold shadow-2xs border border-[#DFE3E6]'
                         : 'text-[#55565A] hover:bg-[#DEE2E5]'
                     }`}
                   >
@@ -1084,7 +1108,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       type="button"
                       onClick={e => deleteSession(session.id, e)}
                       title="حذف گفتگو"
-                      className="opacity-0 group-hover:opacity-100 p-1 text-[#777A7D] hover:text-rose-600 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-[#74757C] hover:text-rose-600 transition-opacity"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1097,7 +1121,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           {/* Older */}
           {olderSessions.length > 0 && (
             <div>
-              <div className="px-3 py-1 text-[11px] font-bold text-[#777A7D]">روزهای گذشته</div>
+              <div className="px-3 py-1 text-[11px] font-bold text-[#74757C]">روزهای گذشته</div>
               <div className="space-y-1">
                 {olderSessions.map(session => (
                   <div
@@ -1105,7 +1129,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                     onClick={() => switchSession(session.id)}
                     className={`group px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between cursor-pointer transition-all ${
                       activeSessionId === session.id && activeWorkspaceTab === 'chat'
-                        ? 'bg-[#FFFFFF] text-[#E06518] font-bold shadow-2xs border border-[#CBD2D8]'
+                        ? 'bg-[#FFFFFF] text-[#E06518] font-bold shadow-2xs border border-[#DFE3E6]'
                         : 'text-[#55565A] hover:bg-[#DEE2E5]'
                     }`}
                   >
@@ -1117,7 +1141,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       type="button"
                       onClick={e => deleteSession(session.id, e)}
                       title="حذف گفتگو"
-                      className="opacity-0 group-hover:opacity-100 p-1 text-[#777A7D] hover:text-rose-600 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-[#74757C] hover:text-rose-600 transition-opacity"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1128,7 +1152,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           )}
 
           {sessions.every(s => s.messages.length === 0) && (
-            <div className="p-4 text-center text-xs text-[#777A7D] leading-relaxed">
+            <div className="p-4 text-center text-xs text-[#74757C] leading-relaxed">
               هنوز گفتگویی ذخیره نشده است. با ارسال اولین پیام، تاریخچه به صورت خودکار ایجاد می‌شود.
             </div>
           )}
@@ -1136,23 +1160,23 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       </div>
 
       {/* Settings & Profile Bar at Bottom */}
-      <div className="p-3 border-t border-[#CBD2D8] bg-[#FFFFFF] space-y-2 shrink-0">
+      <div className="p-3 border-t border-[#DFE3E6] bg-[#FFFFFF] space-y-2 shrink-0">
         <button
           type="button"
           onClick={() => {
             setIsMobileDrawerOpen(false);
             setShowSettingsModal(true);
           }}
-          className="w-full py-2 px-2.5 rounded-xl bg-[#F4F4F5] border border-[#CBD2D8] text-[#55565A] hover:text-[#2B313A] hover:border-[#E06518] flex items-center justify-between text-xs font-bold transition-all cursor-pointer"
+          className="w-full py-2 px-2.5 rounded-xl bg-[#F5F6F6] border border-[#DFE3E6] text-[#55565A] hover:text-[#2B313A] hover:border-[#E06518] flex items-center justify-between text-xs font-bold transition-all cursor-pointer"
         >
           <div className="flex items-center gap-2">
             <Settings className="w-4 h-4 text-[#55565A]" />
             <span>تنظیمات میزکار FORZA</span>
           </div>
-          <span className="text-[10px] text-[#777A7D]">مدیریت</span>
+          <span className="text-[10px] text-[#74757C]">مدیریت</span>
         </button>
 
-        <div className="flex items-center justify-between p-2 rounded-xl bg-[#F4F4F5] border border-[#CBD2D8]">
+        <div className="flex items-center justify-between p-2 rounded-xl bg-[#F5F6F6] border border-[#DFE3E6]">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-[#E06518]/10 text-[#E06518] flex items-center justify-center font-black text-xs">
               <Factory className="w-4 h-4" />
@@ -1161,14 +1185,14 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
               <div className="font-bold text-xs text-[#2B313A]">
                 {INDUSTRY_DOMAINS.find(d => d.id === selectedIndustry)?.label || 'صنایع عمومی'}
               </div>
-              <span className="text-[10px] text-[#777A7D]">میزکار صنعتی فعال</span>
+              <span className="text-[10px] text-[#74757C]">میزکار صنعتی فعال</span>
             </div>
           </div>
           <button
             type="button"
             onClick={() => navigate('/')}
             title="بازگشت به فروشگاه"
-            className="p-1 text-[#777A7D] hover:text-[#E06518]"
+            className="p-1 text-[#74757C] hover:text-[#E06518]"
           >
             <Home className="w-4 h-4" />
           </button>
@@ -1179,7 +1203,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
   return (
     <div
-      className="h-[100dvh] max-h-[100dvh] w-full flex flex-col bg-[#F8F9FA] text-[#2B313A] overflow-hidden select-none"
+      className="h-[100dvh] max-h-[100dvh] w-full flex flex-col bg-[#FFFFFF] text-[#2B313A] overflow-hidden select-none"
       dir="rtl"
     >
       {/* Top Hairline Orange Accent Line */}
@@ -1189,8 +1213,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         {/* 1. DESKTOP SIDEBAR */}
         <aside hidden={identificationOnly}
           className={`${
-            !identificationOnly && isSidebarOpen ? 'w-72 xl:w-80' : 'w-0 hidden'
-          } transition-all duration-300 ease-in-out hidden lg:flex flex-col shrink-0 overflow-hidden z-20`}
+            !identificationOnly && isSidebarOpen ? 'w-[260px]' : 'w-0 hidden'
+          } transition-all duration-200 ease-out hidden lg:flex flex-col shrink-0 overflow-hidden z-20`}
         >
           {renderSidebarContent()}
         </aside>
@@ -1202,25 +1226,25 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
               className="fixed inset-0 bg-[#2B313A]/50 backdrop-blur-xs transition-opacity"
               onClick={() => setIsMobileDrawerOpen(false)}
             />
-            <div className="relative w-80 max-w-[85vw] h-full shadow-2xl flex flex-col z-50 bg-[#F4F4F5] animate-in slide-in-from-right duration-200">
+            <div className="relative w-76 max-w-[85vw] h-full shadow-2xl flex flex-col z-50 bg-[#F5F6F6] animate-in slide-in-from-right duration-200">
               {renderSidebarContent()}
             </div>
           </div>
         )}
 
         {/* 3. MAIN WORKSPACE CONTAINER */}
-        <main className="flex-1 flex flex-col bg-[#F8F9FA] overflow-hidden min-w-0">
+        <main className="flex-1 flex flex-col bg-[#FFFFFF] overflow-hidden min-w-0">
           {/* Top Header Bar */}
-          {identificationOnly ? <header className="h-14 px-4 border-b border-[#CBD2D8] flex items-center justify-between bg-white shrink-0"><strong>شناسایی هوشمند قطعه</strong><button type="button" onClick={() => navigate('/ai-consult')} className="px-4 py-2 rounded-xl border border-[#CBD2D8] text-sm">بازگشت به میزکار</button></header> : <header className="h-14 px-2.5 sm:px-5 border-b border-[#CBD2D8] flex items-center justify-between shrink-0 bg-[#FFFFFF] z-20 shadow-2xs">
+          {identificationOnly ? <header className="h-14 px-4 border-b border-[#DFE3E6] flex items-center justify-between bg-white shrink-0"><strong>شناسایی هوشمند قطعه</strong><button type="button" onClick={() => navigate('/ai-consult')} className="px-4 py-2 rounded-xl border border-[#DFE3E6] text-sm">بازگشت به میزکار</button></header> : <header className="h-[52px] sm:h-14 px-2.5 sm:px-5 border-b border-[#DFE3E6] flex items-center justify-between shrink-0 bg-[#FFFFFF] z-20 shadow-2xs">
             <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
               {/* Mobile Drawer Button */}
               <button
                 type="button"
                 onClick={() => setIsMobileDrawerOpen(true)}
-                className="lg:hidden p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F4F4F5] transition-colors cursor-pointer border border-[#CBD2D8] bg-[#FFFFFF] shadow-2xs"
+                className="lg:hidden p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F5F6F6] transition-colors cursor-pointer border border-[#DFE3E6] bg-[#FFFFFF] shadow-2xs"
                 title="تاریخچه گفتگوها و سوابق"
               >
-                <PanelLeft className="w-4.5 h-4.5 text-[#2B313A]" />
+                <SidebarToggleIcon size={18} className="text-[#2B313A]" />
               </button>
 
               {/* Desktop Toggle Button */}
@@ -1229,9 +1253,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                   type="button"
                   onClick={() => setIsSidebarOpen(true)}
                   title="نمایش منو"
-                  className="hidden lg:flex p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F4F4F5] transition-colors cursor-pointer"
+                  className="hidden lg:flex p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F5F6F6] transition-colors cursor-pointer"
                 >
-                  <PanelLeft className="w-4 h-4" />
+                  <SidebarToggleIcon size={16} />
                 </button>
               )}
 
@@ -1250,7 +1274,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       میزکار یکپارچه
                     </span>
                   </div>
-                  <span className="text-[10px] text-[#777A7D] block -mt-0.5">
+                  <span className="text-[10px] text-[#74757C] block -mt-0.5">
                     مشاوره تخصصی و شناسایی قطعات خطوط تولید
                   </span>
                 </div>
@@ -1263,13 +1287,13 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
               </div>
 
               {/* Desktop Workspace Segmented Controller */}
-              <div className="hidden md:flex items-center gap-1 p-1 bg-[#F4F4F5] rounded-xl border border-[#CBD2D8] mr-2">
+              <div className="hidden md:flex items-center gap-1 p-1 bg-[#F5F6F6] rounded-xl border border-[#DFE3E6] mr-2">
                 <button
                   type="button"
                   onClick={() => identificationOnly ? navigate('/ai-consult') : setActiveWorkspaceTab('chat')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeWorkspaceTab === 'chat'
-                      ? 'bg-[#FFFFFF] text-[#E06518] shadow-2xs border border-[#CBD2D8]'
+                      ? 'bg-[#FFFFFF] text-[#E06518] shadow-2xs border border-[#DFE3E6]'
                       : 'text-[#55565A] hover:text-[#2B313A]'
                   }`}
                 >
@@ -1281,11 +1305,11 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                   onClick={() => navigate('/identify-part?from=workspace')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeWorkspaceTab === 'visual_studio'
-                      ? 'bg-[#FFFFFF] text-[#E06518] shadow-2xs border border-[#CBD2D8]'
+                      ? 'bg-[#FFFFFF] text-[#E06518] shadow-2xs border border-[#DFE3E6]'
                       : 'text-[#55565A] hover:text-[#2B313A]'
                   }`}
                 >
-                  <Scan className="w-3.5 h-3.5 text-[#E06518]" />
+                  <VisualScannerIcon size={16} className="w-3.5 h-3.5 text-[#E06518]" />
                   <span>استودیوی شناسایی قطعه</span>
                 </button>
               </div>
@@ -1300,7 +1324,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 className="px-2 sm:px-3 py-1.5 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
                 title="مکالمه زنده و چهره‌به‌چهره با هوش مصنوعی FORZA"
               >
-                <PhoneCall className="w-3.5 h-3.5 animate-pulse" />
+                <LiveVoiceIcon size={16} className="w-3.5 h-3.5 animate-pulse" />
                 <span className="hidden xs:inline">تماس زنده</span>
               </button>
 
@@ -1309,9 +1333,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 type="button"
                 onClick={() => setShowCalculatorModal(true)}
                 title="فرمول محاسبه طول تسمه (DIN 2215)"
-                className="p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F4F4F5] transition-colors cursor-pointer border border-[#CBD2D8] bg-[#FFFFFF] shadow-2xs"
+                className="p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F5F6F6] transition-colors cursor-pointer border border-[#DFE3E6] bg-[#FFFFFF] shadow-2xs"
               >
-                <Calculator className="w-4 h-4 text-[#E06518]" />
+                <DinCalculatorIcon size={18} className="w-4 h-4 text-[#E06518]" />
               </button>
 
               {/* Share */}
@@ -1319,7 +1343,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 type="button"
                 onClick={handleCopyChatLink}
                 title="اشتراک‌گذاری میزکار"
-                className="hidden sm:flex p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F4F4F5] transition-colors cursor-pointer border border-[#CBD2D8] bg-[#FFFFFF]"
+                className="hidden sm:flex p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F5F6F6] transition-colors cursor-pointer border border-[#DFE3E6] bg-[#FFFFFF]"
               >
                 <Share2 className="w-4 h-4" />
               </button>
@@ -1329,7 +1353,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 type="button"
                 onClick={() => setShowSettingsModal(true)}
                 title="تنظیمات میزکار"
-                className="p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F4F4F5] transition-colors cursor-pointer border border-[#CBD2D8] bg-[#FFFFFF] shadow-2xs"
+                className="p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F5F6F6] transition-colors cursor-pointer border border-[#DFE3E6] bg-[#FFFFFF] shadow-2xs"
               >
                 <Settings className="w-4 h-4" />
               </button>
@@ -1339,7 +1363,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 type="button"
                 onClick={() => navigate('/')}
                 title="بازگشت به پرتال صنعت پیش"
-                className="p-2 rounded-xl text-[#55565A] hover:text-[#E06518] hover:bg-[#F4F4F5] transition-colors cursor-pointer border border-[#CBD2D8] bg-[#FFFFFF] shadow-2xs"
+                className="p-2 rounded-xl text-[#55565A] hover:text-[#E06518] hover:bg-[#F5F6F6] transition-colors cursor-pointer border border-[#DFE3E6] bg-[#FFFFFF] shadow-2xs"
               >
                 <Home className="w-4 h-4" />
               </button>
@@ -1347,14 +1371,14 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           </header>}
 
           {/* Mobile Dedicated Segmented Tabs Bar (Sticky right below top header) */}
-          <div hidden={identificationOnly} className="md:hidden bg-[#FFFFFF] border-b border-[#CBD2D8] px-3 py-1.5 shrink-0 z-10 shadow-2xs">
-            <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#F4F4F5] rounded-xl border border-[#CBD2D8]">
+          <div hidden={identificationOnly} className="md:hidden bg-[#FFFFFF] border-b border-[#DFE3E6] px-3 py-1.5 shrink-0 z-10 shadow-2xs">
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#F5F6F6] rounded-xl border border-[#DFE3E6]">
               <button
                 type="button"
                 onClick={() => identificationOnly ? navigate('/ai-consult') : setActiveWorkspaceTab('chat')}
                 className={`py-2 px-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeWorkspaceTab === 'chat'
-                    ? 'bg-[#FFFFFF] text-[#E06518] shadow-xs border border-[#CBD2D8]'
+                    ? 'bg-[#FFFFFF] text-[#E06518] shadow-xs border border-[#DFE3E6]'
                     : 'text-[#55565A] hover:text-[#2B313A]'
                 }`}
               >
@@ -1371,11 +1395,11 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 onClick={() => navigate('/identify-part?from=workspace')}
                 className={`py-2 px-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeWorkspaceTab === 'visual_studio'
-                    ? 'bg-[#FFFFFF] text-[#E06518] shadow-xs border border-[#CBD2D8]'
+                    ? 'bg-[#FFFFFF] text-[#E06518] shadow-xs border border-[#DFE3E6]'
                     : 'text-[#55565A] hover:text-[#2B313A]'
                 }`}
               >
-                <Scan className="w-4 h-4 text-[#E06518]" />
+                <VisualScannerIcon size={16} className="w-4 h-4 text-[#E06518]" />
                 <span>استودیو شناسایی قطعه</span>
               </button>
             </div>
@@ -1395,13 +1419,13 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           {identificationOnly || activeWorkspaceTab === 'visual_studio' ? (
             <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-4xl mx-auto w-full pb-20 md:pb-8">
               {/* Studio Header Banner */}
-              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#CBD2D8] shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="px-2 py-0.5 rounded-full bg-orange-100 text-[#E06518] text-[10px] sm:text-[11px] font-black">
                       سامانه بینایی ماشین هوش مصنوعی
                     </span>
-                    <span className="text-[11px] text-[#777A7D]">تطبیق با کاتالوگ صنعتی اطلس</span>
+                    <span className="text-[11px] text-[#74757C]">تطبیق با کاتالوگ صنعتی اطلس</span>
                   </div>
                   <h2 className="text-base sm:text-lg font-black text-[#2B313A]">
                     استودیوی شناسایی و تطبیق تصویری قطعات FORZA
@@ -1414,7 +1438,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 <button
                   type="button"
                   onClick={() => identificationOnly ? navigate('/ai-consult') : setActiveWorkspaceTab('chat')}
-                  className="px-3 py-1.5 rounded-xl border border-[#CBD2D8] hover:border-[#E06518] text-[#55565A] hover:text-[#E06518] text-xs font-bold bg-[#FFFFFF] flex items-center gap-1.5 cursor-pointer shrink-0"
+                  className="px-3 py-1.5 rounded-xl border border-[#DFE3E6] hover:border-[#E06518] text-[#55565A] hover:text-[#E06518] text-xs font-bold bg-[#FFFFFF] flex items-center gap-1.5 cursor-pointer shrink-0"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span>انتقال به گفتگوی مهندسی</span>
@@ -1422,7 +1446,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
               </div>
 
               {/* STEP 1: CATEGORY SELECTION */}
-              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#CBD2D8] shadow-sm space-y-3">
+              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-[#E06518] text-white text-xs font-black flex items-center justify-center shrink-0">
@@ -1432,13 +1456,15 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       انتخاب دسته‌بندی قطعه صنعتی
                     </h3>
                   </div>
-                  <span className="text-[11px] text-[#777A7D] hidden sm:inline">
+                  <span className="text-[11px] text-[#74757C] hidden sm:inline">
                     {PART_CATEGORIES.find(c => c.id === selectedPartCategory)?.recommendedParams}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-                  {PART_CATEGORIES.map(category => (
+                  {PART_CATEGORIES.map(category => {
+                    const CategoryIcon = category.icon;
+                    return (
                     <button
                       key={category.id}
                       type="button"
@@ -1446,7 +1472,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       className={`p-3 rounded-xl sm:rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
                         selectedPartCategory === category.id
                           ? 'border-[#E06518] bg-orange-50/50 shadow-xs ring-1 ring-orange-500/20'
-                          : 'border-[#CBD2D8] bg-[#FFFFFF] hover:bg-[#F4F4F5]'
+                          : 'border-[#DFE3E6] bg-[#FFFFFF] hover:bg-[#F5F6F6]'
                       }`}
                     >
                       <div className="flex items-start justify-between mb-1.5">
@@ -1454,10 +1480,10 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                             selectedPartCategory === category.id
                               ? 'bg-[#E06518] text-white'
-                              : 'bg-[#F4F4F5] text-[#55565A]'
+                              : 'bg-[#F5F6F6] text-[#55565A]'
                           }`}
                         >
-                          <Scan className="w-3.5 h-3.5" />
+                          <CategoryIcon size={17} className="w-4 h-4" />
                         </div>
                         {selectedPartCategory === category.id && (
                           <Check className="w-3.5 h-3.5 text-[#E06518]" />
@@ -1472,17 +1498,18 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         >
                           {category.title}
                         </h4>
-                        <p className="text-[10px] text-[#777A7D] mt-0.5 line-clamp-1">
+                        <p className="text-[10px] text-[#74757C] mt-0.5 line-clamp-1">
                           {category.subtitle}
                         </p>
                       </div>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
               {/* STEP 2: CAMERA CAPTURE OR FILE UPLOAD */}
-              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#CBD2D8] shadow-sm space-y-4">
+              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-[#E06518] text-white text-xs font-black flex items-center justify-center shrink-0">
@@ -1562,7 +1589,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         <button
                           type="button"
                           onClick={() => startCamera()}
-                          className="p-6 rounded-2xl border-2 border-dashed border-[#CBD2D8] hover:border-[#E06518] hover:bg-orange-50/20 flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
+                          className="p-6 rounded-2xl border-2 border-dashed border-[#DFE3E6] hover:border-[#E06518] hover:bg-orange-50/20 flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
                         >
                           <div className="w-12 h-12 rounded-full bg-orange-100 text-[#E06518] flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
                             <Camera className="w-6 h-6" />
@@ -1570,7 +1597,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           <span className="font-bold text-xs sm:text-sm text-[#2B313A]">
                             فعال‌سازی دوربین زنده
                           </span>
-                          <span className="text-[11px] text-[#777A7D] mt-0.5">
+                          <span className="text-[11px] text-[#74757C] mt-0.5">
                             تصویربرداری مستقیم از قطعه یا خط تولید
                           </span>
                         </button>
@@ -1578,7 +1605,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="p-6 rounded-2xl border-2 border-dashed border-[#CBD2D8] hover:border-[#E06518] hover:bg-orange-50/20 flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
+                          className="p-6 rounded-2xl border-2 border-dashed border-[#DFE3E6] hover:border-[#E06518] hover:bg-orange-50/20 flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
                         >
                           <div className="w-12 h-12 rounded-full bg-[#DEE2E5] text-[#55565A] flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
                             <Upload className="w-6 h-6" />
@@ -1586,7 +1613,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           <span className="font-bold text-xs sm:text-sm text-[#2B313A]">
                             بارگذاری تصویر از گالری
                           </span>
-                          <span className="text-[11px] text-[#777A7D] mt-0.5">
+                          <span className="text-[11px] text-[#74757C] mt-0.5">
                             فرمت‌های JPG، PNG، WEBP
                           </span>
                         </button>
@@ -1608,7 +1635,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
                     {/* Industrial Preset Samples Carousel */}
                     <div className="pt-2">
-                      <div className="text-[11px] font-bold text-[#777A7D] mb-2">
+                      <div className="text-[11px] font-bold text-[#74757C] mb-2">
                         یا انتخاب سریع از نمونه‌های صنعتی آماده:
                       </div>
                       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -1617,18 +1644,18 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                             key={sample.id}
                             type="button"
                             onClick={() => handleSelectPresetSample(sample)}
-                            className="px-2.5 py-1.5 rounded-xl border border-[#CBD2D8] bg-[#FFFFFF] hover:border-[#E06518] text-right shrink-0 flex items-center gap-2 cursor-pointer shadow-2xs"
+                            className="px-2.5 py-1.5 rounded-xl border border-[#DFE3E6] bg-[#FFFFFF] hover:border-[#E06518] text-right shrink-0 flex items-center gap-2 cursor-pointer shadow-2xs"
                           >
                             <img
                               src={sample.imageUrl}
                               alt={sample.title}
-                              className="w-8 h-8 rounded-lg object-contain bg-[#F4F4F5]"
+                              className="w-8 h-8 rounded-lg object-contain bg-[#F5F6F6]"
                             />
                             <div className="text-right">
                               <div className="text-[11px] font-bold text-[#2B313A] truncate max-w-[120px]">
                                 {sample.title}
                               </div>
-                              <div className="text-[9px] text-[#777A7D]">{sample.subtitle}</div>
+                              <div className="text-[9px] text-[#74757C]">{sample.subtitle}</div>
                             </div>
                           </button>
                         ))}
@@ -1638,7 +1665,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 ) : (
                   /* Captured image preview & run button */
                   <div className="space-y-4">
-                    <div className="relative rounded-2xl overflow-hidden bg-[#F4F4F5] border border-[#CBD2D8] max-h-72 flex items-center justify-center p-2">
+                    <div className="relative rounded-2xl overflow-hidden bg-[#F5F6F6] border border-[#DFE3E6] max-h-72 flex items-center justify-center p-2">
                       <img
                         src={capturedImage}
                         alt="تصویر ثبت‌شده"
@@ -1657,7 +1684,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           value={dimensionLength}
                           onChange={e => setDimensionLength(e.target.value)}
                           placeholder="مثلاً ۱۲۰۰"
-                          className="w-full h-8 px-2.5 bg-[#F4F4F5] border border-[#CBD2D8] rounded-lg text-center"
+                          className="w-full h-8 px-2.5 bg-[#F5F6F6] border border-[#DFE3E6] rounded-lg text-center"
                         />
                       </div>
                       <div>
@@ -1669,7 +1696,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           value={dimensionPitch}
                           onChange={e => setDimensionPitch(e.target.value)}
                           placeholder="مثلاً ۸"
-                          className="w-full h-8 px-2.5 bg-[#F4F4F5] border border-[#CBD2D8] rounded-lg text-center"
+                          className="w-full h-8 px-2.5 bg-[#F5F6F6] border border-[#DFE3E6] rounded-lg text-center"
                         />
                       </div>
                       <div className="col-span-2">
@@ -1681,7 +1708,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           value={partMarking}
                           onChange={e => setPartMarking(e.target.value)}
                           placeholder="مثلاً FORZA 8M 1200 یا NSK 6205"
-                          className="w-full h-8 px-2.5 bg-[#F4F4F5] border border-[#CBD2D8] rounded-lg text-right"
+                          className="w-full h-8 px-2.5 bg-[#F5F6F6] border border-[#DFE3E6] rounded-lg text-right"
                         />
                       </div>
                     </div>
@@ -1702,7 +1729,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         </>
                       ) : (
                         <>
-                          <Scan className="w-4 h-4" />
+                          <VisualScannerIcon size={16} className="w-4 h-4" />
                           <span>شروع تحلیل هوشمند و تطبیق با کاتالوگ اطلس</span>
                         </>
                       )}
@@ -1719,8 +1746,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
               )}
 
               {analysisResult && (
-                <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#CBD2D8] shadow-sm space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-[#CBD2D8]">
+                <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-[#DFE3E6]">
                     <div className="flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-emerald-500 text-white text-xs font-black flex items-center justify-center">
                         <Check className="w-3.5 h-3.5" />
@@ -1735,28 +1762,28 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                   </div>
 
                   {/* Summary Box */}
-                  <div className="p-3.5 rounded-xl bg-[#F4F4F5] border border-[#CBD2D8] text-xs space-y-2">
+                  <div className="p-3.5 rounded-xl bg-[#F5F6F6] border border-[#DFE3E6] text-xs space-y-2">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div>
-                        <span className="text-[#777A7D] block text-[10px]">نوع قطعه:</span>
+                        <span className="text-[#74757C] block text-[10px]">نوع قطعه:</span>
                         <strong className="text-[#2B313A]">
                           {analysisResult.summary.detectedPartType}
                         </strong>
                       </div>
                       <div>
-                        <span className="text-[#777A7D] block text-[10px]">پروفیل استاندارد:</span>
+                        <span className="text-[#74757C] block text-[10px]">پروفیل استاندارد:</span>
                         <strong className="text-[#2B313A]">
                           {analysisResult.summary.detectedProfile}
                         </strong>
                       </div>
                       <div>
-                        <span className="text-[#777A7D] block text-[10px]">خانواده قطعه:</span>
+                        <span className="text-[#74757C] block text-[10px]">خانواده قطعه:</span>
                         <strong className="text-[#2B313A]">
                           {analysisResult.summary.partFamilyFarsi || 'قطعات انتقال قدرت'}
                         </strong>
                       </div>
                       <div>
-                        <span className="text-[#777A7D] block text-[10px]">متریال:</span>
+                        <span className="text-[#74757C] block text-[10px]">متریال:</span>
                         <strong className="text-[#2B313A]">
                           {analysisResult.summary.material || 'فولاد / لاستیک صنعتی'}
                         </strong>
@@ -1774,10 +1801,10 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       {analysisResult.matchedProducts.map(item => (
                         <div
                           key={item.code}
-                          className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#FFFFFF] border border-[#CBD2D8] hover:border-[#E06518] shadow-2xs flex flex-col justify-between space-y-3"
+                          className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#FFFFFF] border border-[#DFE3E6] hover:border-[#E06518] shadow-2xs flex flex-col justify-between space-y-3"
                         >
                           <div className="flex items-start gap-3">
-                            <div className="w-16 h-16 rounded-xl bg-[#F4F4F5] border border-[#CBD2D8] p-1.5 flex items-center justify-center shrink-0">
+                            <div className="w-16 h-16 rounded-xl bg-[#F5F6F6] border border-[#DFE3E6] p-1.5 flex items-center justify-center shrink-0">
                               <img
                                 src={item.image || (item.catalogProduct ? item.catalogProduct.image : '')}
                                 alt={item.name}
@@ -1790,7 +1817,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                                 <span className="px-1.5 py-0.5 rounded bg-orange-100 text-[#E06518] font-bold text-[10px]">
                                   {item.brand}
                                 </span>
-                                <span className="font-mono text-[10px] text-[#777A7D]">
+                                <span className="font-mono text-[10px] text-[#74757C]">
                                   {item.code}
                                 </span>
                               </div>
@@ -1810,7 +1837,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                                   قیمت و موجودی در پنل
                                 </span>
                               ) : (
-                                <span className="text-[#777A7D] text-[11px]">استعلام قیمت</span>
+                                <span className="text-[#74757C] text-[11px]">استعلام قیمت</span>
                               )}
                             </div>
 
@@ -1871,7 +1898,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                   /* INITIAL WELCOME SCREEN */
                   <div className="min-h-full flex flex-col items-center justify-center py-6 sm:py-10 max-w-2xl mx-auto text-center">
                     {/* Brand Logo & Status */}
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#FFFFFF] border border-[#CBD2D8] shadow-sm flex items-center justify-center mb-4">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-sm flex items-center justify-center mb-4">
                       <CognivoGeometricLogo className="w-10 h-10 sm:w-12 sm:h-12 text-[#E06518]" />
                     </div>
 
@@ -1892,16 +1919,16 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                             key={idx}
                             type="button"
                             onClick={() => handleSend(item.query)}
-                            className="p-3.5 rounded-2xl bg-[#FFFFFF] border border-[#CBD2D8] hover:border-[#E06518] hover:shadow-sm text-right transition-all cursor-pointer group flex items-start gap-3"
+                            className="p-3.5 rounded-2xl bg-[#FFFFFF] border border-[#DFE3E6] hover:border-[#E06518] hover:shadow-sm text-right transition-all cursor-pointer group flex items-start gap-3"
                           >
-                            <div className="w-8 h-8 rounded-xl bg-[#F4F4F5] group-hover:bg-orange-50 text-[#55565A] group-hover:text-[#E06518] flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+                            <div className="w-8 h-8 rounded-xl bg-[#F5F6F6] group-hover:bg-orange-50 text-[#55565A] group-hover:text-[#E06518] flex items-center justify-center shrink-0 mt-0.5 transition-colors">
                               <Icon className="w-4 h-4" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="font-black text-xs text-[#2B313A] group-hover:text-[#E06518] transition-colors">
                                 {item.title}
                               </div>
-                              <div className="text-[11px] text-[#777A7D] mt-0.5 line-clamp-1">
+                              <div className="text-[11px] text-[#74757C] mt-0.5 line-clamp-1">
                                 {item.desc}
                               </div>
                             </div>
@@ -1926,7 +1953,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                     ))}
 
                     {loading && (
-                      <div className="flex items-center gap-2.5 p-3.5 bg-[#FFFFFF] rounded-2xl border border-[#CBD2D8] text-xs text-[#E06518] font-bold shadow-2xs max-w-sm">
+                      <div className="flex items-center gap-2.5 p-3.5 bg-[#FFFFFF] rounded-2xl border border-[#DFE3E6] text-xs text-[#E06518] font-bold shadow-2xs max-w-sm">
                         <Sparkles className="w-4 h-4 animate-spin text-[#E06518]" />
                         <span>مشاور FORZA در حال پردازش و استخراج پاسخ فنی...</span>
                       </div>
@@ -1937,7 +1964,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
               </div>
 
               {/* Bottom Sticky Composer Bar (Ergonomic with safe-area padding on mobile) */}
-              <div className="p-2 sm:p-3 bg-[#FFFFFF] border-t border-[#CBD2D8] shrink-0 z-20 shadow-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <div className="p-2 sm:p-3 bg-[#FFFFFF] border-t border-[#DFE3E6] shrink-0 z-20 shadow-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 {selectedConsultProducts.length > 0 && (
                   <div className="mx-auto mb-2 flex max-w-4xl flex-wrap gap-1.5">
                     {selectedConsultProducts.map(product => (
@@ -1951,7 +1978,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                     ))}
                   </div>
                 )}
-                <div className="max-w-4xl mx-auto w-full bg-[#F4F4F5] rounded-2xl border border-[#CBD2D8] p-2 focus-within:border-[#E06518] focus-within:bg-[#FFFFFF] transition-all">
+                <div className="max-w-4xl mx-auto w-full bg-[#F5F6F6] rounded-2xl border border-[#DFE3E6] p-2 focus-within:border-[#E06518] focus-within:bg-[#FFFFFF] transition-all">
                   <div className="flex items-end gap-2">
                     <textarea
                       ref={textareaRef}
@@ -1977,7 +2004,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         className={`p-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                           isDeeperResearchActive
                             ? 'bg-[#E06518] text-white shadow-xs'
-                            : 'text-[#777A7D] hover:text-[#E06518] hover:bg-[#DEE2E5]'
+                            : 'text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5]'
                         }`}
                         title="تحلیل عمیق فنی استاندارد"
                       >
@@ -1988,7 +2015,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       <button
                         type="button"
                         onClick={() => document.getElementById('forza-workspace-product-search')?.focus()}
-                        className="p-2 rounded-xl text-[#777A7D] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
+                        className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
                         title="افزودن محصول به مشاوره"
                       >
                         <Search className="w-4 h-4" />
@@ -1998,7 +2025,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       <button
                         type="button"
                         onClick={() => navigate('/identify-part?from=workspace')}
-                        className="p-2 rounded-xl text-[#777A7D] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
+                        className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
                         title="شناسایی قطعه با دوربین"
                       >
                         <Camera className="w-4 h-4" />
@@ -2008,10 +2035,10 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       <button
                         type="button"
                         onClick={() => setShowCalculatorModal(true)}
-                        className="p-2 rounded-xl text-[#777A7D] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
+                        className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
                         title="محاسبه‌گر تسمه DIN 2215"
                       >
-                        <Calculator className="w-4 h-4" />
+                        <DinCalculatorIcon size={18} className="w-4 h-4" />
                       </button>
 
                       {/* Send Button */}
@@ -2022,7 +2049,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         className="w-9 h-9 rounded-xl bg-[#E06518] hover:bg-[#C95210] disabled:bg-[#CBD2D8] text-white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
                         title="ارسال"
                       >
-                        <Send className="w-4 h-4 -rotate-45" />
+                        <SendArrowIcon size={18} className="w-4 h-4 -rotate-45" />
                       </button>
                     </div>
                   </div>
@@ -2033,197 +2060,36 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         </main>
       </div>
 
-      {/* Belt Calculator Modal (DIN 2215) with Touch-Friendly UI */}
-      {showCalculatorModal && (
-        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#2B313A]/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-[#FFFFFF] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl border border-[#CBD2D8] space-y-4 text-right animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-            {/* Mobile Sheet Handle */}
-            <div className="w-10 h-1 rounded-full bg-[#CBD2D8] mx-auto -mt-1 mb-1 sm:hidden" />
+      {/* Refined, reusable FORZA workspace modals from the approved ZIP design */}
+      <DinCalculatorModal
+        isOpen={showCalculatorModal}
+        onClose={() => setShowCalculatorModal(false)}
+        calcC={calcC}
+        calcD={calcD}
+        calcd={calcd}
+        onChangeC={setCalcC}
+        onChangeD={setCalcD}
+        onChanged={setCalcd}
+        calcResult={calcResult}
+        onApplyToChat={(length, ratio) => {
+          setShowCalculatorModal(false);
+          setActiveWorkspaceTab('chat');
+          void handleSend(
+            `لطفاً تسمه مناسب با طول نامی ${length} میلیمتر و نسبت دور ۱:${ratio} را از کاتالوگ صنعت پیش و بازرگانی تسمه اطلس پیشنهاد دهید.`
+          );
+        }}
+      />
 
-            <div className="flex items-center justify-between pb-3 border-b border-[#DEE2E5]">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-orange-100 text-[#E06518] flex items-center justify-center">
-                  <Calculator className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-black text-sm text-[#2B313A]">
-                    محاسبه طول نامی تسمه و نسبت دور
-                  </h3>
-                  <span className="text-[10px] text-[#777A7D]">بر مبنای استاندارد DIN 2215</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCalculatorModal(false)}
-                className="p-1.5 rounded-lg text-[#55565A] hover:text-[#2B313A] hover:bg-[#DEE2E5]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3.5 text-xs">
-              <div>
-                <label className="text-[#55565A] font-bold block mb-1">
-                  فاصله بین مراکز دو شفت (C mm):
-                </label>
-                <input
-                  type="number"
-                  value={calcC}
-                  onChange={e => setCalcC(e.target.value)}
-                  className="w-full h-10 px-3 bg-[#F4F4F5] border border-[#CBD2D8] rounded-xl font-mono text-center text-[#2B313A] focus:outline-none focus:border-[#E06518] font-bold"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="text-[#55565A] font-bold block mb-1">پولی بزرگ (D mm):</label>
-                  <input
-                    type="number"
-                    value={calcD}
-                    onChange={e => setCalcD(e.target.value)}
-                    className="w-full h-10 px-3 bg-[#F4F4F5] border border-[#CBD2D8] rounded-xl font-mono text-center text-[#2B313A] focus:outline-none focus:border-[#E06518] font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-[#55565A] font-bold block mb-1">پولی کوچک (d mm):</label>
-                  <input
-                    type="number"
-                    value={calcd}
-                    onChange={e => setCalcd(e.target.value)}
-                    className="w-full h-10 px-3 bg-[#F4F4F5] border border-[#CBD2D8] rounded-xl font-mono text-center text-[#2B313A] focus:outline-none focus:border-[#E06518] font-bold"
-                  />
-                </div>
-              </div>
-
-              {calcResult && (
-                <div className="p-3.5 bg-[#F4F4F5] border border-[#CBD2D8] rounded-2xl space-y-2 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-[#55565A]">طول اسمی تسمه (Lp):</span>
-                    <span className="font-mono font-black text-sm text-[#E06518]">
-                      {toPersianDigits(calcResult.length)} میلیمتر
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-[#55565A]">نسبت تبدیل دور (Ratio):</span>
-                    <span className="font-mono font-bold text-[#2B313A]">
-                      ۱ به {toPersianDigits(calcResult.ratio)}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCalculatorModal(false);
-                      setActiveWorkspaceTab('chat');
-                      handleSend(
-                        `لطفاً تسمه مناسب با طول نامی ${calcResult.length} میلیمتر و نسبت دور ۱:${calcResult.ratio} را از کاتالوگ صنعت پیش و بازرگانی تسمه اطلس پیشنهاد دهید.`
-                      );
-                    }}
-                    className="w-full mt-2 py-2.5 bg-[#E06518] hover:bg-[#C95210] active:scale-98 text-white font-bold rounded-xl text-center cursor-pointer shadow-xs"
-                  >
-                    ارسال این مقادیر به مشاور FORZA ↵
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Settings Modal */}
-      {showSettingsModal && (
-        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#2B313A]/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-[#FFFFFF] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl border border-[#CBD2D8] space-y-4 text-right animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
-            {/* Mobile Sheet Handle */}
-            <div className="w-10 h-1 rounded-full bg-[#CBD2D8] mx-auto -mt-1 mb-1 sm:hidden" />
-
-            <div className="flex items-center justify-between pb-3 border-b border-[#DEE2E5]">
-              <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-[#E06518]" />
-                <h3 className="font-black text-sm text-[#2B313A]">تنظیمات میزکار هوشمند FORZA</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowSettingsModal(false)}
-                className="p-1 rounded-lg text-[#55565A] hover:text-[#2B313A] hover:bg-[#DEE2E5]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              {/* Industry Domain */}
-              <div>
-                <label className="text-[#55565A] font-bold block mb-1.5">
-                  حوزه تخصصی کارخانه یا واحد صنعتی:
-                </label>
-                <select
-                  value={selectedIndustry}
-                  onChange={e => setSelectedIndustry(e.target.value)}
-                  className="w-full h-10 px-3 bg-[#F4F4F5] border border-[#CBD2D8] rounded-xl font-medium text-[#2B313A] focus:outline-none focus:border-[#E06518]"
-                >
-                  {INDUSTRY_DOMAINS.map(d => (
-                    <option key={d.id} value={d.id}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-[#777A7D] mt-1">
-                  پاسخ‌های هوش مصنوعی با اولویت استانداردهای این حوزه ارائه می‌شوند.
-                </p>
-              </div>
-
-              {/* Standard vs Fast Mode */}
-              <div>
-                <label className="text-[#55565A] font-bold block mb-1.5">دقت محاسبات مهندسی:</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCalculationStandard('din')}
-                    className={`p-2.5 rounded-xl border text-center font-bold cursor-pointer transition-all ${
-                      calculationStandard === 'din'
-                        ? 'border-[#E06518] bg-orange-50 text-[#E06518]'
-                        : 'border-[#CBD2D8] bg-[#F4F4F5] text-[#55565A]'
-                    }`}
-                  >
-                    استاندارد دقیق DIN 2215
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCalculationStandard('fast')}
-                    className={`p-2.5 rounded-xl border text-center font-bold cursor-pointer transition-all ${
-                      calculationStandard === 'fast'
-                        ? 'border-[#E06518] bg-orange-50 text-[#E06518]'
-                        : 'border-[#CBD2D8] bg-[#F4F4F5] text-[#55565A]'
-                    }`}
-                  >
-                    استعلام سریع کارگاهی
-                  </button>
-                </div>
-              </div>
-
-              {/* Clear History */}
-              <div className="pt-2 border-t border-[#DEE2E5]">
-                <button
-                  type="button"
-                  onClick={clearAllHistory}
-                  className="w-full py-2.5 px-3 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4 text-rose-600" />
-                  <span>پاک‌سازی کامل تاریخچه گفتگوهای ذخیره‌شده</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowSettingsModal(false)}
-                className="w-full py-2.5 bg-[#E06518] hover:bg-[#C95210] text-white font-bold rounded-xl text-center cursor-pointer shadow-xs"
-              >
-                ذخیره و بازگشت به میزکار
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <WorkspaceSettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        industries={INDUSTRY_DOMAINS}
+        selectedIndustry={selectedIndustry}
+        onSelectIndustry={setSelectedIndustry}
+        calculationStandard={calculationStandard}
+        onChangeCalculationStandard={setCalculationStandard}
+        onClearAllHistory={clearAllHistory}
+      />
 
       {/* Visual Part Search Wizard Modal */}
       {isVisualSearchModalOpen && <Suspense fallback={<div role="status">در حال آماده‌سازی شناسایی تصویر…</div>}><AiVisualPartSearchModal
