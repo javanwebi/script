@@ -23,8 +23,8 @@ test('foreground worklet passes a close, clear voice and blocks a low-SNR distan
    for(let i=0;i<128;i++){
     const t=sampleIndex/16000;
     const voice=amplitude*(
-      0.65*Math.sin(2*Math.PI*120*t)+
-      0.25*Math.sin(2*Math.PI*240*t)+
+      0.65*Math.sin(2*Math.PI*140*t)+
+      0.25*Math.sin(2*Math.PI*280*t)+
       0.10*Math.sin(2*Math.PI*2500*t)
     );
     const room=0.00008*Math.sin(2*Math.PI*910*t);
@@ -49,6 +49,36 @@ test('foreground worklet passes a close, clear voice and blocks a low-SNR distan
  assert.ok(messages.length>0,'bounded acoustic diagnostics are emitted');
  assert.ok(messages.flat().every((frame:any)=>Array.isArray(frame)&&frame.length===4),
   'only timestamp, gated RMS, score and gate state leave the audio thread');
+});
+
+test('overlapping independent voices fail closed instead of being mixed into STT',()=>{
+ let Processor:any;
+ const scope:any={
+  sampleRate:16000,currentTime:0,Math,Float32Array,Uint8Array,
+  AudioWorkletProcessor:class{port={postMessage:()=>{},onmessage:null as any};},
+  registerProcessor:(_name:string,processor:any)=>{Processor=processor;},
+ };
+ vm.runInNewContext(readFileSync(new URL('../public/worklets/forza-foreground-gate.js',import.meta.url),'utf8'),scope);
+ const processor=new Processor();
+ let index=0,energy=0,count=0;
+ const feed=(seconds:number,first:number,second:number)=>{
+  const blocks=Math.ceil(seconds*16000/128);
+  for(let block=0;block<blocks;block++){
+   const input=new Float32Array(128),output=new Float32Array(128);
+   for(let i=0;i<128;i++){
+    const t=index++/16000;
+    input[i]=first*(0.6*Math.sin(2*Math.PI*140*t)+0.25*Math.sin(2*Math.PI*280*t)+0.1*Math.sin(2*Math.PI*2500*t))+
+      second*(0.6*Math.sin(2*Math.PI*190*t)+0.25*Math.sin(2*Math.PI*380*t)+0.1*Math.sin(2*Math.PI*3100*t));
+   }
+   processor.process([[input]],[[output]]);
+   for(const value of output){energy+=value*value;count++;}
+   scope.currentTime+=128/16000;
+  }
+ };
+ feed(0.5,0,0);
+ feed(0.8,0.025,0.025);
+ const rms=Math.sqrt(energy/Math.max(1,count));
+ assert.ok(rms<0.00003,'overlapping non-harmonic voices must not be forwarded as one transcript');
 });
 
 test('foreground bridge routes the gated stream to consumers and owns its cleanup',async t=>{
