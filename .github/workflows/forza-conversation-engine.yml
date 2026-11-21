@@ -7,6 +7,7 @@ on:
       - "src/components/forza/**"
       - "src/utils/forzaConversationEngine.ts"
       - "src/utils/forzaSpeechPipeline.ts"
+      - "src/utils/silenceDetector.ts"
       - "server/ai/forzaDibaStt.ts"
       - "server/ai/forzaSttQueue.ts"
       - "server.ts"
