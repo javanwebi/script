@@ -180,6 +180,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const localSttFinalRef=useRef('');
   const liveSttActiveRef=useRef(false);
   const serverLiveSttActiveRef=useRef(false);
+  const serverLiveSttReadyAtRef=useRef(0);
+  const speechStartedAtRef=useRef(0);
   const serverLiveSttClientRef=useRef<ForzaLiveSttClient|null>(null);
   const serverLivePcmCleanupRef=useRef<(()=>void)|null>(null);
   const serverLiveSttStartingRef=useRef(false);
@@ -254,6 +256,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     serverLiveSttClientRef.current?.stop();serverLiveSttClientRef.current=null;
     serverLiveSttStartingRef.current=false;
     serverLiveSttActiveRef.current=false;
+    serverLiveSttReadyAtRef.current=0;
     liveSttActiveRef.current=localSttActiveRef.current;
   },[]);
 
@@ -378,6 +381,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(serverLiveSttClientRef.current!==client)return;
           if(state==='ready'){
             serverLiveSttActiveRef.current=true;
+            serverLiveSttReadyAtRef.current=Date.now();
             liveSttActiveRef.current=true;
             localSttAdmissionRef.current??=new ForzaRecognitionAdmission();
             setServerSttLabel('دایبا سرور زنده · فقط صدای فیلترشده');
@@ -585,6 +589,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           speechAdmissionRef.current.hasRecentNearFieldEvidence(micNow));
         // Keep the last near-field VAD timestamp briefly so delayed final STT
         // events survive endpoint reset, while distant/background speech is rejected.
+        if(current.speechStarted&&speechStartedAtRef.current===0)speechStartedAtRef.current=micNow;
         if(current.speechStarted||current.speaking)lastMicActivityRef.current=micNow;
         setAudioLevel(current.level);
         if(current.speechStarted && speechAdmissionRef.current.acousticSpeech){
@@ -1252,6 +1257,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(callClosedRef.current)return;
       if(turnDispatchPendingRef.current && !(q && forzaTurnIntent(q)==='stop'))return;
       if (!q && !audioBlob) return;
+      const speechStartedAt=speechStartedAtRef.current;
+      speechStartedAtRef.current=0;
       // No recognized words does not establish a failed user turn. The foreground
       // gate may reject ambient speech, and server Diba may still be warming.
       // Never start an unavailable server fallback or clear the last valid text.
@@ -1399,9 +1406,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Use one-shot server verification only if live Diba was unavailable
         // or a pre-stream recorder segment must be recovered.
         const hasPreStreamSegments=Array.isArray(audioBlob)&&audioBlob.length>1;
+        const startedBeforeLiveReady=Boolean(speechStartedAt&&serverLiveSttReadyAtRef.current&&
+          speechStartedAt<serverLiveSttReadyAtRef.current);
         const needsServerFinal = Boolean(audioBlob) &&
           serverSttConfiguredRef.current === true &&
-          (!q || !liveSttActiveRef.current || hasPreStreamSegments);
+          (!q || !liveSttActiveRef.current || hasPreStreamSegments || startedBeforeLiveReady);
         if(audioBlob && needsServerFinal){
           const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
           const sttStartedAt=performance.now();
