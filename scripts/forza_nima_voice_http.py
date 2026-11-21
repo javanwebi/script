@@ -14,6 +14,7 @@ import io
 import json
 import math
 import os
+import queue
 import re
 import socket
 import signal
@@ -64,6 +65,7 @@ MAX_WAITING_TOTAL = bounded_int("FORZA_NIMA_MAX_PENDING", max(2, WORKER_COUNT*4)
 MAX_QUEUE_WAIT_SEC = 2.5
 engine = None
 inference_pool = None
+stream_manager = None
 pool_ready = False
 
 
@@ -169,6 +171,49 @@ def synthesize_complete(text, disconnected=lambda: False):
     return wav
 
 
+def audio_chunk_to_wav(part):
+    """Wrap one Piper sentence chunk as an independently decodable PCM WAV."""
+    output = io.BytesIO()
+    with wave.open(output, "wb") as target:
+        target.setnchannels(part.sample_channels)
+        target.setsampwidth(part.sample_width)
+        target.setframerate(part.sample_rate)
+        target.writeframes(part.audio_int16_bytes)
+    wav = output.getvalue()
+    if not (44 < len(wav) <= MAX_WAV_BYTES and wav[:4] == b"RIFF" and wav[8:12] == b"WAVE"):
+        raise ValueError("invalid_stream_wav")
+    return wav
+
+
+def queue_stream_event(output_queue, stop_event, event):
+    """Bound inter-process audio buffering and honor a disconnected browser."""
+    while not stop_event.is_set():
+        try:
+            output_queue.put(event, timeout=0.1)
+            return True
+        except queue.Full:
+            continue
+    return False
+
+
+def synthesize_stream_to_queue(text, output_queue, stop_event):
+    """Publish each Piper sentence WAV as soon as its inference completes."""
+    spoken = spoken_text(text)
+    if not spoken:
+        raise ValueError("empty_spoken_text")
+    frames = 0
+    for part in engine.synthesize(spoken):
+        if stop_event.is_set():
+            break
+        wav = audio_chunk_to_wav(part)
+        if not queue_stream_event(output_queue, stop_event, ("frame", wav)):
+            break
+        frames += 1
+    if not stop_event.is_set():
+        queue_stream_event(output_queue, stop_event, ("done", frames))
+    return frames
+
+
 def initialize_engine(ready=None):
     """One warmed, single-threaded ONNX session per isolated process.
 
@@ -247,6 +292,30 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             self.close_connection = True
 
+    def begin_stream(self, queue_ms):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-forza-wav-frames")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.send_header("Connection", "close")
+        self.send_header("Cache-Control", "no-store, no-transform")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Forza-Voice", VOICE_ID)
+        self.send_header("X-Forza-Queue-Ms", str(queue_ms))
+        self.end_headers()
+        self.close_connection = True
+
+    def write_stream_payload(self, payload):
+        if self.client_disconnected():
+            raise InterruptedError("voice_client_disconnected")
+        self.wfile.write(("%X\\r\\n" % len(payload)).encode("ascii"))
+        self.wfile.write(payload)
+        self.wfile.write(b"\\r\\n")
+        self.wfile.flush()
+
+    def finish_stream(self):
+        self.wfile.write(b"0\\r\\n\\r\\n")
+        self.wfile.flush()
+
     def client_disconnected(self):
         """Check at queue boundaries/chunk boundaries without reading payload."""
         try:
@@ -311,43 +380,96 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(503, {"error": queue_error})
             return
         start = time.monotonic()
+        stream_started = False
+        stream_stop = None
         try:
+            if self.path == "/speak-stream":
+                self.begin_stream(queue_ms)
+                stream_started = True
+                frames = 0
+                if inference_pool is None:
+                    spoken = spoken_text(phrase)
+                    if not spoken:
+                        raise ValueError("empty_spoken_text")
+                    for part in engine.synthesize(spoken):
+                        wav = audio_chunk_to_wav(part)
+                        self.write_stream_payload(struct.pack("<I", len(wav)) + wav)
+                        frames += 1
+                else:
+                    if stream_manager is None:
+                        raise RuntimeError("stream_manager_unavailable")
+                    output_queue = stream_manager.Queue(maxsize=4)
+                    stream_stop = stream_manager.Event()
+                    future = inference_pool.submit(
+                        synthesize_stream_to_queue, phrase, output_queue, stream_stop
+                    )
+                    try:
+                        while True:
+                            if self.client_disconnected():
+                                stream_stop.set()
+                                future.cancel()
+                                raise InterruptedError("voice_client_disconnected")
+                            try:
+                                kind, payload = output_queue.get(timeout=0.1)
+                            except queue.Empty:
+                                if future.done():
+                                    future.result()
+                                    break
+                                continue
+                            if kind == "frame":
+                                self.write_stream_payload(
+                                    struct.pack("<I", len(payload)) + payload
+                                )
+                                frames += 1
+                            elif kind == "done":
+                                future.result()
+                                break
+                            else:
+                                raise RuntimeError("invalid_stream_worker_event")
+                    finally:
+                        stream_stop.set()
+                        if not future.done():
+                            future.cancel()
+                if frames < 1:
+                    raise ValueError("empty_stream_audio")
+                self.finish_stream()
+                inference_ms = round((time.monotonic() - start) * 1000)
+                print("[FORZA_NIMA_STREAM] queue_ms=%d inference_ms=%d frames=%d chars=%d" % (
+                    queue_ms, inference_ms, frames, len(phrase)
+                ), flush=True)
+                return
+
             wav = synthesize_request(phrase, self.client_disconnected)
             inference_ms = round((time.monotonic() - start) * 1000)
             timings = (queue_ms, inference_ms)
-            if self.path == "/speak-stream":
-                # The browser's existing framing parser accepts a single
-                # complete WAV, which cannot underrun between model segments.
-                self.respond(200, struct.pack("<I", len(wav)) + wav,
-                             "application/x-forza-wav-frames", timings)
-            else:
-                self.respond(200, wav, "audio/wav", timings)
+            self.respond(200, wav, "audio/wav", timings)
             print("[FORZA_NIMA_PRODUCTION] queue_ms=%d inference_ms=%d wav_bytes=%d chars=%d" % (
                 queue_ms, inference_ms, len(wav), len(phrase)
             ), flush=True)
         except BrokenProcessPool:
-            # A native worker crash poisons the whole executor. Do not keep
-            # advertising healthy service forever: let Docker's restart policy
-            # recreate and warm the private pool. No partial WAV was sent.
             pool_ready = False
             print("[FORZA_NIMA_FATAL] pool_broken restart_required=1", file=sys.stderr, flush=True)
-            self.respond(503, {"error": "voice_unavailable"})
+            if not stream_started:
+                self.respond(503, {"error": "voice_unavailable"})
+            else:
+                self.close_connection = True
             os.kill(os.getpid(), signal.SIGTERM)
         except (BrokenPipeError, ConnectionResetError, InterruptedError):
+            if stream_stop is not None:
+                stream_stop.set()
             self.close_connection = True
         except Exception as exc:
-            # A production Error type alone is not actionable. Report safe
-            # exception identity and source location without exception text,
-            # phonemes, transcripts, audio or private runtime paths.
             print("[FORZA Nima] generation_error=%s %s queue_ms=%d inference_elapsed_ms=%d chars=%d" % (
                 type(exc).__name__, generation_error_diagnostics(exc),
                 queue_ms, round((time.monotonic()-start)*1000), len(phrase)
             ), file=sys.stderr, flush=True)
-            if not self.wfile.closed:
+            if not stream_started and not self.wfile.closed:
                 try:
                     self.respond(503, {"error": "voice_unavailable"})
                 except (BrokenPipeError, ConnectionResetError):
                     self.close_connection = True
+            else:
+                self.close_connection = True
         finally:
             release_inference()
 
@@ -359,7 +481,7 @@ class PrivateServer(ThreadingHTTPServer):
 
 
 def main():
-    global engine, inference_pool, pool_ready
+    global engine, inference_pool, stream_manager, pool_ready
     def stop_service(_signum, _frame):
         raise KeyboardInterrupt
     signal.signal(signal.SIGTERM, stop_service)
@@ -369,6 +491,7 @@ def main():
         initialize_engine()
     else:
         context = multiprocessing.get_context("spawn")
+        stream_manager = context.Manager()
         ready = context.Queue()
         inference_pool = concurrent.futures.ProcessPoolExecutor(
             max_workers=WORKER_COUNT, mp_context=context,
@@ -383,6 +506,9 @@ def main():
             pool_ready = True
         except BaseException:
             inference_pool.shutdown(wait=False, cancel_futures=True)
+            if stream_manager is not None:
+                stream_manager.shutdown()
+                stream_manager = None
             raise
     print("[FORZA Nima] ready voice=%s warmed=1 length_scale=%.2f no_audio_files=1" % (VOICE_ID, NIMA_LENGTH_SCALE),
           flush=True)
@@ -396,6 +522,8 @@ def main():
     finally:
         if inference_pool is not None:
             inference_pool.shutdown(wait=True, cancel_futures=True)
+        if stream_manager is not None:
+            stream_manager.shutdown()
 
 
 if __name__ == "__main__":
