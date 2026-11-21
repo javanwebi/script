@@ -15,12 +15,21 @@ type LiveWorker = {
   sessions: Map<string, WebSocket>;
 };
 
-const MODEL_PATH = process.env.FORZA_STT_DIBA_MODEL_PATH || '/opt/diba-stt/model';
 const WORKER_SCRIPT = path.resolve(process.cwd(), 'scripts/forza_diba_live_worker.py');
-const PYTHON = process.env.FORZA_STT_PYTHON || '/opt/forza-pocket/bin/python';
-const WORKER_COUNT = Math.max(1, Math.min(4, Number(process.env.FORZA_STT_LIVE_WORKERS || 4) || 4));
 const MAX_SESSIONS = 40;
-const MAX_SESSIONS_PER_WORKER = Math.ceil(MAX_SESSIONS / WORKER_COUNT);
+
+function modelPath(): string {
+  return process.env.FORZA_STT_DIBA_MODEL_PATH || '/opt/diba-stt/model';
+}
+function pythonPath(): string {
+  return process.env.FORZA_STT_PYTHON || '/opt/forza-pocket/bin/python';
+}
+function workerCount(): number {
+  return Math.max(1, Math.min(4, Number(process.env.FORZA_STT_LIVE_WORKERS || 4) || 4));
+}
+function sessionsPerWorker(): number {
+  return Math.ceil(MAX_SESSIONS / workerCount());
+}
 const MAX_STDIN_BUFFER = 512 * 1024;
 const workers: LiveWorker[] = [];
 let warmPromise: Promise<boolean> | null = null;
@@ -28,8 +37,8 @@ let warmAttemptAt = 0;
 
 function providerEnabled(): boolean {
   return selectForzaSttProvider(process.env).provider === 'diba' &&
-    existsSync(path.join(MODEL_PATH, 'am')) &&
-    existsSync(path.join(MODEL_PATH, 'conf'));
+    existsSync(path.join(modelPath(), 'am')) &&
+    existsSync(path.join(modelPath(), 'conf'));
 }
 
 function toBuffer(data: unknown): Buffer {
@@ -78,12 +87,12 @@ function writeWorker(worker: LiveWorker, payload: Record<string, unknown>): bool
 }
 
 function startWorker(): LiveWorker {
-  const child = spawn(PYTHON, [WORKER_SCRIPT], {
+  const child = spawn(pythonPath(), [WORKER_SCRIPT], {
     cwd: process.cwd(),
     env: {
       ...process.env,
-      FORZA_STT_DIBA_MODEL_PATH: MODEL_PATH,
-      FORZA_STT_LIVE_SESSIONS_PER_WORKER: String(MAX_SESSIONS_PER_WORKER),
+      FORZA_STT_DIBA_MODEL_PATH: modelPath(),
+      FORZA_STT_LIVE_SESSIONS_PER_WORKER: String(sessionsPerWorker()),
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -150,7 +159,7 @@ export function isForzaDibaLiveSttReady(): boolean {
 export async function warmForzaDibaLiveStt(): Promise<boolean> {
   if (!providerEnabled()) return false;
   const healthy = workers.filter(worker => worker.ready && !worker.failed && worker.child.exitCode === null);
-  if (healthy.length >= WORKER_COUNT) return true;
+  if (healthy.length >= workerCount()) return true;
   if (warmPromise) return warmPromise;
   if (Date.now() - warmAttemptAt < 3000 && workers.every(worker => worker.failed)) return false;
   warmAttemptAt = Date.now();
@@ -159,7 +168,7 @@ export async function warmForzaDibaLiveStt(): Promise<boolean> {
       const worker = workers[index];
       if (worker.failed || worker.child.exitCode !== null) workers.splice(index, 1);
     }
-    while (workers.length < WORKER_COUNT) workers.push(startWorker());
+    while (workers.length < workerCount()) workers.push(startWorker());
     const results = await Promise.allSettled(workers.map(worker => worker.readyPromise));
     return results.some(result => result.status === 'fulfilled') &&
       workers.some(worker => worker.ready && !worker.failed && worker.child.exitCode === null);
@@ -170,7 +179,7 @@ export async function warmForzaDibaLiveStt(): Promise<boolean> {
 function chooseWorker(): LiveWorker | null {
   return workers
     .filter(worker => worker.ready && !worker.failed && worker.child.exitCode === null &&
-      worker.sessions.size < MAX_SESSIONS_PER_WORKER)
+      worker.sessions.size < sessionsPerWorker())
     .sort((left, right) => left.sessions.size - right.sessions.size)[0] || null;
 }
 
