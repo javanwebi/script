@@ -76,7 +76,7 @@ export function HomeAssist({
  *   - Right 3 Cards: تمرکز بر صنایع اصلی | کیفیت و اصالت کالا | پشتیبانی تخصصی
  *   - Center: 3D Mechanical Core Sphere on glowing orange pedestal with floating glassmorphic part cards & circuit connectors
  *   - Left 3 Cards: تامین سریع و مطمئن | هوش مصنوعی FORZA | تنوع کامل محصولات
- * - Bottom Full-Width Dark Glassmorphic Bar: 4 stats (+5,000 مشتری فعال, +24 صنعت تحت پوشش, +864 تصویر واقعی محصول, +10,000 کد کالای صنعتی) + "درباره صنعت پیش بیشتر بدانید" CTA button
+ * - Bottom Full-Width Dark Glassmorphic Bar: 4 practical capabilities + "درباره صنعت پیش بیشتر بدانید" CTA button
  * - Dedicated responsive mobile layout
  */
 export function HomeAboutSection() {
@@ -610,67 +610,67 @@ export function WhySanatPish({ variant = 'home' }: { variant?: 'home' | 'about' 
               </Link>
             </div>
 
-            {/* 4 Key Industrial Metrics (2x2 Grid on Mobile, 4 Columns on Desktop) */}
+            {/* Four practical capabilities */}
             <div className="order-1 lg:order-2 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-6 divide-y sm:divide-y-0 sm:divide-x sm:divide-x-reverse divide-white/15">
-              {/* Stat 1: +5,000 مشتری فعال */}
+              {/* Capability 1: catalogue */}
               <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-3 pt-1 sm:pt-0 sm:pr-4">
                 <div className="text-right">
                   <div
                     className="text-base sm:text-2xl font-black tracking-tight tabular-nums text-white"
                     dir="ltr"
                   >
-                    +5,000
+                    کاتالوگ
                   </div>
                   <div className="text-[10px] sm:text-xs text-slate-300 font-medium mt-0.5">
-                    مشتری فعال
+                    کد فنی و مشخصات
                   </div>
                 </div>
                 <Users className="w-4 h-4 sm:w-6 sm:h-6 text-[#E06518] shrink-0" />
               </div>
 
-              {/* Stat 2: +24 صنعت تحت پوشش */}
+              {/* Capability 2: visual identification */}
               <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-3 pt-1 sm:pt-0 sm:pr-5">
                 <div className="text-right">
                   <div
                     className="text-base sm:text-2xl font-black tracking-tight tabular-nums text-white"
                     dir="ltr"
                   >
-                    +24
+                    FORZA
                   </div>
                   <div className="text-[10px] sm:text-xs text-slate-300 font-medium mt-0.5">
-                    صنعت تحت پوشش
+                    شناسایی تصویری
                   </div>
                 </div>
                 <Building2 className="w-4 h-4 sm:w-6 sm:h-6 text-slate-300 shrink-0" />
               </div>
 
-              {/* Stat 3: +864 تصویر واقعی محصول */}
+              {/* Capability 3: engineering guidance */}
               <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-3 pt-1.5 sm:pt-0 sm:pr-5">
                 <div className="text-right">
                   <div
                     className="text-base sm:text-2xl font-black tracking-tight tabular-nums text-white"
                     dir="ltr"
                   >
-                    +864
+                    مشاوره
                   </div>
                   <div className="text-[10px] sm:text-xs text-slate-300 font-medium mt-0.5">
-                    تصویر واقعی محصول
+                    راهنمایی مهندسی
                   </div>
                 </div>
                 <Warehouse className="w-4 h-4 sm:w-6 sm:h-6 text-slate-300 shrink-0" />
               </div>
 
-              {/* Stat 4: +10,000 کد کالای صنعتی */}
+              {/* Capability 4: custom manufacturing */}
               <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-3 pt-1.5 sm:pt-0 sm:pr-5">
                 <div className="text-right">
                   <div
                     className="text-base sm:text-2xl font-black tracking-tight tabular-nums text-white"
                     dir="ltr"
                   >
-                    +10,000
+                    ساخت
                   </div>
                   <div className="text-[10px] sm:text-xs text-slate-300 font-medium mt-0.5">
-                    کد کالای صنعتی
+                    سفارش‌سازی قطعات
                   </div>
                 </div>
                 <Box className="w-4 h-4 sm:w-6 sm:h-6 text-[#E06518] shrink-0" />
@@ -723,8 +723,7 @@ export function WhySanatPish({ variant = 'home' }: { variant?: 'home' | 'about' 
                   تأمین، ساخت و مهندسی قطعات خطوط تولید کشور
                 </div>
                 <p className="text-xs text-slate-200 mt-1">
-                  بیش از ۱۰,۰۰۰ کد کالای صنعتی، ۸۶۴ خانواده تصویری مستند و پوشش
-                  ۲۴ صنعت کلیدی کشور
+                  کاتالوگ تخصصی کد‌محور، شناسایی تصویری قطعات و همراهی در تأمین و ساخت برای صنایع مختلف کشور
                 </p>
               </div>
             </div>
