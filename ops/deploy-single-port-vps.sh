@@ -1262,7 +1262,7 @@ if [[ "$FORZA_ONLY" == "1" ]]; then
   # voice script keeps its own rollback container and verifies the app route.
   echo '===== PRIVATE NIMA SENTENCE-STREAM UPGRADE AND SAFE PROMOTION ====='
   bash -n "$STAGE/ops/upgrade-forza-realtime-vps.sh"
-  bash "$STAGE/ops/upgrade-forza-realtime-vps.sh" --app "$OLD"
+  bash "$STAGE/ops/upgrade-forza-realtime-vps.sh" --app "$NAME"
 else
   echo '===== PINNED PRIVATE NIMA CANARY AND SAFE VOICE PROMOTION ====='
   bash -n "$STAGE/ops/deploy-forza-nima-pinned-vps.sh"
