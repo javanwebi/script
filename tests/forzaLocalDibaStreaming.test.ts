@@ -126,6 +126,19 @@ test('server Diba status is non-blocking and the streaming pool warms independen
   'readiness diagnostics must not block while workers warm');
  assert.match(server,/void warmForzaDibaStt\(\)\.then/,
   'the local worker pool must warm independently of status requests');
+ assert.match(server,/void warmForzaDibaLiveStt\(\)\.then/,
+  'the streaming worker pool must warm before the first low-power call');
+ assert.match(server,/setupForzaDibaLiveSttWebSocket\(server\)/);
+ assert.match(status,/serverLiveSttConfigured:dibaConfigured/);
+ assert.match(status,/serverLiveSttReady:choice\.provider==='diba'\?isForzaDibaLiveSttReady\(\)/);
+ const stream=readFileSync('server/ai/forzaDibaLiveStt.ts','utf8');
+ assert.match(stream,/MAX_SESSIONS = 40/);
+ assert.match(stream,/activeForIp >= 4/);
+ assert.match(stream,/MAX_STDIN_BUFFER/);
+ const worker=readFileSync('scripts/forza_diba_live_worker.py','utf8');
+ assert.match(worker,/KaldiRecognizer\(model, 16000\)/);
+ assert.match(worker,/PartialResult\(\)/);
+ assert.match(worker,/FinalResult\(\)/);
  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
  assert.match(ui,/const dibaConfigured=info\.serverSttProvider==='diba'&&info\.serverSttConfigured===true/);
  assert.match(ui,/serverSttConfiguredRef\.current=dibaConfigured/);
