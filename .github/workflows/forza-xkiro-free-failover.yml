@@ -5,6 +5,7 @@ on:
       - 'server/ai/xkiroFreeFailover.ts'
       - 'server/ai/baiConsult.ts'
       - 'server.ts'
+      - 'src/utils/clientAiSegmentation.ts'
       - 'tests/xkiro-free-failover.test.ts'
       - 'tests/bai-consult.test.ts'
       - '.github/workflows/forza-xkiro-free-failover.yml'
@@ -22,6 +23,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: Install pinned browser vision runtime required by shared app typecheck
+        run: npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
       - name: Typecheck app and free-model routing
         run: npm run lint
       - name: Free-model-only and streaming regression tests
