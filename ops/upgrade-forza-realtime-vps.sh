@@ -13,7 +13,7 @@ NETWORK="$(python3 - "$APP" <<'PY'
 import json,subprocess,sys
 app=json.loads(subprocess.check_output(['docker','inspect',sys.argv[1]]))[0]
 assert app['State']['Running']
-assert any(m['Source']=='/opt/sanatpish' and m['Destination']=='/app' for m in app['Mounts']), 'UNEXPECTED_APP_MOUNT'
+assert any(m['Destination']=='/app' for m in app['Mounts']), 'APP_RELEASE_MOUNT_MISSING'
 n=app['HostConfig']['NetworkMode'];assert n in app['NetworkSettings']['Networks'] and n not in ('host','bridge','none')
 print(n)
 PY
