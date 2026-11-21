@@ -108,6 +108,7 @@ test("Forza browser and private Pocket integration checks run on main pushes",()
 test("Forza-only release classifier includes only the reviewed call-engine fix paths",()=>{
   for(const path of [
     ".github/workflows/deploy-production-after-main-ci.yml",
+    ".github/workflows/verify-vps-build.yml",
     ".github/workflows/forza-browser-smoke.yml",
     ".github/workflows/forza-conversation-engine.yml",
     ".github/workflows/forza-nima-private.yml",
