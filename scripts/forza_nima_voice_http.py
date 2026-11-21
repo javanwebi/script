@@ -12,6 +12,7 @@ import hmac
 from collections import deque
 import io
 import json
+import math
 import os
 import re
 import socket
@@ -21,6 +22,7 @@ import struct
 import sys
 import threading
 import time
+import unicodedata
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -43,7 +45,20 @@ def bounded_int(name, default, minimum, maximum):
         return default
 
 
+def bounded_float(name, default, minimum, maximum):
+    try:
+        value = float(os.environ.get(name, default))
+        if not math.isfinite(value):
+            return default
+        return max(minimum, min(maximum, value))
+    except (TypeError, ValueError):
+        return default
+
+
 WORKER_COUNT = bounded_int("FORZA_NIMA_WORKERS", 1, 1, 8)
+# A modest 8% faster voice shortens both audible duration and CPU inference.
+# Keep a bounded override so deployments can tune this without changing code.
+NIMA_LENGTH_SCALE = bounded_float("FORZA_NIMA_LENGTH_SCALE", 0.92, 0.85, 1.0)
 queue_busy = 0
 MAX_WAITING_TOTAL = bounded_int("FORZA_NIMA_MAX_PENDING", max(2, WORKER_COUNT*4), WORKER_COUNT, 64)
 MAX_QUEUE_WAIT_SEC = 2.5
@@ -83,18 +98,27 @@ def release_inference():
         queue_busy = max(0, queue_busy-1)
         queue_condition.notify_all()
 
-# Keep decimals and part numbers intact while suppressing punctuation-induced
-# silence in the *spoken copy* only. The original LLM answer stays on screen.
-PUNCTUATION = re.compile(r"[،,؛;:!?؟…—–\[\]{}()]|(?<!\d)\.|\.(?!\d)")
-
-
+# Convert all Unicode punctuation to spaces in the spoken copy so
+# quotes, Arabic punctuation, brackets and full stops cannot add long pauses.
+# Preserve numeric decimal/group separators and separators inside technical IDs.
 def spoken_text(value):
-    # Defense in depth: even a non-FORZA caller must never make the male
-    # speaker recite Markdown markers or bare URLs. Do not alter part codes.
+    # Defense in depth: even a non-FORZA caller must never make the speaker
+    # recite Markdown markers or bare URLs. The original visible answer is untouched.
     value = re.sub(r"(?i)(?:https?://|www\.)\S+", " ", value)
     value = re.sub(r"(?<=\d)\s*\*\s*(?=\d)", " در ", value)
     value = re.sub(r"[*\x60#]", " ", value)
-    return " ".join(PUNCTUATION.sub(" ", value).split())
+    characters = list(value)
+    spoken = []
+    for index, character in enumerate(characters):
+        if not unicodedata.category(character).startswith("P"):
+            spoken.append(character)
+            continue
+        previous = characters[index - 1] if index else ""
+        following = characters[index + 1] if index + 1 < len(characters) else ""
+        numeric_separator = previous.isdigit() and following.isdigit() and character in ".,٫"
+        identifier_separator = previous.isalnum() and following.isalnum() and character in "-_/"
+        spoken.append(character if numeric_separator or identifier_separator else " ")
+    return " ".join("".join(spoken).split())
 
 
 def generation_error_diagnostics(exc):
@@ -159,9 +183,11 @@ def initialize_engine(ready=None):
     options.inter_op_num_threads = 1
     options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
     with open(str(MODEL)+".json", encoding="utf-8") as config:
-        engine = PiperVoice(config=PiperConfig.from_dict(json.load(config)),
-                            session=onnxruntime.InferenceSession(str(MODEL), sess_options=options,
-                                                                 providers=["CPUExecutionProvider"]))
+        voice_config = PiperConfig.from_dict(json.load(config))
+    voice_config.length_scale = NIMA_LENGTH_SCALE
+    engine = PiperVoice(config=voice_config,
+                        session=onnxruntime.InferenceSession(str(MODEL), sess_options=options,
+                                                             providers=["CPUExecutionProvider"]))
     for _ in engine.synthesize("سلام، من فورزا هستم"):
         pass
     if ready is not None:
@@ -241,7 +267,7 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(200 if engine is not None or pool_ready else 503, {
                 "ok": engine is not None or pool_ready, "voice": VOICE_ID,
                 "workers": WORKER_COUNT, "active": queue_busy, "waiting": len(queue_waiters),
-                "max_pending": MAX_WAITING_TOTAL, "onnx_threads_per_worker": 1,
+                "max_pending": MAX_WAITING_TOTAL, "onnx_threads_per_worker": 1, "length_scale": NIMA_LENGTH_SCALE,
                 "generated_audio_persisted": False,
             })
         else:
@@ -358,7 +384,7 @@ def main():
         except BaseException:
             inference_pool.shutdown(wait=False, cancel_futures=True)
             raise
-    print("[FORZA Nima] ready voice=%s warmed=1 no_audio_files=1" % VOICE_ID,
+    print("[FORZA Nima] ready voice=%s warmed=1 length_scale=%.2f no_audio_files=1" % (VOICE_ID, NIMA_LENGTH_SCALE),
           flush=True)
     port = int(os.environ.get("PORT", "8080"))
     bind = os.environ.get("FORZA_NIMA_BIND", "::")

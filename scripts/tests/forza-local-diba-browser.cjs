@@ -21,14 +21,33 @@ function wav(seconds=0.2){
   const page=await browser.newPage({permissions:['microphone'],viewport:{width:1180,height:750}});
   const errors=[],queries=[],requests=[],speech=[],speechTurnIds=[];
   page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',message=>{const value=message.text();if(value.includes('[FORZA')||value.includes('Diba'))console.log('FORZA_PAGE_CONSOLE',value);});
   await page.addInitScript(()=>{
+   window.__FORZA_TEST_MODE__=true;
    Object.defineProperty(navigator,'hardwareConcurrency',{configurable:true,value:8});
    Object.defineProperty(navigator,'deviceMemory',{configurable:true,value:8});
-   window.__forzaMicSample=0.0005;
-   Object.defineProperty(AudioContext.prototype,'audioWorklet',{get:()=>undefined});
-   const analyser=window.AnalyserNode?.prototype;
-   if(analyser?.getFloatTimeDomainData)
-    analyser.getFloatTimeDomainData=function(samples){samples.fill(window.__forzaMicSample);};
+   let micLevel=0.0005,micGain=null;
+   Object.defineProperty(window,'__forzaMicSample',{
+    configurable:true,get:()=>micLevel,set:value=>{micLevel=Number(value)||0;if(micGain)micGain.gain.value=micLevel;}
+   });
+   // Synthetic near-field voice: voiced harmonics plus articulation energy above 2kHz.
+   AudioContext.prototype.createMediaStreamSource=function(){
+    const fundamental=this.createOscillator(),gain=this.createGain();
+    const fundamentalGain=this.createGain();
+    fundamental.frequency.value=140;
+    fundamentalGain.gain.value=0.75;
+    fundamental.connect(fundamentalGain);fundamentalGain.connect(gain);
+    // These are harmonics of the same 140 Hz voice, not a second independent
+    // 2.5 kHz tone. The foreground gate must accept articulation detail without
+    // misclassifying one synthetic speaker as two overlapping people.
+    for(const frequency of [2240,2380,2520,2660]){
+      const partial=this.createOscillator(),partialGain=this.createGain();
+      partial.frequency.value=frequency;partialGain.gain.value=0.06;
+      partial.connect(partialGain);partialGain.connect(gain);partial.start();
+    }
+    fundamental.start();gain.gain.value=micLevel;micGain=gain;window.__forzaMicGain=gain;
+    return gain;
+   };
    class FakeBrowserRecognition{
     start(){window.__forzaBrowserStarts=(window.__forzaBrowserStarts||0)+1;this.onstart?.();}
     stop(){this.onend?.();}
@@ -41,7 +60,8 @@ function wav(seconds=0.2){
    body:`window.Vosk={createModel:async url=>{
     window.__forzaDibaModelUrl=url;
     return {KaldiRecognizer:class{
-     constructor(rate){this.rate=rate;this.handlers={};window.__forzaVoskRecognizer=this;
+     constructor(rate){this.rate=rate;this.handlers={};this.id=(window.__forzaVoskCreated||0)+1;window.__forzaVoskRecognizer=this;
+      window.__forzaVoskInstances=window.__forzaVoskInstances||[];window.__forzaVoskInstances.push(this);
       window.__forzaDibaRecognizerSampleRate=rate;
       window.__forzaVoskCreated=(window.__forzaVoskCreated||0)+1;}
      on(name,handler){this.handlers[name]=handler;}
@@ -49,10 +69,15 @@ function wav(seconds=0.2){
       window.__forzaVoskFrames=(window.__forzaVoskFrames||0)+1;
       window.__forzaDibaBufferSampleRate=samples.sampleRate;
       window.__forzaDibaBufferLength=samples.length;
+      const data=samples.getChannelData(0);
+      let energy=0;for(const value of data)energy+=value*value;
+      const rms=Math.sqrt(energy/Math.max(1,data.length));
+      if(rms>0.0005)window.__forzaVoskNonZeroFrames=(window.__forzaVoskNonZeroFrames||0)+1;
+      window.__forzaVoskLastRms=rms;
      }
      emitPartial(text){this.handlers.partialresult?.({result:{partial:text}});}
      emitFinal(text){this.handlers.result?.({result:{text}});}
-     remove(){this.removed=true;}
+     remove(){this.removed=true;window.__forzaVoskRemoved=(window.__forzaVoskRemoved||0)+1;}
     }};
    }};`,
   }));
@@ -95,18 +120,42 @@ function wav(seconds=0.2){
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
   await page.waitForFunction(()=>!!window.__forzaVoskRecognizer,null,{timeout:15000});
   await page.waitForFunction(()=>window.__forzaVoskFrames>0,null,{timeout:5000});
+  const initialRecognizerCount=await page.evaluate(()=>window.__forzaVoskCreated||0);
+  console.log('FORZA_DIBA_INITIAL_RECOGNIZER_COUNT',initialRecognizerCount,JSON.stringify(await page.evaluate(()=>({removed:window.__forzaVoskRemoved||0,instances:(window.__forzaVoskInstances||[]).map(item=>({id:item.id,removed:!!item.removed}))}))));
+  assert.equal(initialRecognizerCount,1,'one local Diba recognizer must be created for the whole call');
   assert.equal(await page.evaluate(()=>window.__forzaDibaRecognizerSampleRate),16000,
    'the Vosk decoder must be configured for the Persian model sample rate');
   assert.equal(await page.evaluate(()=>window.__forzaDibaBufferSampleRate),16000,
    'microphone PCM must be resampled before it reaches Vosk');
   assert.ok(await page.evaluate(()=>window.__forzaDibaBufferLength>0));
+  assert.equal(await page.evaluate(()=>window.__forzaBrowserStarts||0),0,
+   'native direct-microphone SpeechRecognition must never bypass the gate');
   assert.equal(await page.evaluate(()=>window.__forzaDibaModelUrl),
    '/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz','model must load from the same origin');
   await page.waitForTimeout(450);
-  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
-  await page.waitForTimeout(450);
+  // Distant/background speech exists at the mic, but must be zeroed before STT.
+  await page.evaluate(()=>{window.__forzaMicSample=0.001;});
+  await page.waitForTimeout(500);
+  const farFrames=await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0);
+  await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('گفتگوی افراد دور غرفه'));
+  await page.waitForTimeout(250);
+  assert.equal(await page.getByText('گفتگوی افراد دور غرفه',{exact:true}).count(),0,
+   'distant speech must not become STT text');
+  assert.equal(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0),farFrames,
+   'distant PCM must not reach the STT recognizer');
+  await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal(''));
+  await page.waitForFunction(()=>window.__forzaDibaHypothesisDebug?.reason==='empty_final_boundary',null,{timeout:1000});
+  await page.evaluate(()=>{window.__forzaMicSample=0.02;});
+  await page.waitForTimeout(1000);
+  console.log('FORZA_ADMISSION_DIAGNOSTICS',JSON.stringify(await page.evaluate(()=>window.__forzaSpeechAdmissionDiagnostics||null)));
+  assert.ok(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0)>farFrames,
+   'only foreground-gated PCM reaches local Diba');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('می خواهم مشخصات تسمه تایمینگ را بدانم'));
-  await page.getByText('می خواهم مشخصات تسمه تایمینگ را بدانم',{exact:true}).waitFor({timeout:1500});
+  await page.waitForTimeout(100);
+  console.log('FORZA_DIBA_HYPOTHESIS_DEBUG',JSON.stringify(await page.evaluate(()=>window.__forzaDibaHypothesisDebug||null)));
+  await page.waitForFunction(text=>document.body.innerText.includes(text),'می خواهم مشخصات تسمه تایمینگ را بدانم',{timeout:1500});
+  assert.equal(await page.evaluate(()=>window.__forzaDibaHypothesisDebug?.reason),'accepted',
+   'a fresh foreground utterance must be admitted after an empty Diba final boundary');
   assert.ok(await page.evaluate(()=>window.__forzaVoskFrames||0)>0,'local recognizer must receive live PCM frames');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('تسمه تایمینگ چیست؟'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
@@ -119,16 +168,41 @@ function wav(seconds=0.2){
   const speechAfterFirst=speech.length;
   assert.ok(speechAfterFirst>=1,'first assistant turn must synthesize Nima audio');
   assert.equal(queries.length,1,'first local Diba turn must be submitted exactly once');
+  const afterFirstReply=await page.evaluate(()=>({
+    created:window.__forzaVoskCreated||0,
+    frames:window.__forzaVoskFrames||0,
+    nonZeroFrames:window.__forzaVoskNonZeroFrames||0,
+    removed:Boolean(window.__forzaVoskRecognizer?.removed),
+  }));
+  console.log('FORZA_DIBA_AFTER_FIRST_REPLY',JSON.stringify(afterFirstReply));
 
   await page.waitForFunction(()=>window.__forzaVoskCreated===1,null,{timeout:8000});
   assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
    'the same local recognizer must survive the second voice turn too');
-  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
-  await page.waitForTimeout(450);
+  const beforeSecondFrames=await page.evaluate(()=>window.__forzaVoskFrames||0);
+  const beforeSecondNonZeroFrames=await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0);
+  await page.evaluate(()=>{window.__forzaMicSample=0.008;});
+  await page.waitForTimeout(1000);
+  const afterSecondFrames=await page.evaluate(()=>window.__forzaVoskFrames||0);
+  const afterSecondNonZeroFrames=await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0);
+  console.log('FORZA_DIBA_SECOND_TURN_PCM',JSON.stringify({beforeSecondFrames,afterSecondFrames,beforeSecondNonZeroFrames,afterSecondNonZeroFrames}));
+  assert.ok(afterSecondFrames-beforeSecondFrames>=15,'second local Diba turn must continue receiving PCM frames');
+  assert.ok(afterSecondNonZeroFrames-beforeSecondNonZeroFrames>=10,'foreground gate must pass second-turn speech PCM');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('برای دستگاه بسته بندی تسمه PU می خواهم'));
   await page.waitForFunction(text=>document.body.innerText.includes(text),'برای دستگاه بسته بندی تسمه PU می خواهم',{timeout:1500});
+  console.log('FORZA_DIBA_SECOND_PARTIAL',JSON.stringify(await page.evaluate(()=>window.__forzaDibaHypothesisDebug||null)));
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('برای دستگاه بسته بندی تسمه PU می خواهم'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
+  await page.waitForTimeout(2200);
+  console.log('FORZA_DIBA_SECOND_FINAL',JSON.stringify(await page.evaluate(()=>({
+    created:window.__forzaVoskCreated||0,
+    frames:window.__forzaVoskFrames||0,
+    nonZeroFrames:window.__forzaVoskNonZeroFrames||0,
+    removed:Boolean(window.__forzaVoskRecognizer?.removed),
+    hypothesis:window.__forzaDibaHypothesisDebug||null,
+    vad:window.__forzaVadDebug||null,
+    speechAdmission:window.__forzaSpeechAdmissionDiagnostics||null,
+  }))));
   await page.waitForFunction(()=>window.__forzaConsultRequestCount===2,null,{timeout:12000});
   assert.equal(queries.length,2,'second local Diba turn must also reach the AI');
   await page.waitForFunction(([first,second])=>document.body.innerText.includes(first)&&document.body.innerText.includes(second),[queries[0],'برای دستگاه بسته بندی تسمه PU می خواهم'],{timeout:3000});
@@ -155,9 +229,9 @@ function wav(seconds=0.2){
   await page.waitForTimeout(300);
   await page.evaluate(()=>{window.__forzaMicSample=0.008;});
   await page.waitForTimeout(450);
-  await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('یه سوال جدید درباره تسمه نقاله دارم'));
-  await page.waitForFunction(text=>document.body.innerText.includes(text),'یه سوال جدید درباره تسمه نقاله دارم',{timeout:1500});
-  await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('یه سوال جدید درباره تسمه نقاله دارم'));
+  await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('یه سوال جدید درباره تسمه نقاله دارم، لطفاً راهنمایی کنید'));
+  await page.waitForFunction(text=>document.body.innerText.includes(text),'یه سوال جدید درباره تسمه نقاله دارم، لطفاً راهنمایی کنید',{timeout:1500});
+  await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('یه سوال جدید درباره تسمه نقاله دارم، لطفاً راهنمایی کنید'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
   await page.waitForFunction(()=>window.__forzaConsultRequestCount===3,null,{timeout:12000});
   await page.waitForFunction(()=>window.__forzaSpeechTurnIds?.some(id=>id.endsWith('-turn-3')),null,{timeout:8000});
@@ -165,7 +239,7 @@ function wav(seconds=0.2){
   await page.waitForFunction(([first,second,third])=>{
     const text=document.body.innerText;
     return text.includes(first)&&text.includes(second)&&text.includes(third);
-  },[queries[0],queries[1],'یه سوال جدید درباره تسمه نقاله دارم'],{timeout:3000});
+  },[queries[0],queries[1],'یه سوال جدید درباره تسمه نقاله دارم، لطفاً راهنمایی کنید'],{timeout:3000});
   assert.ok(speech.length>speechAfterSecond,'Nima must synthesize the barge-in response too');
   assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
    'barge-in must reuse the same Diba recognizer instead of discarding its state');

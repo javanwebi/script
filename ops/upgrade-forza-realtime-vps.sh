@@ -87,12 +87,12 @@ run_voice(){
   --cpus="$WORKERS" --memory="$MEMORY" --memory-swap="$MEMORY" --pids-limit=192 \
   --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m --cap-drop=ALL --security-opt=no-new-privileges \
   --env-file "$BUILD/private.env" -e PORT=8080 -e FORZA_NIMA_BIND=0.0.0.0 \
-  -e "FORZA_NIMA_WORKERS=$WORKERS" -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 -e MKL_NUM_THREADS=1 "$IMAGE" >/dev/null
+  -e "FORZA_NIMA_WORKERS=$WORKERS" -e "FORZA_NIMA_LENGTH_SCALE=${FORZA_NIMA_LENGTH_SCALE:-0.92}" -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 -e MKL_NUM_THREADS=1 "$IMAGE" >/dev/null
 }
 wait_voice(){
  for _ in $(seq 1 90); do
   if docker exec -e "FORZA_CHECK_HOST=$1" -e "FORZA_CHECK_WORKERS=$WORKERS" "$APP" node -e '
-fetch("http://"+process.env.FORZA_CHECK_HOST+":8080/health",{signal:AbortSignal.timeout(2000)}).then(async r=>{const d=await r.json();process.exit(r.ok&&d.voice==="piper-nima-gyro-medium"&&d.workers===Number(process.env.FORZA_CHECK_WORKERS)&&d.onnx_threads_per_worker===1?0:1)}).catch(()=>process.exit(1))' >/dev/null 2>&1; then return 0; fi
+fetch("http://"+process.env.FORZA_CHECK_HOST+":8080/health",{signal:AbortSignal.timeout(2000)}).then(async r=>{const d=await r.json();process.exit(r.ok&&d.voice==="piper-nima-gyro-medium"&&d.workers===Number(process.env.FORZA_CHECK_WORKERS)&&d.onnx_threads_per_worker===1&&typeof d.length_scale==="number"&&d.length_scale>=0.85&&d.length_scale<=1?0:1)}).catch(()=>process.exit(1))' >/dev/null 2>&1; then return 0; fi
   [[ "$(docker inspect "$1" --format '{{.State.Running}}')" == true ]] || return 1
   sleep 1
  done

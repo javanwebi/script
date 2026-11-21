@@ -6,6 +6,8 @@ umask 077
 export GIT_TERMINAL_PROMPT=0
 APP=/opt/sanatpish
 EXPECTED="$SANATPISH_RELEASE_SHA"
+FORZA_ONLY="${SANATPISH_FORZA_ONLY:-0}"
+[[ "$FORZA_ONLY" == "0" || "$FORZA_ONLY" == "1" ]] || { echo "INVALID_FORZA_ONLY_MODE"; exit 1; }
 [[ "$EXPECTED" =~ ^[a-f0-9]{40}$ ]] || { echo "INVALID_RELEASE_SHA"; exit 1; }
 exec 9>/run/lock/sanatpish-main-release.lock
 flock -w 15 9 || { echo "DEPLOY_LOCK_BUSY"; exit 1; }
@@ -216,6 +218,14 @@ test -n "$NETWORK"
 docker image inspect node:22-bookworm >/dev/null
 echo "NPM_REGISTRY=https://registry.npmjs.org NPM_CACHE=$CACHE_DIR"
 # Keep full diagnostics after Docker --rm removes the temporary build container.
+# The Forza-only path runs the complete voice/conversation test suite and does
+# not execute catalog, belt, customer-360, or unrelated product test suites.
+if [[ "$FORZA_ONLY" == "1" ]]; then
+  BUILD_COMMAND='npm ci --include=dev --no-audit --no-fund --loglevel=info && npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8 && mkdir -p public/forza-runtime/stt && cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js && npm run lint && npm run test:forza-engine && node --import tsx --test tests/forza*.test.ts tests/private-forza-config.test.ts && npm run build && test -s dist/forza-runtime/stt/vosk.js'
+  echo 'FORZA_ONLY_BUILD_AND_TESTS=YES'
+else
+  BUILD_COMMAND='npm ci --include=dev --no-audit --no-fund --loglevel=info && npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8 && mkdir -p public/forza-runtime/stt && cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js && npm run lint && npm run test:portal && node --import tsx --test tests/admin-catalog-image-workflow.test.ts tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/image-assignments.test.ts tests/catalog-menu-assignment-audit.test.ts tests/catalog-menu-semantic-guard.test.ts tests/belt-category-experience.test.ts tests/database/belt-family-taxonomy-followup.test.ts tests/database/belt-family-engineering-corrections.test.ts && npm run build && test -s dist/forza-runtime/stt/vosk.js'
+fi
 docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memory-swap=3g \
  --mount "type=bind,source=$STAGE,target=/app" \
  --mount "type=bind,source=$CACHE_DIR,target=/root/.npm" -w /app \
@@ -224,7 +234,7 @@ docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memor
  -e npm_config_maxsockets=4 \
  -e npm_config_fetch_retries=2 \
  -e npm_config_fetch_retry_maxtimeout=60000 \
- node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8 onnxruntime-web@1.18.0 && mkdir -p public/forza-runtime/stt public/forza-runtime/ort && cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js && cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/ && node scripts/prepare-vision-assets.mjs && npm run lint && npm run test:portal && node --import tsx --test tests/admin-catalog-image-workflow.test.ts tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/image-assignments.test.ts tests/catalog-menu-assignment-audit.test.ts tests/catalog-menu-semantic-guard.test.ts tests/belt-category-experience.test.ts tests/database/belt-family-taxonomy-followup.test.ts tests/database/belt-family-engineering-corrections.test.ts && npm run build && test -s dist/forza-runtime/stt/vosk.js && test -s dist/models/u2netp.onnx && test -s dist/forza-runtime/ort/ort-wasm-simd.wasm' 2>&1 | tee "$BUILD_LOG"
+ node:22-bookworm sh -ec "$BUILD_COMMAND" 2>&1 | tee "$BUILD_LOG"
 test -s "$STAGE/dist/index.html"
 test -s "$STAGE/dist/forza-runtime/stt/vosk.js"
 
@@ -265,24 +275,38 @@ docker run --rm --pull=never "$STT_IMAGE" sh -ec '
 '
 echo "FORZA_STT_RUNTIME_IMAGE_READY=$STT_IMAGE"
 
-grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'عکس‌برداری مجدد' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'تأیید و جستجوی قطعه' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'vision-analyzing-screen' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'sanat-identification-open' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'forza-mobile-contact-sheet' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'forza-swipe-instruction' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'forza-swipe-instruction' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'store-scan-action' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'home-category-group' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'sp-vision-analysis__viewer' "$STAGE/dist/assets" --include='*.css' >/dev/null
-grep -RlF 'sanat-camera-experience__stage' "$STAGE/dist/assets" --include='*.css' >/dev/null
-test -s "$STAGE/dist/images/scan-industrial-generated.webp"
-test -s "$STAGE/dist/images/precision-scan-technical-overlay.svg"
-WEBPS="$(find "$STAGE/dist/images" -type f -name '*.webp' | wc -l)"
-test "$WEBPS" -ge 21
-echo "CAMERA_AND_WEBP_BUILD_OK count=$WEBPS"
+if [[ "$FORZA_ONLY" == "1" ]]; then
+  grep -RlF 'FORZA_TURN' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'توقف پاسخ فورزا' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'FORZA_STT_LIFECYCLE' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  test -s "$STAGE/dist/forza-runtime/stt/vosk.js"
+  echo FORZA_ONLY_FRONTEND_AND_DIBA_ASSETS_OK
+else
+  grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'عکس‌برداری مجدد' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'تأیید و جستجوی قطعه' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'vision-analyzing-screen' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'sanat-identification-open' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'forza-mobile-contact-sheet' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'forza-swipe-instruction' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'forza-swipe-instruction' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'store-scan-action' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'home-category-group' "$STAGE/dist/assets" --include='*.js' >/dev/null
+  grep -RlF 'sp-vision-analysis__viewer' "$STAGE/dist/assets" --include='*.css' >/dev/null
+  grep -RlF 'sanat-camera-experience__stage' "$STAGE/dist/assets" --include='*.css' >/dev/null
+  test -s "$STAGE/dist/images/scan-industrial-generated.webp"
+  test -s "$STAGE/dist/images/precision-scan-technical-overlay.svg"
+  WEBPS="$(find "$STAGE/dist/images" -type f -name '*.webp' | wc -l)"
+  test "$WEBPS" -ge 21
+  echo "CAMERA_AND_WEBP_BUILD_OK count=$WEBPS"
+fi
 
+if [[ "$FORZA_ONLY" == "1" ]]; then
+  # Strict Forza-only release: do not run any SQL, migration, seed, catalog
+  # repair, or database mutation. The application health check below performs
+  # only SELECT 1 against the existing database connection.
+  echo FORZA_ONLY_DATABASE_MIGRATIONS_SKIPPED=YES
+else
 echo '===== VERIFY PRODUCTION NAVIGATION SCHEMA (SAME LIVE DATABASE) ====='
 # Executed inside the currently serving container, reusing its exact DATABASE_URL,
 # SSL configuration and private credentials. Only additive DDL and absent groups.
@@ -571,6 +595,9 @@ for MIGRATION in \
 done
 echo 'PRODUCTION_CATALOG_IDENTITY_SCHEMA_READY'
 
+
+fi
+
 echo '===== CONTINUE BLUE-GREEN DEPLOY ====='
 echo '===== BACK UP NGINX AND COPY LIVE CONTAINER SETTINGS ====='
 mkdir -m 700 -p "$BACKUP"
@@ -604,6 +631,16 @@ with open(env_path,"w",encoding="utf-8") as env_out, open(args_path,"wb") as arg
 print("LIVE_ENV_CAPTURE_OK multiline="+str(multiline))
 ' "$ENV_FILE" "$MULTILINE_ENV_FILE" "$APP/.local-vision-enabled" "$APP/.env.local-vision"
 mapfile -d '' MULTILINE_ENV_ARGS < "$MULTILINE_ENV_FILE"
+APP_EXTRA_ENV=()
+CANARY_EXTRA_ENV=()
+if [[ "$FORZA_ONLY" == "1" ]]; then
+  # Keep the read-only visual-index guard on the disposable canary only.
+  # The promoted app uses normal warmup after the canary proves the persisted
+  # index is already complete, so future catalog image updates still work.
+  CANARY_EXTRA_ENV+=(-e SANATPISH_FORZA_ONLY_READ_ONLY_INDEX=1)
+else
+  APP_EXTRA_ENV+=(-e CUSTOMER_360_LOCAL_VAULT_ENABLED=true)
+fi
 mapfile -d '' MOUNTS < <(
  docker inspect "$OLD" | python3 -c '
 import json,os,sys
@@ -711,27 +748,58 @@ runtime=dict(item.split('=',1) for item in container['Config'].get('Env',[]) if 
 if len(config.get('LOCAL_VISION_TOKEN',''))<32 or runtime.get('LOCAL_VISION_TOKEN')!=config.get('LOCAL_VISION_TOKEN'):
  raise SystemExit('LOCAL_VISION_TOKEN_MISMATCH')
 PYTOKEN
- docker network connect "$NETWORK" "$VISION_NAME" 2>/dev/null || \
-  docker inspect "$VISION_NAME" --format '{{json .NetworkSettings.Networks}}' | grep -Fq "\"$NETWORK\""
- docker start "$VISION_NAME" >/dev/null
- VISION_READY=0
- for _ in $(seq 1 30); do
-  if docker exec "$VISION_NAME" python -c 'import json,sys,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8091/health",timeout=2)); assert d["model"]==sys.argv[1] and d.get("pipeline")==sys.argv[2]' "$VISION_MODEL" "$VISION_PIPELINE" 2>/dev/null; then VISION_READY=1; break; fi
-  sleep 1
- done
- test "$VISION_READY" = 1
- # Verify encoder authentication and dimensions before changing the serving site.
- docker exec "$VISION_NAME" python -c 'import base64,io,json,os,sys,urllib.request; from PIL import Image; b=io.BytesIO(); Image.new("RGB",(24,24),"white").save(b,"JPEG"); r=urllib.request.Request("http://127.0.0.1:8091/embed",data=json.dumps({"images":[base64.b64encode(b.getvalue()).decode()]}).encode(),headers={"Authorization":"Bearer "+os.environ["LOCAL_VISION_TOKEN"],"Content-Type":"application/json"}); d=json.load(urllib.request.urlopen(r,timeout=10)); assert len(d["vectors"][0])==int(sys.argv[1]) and d["model"]==sys.argv[2]' "$VISION_DIMENSIONS" "$VISION_MODEL"
+ if [[ "$FORZA_ONLY" == "1" ]]; then
+  test "$(docker inspect "$VISION_NAME" --format '{{.State.Running}}')" = true || {
+    echo "FORZA_ONLY_EXISTING_VISION_SIDECAR_NOT_RUNNING=$VISION_NAME" >&2
+    exit 1
+  }
+  docker inspect "$VISION_NAME" --format '{{json .NetworkSettings.Networks}}' | grep -Fq "\"$NETWORK\"" || {
+    echo "FORZA_ONLY_EXISTING_VISION_SIDECAR_NOT_ON_APP_NETWORK=$VISION_NAME" >&2
+    exit 1
+  }
+  echo FORZA_ONLY_EXISTING_VISION_SIDECAR_PRESERVED=YES
+ else
+   docker network connect "$NETWORK" "$VISION_NAME" 2>/dev/null || \
+    docker inspect "$VISION_NAME" --format '{{json .NetworkSettings.Networks}}' | grep -Fq "\"$NETWORK\""
+   docker start "$VISION_NAME" >/dev/null
+   VISION_READY=0
+   for _ in $(seq 1 30); do
+    if docker exec "$VISION_NAME" python -c 'import json,sys,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8091/health",timeout=2)); assert d["model"]==sys.argv[1] and d.get("pipeline")==sys.argv[2]' "$VISION_MODEL" "$VISION_PIPELINE" 2>/dev/null; then VISION_READY=1; break; fi
+    sleep 1
+   done
+   test "$VISION_READY" = 1
+   # Verify encoder authentication and dimensions before changing the serving site.
+   docker exec "$VISION_NAME" python -c 'import base64,io,json,os,sys,urllib.request; from PIL import Image; b=io.BytesIO(); Image.new("RGB",(24,24),"white").save(b,"JPEG"); r=urllib.request.Request("http://127.0.0.1:8091/embed",data=json.dumps({"images":[base64.b64encode(b.getvalue()).decode()]}).encode(),headers={"Authorization":"Bearer "+os.environ["LOCAL_VISION_TOKEN"],"Content-Type":"application/json"}); d=json.load(urllib.request.urlopen(r,timeout=10)); assert len(d["vectors"][0])==int(sys.argv[1]) and d["model"]==sys.argv[2]' "$VISION_DIMENSIONS" "$VISION_MODEL"
+  
+ fi
  # Docker uses the final definition; preserve all other existing live settings.
  cat "$APP/.env.local-vision" >> "$ENV_FILE"
 else
  # Removing the marker must also disable the local mode inherited from the old container.
  sed -i '/^PART_RECOGNITION_MODE=local-embedding$/d' "$ENV_FILE"
 fi
+if [[ "$FORZA_ONLY" == "1" && -f "$APP/.local-vision-enabled" ]]; then
+  # The app's existing startup loader only writes visual embeddings for missing
+  # or changed signatures. Require the live persisted index to be complete
+  # before starting a Forza-only release, so this release cannot trigger catalog
+  # embedding writes as a side effect.
+  LIVE_VISION_STATUS="$(docker exec "$OLD" node -e '
+    fetch("http://127.0.0.1:3000/api/ai/local-vision-status",{signal:AbortSignal.timeout(8000)})
+      .then(async r=>{if(!r.ok)throw new Error("LIVE_VISION_STATUS_HTTP_"+r.status);console.log(JSON.stringify(await r.json()))})
+      .catch(e=>{console.error(e.message);process.exit(1)})')"
+  printf '%s\n' "$LIVE_VISION_STATUS" | node -e '
+    let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+      const d=JSON.parse(s);
+      if(!d.enabled || !d.ready || !Number.isInteger(d.total) ||
+         d.indexed!==d.total || d.missing!==0 || d.signatureChanged!==0)
+        throw new Error("FORZA_ONLY_REFUSING_TO_TOUCH_INCOMPLETE_LIVE_VISION_INDEX");
+      console.log("FORZA_ONLY_LIVE_VISION_INDEX_READ_ONLY_BASELINE_OK",d.indexed,"/",d.total);
+    });'
+fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
- "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_DIBA_BROWSER_ARCHIVE=/opt/diba-stt/diba-stt-fa-small.tar.gz -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_DIBA_BROWSER_ARCHIVE=/opt/diba-stt/diba-stt-fa-small.tar.gz -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 "${CANARY_EXTRA_ENV[@]}" "${APP_EXTRA_ENV[@]}" \
  "${MOUNTS[@]}" "$STT_IMAGE" node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do
@@ -772,13 +840,22 @@ if [[ -f "$APP/.env.forza-voice" ]]; then
     console.log("AVALAI_CANARY_CONFIG_OK desk=avalai voice=avalai key=SET");
   '
 fi
-if ! docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs; then
-  echo '===== PRIVATE CANARY APPLICATION LOGS (LAST 160 LINES) =====' >&2
-  docker logs --tail 160 "$CANARY_NAME" >&2 || true
-  exit 1
+if [[ "$FORZA_ONLY" == "1" ]]; then
+  echo '===== FORZA-ONLY PRIVATE CANARY; NO CATALOG OR DATABASE MIGRATIONS ====='
+  if ! docker exec "$CANARY_NAME" node ops/verify-forza-only-canary.mjs; then
+    echo '===== FORZA-ONLY CANARY APPLICATION LOGS (LAST 160 LINES) =====' >&2
+    docker logs --tail 160 "$CANARY_NAME" >&2 || true
+    exit 1
+  fi
+else
+  if ! docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs; then
+    echo '===== PRIVATE CANARY APPLICATION LOGS (LAST 160 LINES) =====' >&2
+    docker logs --tail 160 "$CANARY_NAME" >&2 || true
+    exit 1
+  fi
 fi
 
-if [[ -f "$APP/.local-vision-enabled" ]]; then
+if [[ -f "$APP/.local-vision-enabled" && "$FORZA_ONLY" != "1" ]]; then
  echo '===== RESUME PERSISTED LOCAL IMAGE INDEX BEFORE PROMOTION ====='
  # Startup warmup is enabled in the private canary. CatalogVisualIndex.update
  # embeds only rows whose stored signature differs; completed batches survive
@@ -863,7 +940,7 @@ docker stop -t 12 "$OLD" >/dev/null
 CID="$(docker run -d --name "$NAME" --restart unless-stopped \
  --network "$NETWORK" --workdir /app --cpus=1.5 --memory=3g --memory-swap=3g \
  -p "127.0.0.1:$FIXED_PORT:3000" --env-file "$ENV_FILE" \
- "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 "${APP_EXTRA_ENV[@]}" \
  "${MOUNTS[@]}" "$STT_IMAGE" node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 60); do
@@ -1063,6 +1140,45 @@ for i in range(10):
 else:raise AssertionError('HTTPS_BUILD_MISMATCH')
 health=json.loads(get('/api/health'))
 assert health.get('status')=='ok' and health.get('database')=='ok'
+if os.environ.get('SANATPISH_FORZA_ONLY') == '1':
+ def wait_json(path,predicate,label,timeout_seconds=120):
+  deadline=time.time()+timeout_seconds
+  last=None
+  while time.time()<deadline:
+   try:
+    last=json.loads(get(path))
+    if predicate(last): return last
+   except Exception as error:
+    last={'error':str(error)[:160]}
+   time.sleep(2)
+  raise AssertionError((label+'_NOT_READY',last))
+ stt=wait_json('/api/ai/forza-stt-info',
+   lambda value:value.get('serverSttConfigured') is True and value.get('serverSttProvider')=='diba' and value.get('serverSttReady') is True,
+   'PUBLIC_FORZA_STT')
+ voice=wait_json('/api/ai/forza-voice-info',
+   lambda value:value.get('ready') is True and value.get('voice')=='piper-nima-gyro-medium' and value.get('incrementalSpeech') is True,
+   'PUBLIC_FORZA_VOICE',90)
+ print('PUBLIC_FORZA_DIBA_AND_NIMA_READY_OK')
+ # Exercise the public Nginx -> Express -> private Nima path once after
+ # promotion. Two sequential turns are already checked in the private canary.
+ body=json.dumps({'text':'سلام، صدای فورزا را بررسی کن.','turnId':'forza-public-deploy-canary'} ,ensure_ascii=False).encode()
+ command=['curl','--noproxy','*','-kfsS','--connect-timeout','3','--max-time','75',
+          '--resolve','sanatpish.com:443:127.0.0.1','-D','-','-o','-',
+          '-H','Content-Type: application/json','-X','POST','--data-binary',body.decode(),
+          'https://sanatpish.com/api/ai/forza-speech']
+ raw=subprocess.check_output(command)
+ if b'\r\n\r\n' not in raw: raise AssertionError('PUBLIC_FORZA_TTS_HEADERS_MISSING')
+ headers,wav=raw.split(b'\r\n\r\n',1)
+ parsed={}
+ for line in headers.split(b'\r\n')[1:]:
+  if b':' in line:
+   key,value=line.split(b':',1);parsed[key.decode().lower()]=value.decode().strip()
+ assert parsed.get('content-type','').lower().startswith('audio/wav'), ('PUBLIC_FORZA_TTS_BAD_CONTENT_TYPE',parsed)
+ assert parsed.get('x-forza-voice')=='piper-nima-gyro-medium', ('PUBLIC_FORZA_TTS_WRONG_VOICE',parsed)
+ assert len(wav)>44 and wav[:4]==b'RIFF' and wav[8:12]==b'WAVE', 'PUBLIC_FORZA_TTS_INVALID_WAV'
+ print('PUBLIC_FORZA_TTS_WAV_OK bytes='+str(len(wav)))
+ print('PUBLIC_HTTPS_AND_DATABASE_OK')
+ raise SystemExit(0)
 # A GET-only Nginx location can serve the homepage and health endpoint while
 # silently blocking CRM/catalogue writes with an HTML 403. Probe protected
 # POST routes through the actual local HTTPS vhost before marking release good.
@@ -1140,9 +1256,16 @@ for DOMAIN in sanatpish.com www.sanatpish.com; do
   echo "DOMAIN_BUILD_AND_DATABASE_OK domain=$DOMAIN port=$NEXT"
 done
 test "$(docker inspect "$CID" --format '{{.State.Running}}')" = true
-echo '===== PINNED PRIVATE NIMA CANARY AND SAFE VOICE PROMOTION ====='
-bash -n "$STAGE/ops/deploy-forza-nima-pinned-vps.sh"
-bash "$STAGE/ops/deploy-forza-nima-pinned-vps.sh" "$EXPECTED" "$NAME" "$NETWORK" "$STAGE"
+if [[ "$FORZA_ONLY" == "1" ]]; then
+  # The private Nima service is verified by the Forza-only canary. Retain the
+  # existing healthy voice container; this release changes the call app/STT
+  # controller, not the pinned Piper model or its HTTP worker.
+  echo FORZA_ONLY_PRIVATE_NIMA_CONTAINER_RETAINED=YES
+else
+  echo '===== PINNED PRIVATE NIMA CANARY AND SAFE VOICE PROMOTION ====='
+  bash -n "$STAGE/ops/deploy-forza-nima-pinned-vps.sh"
+  bash "$STAGE/ops/deploy-forza-nima-pinned-vps.sh" "$EXPECTED" "$NAME" "$NETWORK" "$STAGE"
+fi
 echo '===== SITE AND PRIVATE VOICE BOTH HEALTHY ====='
 echo '===== STOP OLD WEBSITE CONTAINERS WITHOUT DELETING DATA ====='
 # This phase runs only after new app, TLS routes, catalog and voice succeeded.

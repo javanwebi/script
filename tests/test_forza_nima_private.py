@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline source checks for Nima/Piper deploy candidate. No model files/network."""
 from pathlib import Path
+import os
 import subprocess
 import sys
 import types
@@ -55,6 +56,29 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertNotIn("*",spoken)
         self.assertNotIn("https",spoken)
         self.assertNotIn("example.com",spoken)
+        punctuation=scope["spoken_text"]("«سلام»؛ پاسخ آماده است؟ “بله”، نتیجه را بررسی می‌کنم! سپس اعلام می‌کنم.")
+        self.assertEqual(punctuation,"سلام پاسخ آماده است بله نتیجه را بررسی می‌کنم سپس اعلام می‌کنم")
+        self.assertEqual(scope["spoken_text"]("کد SWR/A19، تسمه SPA-1250 با قطر 3.25."),"کد SWR/A19 تسمه SPA-1250 با قطر 3.25")
+
+        # The speaking-rate override is deliberately bounded to protect Persian clarity.
+        with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"0.70"}):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),0.85)
+        with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"1.20"}):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),1.0)
+        with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"not-a-number"}):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),0.92)
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),0.92)
+        self.assertGreaterEqual(scope["NIMA_LENGTH_SCALE"],0.85)
+        self.assertLessEqual(scope["NIMA_LENGTH_SCALE"],1.0)
+        self.assertIn("voice_config.length_scale = NIMA_LENGTH_SCALE",worker)
+        frontend=(ROOT/"src/components/forza/AiForzaCallExperience.tsx").read_text()
+        self.assertIn("maximumInitialWaitMs:180",frontend)
+        upgrade=ROOT/"ops/upgrade-forza-realtime-vps.sh"
+        subprocess.run(["bash","-n",str(upgrade)],check=True,capture_output=True)
+        upgrade_source=upgrade.read_text(encoding="utf-8")
+        self.assertIn("FORZA_NIMA_LENGTH_SCALE",upgrade_source)
+        self.assertIn('d.length_scale>=0.85&&d.length_scale<=1',upgrade_source)
 
         # Filling the bounded admission pool fails fast, without allowing
         # an unbounded queue or simultaneous inference on the same model.
@@ -153,12 +177,17 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertIn("new ForzaNimaBufferedSpeech({",frontend)
         self.assertIn("await activeNimaBuffer.finish()",frontend)
         self.assertIn("bufferedNima?.cancel()",frontend)
-        self.assertIn("maxConcurrent:1",frontend)
-        self.assertIn("maxAheadPhrases:2",frontend)
+        self.assertIn("nimaSynthesisConcurrencyRef=useRef(1)",frontend)
+        self.assertIn("forzaNimaClientConcurrency(data?.workers)",frontend)
+        self.assertIn("maxConcurrent:nimaConcurrency",frontend)
+        self.assertIn("maxAheadPhrases:nimaConcurrency>=2?3:2",frontend)
         self.assertIn("initialBufferSeconds:2",frontend)
         self.assertIn("phase=nima-incremental-finished",frontend)
         self.assertIn("app.get('/api/ai/forza-voice-info'",backend)
         self.assertIn("incrementalSpeech:voice==='piper-nima-gyro-medium'",backend)
+        self.assertIn("verifiedPrivateVoiceWorkers",backend)
+        self.assertIn("X-Forza-TTS-Workers",backend)
+        self.assertIn("normalizeForzaNimaWorkerCount(info.workers)",backend)
         self.assertIn("resolveForzaVoiceEngine()",backend)
         self.assertIn("privateServiceGreeting()",backend)
         self.assertNotIn("privateAmirGreeting()",backend)
