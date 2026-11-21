@@ -341,9 +341,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       return;
     }
     const words=value.trim();
-    if(!words){debug('empty_hypothesis');return;}
     const admission=localSttAdmissionRef.current||
       (localSttAdmissionRef.current=new ForzaRecognitionAdmission());
+    if(!words){
+      // Vosk emits an empty final when it closes a rejected/background
+      // hypothesis. It is still a result boundary: release the old result
+      // slot so the next customer utterance can be evaluated independently.
+      // Keep the accumulated accepted transcript and acoustic evidence intact.
+      if(isFinal)admission.reset();
+      debug(isFinal?'empty_final_boundary':'empty_hypothesis');
+      return;
+    }
     const slot={0:{transcript:words},isFinal};
     const playback=isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current;
     const echo=likelySpeakerEcho(words);
