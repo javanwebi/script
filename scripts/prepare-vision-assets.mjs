@@ -12,6 +12,18 @@ const TEMP_PATH = MODEL_PATH + '.download';
 const EXPECTED_SHA256 = '309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8';
 const EXPECTED_BYTES = 4574861;
 
+const LICENSE_FILES = [
+  { path: resolve('public/licenses/U2-Net-APACHE-2.0.txt'), marker: 'Apache License' },
+  { path: resolve('public/licenses/rembg-MIT.txt'), marker: 'MIT License' },
+];
+
+for (const license of LICENSE_FILES) {
+  const content = await readFile(license.path, 'utf8');
+  if (!content.includes(license.marker)) {
+    throw new Error('Required third-party license notice is missing or invalid: ' + license.path);
+  }
+}
+
 async function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
 }
