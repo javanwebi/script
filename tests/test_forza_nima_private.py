@@ -46,12 +46,12 @@ class NimaCandidateTests(unittest.TestCase):
         count=scope["synthesize_stream_to_queue"]("سلام. بله.",output,FakeStop())
         self.assertEqual(count,2)
         self.assertEqual([event[0] for event in output.events],["frame","frame","done"])
-        for kind,wav in output.events[:2]:
+        for index,(kind,wav) in enumerate(output.events[:2]):
             self.assertEqual(kind,"frame")
             self.assertEqual(wav[:4],b"RIFF")
             self.assertEqual(wav[8:12],b"WAVE")
             self.assertEqual(int.from_bytes(wav[24:28],"little"),22050)
-            self.assertEqual(int.from_bytes(wav[40:44],"little"),160 if len(wav)<300 else 240)
+            self.assertEqual(int.from_bytes(wav[40:44],"little"),[160,240][index])
 
     def test_pinned_original_gyro_voice_and_no_audio_disk_cache(self):
         docker=(ROOT/"Dockerfile.forza-nima").read_text(encoding="utf-8")
