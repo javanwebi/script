@@ -24,7 +24,8 @@ test('homepage About preview and approved editorial pages preserve company navig
   assert.match(overview,/export function HomeAboutSection/);
   assert.match(overview,/companyPages\.aboutSanatpishShowroom/);
   assert.match(overview,/to="\/about"/);
-  assert.match(overview,/\+10,000/);
+  assert.match(overview,/4 practical capabilities/);
+  assert.doesNotMatch(overview,/\+5,000|\+24|\+864|\+10,000|۱۰,۰۰۰|۸۶۴|۲۴ صنعت/);
   assert.match(discovery,/export function AboutPage/);
   assert.match(discovery,/import AboutPageTemplate from "\.\/AboutPageTemplate"/);
   assert.match(discovery,/return <AboutPageTemplate \/>/);
