@@ -109,29 +109,52 @@ assert.equal(approvedCategorySlugs.size, approvedCategories.length,
 assert.ok(approvedCategories.every(category =>
   typeof category.name === "string" && category.name.trim().length > 0 &&
   Number.isInteger(category.familyCount) && category.familyCount >= 0 &&
+  Number.isInteger(category.directSkuCount) && category.directSkuCount >= 0 &&
   Number.isInteger(category.skuCount) && category.skuCount >= 0
 ), "PUBLIC_CATALOG_CATEGORIES_INVALID_FIELDS");
 console.log("PUBLIC_CATALOG_CATEGORIES_API_OK", approvedCategories.length);
 
 
-// Belt catalogue release gate: a published family group must never silently
-// become empty when PostgreSQL is misconfigured or a taxonomy map is missing.
-// Direct SKUs count separately; category SKU totals must cover all family SKUs.
+// Belt catalogue release gate: compare the published totals with both
+// catalogue sources. A category may legitimately contain direct SKUs without
+// any published family (for example, the welded CRC category); do not reject
+// that valid state by requiring familyCount > 0.
+// At least one real family or direct SKU must exist in each published belt category.
 for (const slug of ["excel-v2-1-1","excel-v2-1-2","excel-v2-1-3","excel-v2-1-4"]) {
   const summary = approvedCategories.find(category => category.slug === slug);
-  assert.ok(summary && summary.familyCount > 0 && summary.skuCount > 0,
-    "BELT_CATEGORY_ZERO_OR_MISSING: " + slug);
+  assert.ok(summary, "BELT_CATEGORY_MISSING: " + slug);
+  assert.ok(summary.familyCount > 0 || summary.directSkuCount > 0,
+    "BELT_CATEGORY_HAS_NO_FAMILIES_OR_DIRECT_SKUS: " + slug);
+  assert.ok(summary.skuCount > 0,
+    "BELT_CATEGORY_ZERO_SKUS: " + slug);
+
   const detail = await json(candidate, "/api/catalog/menu-category/" + slug);
   assert.ok(detail.success && detail.category?.slug === slug &&
-    Array.isArray(detail.families) && detail.families.length > 0,
-    "BELT_CATEGORY_DETAILS_EMPTY: " + slug);
+    Array.isArray(detail.families),
+    "BELT_CATEGORY_DETAILS_INVALID: " + slug);
   assert.equal(detail.families.length, summary.familyCount,
     "BELT_CATEGORY_FAMILY_COUNT_MISMATCH: " + slug);
-  const liveFamilySkuCount=detail.families.reduce(
-    (total, family) => total + Math.max(0, Number(family.skuCount)||0),0);
-  assert.ok(summary.skuCount >= liveFamilySkuCount,
+
+  const direct = await json(candidate,
+    "/api/catalog/direct-skus?categorySlug=" + encodeURIComponent(slug));
+  assert.ok(direct.success && Array.isArray(direct.items),
+    "BELT_CATEGORY_DIRECT_SKUS_INVALID: " + slug);
+  assert.equal(direct.items.length, summary.directSkuCount,
+    "BELT_CATEGORY_DIRECT_SKU_COUNT_MISMATCH: " + slug);
+  const directCodes = direct.items.map(item => String(item.skuCode || ""));
+  assert.ok(directCodes.every(Boolean), "BELT_CATEGORY_DIRECT_SKU_CODE_MISSING: " + slug);
+  assert.equal(new Set(directCodes).size, directCodes.length,
+    "BELT_CATEGORY_DIRECT_SKU_DUPLICATE: " + slug);
+
+  const liveFamilySkuCount = detail.families.reduce(
+    (total, family) => total + Math.max(0, Number(family.skuCount) || 0), 0);
+  const liveTotalSkuCount = liveFamilySkuCount + direct.items.length;
+  assert.equal(summary.skuCount, liveTotalSkuCount,
     "BELT_CATEGORY_SKU_COUNT_MISMATCH: " + slug);
-  console.log("PRIVATE_CANARY_BELT_CATEGORY_OK", slug, detail.families.length, summary.skuCount);
+
+  console.log("PRIVATE_CANARY_BELT_CATEGORY_OK",
+    slug, "families=" + detail.families.length,
+    "directSkus=" + direct.items.length, "totalSkus=" + liveTotalSkuCount);
 }
 
 for (const [route, key] of [
