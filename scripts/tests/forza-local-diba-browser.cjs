@@ -118,6 +118,9 @@ function wav(seconds=0.2){
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
   await page.waitForFunction(()=>!!window.__forzaVoskRecognizer,null,{timeout:15000});
   await page.waitForFunction(()=>window.__forzaVoskFrames>0,null,{timeout:5000});
+  const initialRecognizerCount=await page.evaluate(()=>window.__forzaVoskCreated||0);
+  console.log('FORZA_DIBA_INITIAL_RECOGNIZER_COUNT',initialRecognizerCount);
+  assert.equal(initialRecognizerCount,1,'one local Diba recognizer must be created for the whole call');
   assert.equal(await page.evaluate(()=>window.__forzaDibaRecognizerSampleRate),16000,
    'the Vosk decoder must be configured for the Persian model sample rate');
   assert.equal(await page.evaluate(()=>window.__forzaDibaBufferSampleRate),16000,
