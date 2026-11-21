@@ -14,6 +14,10 @@ test('FORZA workspace uses the approved ZIP icon and modal components', () => {
   assert.match(page, /<NewComposeIcon/);
   assert.match(page, /<LiveVoiceIcon/);
   assert.match(page, /<VisualScannerIcon/);
+  for (const icon of ['BeltIcon', 'PulleyIcon', 'BearingIcon', 'ChainCouplingIcon', 'KilnRollerIcon', 'MechanicalSealIcon']) {
+    assert.match(page, new RegExp('icon: ' + icon));
+  }
+  assert.match(page, /const CategoryIcon = category\.icon/);
   assert.match(page, /<DinCalculatorModal/);
   assert.match(page, /<WorkspaceSettingsModal/);
   assert.doesNotMatch(page, /Belt Calculator Modal \(DIN 2215\) with Touch-Friendly UI/);
@@ -36,4 +40,5 @@ test('FORZA vision keeps the current scanner engine and adds the ZIP optical HUD
   assert.match(selector, /fv-lens-corner--br/);
   assert.match(styles, /\.fv-camera-stage/);
   assert.match(styles, /\.fv-lens-corner--br/);
+  assert.doesNotMatch(styles.match(/\.fv-corner-brackets\s*\{[^}]*\}/)?.[0] || '', /position:\s*relative/);
 });
