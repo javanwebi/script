@@ -222,7 +222,11 @@ test("industrial belt PFAM reconciliation is guarded by the active production ca
   assert.match(one, /activePfam===0&&activeFam>0/);
   assert.match(one, /if\(activeFam>0\)throw Error\("Mixed active FAM\/PFAM family lineage; refusing to apply PFAM-only belt taxonomy follow-up"\);/);
   assert.match(one, /PRODUCTION_BELT_PFAM_FOLLOWUP_SKIPPED reason=legacy_fam_catalog/);
-  assert.match(one, /PRODUCTION_BELT_DIRECT_SKU_FOLLOWUP_DEFERRED/);
+  assert.match(one, /PRODUCTION_PFAM_DIRECT_SKU_FOLLOWUP_SKIPPED reason=legacy_fam_catalog/);
+  assert.match(one, /LEGACY_FAM_WELDING_SQL="\$STAGE\/ops\/sql\/20261121_legacy_fam_belt_welding_direct_skus\.sql"/);
+  assert.match(one, /PRODUCTION_LEGACY_FAM_WELDING_DIRECT_SKUS_APPLIED_OR_VERIFIED count=3/);
+  assert.match(one, /PRODUCTION_PFAM_WELDING_DIRECT_SKUS_ALREADY_PRESENT count=3/);
+  assert.match(one, /Mixed or missing FAM\/PFAM lineage; refusing legacy welding SKU projection/);
   assert.match(one, /PRODUCTION_BELT_TAXONOMY_APPLIED backup_rows=138/);
   assert.match(one, /PRODUCTION_BELT_TAXONOMY_ALREADY_APPLIED backup_rows=138/);
   assert.match(one, /Existing belt taxonomy backup is incomplete/);
@@ -237,9 +241,10 @@ test("industrial belt PFAM reconciliation is guarded by the active production ca
   const sku = one.indexOf('===== APPLY SOURCE-VERIFIED SKU-LEVEL MENU ASSIGNMENTS =====');
   const belt = one.indexOf('===== APPLY GUARDED INDUSTRIAL BELT TAXONOMY RECONCILIATION =====');
   const engineering = one.indexOf('===== APPLY GUARDED BELT FAMILY ENGINEERING CORRECTIONS =====');
+  const legacyFamDirect = one.indexOf('===== APPLY LEGACY FAM-ONLY WELDING EQUIPMENT DIRECT SKU PROJECTION =====');
   const customer360 = one.indexOf('===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA =====');
-  assert.ok(sku >= 0 && belt > sku && engineering > belt && customer360 > engineering,
-    "belt menu reconciliation and engineering corrections run in order before app promotion");
+  assert.ok(sku >= 0 && belt > sku && engineering > belt && legacyFamDirect > engineering && customer360 > legacyFamDirect,
+    "PFAM-only corrections stay guarded and the legacy FAM direct-SKU projection runs before app promotion");
   assert.match(one, /BELT_ENGINEERING_SQL="\$STAGE\/ops\/sql\/20261117_belt_family_engineering_corrections\.sql"/);
   assert.match(one, /catalog_belt_family_engineering_backup_20261117/);
   assert.match(one, /activePfam===0&&activeFam>0/);
