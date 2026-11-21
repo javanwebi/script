@@ -32,6 +32,12 @@ function providerEnabled(): boolean {
     existsSync(path.join(MODEL_PATH, 'conf'));
 }
 
+function toBuffer(data: unknown): Buffer {
+  if (Buffer.isBuffer(data)) return data;
+  if (Array.isArray(data)) return Buffer.concat(data as Buffer[]);
+  return Buffer.from(data as ArrayBuffer);
+}
+
 function send(socket: WebSocket, payload: Record<string, unknown>): void {
   if (socket.readyState !== WebSocket.OPEN) return;
   try { socket.send(JSON.stringify(payload)); } catch {}
@@ -216,7 +222,7 @@ export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
           send(socket, { type: 'error', code: 'diba_stream_not_started' });
           return;
         }
-        const pcm = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
+        const pcm = toBuffer(data);
         if (!pcm.length || pcm.length > 48_000 || pcm.length % 2) {
           send(socket, { type: 'error', code: 'invalid_pcm_chunk' });
           return;
@@ -236,7 +242,7 @@ export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
       }
 
       let message: any;
-      try { message = JSON.parse(Buffer.isBuffer(data) ? data.toString('utf8') : String(data)); }
+      try { message = JSON.parse(toBuffer(data).toString('utf8')); }
       catch { send(socket, { type: 'error', code: 'invalid_stream_message' }); return; }
 
       if (message?.type === 'start') {
