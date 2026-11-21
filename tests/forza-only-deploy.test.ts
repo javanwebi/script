@@ -7,6 +7,7 @@ const entrypoint = readFileSync(new URL("../ops/deploy-forza-only-vps.sh", impor
 const canary = readFileSync(new URL("../ops/verify-forza-only-canary.mjs", import.meta.url), "utf8");
 const server = readFileSync(new URL("../server.ts", import.meta.url), "utf8");
 const deployWorkflow = readFileSync(new URL("../.github/workflows/deploy-production-after-main-ci.yml", import.meta.url), "utf8");
+const engineWorkflow = readFileSync(new URL("../.github/workflows/forza-conversation-engine.yml", import.meta.url), "utf8");
 
 test("Forza-only deployment skips every catalog/customer database migration block", () => {
   const marker = 'if [[ "$FORZA_ONLY" == "1" ]]; then\n  # Strict Forza-only release:';
@@ -73,6 +74,11 @@ test("main CI deploy routes only the exact Forza-only commit through the safe en
   assert.match(deployWorkflow, /Deploy standard main release/);
   assert.match(entrypoint, /REQUESTED_SHA="\$\{1:-\}"/);
   assert.match(entrypoint, /merge-base --is-ancestor/);
+});
+
+test("Forza Conversation Engine runs on main pushes for the production deploy gate",()=>{
+  const push=engineWorkflow.slice(engineWorkflow.indexOf("\\n  push:"),engineWorkflow.indexOf("\\npermissions:"));
+  assert.match(push,/branches:\\s*\\n\\s*- main/);
 });
 
 test("Forza-only release classifier includes only the reviewed call-engine fix paths",()=>{
