@@ -48,9 +48,10 @@ export class ForzaLiveSttClient {
         try { socket.send(pcm); return; } catch {}
       }
     }
-    // A bounded 1.6-second replay buffer recovers brief network/worker reconnects.
+    // A bounded 5-second replay buffer preserves most of a sentence through
+    // a brief network/worker reconnect without unbounded per-call memory.
     this.pendingFrames.push(pcm.slice(0));
-    if (this.pendingFrames.length > 8) this.pendingFrames.shift();
+    if (this.pendingFrames.length > 25) this.pendingFrames.shift();
   }
 
   private flushPending(socket: WebSocket): void {
