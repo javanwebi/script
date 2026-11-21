@@ -664,9 +664,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // events survive endpoint reset, while distant/background speech is rejected.
         if(current.speechStarted&&speechStartedAtRef.current===0)speechStartedAtRef.current=micNow;
         if(current.speechStarted||current.speaking)lastMicActivityRef.current=micNow;
+        const admissionState=speechAdmissionRef.current.diagnostics(micNow);
         if(localSttActiveRef.current&&!serverLiveSttActiveRef.current&&
-           !serverLiveSttClientRef.current&&lastForegroundAudioAtRef.current>0&&
-           micNow-lastForegroundAudioAtRef.current<450&&
+           !serverLiveSttClientRef.current&&admissionState.utteranceLatched&&!admissionState.playback&&
+           !isAiSpeakingRef.current&&!isProcessingTurnRef.current&&!isManualReplayPendingRef.current&&
+           lastForegroundAudioAtRef.current>0&&micNow-lastForegroundAudioAtRef.current<450&&
            micNow-lastDibaHypothesisAtRef.current>3000&&
            micNow>=serverLiveSttRetryAfterRef.current){
           console.warn('[FORZA_STT] local_diba_partial_timeout=1 switching_to_server_live=1');
