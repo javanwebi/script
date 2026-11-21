@@ -76,7 +76,9 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
     ).sort((a, b) => b.score - a.score);
     const primary = peaks[0] || { lag: 0, score: 0 };
     const secondary = peaks.find(peak => {
-      if (peak === primary || peak.score < Math.max(0.24, primary.score * 0.70)) return false;
+      if (peak === primary ||
+          Math.abs(peak.lag - primary.lag) < Math.max(4, primary.lag * 0.16) ||
+          peak.score < Math.max(0.18, primary.score * 0.55)) return false;
       const ratio = peak.lag / Math.max(1, primary.lag);
       const inverse = 1 / Math.max(0.001, ratio);
       const harmonic = [2, 3, 4].some(value =>
