@@ -43,6 +43,16 @@
   animation: fv-scan-sweep 2.8s cubic-bezier(.4,0,.2,1) infinite;
 }
 
+/* Match the camera-reference selector's specificity so the ZIP laser animation wins. */
+.sanat-camera-reference .fv-scan-laser {
+  left: 10px;
+  right: 10px;
+  top: 0;
+  background: linear-gradient(90deg,transparent,#e06518 50%,transparent);
+  box-shadow: 0 0 12px rgba(224,101,24,.65);
+  animation: fv-scan-sweep 2.8s cubic-bezier(.4,0,.2,1) infinite;
+}
+
 .fv-lens-bracket {
   position: absolute;
   pointer-events: none;
