@@ -114,7 +114,9 @@ jobs:
           FORZA_ONLY=1
           FORZA_MARKER=0
           while IFS= read -r file; do
-            [[ "$file" == "ops/deploy-forza-only-vps.sh" ]] && FORZA_MARKER=1
+            if [[ "$file" == "ops/deploy-forza-only-vps.sh" ]]; then
+              FORZA_MARKER=1
+            fi
             case "$file" in
               server.ts|ops/deploy-single-port-vps.sh|ops/deploy-forza-only-vps.sh|ops/verify-forza-only-canary.mjs|tests/forza-only-deploy.test.ts|.github/workflows/forza-conversation-engine.yml|.github/workflows/deploy-production-after-main-ci.yml) ;;
               *) FORZA_ONLY=0 ;;
