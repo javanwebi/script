@@ -155,67 +155,67 @@ export function HomeAboutSection() {
               </Link>
             </div>
 
-            {/* 4 Key Industrial Metrics (2x2 Grid on Mobile, 4 Columns on Desktop) */}
+            {/* Four practical capabilities */}
             <div className="order-1 xl:order-2 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-2 divide-y sm:divide-y-0 sm:divide-x sm:divide-x-reverse divide-white/15">
-              {/* Stat 1: +5,000 مشتری فعال */}
+              {/* Capability 1: catalogue */}
               <div className="flex items-center justify-center sm:justify-start gap-1.5 pt-1 sm:pt-0 sm:pr-2">
                 <div className="text-right">
                   <div
                     className="text-sm sm:text-base xl:text-[17px] font-black tracking-tight tabular-nums text-white"
                     dir="ltr"
                   >
-                    +5,000
+                    کاتالوگ
                   </div>
                   <div className="text-[9.5px] sm:text-[10px] text-slate-300 font-medium mt-0.5 whitespace-nowrap">
-                    مشتری فعال
+                    کد فنی و مشخصات
                   </div>
                 </div>
                 <Users className="w-4 h-4 text-[#E06518] shrink-0" />
               </div>
 
-              {/* Stat 2: +24 صنعت تحت پوشش */}
+              {/* Capability 2: visual identification */}
               <div className="flex items-center justify-center sm:justify-start gap-1.5 pt-1 sm:pt-0 sm:pr-2.5">
                 <div className="text-right">
                   <div
                     className="text-sm sm:text-base xl:text-[17px] font-black tracking-tight tabular-nums text-white"
                     dir="ltr"
                   >
-                    +24
+                    FORZA
                   </div>
                   <div className="text-[9.5px] sm:text-[10px] text-slate-300 font-medium mt-0.5 whitespace-nowrap">
-                    صنعت تحت پوشش
+                    شناسایی تصویری
                   </div>
                 </div>
                 <Building2 className="w-4 h-4 text-slate-300 shrink-0" />
               </div>
 
-              {/* Stat 3: +864 تصویر واقعی محصول */}
+              {/* Capability 3: engineering guidance */}
               <div className="flex items-center justify-center sm:justify-start gap-1.5 pt-1.5 sm:pt-0 sm:pr-2.5">
                 <div className="text-right">
                   <div
                     className="text-sm sm:text-base xl:text-[17px] font-black tracking-tight tabular-nums text-white"
                     dir="ltr"
                   >
-                    +864
+                    مشاوره
                   </div>
                   <div className="text-[9.5px] sm:text-[10px] text-slate-300 font-medium mt-0.5 whitespace-nowrap">
-                    تصویر واقعی محصول
+                    راهنمایی مهندسی
                   </div>
                 </div>
                 <Warehouse className="w-4 h-4 text-slate-300 shrink-0" />
               </div>
 
-              {/* Stat 4: +10,000 کد کالای صنعتی */}
+              {/* Capability 4: custom manufacturing */}
               <div className="flex items-center justify-center sm:justify-start gap-1.5 pt-1.5 sm:pt-0 sm:pr-2.5">
                 <div className="text-right">
                   <div
                     className="text-sm sm:text-base xl:text-[17px] font-black tracking-tight tabular-nums text-white"
                     dir="ltr"
                   >
-                    +10,000
+                    ساخت
                   </div>
                   <div className="text-[9.5px] sm:text-[10px] text-slate-300 font-medium mt-0.5 whitespace-nowrap">
-                    کد کالای صنعتی
+                    سفارش‌سازی قطعات
                   </div>
                 </div>
                 <Box className="w-4 h-4 text-[#E06518] shrink-0" />
@@ -235,7 +235,7 @@ export function WhySanatPish({ variant = 'home' }: { variant?: 'home' | 'about' 
     {
       id: "industries",
       title: "تمرکز بر صنایع اصلی",
-      subtitle: "تامین قطعات تخصصی برای +۲۴ صنعت کلیدی کشور",
+      subtitle: "تأمین قطعات تخصصی برای صنایع مختلف کشور",
       image: STORE_ASSETS.industries.ceramic,
       Icon: Factory,
       link: "/industries",
