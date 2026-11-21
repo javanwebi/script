@@ -2068,8 +2068,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const constraint=String((constraintError as any)?.constraint||'');
         // An unsupported optional isolation constraint must never block an
         // ordinary USB/laptop microphone. Permission/device errors still surface.
-        if(errorName!=='OverconstrainedError'&&constraint!=='voiceIsolation'&&errorName!=='TypeError')
-          throw constraintError;
+        if(constraint!=='voiceIsolation'&&errorName!=='TypeError')throw constraintError;
         acquiredStream=await navigator.mediaDevices.getUserMedia({audio:baseAudioConstraints});
       }
       if(callClosedRef.current || microphoneGeneration!==microphoneGenerationRef.current){
