@@ -1196,8 +1196,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(callClosedRef.current)return;
       if(turnDispatchPendingRef.current && !(q && forzaTurnIntent(q)==='stop'))return;
       if (!q && !audioBlob) return;
-      // No recognized words does not establish a failed user turn. VAD can
-      // detect noise or residual speaker audio while WebSpeech is reconnecting.
+      // No recognized words does not establish a failed user turn. The foreground
+      // gate may reject ambient speech, and server Diba may still be warming.
       // Never start an unavailable server fallback or clear the last valid text.
       if(!q&&audioBlob&&serverSttConfiguredRef.current===false){
         if(recognitionFailedRef.current||webSpeechFailedRef.current)
@@ -2049,7 +2049,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // alive would let background conversations bypass the foreground gate.
       recognitionRef.current=null;
       recognitionFailedRef.current=false;
-      webSpeechFailedRef.current=true;
+      webSpeechFailedRef.current=false;
       isRecognitionActiveRef.current=false;
       setServerSttLabel(localSttModelRef.current
         ? 'دایبا محلی آماده است · صدای فیلترشده'
