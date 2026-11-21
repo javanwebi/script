@@ -97,3 +97,37 @@ test('the native browser fallback remains active while local model loading is pe
  assert.match(ui,/Chrome keeps transcribing immediately/);
  assert.match(ui,/if\(localReady\)/);
 });
+
+
+test('the browser keeps one Diba recognizer alive across listen/monitor transitions',()=>{
+ const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
+ assert.match(ui,/if\(localSttRecognizerRef\.current\)\{/,
+  'monitor-only listening must not destroy the active Vosk decoder');
+ assert.match(ui,/localSttFinalRef\.current=appendForzaSpeechSegment\(localSttFinalRef\.current,recognized\.text\)/,
+  'final Vosk segments must append to the same customer turn');
+});
+
+test('server Diba status is non-blocking and browser retains configured fallback while warming',()=>{
+ const server=readFileSync('server.ts','utf8');
+ const status=server.split("app.get('/api/ai/forza-stt-info'")[1].split("// POST: /api/ai/forza-live")[0];
+ assert.match(status,/serverSttConfigured:choice\.provider==='gemini'\|\|dibaConfigured/);
+ assert.match(status,/serverSttReady:choice\.provider==='diba'\?isForzaDibaSttReady\(\)/);
+ assert.doesNotMatch(status,/await warmForzaDibaStt\(\)/,
+  'readiness diagnostics must not block while workers warm');
+ assert.match(server,/void warmForzaDibaStt\(\)\.then/,
+  'the local worker pool must warm independently of status requests');
+ const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
+ assert.match(ui,/const dibaConfigured=info\.serverSttProvider==='diba'&&info\.serverSttConfigured===true/);
+ assert.match(ui,/serverSttConfiguredRef\.current=dibaConfigured/);
+ assert.match(ui,/attempts<12/,
+  'the browser should poll a configured but cold worker instead of permanently disabling fallback');
+});
+
+test('Nima TTS retries only transient 502/503/504 and never retries rate limits',()=>{
+ const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
+ assert.match(ui,/for\(let attempt=0;attempt<3;attempt\+\+\)/);
+ assert.match(ui,/!\[502,503,504\]\.includes\(response\.status\)/);
+ assert.match(ui,/if\(requestSignal\.aborted\|\|callClosedRef\.current\|\|attempt===2\)throw error/);
+ assert.match(ui,/if\(response\.status===429\)/,
+  'rate limits must be surfaced without automatic retries');
+});
