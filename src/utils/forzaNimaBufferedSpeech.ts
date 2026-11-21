@@ -27,6 +27,12 @@ interface NimaPhraseTask {
 
 export interface ForzaNimaBufferedOptions {
   synthesize: (text: string, signal?: AbortSignal) => Promise<Uint8Array>;
+  /** Stream complete standalone WAV frames as the private Nima worker produces them. */
+  synthesizeStream?: (
+    text: string,
+    signal: AbortSignal,
+    onFrame: (wav: Uint8Array) => void,
+  ) => Promise<void>;
   player: ForzaWavScheduler;
   signal?: AbortSignal;
   maxConcurrent?: number;
@@ -102,7 +108,7 @@ export class ForzaNimaBufferedSpeech {
   private error: Error | null = null;
 
   constructor(private readonly options: ForzaNimaBufferedOptions) {
-    this.maxConcurrent = Math.max(1, Math.min(2, options.maxConcurrent ?? 2));
+    this.maxConcurrent = options.synthesizeStream ? 1 : Math.max(1, Math.min(2, options.maxConcurrent ?? 2));
     this.maxAheadPhrases = Math.max(this.maxConcurrent, Math.min(8, options.maxAheadPhrases ?? 4));
     this.signal = options.signal ? AbortSignal.any([options.signal,this.localAbort.signal]) : this.localAbort.signal;
     this.initialBufferSeconds = options.initialBufferSeconds ?? 2;
@@ -140,23 +146,79 @@ export class ForzaNimaBufferedSpeech {
       this.active++;
       this.outstanding++;
       void Promise.resolve()
-        .then(() => {
+        .then(async () => {
           if (this.signal.aborted || this.cancelled)
             throw new Error('forza_nima_aborted');
-          return this.options.synthesize(task.text, this.signal);
-        })
-        .then(wav => {
+
+          if (this.options.synthesizeStream) {
+            // Streaming frames are enqueued immediately. This class forces one
+            // active stream at a time so sentence frames from adjacent phrases
+            // can never overtake each other; later phrases still synthesize
+            // while earlier audio is playing.
+            const playbackPromises: Promise<void>[] = [];
+            let frames = 0;
+            let wavBytes = 0;
+            let durationMs = 0;
+            await this.options.synthesizeStream(task.text, this.signal, wav => {
+              if (this.cancelled || this.signal.aborted) return;
+              const duration = forzaPcmWavDurationSeconds(wav);
+              frames += 1;
+              wavBytes += wav.byteLength;
+              durationMs += Math.round(duration * 1000);
+              this.totalBufferedSeconds += duration;
+              const played = this.options.player.enqueueWav(wav,
+                progress => this.options.onPhraseProgress?.(task.text, progress));
+              playbackPromises.push(played);
+              this.scheduledPromises.push(played);
+            });
+            if (this.cancelled || this.signal.aborted) {
+              task.resolve();
+              return;
+            }
+            if (frames === 0) throw new Error('forza_nima_stream_no_audio_frames');
+            this.nextToQueue = Math.max(this.nextToQueue, task.index + 1);
+            this.started = true;
+            this.options.onPhraseReady?.({
+              index: task.index,
+              waitMs: Math.max(0, Math.round(fetchStartedAt - task.queuedAt)),
+              fetchMs: Math.round(performance.now() - fetchStartedAt),
+              wavBytes,
+              durationMs,
+            });
+            task.resolve();
+            this.options.onBuffered?.({
+              bufferedSeconds: this.totalBufferedSeconds,
+              queuedPhrases: this.outstanding,
+              started: true,
+            });
+            void Promise.all(playbackPromises)
+              .then(() => {
+                if (!this.cancelled && !this.options.signal?.aborted && task.text)
+                  this.options.onPhrasePlayed?.(task.text);
+              })
+              .catch(cause => {
+                if (!this.cancelled)
+                  this.fail(cause instanceof Error ? cause : new Error(String(cause)));
+              })
+              .finally(() => {
+                this.outstanding = Math.max(0, this.outstanding - 1);
+                this.startReadyJobs();
+              });
+            return;
+          }
+
+          const wav = await this.options.synthesize(task.text, this.signal);
           if (this.cancelled || this.signal.aborted) {
             task.resolve();
             return;
           }
           const duration = forzaPcmWavDurationSeconds(wav);
           this.options.onPhraseReady?.({
-            index:task.index,
-            waitMs:Math.max(0,Math.round(fetchStartedAt-task.queuedAt)),
-            fetchMs:Math.round(performance.now()-fetchStartedAt),
-            wavBytes:wav.byteLength,
-            durationMs:Math.round(duration*1000),
+            index: task.index,
+            waitMs: Math.max(0, Math.round(fetchStartedAt - task.queuedAt)),
+            fetchMs: Math.round(performance.now() - fetchStartedAt),
+            wavBytes: wav.byteLength,
+            durationMs: Math.round(duration * 1000),
           });
           this.totalBufferedSeconds += duration;
           this.synthesized.set(task.index, wav);
@@ -164,7 +226,10 @@ export class ForzaNimaBufferedSpeech {
           this.maybeSchedule();
         })
         .catch((cause: unknown) => {
-          if(this.cancelled || this.options.signal?.aborted){task.resolve();return;}
+          if (this.cancelled || this.options.signal?.aborted) {
+            task.resolve();
+            return;
+          }
           const error = cause instanceof Error ? cause : new Error(String(cause));
           this.fail(error);
           task.reject(error);
@@ -255,7 +320,7 @@ export class ForzaNimaBufferedSpeech {
     if (this.cancelled || this.options.signal?.aborted) throw new Error('forza_nima_aborted');
     try {
       await this.untilAborted(Promise.all(this.synthesisPromises));
-      this.maybeSchedule(true);
+      if (!this.options.synthesizeStream) this.maybeSchedule(true);
       if (this.error) throw this.error;
       if (this.nextToQueue !== this.nextIndex)
         throw new Error('forza_nima_audio_order_incomplete');
