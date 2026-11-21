@@ -333,6 +333,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(typeof window!=='undefined'&&(window as any).__FORZA_TEST_MODE__===true)
         (window as any).__forzaDibaHypothesisDebug={reason,...details};
     };
+    const words=value.trim();
+    if(!words&&isFinal){
+      // A Vosk empty final is a result boundary even when the UI has already
+      // moved into thinking/speaking or the microphone was just muted. Clear
+      // only the rejected result slot; keep accepted words and acoustic state.
+      localSttAdmissionRef.current?.reset();
+      debug('empty_final_boundary');
+      return;
+    }
     if(micMutedRef.current||!greetingFinishedRef.current||
        (statusRef.current!=='listening'&&!isProcessingTurnRef.current&&
         !isAiSpeakingRef.current&&!isManualReplayPendingRef.current)){
@@ -340,18 +349,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         processing:isProcessingTurnRef.current,aiSpeaking:isAiSpeakingRef.current,manualReplay:isManualReplayPendingRef.current});
       return;
     }
-    const words=value.trim();
+    if(!words){debug('empty_hypothesis');return;}
     const admission=localSttAdmissionRef.current||
       (localSttAdmissionRef.current=new ForzaRecognitionAdmission());
-    if(!words){
-      // Vosk emits an empty final when it closes a rejected/background
-      // hypothesis. It is still a result boundary: release the old result
-      // slot so the next customer utterance can be evaluated independently.
-      // Keep the accumulated accepted transcript and acoustic evidence intact.
-      if(isFinal)admission.reset();
-      debug(isFinal?'empty_final_boundary':'empty_hypothesis');
-      return;
-    }
     const slot={0:{transcript:words},isFinal};
     const playback=isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current;
     const echo=likelySpeakerEcho(words);
