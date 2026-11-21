@@ -32,6 +32,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Install pinned ONNX types before TypeScript validation
+        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
       - name: Validate source and private TTS contract
         run: |
           npm run lint
