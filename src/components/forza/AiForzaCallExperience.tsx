@@ -383,6 +383,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       lastTranscriptChangedAtRef.current=Date.now();
     activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
     hasSpeechSoundRef.current=true;
+    // A finalized Diba hypothesis can change the endpoint from an unfinished
+    // 15-25s continuation window to a complete-request window. Re-arm the
+    // existing silence timer so it uses the final text and current acoustic
+    // silence instead of waiting out a stale interim deadline.
+    if(isFinal&&silenceTimerRef.current){
+      window.clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current=null;
+    }
     setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,transcript));
     setIsUserSpeaking(true);
     debug('accepted',{words,isFinal,transcript,playback,speech:speechAdmissionRef.current.diagnostics(Date.now())});
