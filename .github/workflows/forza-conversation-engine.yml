@@ -13,6 +13,10 @@ on:
       - "tests/forzaBrowserRecognitionLifecycle.test.ts"
       - "tests/forzaCallTeardown.test.ts"
       - "tests/forza-diba-queue.test.ts"
+      - "ops/deploy-single-port-vps.sh"
+      - "ops/deploy-forza-only-vps.sh"
+      - "ops/verify-forza-only-canary.mjs"
+      - "tests/forza-only-deploy.test.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/forza-conversation-engine.yml"
@@ -29,6 +33,10 @@ on:
       - "tests/forzaBrowserRecognitionLifecycle.test.ts"
       - "tests/forzaCallTeardown.test.ts"
       - "tests/forza-diba-queue.test.ts"
+      - "ops/deploy-single-port-vps.sh"
+      - "ops/deploy-forza-only-vps.sh"
+      - "ops/verify-forza-only-canary.mjs"
+      - "tests/forza-only-deploy.test.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/forza-conversation-engine.yml"
@@ -62,3 +70,9 @@ jobs:
 
       - name: TypeScript validation
         run: npm run lint
+
+      - name: Validate Forza-only deployment safety
+        run: |
+          bash -n ops/deploy-single-port-vps.sh ops/deploy-forza-only-vps.sh
+          node --check ops/verify-forza-only-canary.mjs
+          node --import tsx --test tests/forza-only-deploy.test.ts
