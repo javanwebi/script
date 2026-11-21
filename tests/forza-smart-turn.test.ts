@@ -134,6 +134,11 @@ test('code correction after a mid-turn pause extends the decision window', () =>
   assert.equal(forzaTurnRemainingWaitMs(incomplete,false,pause+1,pause+1),0);
 });
 
+test('empty recognition waits longer for delayed STT before server fallback',()=>{
+  assert.equal(forzaEndOfTurnPauseMs('',false),10_000);
+  assert.equal(forzaTurnRemainingWaitMs('',true,0,0),0);
+});
+
 test('do not dispatch empty recognition hypotheses', () => {
   assert.equal(forzaTurnRemainingWaitMs('',true,0,0),0);
 });
