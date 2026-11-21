@@ -1257,10 +1257,12 @@ for DOMAIN in sanatpish.com www.sanatpish.com; do
 done
 test "$(docker inspect "$CID" --format '{{.State.Running}}')" = true
 if [[ "$FORZA_ONLY" == "1" ]]; then
-  # The private Nima service is verified by the Forza-only canary. Retain the
-  # existing healthy voice container; this release changes the call app/STT
-  # controller, not the pinned Piper model or its HTTP worker.
-  echo FORZA_ONLY_PRIVATE_NIMA_CONTAINER_RETAINED=YES
+  # The website and private Nima voice are separate containers. Upgrade Nima
+  # from this exact pinned stage only after the new site is promoted; the
+  # voice script keeps its own rollback container and verifies the app route.
+  echo '===== PRIVATE NIMA SENTENCE-STREAM UPGRADE AND SAFE PROMOTION ====='
+  bash -n "$STAGE/ops/upgrade-forza-realtime-vps.sh"
+  bash "$STAGE/ops/upgrade-forza-realtime-vps.sh" --app "$OLD"
 else
   echo '===== PINNED PRIVATE NIMA CANARY AND SAFE VOICE PROMOTION ====='
   bash -n "$STAGE/ops/deploy-forza-nima-pinned-vps.sh"
