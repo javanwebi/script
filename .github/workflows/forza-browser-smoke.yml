@@ -78,6 +78,7 @@ jobs:
           cp node_modules/@diffusionstudio/piper-wasm/build/piper_phonemize.data public/forza-runtime/piper/
           cp node_modules/@diffusionstudio/piper-wasm/build/piper_phonemize.wasm public/forza-runtime/piper/
           cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/
+          node scripts/prepare-vision-assets.mjs
           file public/forza-runtime/ort/ort-wasm-simd.wasm
       - name: Create deterministic WAV fixture for offline browser greeting tests
         run: |
