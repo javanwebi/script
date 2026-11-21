@@ -3,17 +3,81 @@ on:
   pull_request:
     paths:
       - 'src/components/forza/**'
+      - 'public/worklets/forza-foreground-gate.js'
       - 'public/worklets/forza-speech-evidence.js'
       - 'src/utils/forzaAudioEvidence.ts'
+      - 'src/utils/forzaLiveSttClient.ts'
+      - 'server/ai/forzaDibaLiveStt.ts'
+      - 'scripts/forza_diba_live_worker.py'
+      - 'public/worklets/forza-stt-pcm.js'
+      - 'tests/forzaLiveSttClient.test.ts'
+      - 'tests/test_forza_diba_live_worker.py'
+      - 'tests/forzaAudioEvidence.test.ts'
       - 'src/utils/forzaSpeechAdmission.ts'
       - 'scripts/tests/forza-exhibition-noise.cjs'
-      - 'scripts/tests/forza-live-stt-browser.cjs'
       - 'src/utils/forzaStreamClient.ts'
       - 'src/utils/forzaStreamingSpeech.ts'
       - 'src/utils/forzaBootPolicy.ts'
       - 'src/utils/forzaBrowserSpeech.ts'
       - 'src/utils/forzaLocalSpeech.ts'
       - 'src/utils/forzaSpeechPipeline.ts'
+      - 'src/utils/forzaRecognitionRecovery.ts'
+      - 'src/utils/forzaConversationHistory.ts'
+      - 'server/ai/baiConsult.ts'
+      - 'tests/forzaConversationHistory.test.ts'
+      - 'tests/forzaConsultContract.test.ts'
+      - 'tests/forzaLocalDibaStreaming.test.ts'
+      - 'tests/forzaRecognitionRecovery.test.ts'
+      - 'tests/forza-smart-turn.test.ts'
+      - 'tests/forzaSpeechAdmission.test.ts'
+      - 'tests/forzaBrowserRecognitionLifecycle.test.ts'
+      - 'tests/forzaCallTeardown.test.ts'
+      - 'scripts/tests/forza-local-diba-browser.cjs'
+      - 'ops/Dockerfile.forza-stt-runtime'
+      - 'scripts/download-forza-amir.mjs'
+      - 'scripts/generate-forza-greeting.mjs'
+      - 'scripts/tests/forza-greeting-fallback.cjs'
+      - 'src/services/forzaAmirServerSpeech.ts'
+      - 'scripts/forza_amir_worker.py'
+      - 'tests/forzaCompleteSpeech.test.ts'
+      - 'tests/forzaAmirServerSpeech.test.ts'
+      - 'scripts/tests/forza-streaming-turn-recovery.cjs'
+      - 'scripts/tests/forza-reply-before-audio.cjs'
+      - 'tests/forzaSseImmediateCompletion.test.ts'
+      - 'src/utils/forzaPersianVoiceQuality.ts'
+      - 'src/utils/forzaSpeechChunks.ts'
+      - 'tests/forzaPersianVoiceQuality.test.ts'
+      - 'server.ts'
+      - 'scripts/tests/forza-amir-real-browser.cjs'
+      - 'scripts/tests/forza-browser-voice-mock.cjs'
+      - 'src/main.tsx'
+      - 'scripts/tests/forza-audio-chunks.cjs'
+      - 'scripts/tests/forza-voice-outage.cjs'
+      - '.github/workflows/forza-browser-smoke.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/components/forza/**'
+      - 'public/worklets/forza-foreground-gate.js'
+      - 'public/worklets/forza-speech-evidence.js'
+      - 'src/utils/forzaAudioEvidence.ts'
+      - 'src/utils/forzaLiveSttClient.ts'
+      - 'server/ai/forzaDibaLiveStt.ts'
+      - 'scripts/forza_diba_live_worker.py'
+      - 'public/worklets/forza-stt-pcm.js'
+      - 'tests/forzaLiveSttClient.test.ts'
+      - 'tests/test_forza_diba_live_worker.py'
+      - 'tests/forzaAudioEvidence.test.ts'
+      - 'src/utils/forzaSpeechAdmission.ts'
+      - 'scripts/tests/forza-exhibition-noise.cjs'
+      - 'src/utils/forzaStreamClient.ts'
+      - 'src/utils/forzaStreamingSpeech.ts'
+      - 'src/utils/forzaBootPolicy.ts'
+      - 'src/utils/forzaBrowserSpeech.ts'
+      - 'src/utils/forzaLocalSpeech.ts'
+      - 'src/utils/forzaSpeechPipeline.ts'
+      - 'src/utils/silenceDetector.ts'
       - 'src/utils/forzaRecognitionRecovery.ts'
       - 'src/utils/forzaConversationHistory.ts'
       - 'server/ai/baiConsult.ts'
@@ -63,8 +127,12 @@ jobs:
       - run: npm ci
       - name: Validate Persian voice text normalization and WAV leveling
         run: node --import tsx --test tests/forzaPersianVoiceQuality.test.ts
-      - name: Validate live STT admission, endpointing, and recognizer recovery
-        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
+      - name: Validate live Diba streaming transport and worker protocol
+        run: |
+          node --import tsx --test tests/forzaLiveSttClient.test.ts
+          python3 tests/test_forza_diba_live_worker.py
+      - name: Validate pre-STT foreground gate, live admission, endpointing, and recognizer recovery
+        run: node --import tsx --test tests/forzaAudioEvidence.test.ts tests/forzaLiveSttClient.test.ts tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
       - name: Validate complete Persian streaming and speech chunk integrity
         run: node --import tsx --test tests/forzaCompleteSpeech.test.ts tests/forza-speech-chunks.test.ts
       - name: Validate immediate SSE completion through slow proxies
@@ -113,9 +181,7 @@ jobs:
           done
           cat /tmp/forza-preview.log
           exit 1
-      - run: node scripts/tests/forza-live-stt-browser.cjs
       - run: node scripts/tests/forza-local-diba-browser.cjs
-      - run: node scripts/tests/forza-exhibition-noise.cjs
       - run: node scripts/tests/forza-audio-chunks.cjs
       - run: node scripts/tests/forza-voice-outage.cjs
       - run: node scripts/tests/forza-greeting-fallback.cjs

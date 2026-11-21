@@ -65,6 +65,7 @@ import {avalaiFailureMessage, buildForzaConsultSystemMessage, configuredAvalaiMo
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmForzaDibaStt} from './server/ai/forzaDibaStt';
+import {isForzaDibaLiveSttConfigured,isForzaDibaLiveSttReady,setupForzaDibaLiveSttWebSocket,warmForzaDibaLiveStt} from './server/ai/forzaDibaLiveStt';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
 import { applyPrivateForzaConfig } from './server/ai/privateForzaConfig';
@@ -88,6 +89,8 @@ loadLocalVisionConfig(process.cwd());
 if(selectForzaSttProvider(process.env).provider==='diba'){
   void warmForzaDibaStt().then(ready=>console.info('[FORZA_STT] provider=diba ready='+Number(ready)))
     .catch(()=>console.warn('[FORZA_STT] provider=diba warmup_failed=1'));
+  void warmForzaDibaLiveStt().then(ready=>console.info('[FORZA_STT] provider=diba-live ready='+Number(ready)))
+    .catch(()=>console.warn('[FORZA_STT] provider=diba-live warmup_failed=1'));
 }
 // Example configuration is documentation only; never load placeholder defaults into runtime.
 
@@ -925,6 +928,17 @@ async function embedCatalogImages(buffers:Buffer[],publishImage:ImagePublisher):
  return (response.embeddings || []).map(embedding=>embedding.values || []);
 }
 function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus>,publishImage:ImagePublisher){
+ // A Forza-only release must not write catalog embeddings as an incidental
+ // server-startup side effect. Load the already-persisted index read-only;
+ // the deployment Canary rejects the release if its coverage is incomplete.
+ if(process.env.SANATPISH_FORZA_ONLY_READ_ONLY_INDEX==='1'){
+  void catalogVisualIndex.load().then(()=>{
+   const coverage=catalogVisualIndex.coverage(corpus);
+   if(!coverage.ready)console.warn('[Visual index] Forza-only read-only mode; persisted index incomplete:',JSON.stringify(coverage));
+   else console.log('[Visual index] Forza-only read-only persisted index:',JSON.stringify(coverage));
+  }).catch(error=>console.warn('[Visual index] Forza-only read-only load failed:',String(error?.message || 'index_unavailable').slice(0,120)));
+  return;
+ }
  if(Date.now()<nextVisualIndexBuild)return;
  nextVisualIndexBuild=Date.now()+60000;
  void catalogVisualIndex.update(corpus,row=>getCatalogImageBuffer(row.url,row.revision),buffers=>embedCatalogImages(buffers,publishImage))
@@ -7258,6 +7272,8 @@ app.get('/api/ai/forza-stt-info',async(_req,res)=>{
     serverSttConfigured:choice.provider==='gemini'||dibaConfigured,
     serverSttProvider:choice.provider,
     serverSttReady:choice.provider==='diba'?isForzaDibaSttReady():choice.provider==='gemini',
+    serverLiveSttConfigured:isForzaDibaLiveSttConfigured(),
+    serverLiveSttReady:choice.provider==='diba'?isForzaDibaLiveSttReady():false,
     reason:choice.provider==='diba'&&!dibaConfigured?'model_missing':choice.reason,
   });
 });
@@ -7985,6 +8001,7 @@ async function start() {
 
   const server = http.createServer(app);
   setupGeminiLiveWebSocket(server);
+  setupForzaDibaLiveSttWebSocket(server);
 
   server.listen(PORT, '0.0.0.0', () => {
     const keyStatus = getGeminiKey()

@@ -24,11 +24,28 @@ function wav(seconds=0.2){
   await page.addInitScript(()=>{
    Object.defineProperty(navigator,'hardwareConcurrency',{configurable:true,value:8});
    Object.defineProperty(navigator,'deviceMemory',{configurable:true,value:8});
-   window.__forzaMicSample=0.0005;
-   Object.defineProperty(AudioContext.prototype,'audioWorklet',{get:()=>undefined});
-   const analyser=window.AnalyserNode?.prototype;
-   if(analyser?.getFloatTimeDomainData)
-    analyser.getFloatTimeDomainData=function(samples){samples.fill(window.__forzaMicSample);};
+   let micLevel=0.0005,micGain=null;
+   Object.defineProperty(window,'__forzaMicSample',{
+    configurable:true,get:()=>micLevel,set:value=>{micLevel=Number(value)||0;if(micGain)micGain.gain.value=micLevel;}
+   });
+   // Synthetic near-field voice: voiced harmonics plus articulation energy above 2kHz.
+   AudioContext.prototype.createMediaStreamSource=function(){
+    const fundamental=this.createOscillator(),gain=this.createGain();
+    const fundamentalGain=this.createGain();
+    fundamental.frequency.value=140;
+    fundamentalGain.gain.value=0.75;
+    fundamental.connect(fundamentalGain);fundamentalGain.connect(gain);
+    // These are harmonics of the same 140 Hz voice, not a second independent
+    // 2.5 kHz tone. The foreground gate must accept articulation detail without
+    // misclassifying one synthetic speaker as two overlapping people.
+    for(const frequency of [2240,2380,2520,2660]){
+      const partial=this.createOscillator(),partialGain=this.createGain();
+      partial.frequency.value=frequency;partialGain.gain.value=0.06;
+      partial.connect(partialGain);partialGain.connect(gain);partial.start();
+    }
+    fundamental.start();gain.gain.value=micLevel;micGain=gain;window.__forzaMicGain=gain;
+    return gain;
+   };
    class FakeBrowserRecognition{
     start(){window.__forzaBrowserStarts=(window.__forzaBrowserStarts||0)+1;this.onstart?.();}
     stop(){this.onend?.();}
@@ -49,6 +66,11 @@ function wav(seconds=0.2){
       window.__forzaVoskFrames=(window.__forzaVoskFrames||0)+1;
       window.__forzaDibaBufferSampleRate=samples.sampleRate;
       window.__forzaDibaBufferLength=samples.length;
+      const data=samples.getChannelData(0);
+      let energy=0;for(const value of data)energy+=value*value;
+      const rms=Math.sqrt(energy/Math.max(1,data.length));
+      if(rms>0.0005)window.__forzaVoskNonZeroFrames=(window.__forzaVoskNonZeroFrames||0)+1;
+      window.__forzaVoskLastRms=rms;
      }
      emitPartial(text){this.handlers.partialresult?.({result:{partial:text}});}
      emitFinal(text){this.handlers.result?.({result:{text}});}
@@ -100,11 +122,26 @@ function wav(seconds=0.2){
   assert.equal(await page.evaluate(()=>window.__forzaDibaBufferSampleRate),16000,
    'microphone PCM must be resampled before it reaches Vosk');
   assert.ok(await page.evaluate(()=>window.__forzaDibaBufferLength>0));
+  assert.equal(await page.evaluate(()=>window.__forzaBrowserStarts||0),0,
+   'native direct-microphone SpeechRecognition must never bypass the gate');
   assert.equal(await page.evaluate(()=>window.__forzaDibaModelUrl),
    '/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz','model must load from the same origin');
   await page.waitForTimeout(450);
-  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
-  await page.waitForTimeout(450);
+  // Distant/background speech exists at the mic, but must be zeroed before STT.
+  await page.evaluate(()=>{window.__forzaMicSample=0.001;});
+  await page.waitForTimeout(500);
+  const farFrames=await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0);
+  await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('گفتگوی افراد دور غرفه'));
+  await page.waitForTimeout(250);
+  assert.equal(await page.getByText('گفتگوی افراد دور غرفه',{exact:true}).count(),0,
+   'distant speech must not become STT text');
+  assert.equal(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0),farFrames,
+   'distant PCM must not reach the STT recognizer');
+  await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal(''));
+  await page.evaluate(()=>{window.__forzaMicSample=0.02;});
+  await page.waitForTimeout(1000);
+  assert.ok(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0)>farFrames,
+   'only foreground-gated PCM reaches local Diba');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('می خواهم مشخصات تسمه تایمینگ را بدانم'));
   await page.getByText('می خواهم مشخصات تسمه تایمینگ را بدانم',{exact:true}).waitFor({timeout:1500});
   assert.ok(await page.evaluate(()=>window.__forzaVoskFrames||0)>0,'local recognizer must receive live PCM frames');
@@ -123,7 +160,7 @@ function wav(seconds=0.2){
   await page.waitForFunction(()=>window.__forzaVoskCreated===1,null,{timeout:8000});
   assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
    'the same local recognizer must survive the second voice turn too');
-  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
+  await page.evaluate(()=>{window.__forzaMicSample=0.008;});
   await page.waitForTimeout(450);
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('برای دستگاه بسته بندی تسمه PU می خواهم'));
   await page.waitForFunction(text=>document.body.innerText.includes(text),'برای دستگاه بسته بندی تسمه PU می خواهم',{timeout:1500});
