@@ -122,6 +122,8 @@ docker run --rm --pull=never --network "$DOCKER_NETWORK" \
   "$NODE_IMAGE" npm run build
 [ -f "$stage/dist/index.html" ] || { echo 'Candidate build output missing'; exit 1; }
 [ -s "$stage/dist/forza-runtime/stt/vosk.js" ] || { echo 'Candidate Diba browser runtime missing'; exit 1; }
+[ -s "$stage/dist/models/u2netp.onnx" ] || { echo 'Candidate U2NetP model missing'; exit 1; }
+[ -s "$stage/dist/forza-runtime/ort/ort-wasm-simd.wasm" ] || { echo 'Candidate ONNX WASM runtime missing'; exit 1; }
 
 echo 'Candidate validated; switching live revision (brief restart).'
 promoting=1
