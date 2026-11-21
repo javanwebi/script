@@ -58,6 +58,7 @@ on:
       - tests/test_forza_nima_private.py
       - tests/test_forza_nima_pool.py
       - ops/upgrade-forza-realtime-vps.sh
+      - tests/forzaNimaUpgradeScript.test.ts
       - .github/workflows/forza-nima-private.yml
   workflow_dispatch:
 permissions:
@@ -79,7 +80,7 @@ jobs:
       - name: Install optional browser vision runtime for TypeScript validation
         run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
       - name: Test incremental SSE speech planner
-        run: node --import tsx --test tests/forzaSttTurnSafety.test.ts tests/forzaRecorderContainer.test.ts tests/forzaAudioEvidence.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaCallPlainText.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaUnbrokenFullAnswer.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forzaNimaProgressiveSpeech.test.ts tests/forzaWavFrameStream.test.ts tests/forzaNimaServerStream.test.ts tests/forzaVoiceRetry.test.ts tests/forzaTtsBudget.test.ts tests/forza-streaming-speech.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaLiveAuditScript.test.ts tests/forza-continuous-wav.test.ts tests/forzaBargeIn.test.ts tests/forza-voice-activity.test.ts tests/forzaRecognitionRecovery.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaStopAcknowledgement.test.ts tests/forzaCallTeardown.test.ts tests/forzaConsultContract.test.ts tests/forzaSseImmediateCompletion.test.ts
+        run: node --import tsx --test tests/forzaSttTurnSafety.test.ts tests/forzaRecorderContainer.test.ts tests/forzaAudioEvidence.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaCallPlainText.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaUnbrokenFullAnswer.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forzaNimaProgressiveSpeech.test.ts tests/forzaWavFrameStream.test.ts tests/forzaNimaServerStream.test.ts tests/forzaNimaUpgradeScript.test.ts tests/forzaVoiceRetry.test.ts tests/forzaTtsBudget.test.ts tests/forza-streaming-speech.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaLiveAuditScript.test.ts tests/forza-continuous-wav.test.ts tests/forzaBargeIn.test.ts tests/forza-voice-activity.test.ts tests/forzaRecognitionRecovery.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaStopAcknowledgement.test.ts tests/forzaCallTeardown.test.ts tests/forzaConsultContract.test.ts tests/forzaSseImmediateCompletion.test.ts
       - name: Validate Persian smart end-of-turn recognition
         run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts
       - name: Verify xKiro chat keys never activate Gemini speech recognition

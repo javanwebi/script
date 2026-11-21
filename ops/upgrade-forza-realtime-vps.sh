@@ -113,6 +113,37 @@ n=int(os.environ['FORZA_NIMA_WORKERS'])
 with concurrent.futures.ThreadPoolExecutor(max_workers=n) as clients:results=list(clients.map(call,range(n)))
 print('FORZA_CONCURRENCY_CANARY '+json.dumps({'workers':n,'wallMs':round((time.monotonic()-start)*1000),'requests':results}))
 PY
+# Verify progressive clause frames before the canary is promoted to the live voice name.
+docker exec -i "$CANARY" python - <<'PY'
+import json,os,urllib.request
+text='مشخصات تسمه صنعتی را بررسی می‌کنم. لطفاً کد فنی روی بدنه را اعلام کنید تا مدل و سایز دقیق را پیدا کنم.'
+request=urllib.request.Request(
+ 'http://127.0.0.1:8080/speak-stream',
+ data=json.dumps({'text':text}).encode(),
+ headers={'Content-Type':'application/json','X-Forza-Voice-Token':os.environ['FORZA_VOICE_TOKEN']}
+)
+with urllib.request.urlopen(request,timeout=30) as response:
+ assert response.status==200
+ assert response.headers.get('Content-Type','').startswith('application/x-forza-wav-frames')
+ assert response.headers.get('X-Forza-Voice')=='piper-nima-gyro-medium'
+ assert response.headers.get('X-Forza-Stream-Protocol')=='length-prefixed-wav-v1'
+ payload=response.read()
+offset=0
+frames=0
+wav_bytes=0
+while offset<len(payload):
+ assert len(payload)-offset>=4, 'TRUNCATED_FRAME_LENGTH'
+ size=int.from_bytes(payload[offset:offset+4],'little')
+ offset+=4
+ assert 44<=size<=8_000_000 and offset+size<=len(payload), 'INVALID_FRAME_SIZE'
+ wav=payload[offset:offset+size]
+ assert wav[:4]==b'RIFF' and wav[8:12]==b'WAVE', 'INVALID_FRAME_WAV'
+ frames+=1
+ wav_bytes+=size
+ offset+=size
+assert frames>=2, 'NIMA_STREAM_DID_NOT_EMIT_MULTIPLE_FRAMES'
+print('FORZA_PROGRESSIVE_STREAM_CANARY '+json.dumps({'frames':frames,'wavBytes':wav_bytes}))
+PY
 # Do not contend with the new live pool by leaving the canary's workers running.
 docker rm -f "$CANARY" >/dev/null
 docker stop --time 15 "$LIVE" >/dev/null
