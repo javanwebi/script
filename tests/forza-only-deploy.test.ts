@@ -8,6 +8,8 @@ const canary = readFileSync(new URL("../ops/verify-forza-only-canary.mjs", impor
 const server = readFileSync(new URL("../server.ts", import.meta.url), "utf8");
 const deployWorkflow = readFileSync(new URL("../.github/workflows/deploy-production-after-main-ci.yml", import.meta.url), "utf8");
 const engineWorkflow = readFileSync(new URL("../.github/workflows/forza-conversation-engine.yml", import.meta.url), "utf8");
+const browserWorkflow = readFileSync(new URL("../.github/workflows/forza-browser-smoke.yml", import.meta.url), "utf8");
+const privateBrowserWorkflow = readFileSync(new URL("../.github/workflows/forza-private-ubuntu-browser.yml", import.meta.url), "utf8");
 
 test("Forza-only deployment skips every catalog/customer database migration block", () => {
   const marker = 'if [[ "$FORZA_ONLY" == "1" ]]; then\n  # Strict Forza-only release:';
@@ -65,6 +67,8 @@ test("main CI deploy routes only the exact Forza-only commit through the safe en
   assert.match(deployWorkflow, /Classify exact main release as Forza-only or standard/);
   assert.ok(deployWorkflow.indexOf("Classify exact main release") < deployWorkflow.indexOf("Verify every required main check"));
   assert.match(deployWorkflow, /FORZA Conversation Engine/);
+  assert.match(deployWorkflow, /FORZA autoplay\/microphone UX smoke/);
+  assert.match(deployWorkflow, /FORZA private Ubuntu Pocket browser integration/);
   assert.match(deployWorkflow, /if \[\[ "\$FORZA_ONLY" == "true" \]\]; then[\s\S]*FORZA Conversation Engine/);
   assert.match(deployWorkflow, /Verify VPS frontend build before deployment/);
   assert.match(deployWorkflow, /forza_only=true/);
@@ -81,11 +85,28 @@ test("Forza Conversation Engine runs on main pushes for the production deploy ga
   assert.match(push,/branches:\s*\n\s*- main/);
 });
 
+test("Forza browser and private Pocket integration checks run on main pushes",()=>{
+  for(const [name,workflow] of [
+    ["browser smoke",browserWorkflow],
+    ["private Pocket browser",privateBrowserWorkflow],
+  ]){
+    const start=workflow.indexOf("\n  push:");
+    const end=workflow.indexOf("\n  workflow_dispatch:",start);
+    assert.ok(start>=0&&end>start,name+" must define a main push trigger");
+    const push=workflow.slice(start,end);
+    assert.match(push,/branches:\s*\n\s*- main/);
+  }
+  assert.match(browserWorkflow,/tests\/forza-smart-turn\.test\.ts/);
+  assert.match(privateBrowserWorkflow,/tests\/forzaVoiceRecoveryUi\.test\.ts/);
+});
+
 test("Forza-only release classifier includes only the reviewed call-engine fix paths",()=>{
   for(const path of [
     "src/components/forza/AiForzaCallExperience.tsx",
     "src/utils/forzaSpeechPipeline.ts",
     "src/utils/silenceDetector.ts",
+    ".github/workflows/forza-browser-smoke.yml",
+    ".github/workflows/forza-private-ubuntu-browser.yml",
     "tests/forza-smart-turn.test.ts",
     "tests/forzaVoiceRecoveryUi.test.ts",
   ]){
