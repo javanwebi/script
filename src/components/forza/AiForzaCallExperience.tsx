@@ -499,6 +499,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   },[acceptDibaHypothesis,stopServerLiveStt]);
 
   const startDibaTurn=useCallback(()=>{
+    // Never create a local recognizer during the greeting: speakText(GREETING_TEXT)
+    // intentionally stops listening, and an early recognizer would be discarded
+    // only to be recreated when the user turn opens.
+    if(callClosedRef.current||!greetingFinishedRef.current)return false;
     const model=localSttModelRef.current;
     if(!model||!localSttNodeRef.current||!ctxRef.current)return false;
     // Keep one recognizer for the whole call. Recreating it every time the AI
