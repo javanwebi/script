@@ -2238,7 +2238,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       audioEvidenceCleanupRef.current?.();audioEvidenceCleanupRef.current=null;
       micSourceNodeRef.current?.disconnect();micSourceNodeRef.current=null;
       const rawSource=ctx.createMediaStreamSource(acquiredStream);
-      const route=await attachForzaAudioEvidence(ctx,rawSource,(rms,at)=>{
+      const route=await attachForzaAudioEvidence(ctx,rawSource,(rms,at,_score,gateOpen)=>{
         if(callClosedRef.current||microphoneGeneration!==microphoneGenerationRef.current||micMutedRef.current)return;
         speechAdmissionRef.current.sample(rms,at,
           isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current,
