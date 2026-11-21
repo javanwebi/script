@@ -245,12 +245,7 @@ export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
     let streamId = '';
     let startPending = false;
     let closed = false;
-    let handshakeTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
-      if (closed || worker || startPending) return;
-      send(socket, { type: 'error', code: 'diba_stream_start_timeout' });
-      cleanup(false);
-      socket.close(1008, 'Diba stream start timed out');
-    }, 10_000);
+    let handshakeTimer: ReturnType<typeof setTimeout> | null = null;
 
     const cleanup = (cancel = true) => {
       if (closed) return;
@@ -265,6 +260,12 @@ export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
       if (remaining) connectionsPerIp.set(ip, remaining);
       else connectionsPerIp.delete(ip);
     };
+    handshakeTimer = setTimeout(() => {
+      if (closed || worker || startPending) return;
+      send(socket, { type: 'error', code: 'diba_stream_start_timeout' });
+      cleanup(false);
+      socket.close(1008, 'Diba stream start timed out');
+    }, 10_000);
 
     socket.on('message', (data, isBinary) => {
       if (closed) return;
