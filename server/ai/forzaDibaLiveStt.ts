@@ -234,7 +234,12 @@ export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
     // would collapse every visitor to 127.0.0.1 behind the reverse proxy.
     const ip = String(request.headers['x-real-ip'] || request.socket.remoteAddress || 'unknown').slice(0, 96);
     const activeForIp = connectionsPerIp.get(ip) || 0;
-    if (activeConnections >= MAX_SESSIONS || activeForIp >= MAX_SESSIONS) {
+    if (activeConnections >= MAX_SESSIONS) {
+      send(socket, { type: 'error', code: 'diba_stream_capacity_reached' });
+      socket.close(1013, 'Diba stream capacity reached');
+      return;
+    }
+    if (activeForIp >= MAX_SESSIONS) {
       send(socket, { type: 'error', code: 'diba_stream_ip_limit' });
       socket.close(1013, 'Too many Diba streams from this address');
       return;
