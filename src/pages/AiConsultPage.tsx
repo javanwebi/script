@@ -1504,7 +1504,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       </div>
                     </button>
                     );
-                  })
+                  })}
                 </div>
               </div>
 
