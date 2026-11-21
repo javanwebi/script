@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 MODEL_PATH = Path(os.environ.get("FORZA_STT_DIBA_MODEL_PATH", "/opt/diba-stt/model"))
-MAX_STREAMS = max(1, min(16, int(os.environ.get("FORZA_STT_LIVE_SESSIONS_PER_WORKER", "10"))))
+MAX_STREAMS = max(1, min(40, int(os.environ.get("FORZA_STT_LIVE_SESSIONS_PER_WORKER", "10"))))
 MAX_CHUNK_B64 = 96_000
 MAX_PCM_BYTES = 48_000
 
