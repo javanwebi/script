@@ -1908,7 +1908,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               if(completedSegment.size>1200&&!liveSttActiveRef.current){
                 // Local Diba already consumes the microphone stream continuously;
                 // only retain WebM for the server fallback when local STT is absent.
-                // Never discard an earlier segment from a long browser-fallback turn.
+                // Never discard an earlier segment captured while the live server stream reconnects.
                 audioSegmentsRef.current.push(completedSegment);
               }
             }
