@@ -193,14 +193,17 @@ function wav(seconds=0.2){
   console.log('FORZA_DIBA_SECOND_PARTIAL',JSON.stringify(await page.evaluate(()=>window.__forzaDibaHypothesisDebug||null)));
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('برای دستگاه بسته بندی تسمه PU می خواهم'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
+  await page.waitForTimeout(2200);
   console.log('FORZA_DIBA_SECOND_FINAL',JSON.stringify(await page.evaluate(()=>({
     created:window.__forzaVoskCreated||0,
     frames:window.__forzaVoskFrames||0,
     nonZeroFrames:window.__forzaVoskNonZeroFrames||0,
     removed:Boolean(window.__forzaVoskRecognizer?.removed),
     hypothesis:window.__forzaDibaHypothesisDebug||null,
+    vad:window.__forzaVadDebug||null,
+    speechAdmission:window.__forzaSpeechAdmissionDiagnostics||null,
   }))));
-  await page.waitForFunction(()=>window.__forzaConsultRequestCount===2,null,{timeout:12000});
+  await page.waitForFunction(()=>window.__forzaConsultRequestCount===2,null,{timeout:9000});
   assert.equal(queries.length,2,'second local Diba turn must also reach the AI');
   await page.waitForFunction(([first,second])=>document.body.innerText.includes(first)&&document.body.innerText.includes(second),[queries[0],'برای دستگاه بسته بندی تسمه PU می خواهم'],{timeout:3000});
   assert.ok(true,'the first customer transcript remains visible after a later turn');
