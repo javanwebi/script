@@ -2128,6 +2128,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(!response.ok)throw new Error('stt_status_http_'+response.status);
         const info=await response.json() as {
           serverSttConfigured?:boolean;serverSttProvider?:string;serverSttReady?:boolean;
+          serverLiveSttConfigured?:boolean;serverLiveSttReady?:boolean;
         };
         if(controller.signal.aborted)return;
         // Configuration and warm readiness are separate states. A cold Diba
@@ -2142,11 +2143,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           : localSttModelLoadingRef.current
             ? 'در حال آماده‌سازی دایبا محلی · فقط صدای نزدیک پردازش می‌شود'
             : dibaConfigured
-              ? info.serverSttReady===true
-                ? 'دایبا سرور آماده است · صدای فیلترشده'
-                : 'دایبا سرور در حال آماده‌سازی · صدای فیلترشده نگه‌داری می‌شود'
+              ? info.serverLiveSttReady===true
+                ? 'دایبا سرور زنده آماده است · صدای فیلترشده'
+                : 'دایبا سرور زنده در حال آماده‌سازی · صدای فیلترشده نگه‌داری می‌شود'
               : 'دایبا تنظیم نشده؛ تشخیص گفتار در دسترس نیست');
-        if(dibaConfigured&&info.serverSttReady!==true&&attempts<12){
+        if(dibaConfigured&&info.serverLiveSttReady!==true&&attempts<12){
           attempts++;
           retryTimer=window.setTimeout(()=>void checkServerStt(),2500);
         }
