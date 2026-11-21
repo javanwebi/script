@@ -13,7 +13,8 @@ export class ForzaIncrementalSpeechText {
   // Hold one not-yet-submitted middle phrase so the final 1–3 words can be
   // merged with it at explicit SSE done. Without this, complete() creates a
   // separate tiny Piper inference job after the prior WAV has played.
-  // The very first short phrase is still dispatched immediately.
+  // The first phrase starts as soon as a useful complete word group is ready;
+  // a short punctuation-ended sentence waits for its next words or final done.
   private started = false;
   private heldPhrase = '';
   private heldAt: number | null = null;
