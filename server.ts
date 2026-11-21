@@ -67,6 +67,7 @@ import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmForzaDibaStt} from './server/ai/forzaDibaStt';
 import {isForzaDibaLiveSttConfigured,isForzaDibaLiveSttReady,setupForzaDibaLiveSttWebSocket,warmForzaDibaLiveStt} from './server/ai/forzaDibaLiveStt';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
+import {normalizeForzaNimaWorkerCount} from './src/utils/forzaTtsConcurrency';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
 import { applyPrivateForzaConfig } from './server/ai/privateForzaConfig';
 
@@ -5662,6 +5663,7 @@ const forzaVoiceEngine = process.env.FORZA_VOICE_ENGINE === 'nima'
   ? 'piper-nima-gyro-medium'
   : process.env.FORZA_VOICE_ENGINE === 'amir' ? 'piper-amir-medium' : 'pocket-farsi-v2';
 let verifiedPrivateVoice:string|null=null;
+let verifiedPrivateVoiceWorkers=1;
 let privateVoiceHealthAt=0;
 let privateVoiceHealthPromise:Promise<string>|null=null;
 
@@ -5678,9 +5680,11 @@ async function resolveForzaVoiceEngine():Promise<string>{
         signal:AbortSignal.timeout(1800),
         headers:{'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN!},
       });
-      const info=await response.json().catch(()=>null) as {voice?:string;ok?:boolean}|null;
-      if(response.ok&&info?.ok!==false&&info?.voice&&FORZA_PRIVATE_VOICES.has(info.voice))
+      const info=await response.json().catch(()=>null) as {voice?:string;ok?:boolean;workers?:number}|null;
+      if(response.ok&&info?.ok!==false&&info?.voice&&FORZA_PRIVATE_VOICES.has(info.voice)){
         verifiedPrivateVoice=info.voice;
+        verifiedPrivateVoiceWorkers=normalizeForzaNimaWorkerCount(info.workers);
+      }
     }catch{}
     privateVoiceHealthAt=Date.now();
     return verifiedPrivateVoice||forzaVoiceEngine;
@@ -5804,7 +5808,7 @@ app.get('/api/ai/forza-voice-info',async(_req,res)=>{
       .catch(()=>console.warn('[FORZA greeting] warm=deferred voice='+voice));
   }
   res.setHeader('Cache-Control','no-store');
-  res.json({voice,incrementalSpeech:voice==='piper-nima-gyro-medium',ready});
+  res.json({voice,incrementalSpeech:voice==='piper-nima-gyro-medium',ready,workers:voice==='piper-nima-gyro-medium'&&ready?verifiedPrivateVoiceWorkers:1});
 });
 
 const voiceTtsLimits=forzaTtsLimits(process.env);
@@ -5843,7 +5847,9 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
     if(timings.queueMs!==undefined)res.setHeader('X-Forza-Queue-Ms',String(timings.queueMs));
     if(timings.inferenceMs!==undefined)res.setHeader('X-Forza-Inference-Ms',String(timings.inferenceMs));
     res.setHeader('Cache-Control','no-store');
-    res.setHeader('X-Forza-Voice',await resolveForzaVoiceEngine());
+    const activeVoice=await resolveForzaVoiceEngine();
+    res.setHeader('X-Forza-Voice',activeVoice);
+    res.setHeader('X-Forza-TTS-Workers',String(activeVoice==='piper-nima-gyro-medium'?verifiedPrivateVoiceWorkers:1));
     res.setHeader('X-Forza-Voice-Backend',internalForzaVoiceUrl?'private-service':'legacy-local');
     console.info('[FORZA_TTS_STAGE] phase=server_responded turn='+
       String(req.body?.turnId||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40)+
