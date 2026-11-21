@@ -98,7 +98,8 @@ test('native browser SpeechRecognition is disabled because it bypasses the foreg
   assert.ok(mic.includes('recognitionRef.current=null'));
   assert.ok(!mic.includes('initSpeechRecognition()'));
   assert.ok(mic.includes('setupMediaRecorder(route.stream)'));
-  assert.ok(ui.includes('if (!localReady && !micMutedRef.current && recognitionRef.current'));
+  assert.ok(!ui.includes('if (!localReady && !micMutedRef.current && recognitionRef.current'));
+  assert.ok(!ui.includes('new SpeechRec()'));
   assert.match(ui,/دایبا سرور · فقط صدای نزدیک پردازش می‌شود/);
 });
 
