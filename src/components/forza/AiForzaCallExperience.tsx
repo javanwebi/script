@@ -352,57 +352,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,transcript));
     setIsUserSpeaking(true);
   },[]);
-  const startDibaTurn=useCallback(()=>{
-    const model=localSttModelRef.current;
-    if(!model||!localSttNodeRef.current||!ctxRef.current)return false;
-    // Keep one recognizer for the whole call. Recreating it every time the AI
-    // finishes a reply used to erase Vosk's finalized words and any speech
-    // already arriving during the last milliseconds of playback.
-    if(localSttRecognizerRef.current){
-      localSttActiveRef.current=true;
-      liveSttActiveRef.current=true;
-      stopServerLiveStt();
-      return true;
-    }
-    try{
-      const recognizer=new model.KaldiRecognizer(FORZA_DIBA_SAMPLE_RATE);
-      localSttFinalRef.current=activeTranscriptRef.current.trim();
-      const admission=new ForzaRecognitionAdmission();
-      localSttAdmissionRef.current=admission;
-      const update=(value:string,isFinal:boolean)=>{
-        if(localSttRecognizerRef.current!==recognizer)return;
-        acceptDibaHypothesis(value,isFinal);
-      };
-      recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
-      recognizer.on('result',msg=>update(String(msg?.result?.text||''),true));
-      recognizer.on('error',()=>{
-        if(localSttRecognizerRef.current!==recognizer)return;
-        localSttRecognizerRef.current=null;
-        localSttAdmissionRef.current=null;
-        localSttActiveRef.current=false;
-        liveSttActiveRef.current=serverLiveSttActiveRef.current;
-        recognizer.remove?.();
-        setLocalSttStatus('fallback');
-        setServerSttLabel(serverSttConfiguredRef.current
-          ? 'در حال اتصال به تشخیص زنده دایبا روی سرور'
-          : 'دایبا سرور تنظیم نشده؛ تشخیص گفتار در دسترس نیست');
-        void startServerLiveStt();
-      });
-      localSttRecognizerRef.current=recognizer;
-      localSttActiveRef.current=true;
-      liveSttActiveRef.current=true;
-      stopServerLiveStt();
-      return true;
-    }catch(error){
-      localSttAdmissionRef.current=null;
-      localSttActiveRef.current=false;
-      liveSttActiveRef.current=serverLiveSttActiveRef.current;
-      console.warn('[FORZA Diba] Recognizer failed',error);
-      void startServerLiveStt();
-      setLocalSttStatus('fallback');
-      return false;
-    }
-  },[]);
   const startServerLiveStt=useCallback(async()=>{
     if(callClosedRef.current||localSttRecognizerRef.current||serverLiveSttClientRef.current||
        serverLiveSttStartingRef.current)return false;
@@ -478,6 +427,58 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
   },[acceptDibaHypothesis]);
 
+  const startDibaTurn=useCallback(()=>{
+    const model=localSttModelRef.current;
+    if(!model||!localSttNodeRef.current||!ctxRef.current)return false;
+    // Keep one recognizer for the whole call. Recreating it every time the AI
+    // finishes a reply used to erase Vosk's finalized words and any speech
+    // already arriving during the last milliseconds of playback.
+    if(localSttRecognizerRef.current){
+      localSttActiveRef.current=true;
+      liveSttActiveRef.current=true;
+      stopServerLiveStt();
+      return true;
+    }
+    try{
+      const recognizer=new model.KaldiRecognizer(FORZA_DIBA_SAMPLE_RATE);
+      localSttFinalRef.current=activeTranscriptRef.current.trim();
+      const admission=new ForzaRecognitionAdmission();
+      localSttAdmissionRef.current=admission;
+      const update=(value:string,isFinal:boolean)=>{
+        if(localSttRecognizerRef.current!==recognizer)return;
+        acceptDibaHypothesis(value,isFinal);
+      };
+      recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
+      recognizer.on('result',msg=>update(String(msg?.result?.text||''),true));
+      recognizer.on('error',()=>{
+        if(localSttRecognizerRef.current!==recognizer)return;
+        localSttRecognizerRef.current=null;
+        localSttAdmissionRef.current=null;
+        localSttActiveRef.current=false;
+        liveSttActiveRef.current=serverLiveSttActiveRef.current;
+        recognizer.remove?.();
+        setLocalSttStatus('fallback');
+        setServerSttLabel(serverSttConfiguredRef.current
+          ? 'در حال اتصال به تشخیص زنده دایبا روی سرور'
+          : 'دایبا سرور تنظیم نشده؛ تشخیص گفتار در دسترس نیست');
+        void startServerLiveStt();
+      });
+      localSttRecognizerRef.current=recognizer;
+      localSttActiveRef.current=true;
+      liveSttActiveRef.current=true;
+      stopServerLiveStt();
+      return true;
+    }catch(error){
+      localSttAdmissionRef.current=null;
+      localSttActiveRef.current=false;
+      liveSttActiveRef.current=serverLiveSttActiveRef.current;
+      console.warn('[FORZA Diba] Recognizer failed',error);
+      void startServerLiveStt();
+      setLocalSttStatus('fallback');
+      return false;
+    }
+  },[acceptDibaHypothesis,startServerLiveStt,stopServerLiveStt]);
+
   // Start/Stop voice listening helpers
   const startListening = useCallback((monitorOnly=false) => {
     if (callClosedRef.current || !isCallActive || !greetingFinishedRef.current || micMutedRef.current ||
@@ -512,7 +513,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
-  }, [isCallActive, setStatus, startDibaTurn]);
+  }, [isCallActive, setStatus, startDibaTurn,startServerLiveStt]);
 
   const stopListening = useCallback(() => {
     localSttRecognizerRef.current?.remove?.();
