@@ -2097,6 +2097,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         speechAdmissionRef.current.sample(rms,at,
           isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current,
           gateOpen===true);
+        if((window as any).__FORZA_TEST_MODE__===true)
+          (window as any).__forzaSpeechAdmissionDiagnostics=speechAdmissionRef.current.diagnostics(Date.now());
       if(gateOpen===true&&rms>=0.00045)lastForegroundAudioAtRef.current=Date.now();
       },()=>{
         if(microphoneGeneration!==microphoneGenerationRef.current)return;
