@@ -156,45 +156,24 @@ export class ForzaNimaBufferedSpeech {
             // can never overtake each other; later phrases still synthesize
             // while earlier audio is playing.
             const playbackPromises: Promise<void>[] = [];
-            const frameStates: Array<{durationMs:number;playedMs:number;phase:string}> = [];
-            let phraseStarted = false;
+            const frameTexts=splitForzaNimaSentenceText(task.text);
+            let frameIndex=0;
             let frames = 0;
             let wavBytes = 0;
             let durationMs = 0;
             await this.options.synthesizeStream(task.text, this.signal, wav => {
               if (this.cancelled || this.signal.aborted) return;
               const duration = forzaPcmWavDurationSeconds(wav);
-              const frameDurationMs = Math.round(duration * 1000);
-              const state = {durationMs:frameDurationMs,playedMs:0,phase:'queued'};
-              frameStates.push(state);
+              const frameText=frameTexts[frameIndex]||task.text;
+              frameIndex+=1;
               frames += 1;
               wavBytes += wav.byteLength;
-              durationMs += frameDurationMs;
+              durationMs += Math.round(duration * 1000);
               this.totalBufferedSeconds += duration;
-              const played = this.options.player.enqueueWav(wav, progress => {
-                if (progress.phase === 'started') {
-                  state.phase = 'started';
-                  if (!phraseStarted) {
-                    phraseStarted = true;
-                    this.options.onPhraseProgress?.(task.text, {
-                      phase:'started',
-                      playedMs:frameStates.reduce((sum,item)=>sum+item.playedMs,0),
-                      durationMs:frameStates.reduce((sum,item)=>sum+item.durationMs,0),
-                    });
-                  }
-                } else if (progress.phase === 'finished') {
-                  state.phase = 'finished';
-                  state.playedMs = state.durationMs;
-                } else if (progress.phase === 'interrupted') {
-                  state.phase = 'interrupted';
-                  state.playedMs = progress.playedMs;
-                  this.options.onPhraseProgress?.(task.text, {
-                    phase:'interrupted',
-                    playedMs:frameStates.reduce((sum,item)=>sum+item.playedMs,0),
-                    durationMs:frameStates.reduce((sum,item)=>sum+item.durationMs,0),
-                  });
-                }
-              });
+              // Piper emits one frame per sentence. Track echo and barge-in
+              // against that sentence, not future words in the whole phrase.
+              const played = this.options.player.enqueueWav(wav,
+                progress => this.options.onPhraseProgress?.(frameText, progress));
               playbackPromises.push(played);
               this.scheduledPromises.push(played);
             });
@@ -221,11 +200,6 @@ export class ForzaNimaBufferedSpeech {
             void Promise.all(playbackPromises)
               .then(() => {
                 if (!this.cancelled && !this.options.signal?.aborted && task.text) {
-                  this.options.onPhraseProgress?.(task.text, {
-                    phase:'finished',
-                    playedMs:durationMs,
-                    durationMs,
-                  });
                   this.options.onPhrasePlayed?.(task.text);
                 }
               })
