@@ -46,7 +46,9 @@ test('live Diba client starts one 16 kHz session and preserves PCM order while t
   assert.deepEqual(Array.from(new Uint8Array(socket.sent[2])),[3,0,4,0]);
   socket.receive(JSON.stringify({type:'partial',text:'سلام'}));
   socket.receive(JSON.stringify({type:'final',text:'سلام وقت بخیر'}));
-  assert.deepEqual(hypotheses,[['سلام',false],['سلام وقت بخیر',true]]);
+  socket.receive(JSON.stringify({type:'final',text:''}));
+  assert.deepEqual(hypotheses,[['سلام',false],['سلام وقت بخیر',true],['',true]],
+   'empty final boundaries must be delivered to the admission state machine');
   assert.ok(states.includes('warming'));
   assert.ok(states.includes('ready'));
   client.stop();
@@ -54,6 +56,12 @@ test('live Diba client starts one 16 kHz session and preserves PCM order while t
  }finally{
   (globalThis as any).WebSocket=original;
  }
+});
+
+
+test('server forwards empty Diba finals instead of swallowing result boundaries',()=>{
+ const source=readFileSync('server/ai/forzaDibaLiveStt.ts','utf8');
+ assert.match(source,/if \(text \|\| message\.type === 'final'\) send\(socket, \{ type: message\.type, text, streamId \}\)/);
 });
 
 test('live PCM tap connects only to the supplied gated source and forwards bounded PCM buffers',async()=>{
