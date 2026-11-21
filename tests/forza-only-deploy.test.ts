@@ -105,6 +105,12 @@ test("Forza-only release classifier includes only the reviewed call-engine fix p
     "src/components/forza/AiForzaCallExperience.tsx",
     "src/utils/forzaSpeechPipeline.ts",
     "src/utils/forzaAudioEvidence.ts",
+    "src/utils/forzaLiveSttClient.ts",
+    "server/ai/forzaDibaLiveStt.ts",
+    "scripts/forza_diba_live_worker.py",
+    "public/worklets/forza-stt-pcm.js",
+    "tests/forzaLiveSttClient.test.ts",
+    "tests/test_forza_diba_live_worker.py",
     "src/utils/forzaSpeechAdmission.ts",
     "tests/forzaSpeechAdmission.test.ts",
     "tests/forzaBrowserRecognitionLifecycle.test.ts",
@@ -125,6 +131,10 @@ test("Forza-only release classifier includes only the reviewed call-engine fix p
   assert.match(deployWorkflow,/public\/worklets\/forza-foreground-gate\.js/);
   assert.match(deployWorkflow,/scripts\/tests\/forza-local-diba-browser\.cjs/);
   assert.match(deployWorkflow,/tests\/forzaAudioEvidence\.test\.ts/);
+  assert.match(deployWorkflow,/server\/ai\/forzaDibaLiveStt\.ts/);
+  assert.match(deployWorkflow,/scripts\/forza_diba_live_worker\.py/);
+  assert.match(deployWorkflow,/public\/worklets\/forza-stt-pcm\.js/);
+  assert.match(deployWorkflow,/tests\/forzaLiveSttClient\.test\.ts/);
   assert.match(deployWorkflow,/FORZA_ONLY_RELEASE_HAS_UNEXPECTED_FILES/);
 });
 
