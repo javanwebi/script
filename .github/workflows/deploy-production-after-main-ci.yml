@@ -112,7 +112,9 @@ jobs:
           COMMIT_JSON="$(curl --fail --silent --show-error --retry 3 --retry-all-errors -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$DEPLOY_SHA")"
           FILES="$(jq -r '.files[].filename' <<< "$COMMIT_JSON")"
           FORZA_ONLY=1
+          FORZA_MARKER=0
           while IFS= read -r file; do
+            [[ "$file" == "ops/deploy-forza-only-vps.sh" ]] && FORZA_MARKER=1
             case "$file" in
               server.ts|ops/deploy-single-port-vps.sh|ops/deploy-forza-only-vps.sh|ops/verify-forza-only-canary.mjs|tests/forza-only-deploy.test.ts|.github/workflows/forza-conversation-engine.yml|.github/workflows/deploy-production-after-main-ci.yml) ;;
               *) FORZA_ONLY=0 ;;
@@ -121,6 +123,10 @@ jobs:
           for required in server.ts ops/deploy-single-port-vps.sh ops/deploy-forza-only-vps.sh ops/verify-forza-only-canary.mjs tests/forza-only-deploy.test.ts .github/workflows/forza-conversation-engine.yml .github/workflows/deploy-production-after-main-ci.yml; do
             grep -Fxq "$required" <<< "$FILES" || FORZA_ONLY=0
           done
+          if [[ "$FORZA_MARKER" -eq 1 && "$FORZA_ONLY" -ne 1 ]]; then
+            echo "FORZA_ONLY_RELEASE_HAS_UNEXPECTED_FILES; refusing standard deployment" >&2
+            exit 1
+          fi
           if [[ "$FORZA_ONLY" -eq 1 ]]; then
             echo "forza_only=true" >> "$GITHUB_OUTPUT"
             echo "RELEASE_MODE=FORZA_ONLY"
