@@ -79,6 +79,7 @@ test("Forza-only release classifier includes only the reviewed call-engine fix p
   for(const path of [
     "src/components/forza/AiForzaCallExperience.tsx",
     "src/utils/forzaSpeechPipeline.ts",
+    "src/utils/silenceDetector.ts",
     "tests/forza-smart-turn.test.ts",
     "tests/forzaVoiceRecoveryUi.test.ts",
   ]){
