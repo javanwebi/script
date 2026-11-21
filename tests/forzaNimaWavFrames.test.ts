@@ -87,4 +87,8 @@ test('sentence mapping matches Piper boundaries without splitting decimals or pa
     splitForzaNimaSentenceText('Dr. Smith بررسی کرد. نتیجه آماده است.'),
     ['Dr. Smith بررسی کرد.','نتیجه آماده است.'],
   );
+  assert.deepEqual(
+    splitForzaNimaSentenceText('سطر اول\\nسطر دوم'),
+    ['سطر اول','سطر دوم'],
+  );
 });
