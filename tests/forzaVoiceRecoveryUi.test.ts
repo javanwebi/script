@@ -140,15 +140,32 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 });
 
 
-test('server Diba remains a fallback when browser recognition has no transcript',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true && \(!q \|\| !localSttActiveRef\.current\)/);
+test('server Diba is the only fallback and receives foreground-gated recordings',()=>{
+  assert.match(ui,/const needsServerFinal = Boolean\\(audioBlob\\) &&\\s+serverSttConfiguredRef\\.current === true && \\(!q \\|\\| !localSttActiveRef\\.current\\)/);
   assert.match(ui,/transcribeOnly:true/);
-  assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
-  assert.match(ui,/info\.serverSttProvider==='diba'/);
-  assert.match(ui,/info\.serverSttReady===true/);
-  assert.match(ui,/دایبا تنظیم نشده؛ متن زنده مرورگر/);
-  assert.match(ui,/serverSttConfiguredRef=useRef\(false\)/);
-  assert.match(ui,/تشخیص گفتار: \{serverSttLabel\}/);
+  assert.match(ui,/fetch\\('\\/api\\/ai\\/forza-live'/);
+  assert.match(ui,/info\\.serverSttProvider==='diba'/);
+  assert.match(ui,/info\\.serverSttReady===true/);
+  assert.match(ui,/دایبا سرور تنظیم نشده؛ تشخیص گفتار در دسترس نیست/);
+  assert.match(ui,/serverSttConfiguredRef=useRef\\(false\\)/);
+  assert.match(ui,/تشخیص گفتار: \\{serverSttLabel\\}/);
+});
+
+test('all speech consumers receive foreground-gated PCM before STT; native direct-mic Web Speech is disabled',()=>{
+  const start=ui.indexOf('const initializeMicrophone = useCallback(async () => {');
+  const end=ui.indexOf('},[ensureCtx,setupMediaRecorder,startListening,attachLocalStt]);',start);
+  assert.ok(start>=0&&end>start);
+  const mic=ui.slice(start,end);
+  assert.match(mic,/attachForzaAudioEvidence\\(ctx,rawSource/);
+  assert.match(mic,/micSourceNodeRef\\.current=route\\.node/);
+  assert.match(mic,/route\\.node\\.connect\\(analyser\\)/);
+  assert.match(mic,/setupMediaRecorder\\(route\\.stream\\)/);
+  assert.match(mic,/recognitionRef\\.current=null/);
+  assert.doesNotMatch(mic,/initSpeechRecognition\\(\\)/);
+  const gate=readFileSync(new URL('../public/worklets/forza-foreground-gate.js',import.meta.url),'utf8');
+  assert.match(gate,/speechSnrDb >= 11/);
+  assert.match(gate,/highSnrDb >= 2/);
+  assert.match(gate,/registerProcessor\\('forza-foreground-gate'/);
 });
 
 test('a two-second pause preserves the same live transcript across browser recognizer restarts',()=>{
