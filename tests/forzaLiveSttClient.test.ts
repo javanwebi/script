@@ -99,11 +99,11 @@ test('PCM tap emits 200 ms 16 kHz frames from the gated audio thread and endpoin
  vm.runInNewContext(readFileSync('public/worklets/forza-stt-pcm.js','utf8'),scope);
  const processor=new Processor();
  let index=0;
- const feed=(amplitude:number,blocks:number)=>{
+ const feed=(amplitude:number,blocks:number,frequency=1000)=>{
   for(let block=0;block<blocks;block++){
    const input=new Float32Array(128),output=new Float32Array(128);
    for(let i=0;i<input.length;i++){
-    input[i]=amplitude*Math.sin(2*Math.PI*1000*(index++)/48000);
+    input[i]=amplitude*Math.sin(2*Math.PI*frequency*(index++)/48000);
    }
    processor.process([[input]],[[output]]);
   }
@@ -118,7 +118,7 @@ test('PCM tap emits 200 ms 16 kHz frames from the gated audio thread and endpoin
  assert.equal(posted.length,2,'the endpoint receives silence after a real gated speech frame');
  const silence=new Int16Array(posted[1]);
  assert.ok(silence.every(value=>value===0));
- feed(0.25,75); // high-frequency energy must not alias into the speech band
+ feed(0.25,75,12000); // high-frequency energy must not alias into the speech band
  const high=new Int16Array(posted[2]);
  const highRms=Math.sqrt(high.reduce((sum,value)=>sum+(value/32768)**2,0)/high.length);
  assert.ok(highRms<0.04,'anti-alias filtering must suppress high-frequency microphone noise');
