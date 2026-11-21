@@ -111,6 +111,7 @@ test("Forza-only release classifier includes only the reviewed call-engine fix p
     "src/utils/silenceDetector.ts",
     ".github/workflows/forza-browser-smoke.yml",
     ".github/workflows/forza-private-ubuntu-browser.yml",
+    ".github/workflows/forza-nima-private.yml",
     "tests/forza-smart-turn.test.ts",
     "tests/forzaVoiceRecoveryUi.test.ts",
   ]){
