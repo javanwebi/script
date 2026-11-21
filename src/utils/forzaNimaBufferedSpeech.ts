@@ -31,7 +31,7 @@ export interface ForzaNimaBufferedOptions {
   synthesizeStream?: (
     text: string,
     signal: AbortSignal,
-    onFrame: (wav: Uint8Array) => void,
+    onFrame: (wav: Uint8Array, frameText?: string) => void,
   ) => Promise<void>;
   player: ForzaWavScheduler;
   signal?: AbortSignal;
@@ -161,10 +161,10 @@ export class ForzaNimaBufferedSpeech {
             let frames = 0;
             let wavBytes = 0;
             let durationMs = 0;
-            await this.options.synthesizeStream(task.text, this.signal, wav => {
+            await this.options.synthesizeStream(task.text, this.signal, (wav, suppliedFrameText) => {
               if (this.cancelled || this.signal.aborted) return;
               const duration = forzaPcmWavDurationSeconds(wav);
-              const frameText=frameTexts[frameIndex]||task.text;
+              const frameText=suppliedFrameText||frameTexts[frameIndex]||task.text;
               frameIndex+=1;
               frames += 1;
               wavBytes += wav.byteLength;
