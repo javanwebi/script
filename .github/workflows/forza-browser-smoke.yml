@@ -104,7 +104,7 @@ jobs:
           console.log('TEST_GREETING_WAV_FIXTURE_OK bytes=' + wav.length);
           NODE
       - run: npm run build
-      - run: npm install --no-save --ignore-scripts playwright@1.56.1
+      - run: npm install --no-save --ignore-scripts playwright@1.56.1 onnxruntime-web@1.18.0
       - run: npx playwright install --with-deps chromium
       - run: |
           nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/forza-preview.log 2>&1 &
