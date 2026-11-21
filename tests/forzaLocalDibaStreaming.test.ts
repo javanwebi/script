@@ -106,7 +106,7 @@ test('native browser SpeechRecognition is disabled because it bypasses the foreg
   assert.ok(!ui.includes('new SpeechRec()'));
   assert.match(ui,/دایبا سرور زنده · فقط صدای فیلترشده/);
   assert.match(ui,/attachForzaLivePcmTap\(ctx,source/);
-  assert.match(ui,/client\.sendPcm\(pcm\)/);
+  assert.match(ui,/client\?\.sendPcm\(pcm\)/);
   assert.match(ui,/liveSttActiveRef\.current/);
  assert.match(ui,/serverLiveSttReadyAtRef\.current=Date\.now\(\)/);
  assert.match(ui,/startedBeforeLiveReady/);
@@ -143,7 +143,7 @@ test('server Diba status is non-blocking and the streaming pool warms independen
  assert.match(stream,/activeForIp >= 4/);
  assert.match(stream,/MAX_STDIN_BUFFER/);
  const worker=readFileSync('scripts/forza_diba_live_worker.py','utf8');
- assert.match(worker,/KaldiRecognizer\(model, 16000\)/);
+ assert.match(worker,/recognizer_type\(model, 16000\)/);
  assert.match(worker,/PartialResult\(\)/);
  assert.match(worker,/FinalResult\(\)/);
  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
