@@ -75,6 +75,18 @@ test("main CI deploy routes only the exact Forza-only commit through the safe en
   assert.match(entrypoint, /merge-base --is-ancestor/);
 });
 
+test("Forza-only release classifier includes only the reviewed call-engine fix paths",()=>{
+  for(const path of [
+    "src/components/forza/AiForzaCallExperience.tsx",
+    "src/utils/forzaSpeechPipeline.ts",
+    "tests/forza-smart-turn.test.ts",
+    "tests/forzaVoiceRecoveryUi.test.ts",
+  ]){
+    assert.ok(deployWorkflow.includes(path),`release classifier must allow ${path}`);
+  }
+  assert.match(deployWorkflow,/FORZA_ONLY_RELEASE_HAS_UNEXPECTED_FILES/);
+});
+
 test("standalone entrypoint pins origin/main without resetting the server worktree", () => {
   assert.match(entrypoint, /git -C "\$APP" fetch --no-tags origin main/);
   assert.match(entrypoint, /git -C "\$APP" rev-parse FETCH_HEAD/);
