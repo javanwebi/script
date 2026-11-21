@@ -165,6 +165,45 @@ for (let index = 1; index <= 2; index += 1) {
   console.log("FORZA_TTS_SEQUENTIAL_TURN_OK index=" + index + " bytes=" + wav.length);
 }
 
+// The pre-promotion canary accepts both old single-frame Nima workers and the
+// new sentence-frame worker, proving the same-origin stream proxy is usable.
+const streamResponse=await fetch(origin+"/api/ai/forza-speech-stream",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({
+    text:"سلام، شماره فنی قطعه را بفرمایید. سپس اگر ممکن است مدل دستگاه را هم اعلام کنید.",
+    turnId:"forza-deploy-stream-canary-"+Date.now(),
+  }),
+  signal:timeout(75000),
+  cache:"no-store",
+});
+assert.ok(streamResponse.ok,"FORZA_TTS_STREAM_HTTP_"+streamResponse.status);
+assert.equal(streamResponse.headers.get("x-forza-voice"),"piper-nima-gyro-medium",
+  "FORZA_TTS_STREAM_WRONG_VOICE");
+assert.ok((streamResponse.headers.get("content-type")||"").includes("application/x-forza-wav-frames"),
+  "FORZA_TTS_STREAM_BAD_CONTENT_TYPE");
+assert.ok(streamResponse.body,"FORZA_TTS_STREAM_BODY_MISSING");
+const streamReader=streamResponse.body.getReader();
+let streamBuffer=Buffer.alloc(0),streamFrames=0;
+while(true){
+  const {done,value}=await streamReader.read();
+  if(done)break;
+  if(value)streamBuffer=Buffer.concat([streamBuffer,Buffer.from(value)]);
+  while(streamBuffer.length>=4){
+    const length=streamBuffer.readUInt32LE(0);
+    assert.ok(length>=44&&length<=8_000_000,"FORZA_TTS_STREAM_FRAME_LENGTH_INVALID");
+    if(streamBuffer.length<4+length)break;
+    const wav=streamBuffer.subarray(4,4+length);
+    assert.equal(wav.toString("ascii",0,4),"RIFF","FORZA_TTS_STREAM_FRAME_NOT_RIFF");
+    assert.equal(wav.toString("ascii",8,12),"WAVE","FORZA_TTS_STREAM_FRAME_NOT_WAVE");
+    streamFrames++;
+    streamBuffer=streamBuffer.subarray(4+length);
+  }
+}
+assert.equal(streamBuffer.length,0,"FORZA_TTS_STREAM_TRUNCATED_FRAME");
+assert.ok(streamFrames>=1,"FORZA_TTS_STREAM_NO_AUDIO_FRAMES");
+console.log("FORZA_TTS_STREAM_CANARY_OK frames="+streamFrames);
+
 console.log("FORZA_ONLY_CANARY_OK stt=diba liveStt=ready voice=" + voice.voice +
   " incrementalSpeech=" + voice.incrementalSpeech +
   " catalogMigrations=skipped llmRequests=0 audioFiles=0");
