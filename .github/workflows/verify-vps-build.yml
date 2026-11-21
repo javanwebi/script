@@ -152,7 +152,6 @@ jobs:
         run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConversationContinuity.test.ts tests/forzaConsultContract.test.ts
       - name: FORZA TTS budget and error diagnostics regression suite
         run: node --import tsx --test tests/forzaTtsBudget.test.ts tests/forzaVoiceRecoveryUi.test.ts
-        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
       - name: Belt menu semantic guard regression suite
         run: node --import tsx --test tests/catalog-menu-semantic-guard.test.ts
       - name: Belt taxonomy follow-up migration and rollback integration
