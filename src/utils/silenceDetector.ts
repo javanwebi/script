@@ -41,11 +41,19 @@ export function analyzePersianSentenceCompletion(text: string): PersianSentenceA
   // is not the same as ending a conversational turn. Check this BEFORE
   // punctuation: Chrome may auto-insert a full stop on an interim hypothesis.
   const waitingForContinuation =
-    /(?:^|\s)(?:و|که|چون|چونکه|برای|تا|اما|ولی|یا|اگر|یعنی|مثلا|مثلاً|بعد|بعدش|سپس|با|از|در|روی|به|همراه|همچنین|منظورم|میخوام|می‌خوام|میخواهم|می‌خواهم|میخواستم|می‌خواستم|میشه|می‌شه|لطفا|لطفاً|یه|یک|آیا|چطور|چگونه|چقدر|چند|کدام|کدوم|چه|چی|نه)$/.test(clean) ||
-    /(?:نیاز\s+دارم|لازم\s+دارم|برای\s+اینکه|در\s+واقع|به\s+عبارت\s+دیگر|از\s+طرفی|به\s+همراه|صبر\s+کن\s+تا|میخوام\s+بگم|می‌خوام\s+بگم)$/.test(clean);
+    /(?:^|\s)(?:و|که|چون|چونکه|برای|تا|اما|ولی|یا|اگر|یعنی|مثلا|مثلاً|بعد|بعدش|سپس|با|از|در|روی|به|همراه|همچنین|منظورم|میخواستم|می‌خواستم|میشه|می‌شه|لطفا|لطفاً|یه|یک|آیا|چطور|چگونه|چقدر|چند|کدام|کدوم|چه|چی|نه)$/.test(clean) ||
+    /(?:برای\s+اینکه|در\s+واقع|به\s+عبارت\s+دیگر|از\s+طرفی|به\s+همراه|صبر\s+کن\s+تا|میخوام\s+بگم|می‌خوام\s+بگم)$/.test(clean);
   if (waitingForContinuation || ellipsis) {
     return decision(false, false, true, 0.15, 2250,
       'در انتظار ادامه جمله، مشخصات کالا یا اصلاح مشتری');
+  }
+
+  // A short product request ending in "می‌خواهم" or "نیاز دارم" is often
+  // a complete spoken request, not an unfinished clause. Only accept it when
+  // an object has already been spoken; a following connector was rejected above.
+  const directRequestEnd=/(?:میخوام|می‌خوام|میخواهم|می‌خواهم|نیاز\s+دارم|لازم\s+دارم)$/;
+  if(directRequestEnd.test(clean)&&clean.split(/\s+/).length>=3){
+    return decision(true,false,false,0.82,1200,'درخواست مستقیم با موضوع مشخص');
   }
 
   // Stand-alone commands are complete. A longer sentence starting with

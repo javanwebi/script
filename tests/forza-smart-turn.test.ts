@@ -5,10 +5,8 @@ import { appendForzaSpeechSegment, forzaEndOfTurnPauseMs, forzaTurnRemainingWait
 
 test('unfinished Persian intent must not be submitted as a complete request', () => {
   for (const phrase of [
-    'یه تسمه میخوام',
-    'یه تسمه می‌خوام',
-    'من یه بلبرینگ نیاز دارم',
     'یه تسمه میخوام برای',
+    'من یه بلبرینگ نیاز دارم برای',
     'برای دستگاه بسته بندی',
     'نه منظورم',
     'بلبرینگ 6202 نه',
@@ -18,7 +16,7 @@ test('unfinished Persian intent must not be submitted as a complete request', ()
   ]) {
     const result = analyzePersianSentenceCompletion(phrase);
     assert.equal(result.isComplete, false, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 4800, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 15_000, phrase);
   }
 });
 
@@ -32,7 +30,28 @@ test('a two-second pause never finalizes even a linguistically complete question
   ]) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 4200, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 5_500, phrase);
+  }
+});
+
+test('ambiguous multiword industrial requests are not split by a five-second pause',()=>{
+  for(const phrase of ['من برای خط بسته بندی','تسمه تایمینگ برای دستگاه بسته بندی']){
+    assert.equal(analyzePersianSentenceCompletion(phrase).isComplete,false,phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase,false)>=15_000,phrase);
+  }
+  assert.ok(forzaEndOfTurnPauseMs('بلبرینگ 6202 نه',false)>=25_000);
+});
+
+test('direct Persian product requests ending in want/need are complete unless a continuation follows',()=>{
+  for(const phrase of ['یه تسمه میخوام','یه تسمه می‌خوام','من یه بلبرینگ نیاز دارم','تسمه تایمینگ میخواهم']){
+    const result=analyzePersianSentenceCompletion(phrase);
+    assert.equal(result.isComplete,true,phrase);
+    assert.equal(result.confidence,0.82,phrase);
+    assert.equal(forzaEndOfTurnPauseMs(phrase,false),9_000,phrase);
+  }
+  for(const phrase of ['یه تسمه میخوام برای','من یه بلبرینگ نیاز دارم برای']){
+    assert.equal(analyzePersianSentenceCompletion(phrase).isComplete,false,phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase,false)>=25_000,phrase);
   }
 });
 
@@ -61,7 +80,7 @@ test('only explicit control commands bypass the two-second continuation window',
 test('provisional WebSpeech requires more time than a stable finalized hypothesis', () => {
   const phrase='تسمه SPA 1250 موجود دارید';
   assert.ok(forzaEndOfTurnPauseMs(phrase, true)>forzaEndOfTurnPauseMs(phrase, false));
-  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=4600);
+  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=30_000);
 });
 
 test('two-second acoustic pauses leave the customer turn open for more words', () => {
@@ -113,6 +132,11 @@ test('code correction after a mid-turn pause extends the decision window', () =>
   const pause=forzaEndOfTurnPauseMs(incomplete,false);
   assert.ok(forzaTurnRemainingWaitMs(incomplete,false,700,700)>0);
   assert.equal(forzaTurnRemainingWaitMs(incomplete,false,pause+1,pause+1),0);
+});
+
+test('empty recognition waits longer for delayed STT before server fallback',()=>{
+  assert.equal(forzaEndOfTurnPauseMs('',false),10_000);
+  assert.equal(forzaTurnRemainingWaitMs('',true,0,0),0);
 });
 
 test('do not dispatch empty recognition hypotheses', () => {

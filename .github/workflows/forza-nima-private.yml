@@ -16,6 +16,7 @@ on:
       - src/utils/forzaIncrementalSpeechText.ts
       - src/utils/forzaNimaBufferedSpeech.ts
       - public/worklets/forza-speech-evidence.js
+      - public/worklets/forza-foreground-gate.js
       - src/utils/forzaAudioEvidence.ts
       - tests/forzaAudioEvidence.test.ts
       - src/utils/forzaSpeechAdmission.ts
