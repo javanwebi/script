@@ -609,6 +609,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // events survive endpoint reset, while distant/background speech is rejected.
         if(current.speechStarted&&speechStartedAtRef.current===0)speechStartedAtRef.current=micNow;
         if(current.speechStarted||current.speaking)lastMicActivityRef.current=micNow;
+        if(localSttActiveRef.current&&!serverLiveSttActiveRef.current&&
+           !serverLiveSttClientRef.current&&lastForegroundAudioAtRef.current>0&&
+           micNow-lastForegroundAudioAtRef.current<450&&
+           micNow-lastDibaHypothesisAtRef.current>3000){
+          console.warn('[FORZA_STT] local_diba_partial_timeout=1 switching_to_server_live=1');
+          void startServerLiveStt(true);
+        }
         setAudioLevel(current.level);
         if(current.speechStarted && speechAdmissionRef.current.acousticSpeech){
           hasSpeechSoundRef.current=true;
@@ -697,7 +704,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       window.clearInterval(micPoll);
       if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
     };
-  },[]);
+  },[startServerLiveStt]);
 
   // Compute reactive mode for Three.js ParticleAvatar
   const avatarMode = status === 'speaking' ? 'speak' : status === 'listening' ? 'listen' : 'auto';
