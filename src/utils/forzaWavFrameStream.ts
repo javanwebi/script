@@ -77,3 +77,37 @@ export async function consumeForzaWavFrameStream(
     reader.releaseLock();
   }
 }
+
+/** Backwards-compatible reader for the original Pocket/Amir full-WAV stream.
+ * Nima's live path uses consumeForzaWavFrameStream directly with its own
+ * voice identity check and progressive scheduling.
+ */
+export async function readForzaWavFrames(
+  response: Response,
+  onFrame: (frame: Uint8Array) => void,
+): Promise<number> {
+  if (!response.ok || !response.body)
+    throw new Error('forza_stream_http_' + response.status);
+  if (!(response.headers.get('Content-Type') || '').includes('application/x-forza-wav-frames'))
+    throw new Error('forza_stream_wrong_content_type');
+  const voice=response.headers.get('X-Forza-Voice');
+  if (voice !== 'pocket-farsi-v2' && voice !== 'piper-amir-medium')
+    throw new Error('forza_stream_wrong_voice');
+  try {
+    const result=await consumeForzaWavFrameStream(
+      response.body,onFrame,undefined,{maxFrames:256}
+    );
+    return result.frames;
+  } catch (error) {
+    const code=error instanceof Error?error.message:'unknown';
+    const legacyCode:Record<string,string>={
+      forza_tts_truncated_frame:'forza_stream_truncated',
+      forza_tts_invalid_frame_length:'forza_stream_invalid_frame_length',
+      forza_tts_invalid_wav_frame:'forza_stream_invalid_wav',
+      forza_tts_stream_too_large:'forza_stream_too_large',
+      forza_tts_too_many_frames:'forza_stream_too_many_frames',
+      forza_tts_empty_stream:'forza_stream_truncated',
+    };
+    throw new Error(legacyCode[code]||code);
+  }
+}
