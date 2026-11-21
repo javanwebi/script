@@ -18,7 +18,7 @@ test('unfinished Persian intent must not be submitted as a complete request', ()
   ]) {
     const result = analyzePersianSentenceCompletion(phrase);
     assert.equal(result.isComplete, false, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 4800, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 15_000, phrase);
   }
 });
 
@@ -32,8 +32,16 @@ test('a two-second pause never finalizes even a linguistically complete question
   ]) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 4200, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 5_500, phrase);
   }
+});
+
+test('ambiguous multiword industrial requests are not split by a five-second pause',()=>{
+  for(const phrase of ['من برای خط بسته بندی','تسمه تایمینگ برای دستگاه بسته بندی']){
+    assert.equal(analyzePersianSentenceCompletion(phrase).isComplete,false,phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase,false)>=15_000,phrase);
+  }
+  assert.ok(forzaEndOfTurnPauseMs('بلبرینگ 6202 نه',false)>=25_000);
 });
 
 test('a fixed word count or an unclosed question is NOT proof of completion', () => {
@@ -61,7 +69,7 @@ test('only explicit control commands bypass the two-second continuation window',
 test('provisional WebSpeech requires more time than a stable finalized hypothesis', () => {
   const phrase='تسمه SPA 1250 موجود دارید';
   assert.ok(forzaEndOfTurnPauseMs(phrase, true)>forzaEndOfTurnPauseMs(phrase, false));
-  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=4600);
+  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=30_000);
 });
 
 test('two-second acoustic pauses leave the customer turn open for more words', () => {
