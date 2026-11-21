@@ -132,7 +132,7 @@ function wav(seconds=0.2){
   assert.equal(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0),farFrames,
    'distant PCM must not reach the STT recognizer');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal(''));
-  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
+  await page.evaluate(()=>{window.__forzaMicSample=0.008;});
   await page.waitForTimeout(450);
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('می خواهم مشخصات تسمه تایمینگ را بدانم'));
   await page.getByText('می خواهم مشخصات تسمه تایمینگ را بدانم',{exact:true}).waitFor({timeout:1500});
@@ -152,7 +152,7 @@ function wav(seconds=0.2){
   await page.waitForFunction(()=>window.__forzaVoskCreated===1,null,{timeout:8000});
   assert.equal(await page.evaluate(()=>window.__forzaVoskCreated),1,
    'the same local recognizer must survive the second voice turn too');
-  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
+  await page.evaluate(()=>{window.__forzaMicSample=0.008;});
   await page.waitForTimeout(450);
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('برای دستگاه بسته بندی تسمه PU می خواهم'));
   await page.waitForFunction(text=>document.body.innerText.includes(text),'برای دستگاه بسته بندی تسمه PU می خواهم',{timeout:1500});
