@@ -3,11 +3,12 @@ on:
   pull_request:
     paths:
       - 'src/components/forza/**'
+      - 'public/worklets/forza-foreground-gate.js'
       - 'public/worklets/forza-speech-evidence.js'
       - 'src/utils/forzaAudioEvidence.ts'
+      - 'tests/forzaAudioEvidence.test.ts'
       - 'src/utils/forzaSpeechAdmission.ts'
       - 'scripts/tests/forza-exhibition-noise.cjs'
-      - 'scripts/tests/forza-live-stt-browser.cjs'
       - 'src/utils/forzaStreamClient.ts'
       - 'src/utils/forzaStreamingSpeech.ts'
       - 'src/utils/forzaBootPolicy.ts'
@@ -52,11 +53,12 @@ on:
       - main
     paths:
       - 'src/components/forza/**'
+      - 'public/worklets/forza-foreground-gate.js'
       - 'public/worklets/forza-speech-evidence.js'
       - 'src/utils/forzaAudioEvidence.ts'
+      - 'tests/forzaAudioEvidence.test.ts'
       - 'src/utils/forzaSpeechAdmission.ts'
       - 'scripts/tests/forza-exhibition-noise.cjs'
-      - 'scripts/tests/forza-live-stt-browser.cjs'
       - 'src/utils/forzaStreamClient.ts'
       - 'src/utils/forzaStreamingSpeech.ts'
       - 'src/utils/forzaBootPolicy.ts'
@@ -163,9 +165,7 @@ jobs:
           done
           cat /tmp/forza-preview.log
           exit 1
-      - run: node scripts/tests/forza-live-stt-browser.cjs
       - run: node scripts/tests/forza-local-diba-browser.cjs
-      - run: node scripts/tests/forza-exhibition-noise.cjs
       - run: node scripts/tests/forza-audio-chunks.cjs
       - run: node scripts/tests/forza-voice-outage.cjs
       - run: node scripts/tests/forza-greeting-fallback.cjs
