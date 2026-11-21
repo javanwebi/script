@@ -39,13 +39,24 @@ export class ForzaLiveSttClient {
   sendPcm(pcm: ArrayBuffer): void {
     if (!this.running || !(pcm instanceof ArrayBuffer) || pcm.byteLength === 0 || pcm.byteLength > 48_000) return;
     const socket = this.socket;
-    if (this.ready && socket?.readyState === WebSocket.OPEN &&
-        socket.bufferedAmount <= this.maxBufferedAmount) {
-      try { socket.send(pcm); return; } catch {}
+    if (this.ready && socket?.readyState === WebSocket.OPEN) {
+      this.flushPending(socket);
+      if (socket.bufferedAmount <= this.maxBufferedAmount && this.pendingFrames.length === 0) {
+        try { socket.send(pcm); return; } catch {}
+      }
     }
     // A bounded 1.6-second replay buffer recovers brief network/worker reconnects.
     this.pendingFrames.push(pcm.slice(0));
     if (this.pendingFrames.length > 8) this.pendingFrames.shift();
+  }
+
+  private flushPending(socket: WebSocket): void {
+    while (this.pendingFrames.length && socket.readyState === WebSocket.OPEN &&
+           socket.bufferedAmount <= this.maxBufferedAmount) {
+      const frame = this.pendingFrames[0];
+      try { socket.send(frame); this.pendingFrames.shift(); }
+      catch { break; }
+    }
   }
 
   private connect(initial: boolean): Promise<void> {
@@ -95,15 +106,7 @@ export class ForzaLiveSttClient {
           this.ready = true;
           this.retryCount = 0;
           this.options.onState?.('ready');
-          const buffered = this.pendingFrames;
-          this.pendingFrames = [];
-          for (const frame of buffered) {
-            if (socket.readyState !== WebSocket.OPEN || socket.bufferedAmount > this.maxBufferedAmount) {
-              this.pendingFrames.push(frame);
-              continue;
-            }
-            try { socket.send(frame); } catch { this.pendingFrames.push(frame); }
-          }
+          this.flushPending(socket);
           finish();
           return;
         }
