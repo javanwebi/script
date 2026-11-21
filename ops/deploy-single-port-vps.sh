@@ -724,7 +724,7 @@ if [[ "$FORZA_ONLY" == "1" && -f "$APP/.local-vision-enabled" ]]; then
     fetch("http://127.0.0.1:3000/api/ai/local-vision-status",{signal:AbortSignal.timeout(8000)})
       .then(async r=>{if(!r.ok)throw new Error("LIVE_VISION_STATUS_HTTP_"+r.status);console.log(JSON.stringify(await r.json()))})
       .catch(e=>{console.error(e.message);process.exit(1)})')"
-  printf '%s\\n' "$LIVE_VISION_STATUS" | node -e '
+  printf '%s\n' "$LIVE_VISION_STATUS" | node -e '
     let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
       const d=JSON.parse(s);
       if(!d.enabled || !d.ready || !Number.isInteger(d.total) ||
