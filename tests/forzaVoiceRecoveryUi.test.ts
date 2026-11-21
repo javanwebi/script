@@ -156,7 +156,7 @@ test('a two-second pause preserves the same live transcript across browser recog
   assert.match(ui,/recognitionSessionBaseRef\.current=activeTranscriptRef\.current\.trim\(\)/);
   assert.match(ui,/appendForzaSpeechSegment\(recognitionSessionBaseRef\.current,currentSpeech\)/);
   assert.match(ui,/: 10_000;/);
-  assert.match(ui,/Math\.max\(5200,pauseMs\)-acousticSilence/);
+  assert.match(ui,/Math\.max\(10_000,pauseMs\)-acousticSilence/);
   assert.match(speechPipeline,/hasInterim\?6_500:5_500/);
 });
 
@@ -183,7 +183,7 @@ test('local Diba keeps one recognizer and appends finalized segments across repl
 
 test('VAD waits for delayed speech text before stopping an empty transcript recording',()=>{
   assert.match(ui,/: 10_000;/);
-  assert.match(ui,/Math\.max\(0,Math\.max\(5200,pauseMs\)-acousticSilence\)/);
+  assert.match(ui,/Math\.max\(0,Math\.max\(10_000,pauseMs\)-acousticSilence\)/);
   assert.match(ui,/turnDispatchPendingRef\.current=true/);
   assert.match(ui,/if\(turnDispatchPendingRef\.current && !\(q && forzaTurnIntent\(q\)==='stop'\)\)return/);
 });
