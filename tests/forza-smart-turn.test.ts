@@ -7,7 +7,6 @@ test('unfinished Persian intent must not be submitted as a complete request', ()
   for (const phrase of [
     'یه تسمه میخوام برای',
     'من یه بلبرینگ نیاز دارم برای',
-    'یه تسمه میخوام برای',
     'برای دستگاه بسته بندی',
     'نه منظورم',
     'بلبرینگ 6202 نه',
