@@ -376,14 +376,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         localSttActiveRef.current=false;
         recognizer.remove?.();
         setLocalSttStatus('fallback');
-        // If the local WASM recognizer fails, immediately return to the
-        // persistent browser recognizer. Its restart handler will run after
-        // the current session's onend event.
-        if(greetingFinishedRef.current&&!micMutedRef.current){
-          recognitionFailedRef.current=false;
-          webSpeechFailedRef.current=false;
-          recognitionStartRef.current();
-        }
+        // Do not reopen the raw microphone through a browser recognizer.
+        // The existing MediaRecorder continues to hold only gated PCM and
+        // server Diba will transcribe it when the customer finishes speaking.
+        setServerSttLabel(serverSttConfiguredRef.current
+          ? 'دایبا سرور آماده است · تشخیص پس از پایان گفتار'
+          : 'دایبا سرور تنظیم نشده؛ تشخیص گفتار در دسترس نیست');
       });
       localSttRecognizerRef.current=recognizer;
       localSttActiveRef.current=true;
