@@ -138,8 +138,7 @@ export class ForzaIncrementalSpeechText {
     if (end < minWordCut) return 0;
 
     const prefix = text.slice(0, end).trimEnd();
-    const endsAtPunctuation = /[،,؛;:!?؟…—–]$/u.test(prefix) ||
-      /(?<!\d)\.$/u.test(prefix);
+    const endsAtPunctuation = /[،,؛;:!?؟.…—–]$/u.test(prefix);
     if (endsAtPunctuation) {
       let nextBoundary = -1;
       for (let index = end + 1; index < Math.min(text.length, maxBoundary); index++) {
