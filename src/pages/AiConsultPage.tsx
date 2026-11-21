@@ -53,6 +53,12 @@ import {
   DinCalculatorIcon,
   VisualScannerIcon,
   LiveVoiceIcon,
+  BeltIcon,
+  PulleyIcon,
+  BearingIcon,
+  ChainCouplingIcon,
+  KilnRollerIcon,
+  MechanicalSealIcon,
 } from '../components/forza/ForzaWorkspaceIcons';
 import { DinCalculatorModal, WorkspaceSettingsModal } from '../components/forza/ForzaWorkspaceModals';
 import { CognivoGeometricLogo } from '../components/common/AiFloatingButton';
@@ -108,11 +114,13 @@ interface PartCategoryOption {
   subtitle: string;
   defaultApplication: string;
   recommendedParams: string;
+  icon: React.ComponentType<{ className?: string; size?: number }>;
 }
 
 const PART_CATEGORIES: PartCategoryOption[] = [
   {
     id: 'belts',
+    icon: BeltIcon,
     title: 'تسمه‌های انتقال قدرت و تایمینگ',
     subtitle: 'V-Belt، تایمینگ PU و کلروپرن، شیاردار، جوشی',
     defaultApplication: 'سیستم‌های انتقال قدرت الکتروموتور و شفت',
@@ -120,6 +128,7 @@ const PART_CATEGORIES: PartCategoryOption[] = [
   },
   {
     id: 'pulleys',
+    icon: PulleyIcon,
     title: 'پولی‌ها و چرخ‌تسمه‌های صنعتی',
     subtitle: 'تایمینگ دندانه‌دار، گوه، تیپرلاک FORZA، چدنی',
     defaultApplication: 'شفت الکتروموتور و گیربکس خطوط تولید',
@@ -127,6 +136,7 @@ const PART_CATEGORIES: PartCategoryOption[] = [
   },
   {
     id: 'bearings',
+    icon: BearingIcon,
     title: 'بلبرینگ‌ها و یاتاقان‌ها',
     subtitle: 'شیار عمیق، رولربیرینگ، یاتاقان بلبرینگ صنعتی',
     defaultApplication: 'محورها و شفت‌های دوار با دور بالا',
@@ -134,6 +144,7 @@ const PART_CATEGORIES: PartCategoryOption[] = [
   },
   {
     id: 'chains',
+    icon: ChainCouplingIcon,
     title: 'زنجیرها، چرخ‌دنده‌ها و کوپلینگ‌ها',
     subtitle: 'زنجیر تک‌ردیفه و دوبل، دنده‌زنجیر، کوپلینگ رابر',
     defaultApplication: 'انتقال گشتاور و نوار نقاله‌های بار سنگین',
@@ -141,6 +152,7 @@ const PART_CATEGORIES: PartCategoryOption[] = [
   },
   {
     id: 'kiln',
+    icon: KilnRollerIcon,
     title: 'قطعات خطوط کوره، کاشی و سرامیک',
     subtitle: 'رولیک نسوز، لاستیک کوره، تسمه‌های حرارتی',
     defaultApplication: 'کوره رولری پخت کاشی و خطوط لعاب‌کاری',
@@ -148,6 +160,7 @@ const PART_CATEGORIES: PartCategoryOption[] = [
   },
   {
     id: 'other',
+    icon: MechanicalSealIcon,
     title: 'سایر قطعات مکانیکی و ساختنی',
     subtitle: 'کاسه‌نمد، بوش‌های برنزی، واشرها و قطعات خاص',
     defaultApplication: 'آب‌بندی و نگهداری تخصصی تجهیزات کارخانه',
@@ -1447,7 +1460,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-                  {PART_CATEGORIES.map(category => (
+                  {PART_CATEGORIES.map(category => {
+                    const CategoryIcon = category.icon;
+                    return (
                     <button
                       key={category.id}
                       type="button"
@@ -1466,7 +1481,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                               : 'bg-[#F5F6F6] text-[#55565A]'
                           }`}
                         >
-                          <VisualScannerIcon size={16} className="w-3.5 h-3.5" />
+                          <CategoryIcon size={17} className="w-4 h-4" />
                         </div>
                         {selectedPartCategory === category.id && (
                           <Check className="w-3.5 h-3.5 text-[#E06518]" />
@@ -1486,7 +1501,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         </p>
                       </div>
                     </button>
-                  ))}
+                    );
+                  })
                 </div>
               </div>
 
