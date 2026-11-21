@@ -1,0 +1,114 @@
+/* FORZA VISION optical HUD accents ported from the approved ZIP design.
+   Kept in a separate file so the newer camera, region-review and ranking styles remain authoritative. */
+
+.fv-workbench {
+  background-color: #fff;
+  color: #2b313a;
+}
+
+.fv-camera-stage {
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.fv-corner-brackets {
+  background:
+    linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)) top left/28px 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)) top left/3px 28px no-repeat,
+    linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)) top right/28px 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)) top right/3px 28px no-repeat,
+    linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)) bottom left/28px 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)) bottom left/3px 28px no-repeat,
+    linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)) bottom right/28px 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)) bottom right/3px 28px no-repeat;
+}
+
+@keyframes fv-scan-sweep {
+  0% { top: 30%; opacity: 0; }
+  15%, 85% { opacity: .85; }
+  100% { top: 72%; opacity: 0; }
+}
+
+.fv-scan-laser {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 0;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg,transparent,#e06518 50%,transparent);
+  box-shadow: 0 0 12px rgba(224,101,24,.65);
+  animation: fv-scan-sweep 2.8s cubic-bezier(.4,0,.2,1) infinite;
+}
+
+/* Match the camera-reference selector's specificity so the ZIP laser animation wins. */
+.sanat-camera-reference .fv-scan-laser {
+  left: 10px;
+  right: 10px;
+  top: 30%;
+  background: linear-gradient(90deg,transparent,#e06518 50%,transparent);
+  box-shadow: 0 0 12px rgba(224,101,24,.65);
+  animation: fv-scan-sweep 2.8s cubic-bezier(.4,0,.2,1) infinite;
+}
+
+.fv-lens-bracket {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 16px;
+  z-index: 10;
+  transition:
+    left 260ms cubic-bezier(.16,1,.3,1),
+    top 260ms cubic-bezier(.16,1,.3,1),
+    width 260ms cubic-bezier(.16,1,.3,1),
+    height 260ms cubic-bezier(.16,1,.3,1);
+}
+
+.fv-lens-bracket--box-mask { box-shadow: 0 0 0 9999px rgba(17,21,28,.56); }
+.fv-lens-bracket--light-mask { box-shadow: 0 0 0 9999px rgba(255,255,255,.52); }
+
+@keyframes fv-bracket-lock {
+  0% { transform: scale(1.045); opacity: .72; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.fv-lens-bracket--locking { animation: fv-bracket-lock 320ms cubic-bezier(.16,1,.3,1); }
+
+.fv-lens-corner {
+  position: absolute;
+  width: clamp(12px,28%,22px);
+  height: clamp(12px,28%,22px);
+  border-color: #fff;
+  border-style: solid;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,.55));
+  pointer-events: none;
+}
+.fv-lens-corner--dark {
+  border-color: #2b313a;
+  filter: drop-shadow(0 1px 3px rgba(255,255,255,.65));
+}
+.fv-lens-corner--tl {
+  top: -1.5px; left: -1.5px;
+  border-width: 3.5px 0 0 3.5px;
+  border-top-left-radius: 14px;
+}
+.fv-lens-corner--tr {
+  top: -1.5px; right: -1.5px;
+  border-width: 3.5px 3.5px 0 0;
+  border-top-right-radius: 14px;
+}
+.fv-lens-corner--bl {
+  bottom: -1.5px; left: -1.5px;
+  border-width: 0 0 3.5px 3.5px;
+  border-bottom-left-radius: 14px;
+}
+.fv-lens-corner--br {
+  bottom: -1.5px; right: -1.5px;
+  border-width: 0 3.5px 3.5px 0;
+  border-bottom-right-radius: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fv-lens-bracket { transition: none; }
+  .fv-scan-laser, .fv-lens-bracket--locking { animation: none; }
+}
