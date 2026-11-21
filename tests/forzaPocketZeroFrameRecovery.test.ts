@@ -7,7 +7,7 @@ const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
 
 test('selected Nima uses incremental phrases; Pocket compatibility fallback remains one complete WAV',()=>{
   assert.doesNotMatch(ui,/allowFallback:true|zero-frame-recover|ForzaLiveSpeechQueue/);
-  assert.match(ui,/const response=await fetch\('\/api\/ai\/forza-speech'/);
+  assert.match(ui,/response=await fetch\('\/api\/ai\/forza-speech'/);
   assert.match(ui,/await activeNimaBuffer\.finish\(\)/);
   assert.match(ui,/if\(useNima\)/);
   assert.match(ui,/playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort\.signal,/);
