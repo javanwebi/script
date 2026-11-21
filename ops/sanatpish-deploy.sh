@@ -111,7 +111,7 @@ fi
 
 docker run --rm --pull=never --network "$DOCKER_NETWORK" \
   --mount "type=bind,source=$stage,target=/app" -w /app \
-  "$NODE_IMAGE" sh -ec 'npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8 && mkdir -p public/forza-runtime/stt && cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js'
+  "$NODE_IMAGE" sh -ec 'npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8 onnxruntime-web@1.18.0 && mkdir -p public/forza-runtime/stt public/forza-runtime/ort && cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js && cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/ && node scripts/prepare-vision-assets.mjs'
 
 docker run --rm --pull=never --network "$DOCKER_NETWORK" \
   --mount "type=bind,source=$stage,target=/app" -w /app \
