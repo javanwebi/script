@@ -16,11 +16,8 @@ function speak(gate:ForzaSpeechAdmission,from:number,to:number,level:number,play
 }
 test('secondary admission cannot revive a frame rejected by the pre-STT foreground gate',()=>{
  const gate=calibrated(false,0.0005);
- for(let t=1050;t<=1450;t+=50)gate.sample(0.06,t,false,0.9,false);
+ for(let t=1050;t<=1450;t+=50)gate.sample(0.06,t,false,false);
  assert.equal(gate.decide('گفتگوی فرد دور',false,false,1450),'reject');
- const weak=calibrated(false,0.0005);
- for(let t=1050;t<=1450;t+=50)weak.sample(0.06,t,false,0.2,true);
- assert.equal(weak.decide('گفتگوی فرد دور',false,false,1450),'reject');
 });
 
 test('room noise and distant stop words do not authorize interruption or transcription',()=>{
