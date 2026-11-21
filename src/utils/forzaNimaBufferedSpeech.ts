@@ -12,6 +12,7 @@
  */
 
 import type {ForzaWavPlaybackProgress} from './forzaContinuousWav';
+import {splitForzaNimaSentenceText} from './forzaNimaWavFrames';
 
 export interface ForzaWavScheduler {
   enqueueWav(wav: Uint8Array,onProgress?: (info:ForzaWavPlaybackProgress)=>void): Promise<void>;
