@@ -1952,14 +1952,14 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "بلبرینگ‌های صنعتی در سایزهای مختلف"
   },
   "FAM-34064": {
-    "categorySlug": "excel-v2-10-1",
-    "submenuName": "اسپاتول سیلیکونی",
-    "leafName": "انواع سایزهای اسپاتول سیلیکونی جهت دستگاه چاپ"
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": "T5 , AT5 , AT10 , AT20"
   },
   "FAM-34067": {
-    "categorySlug": "excel-v2-10-1",
-    "submenuName": "اسپاتول سیلیکونی",
-    "leafName": "انواع سایزهای اسپاتول سیلیکونی جهت دستگاه چاپ"
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": "T5 , AT5 , AT10 , AT20"
   },
   "FAM-34074": {
     "categorySlug": "excel-v2-9-3",
