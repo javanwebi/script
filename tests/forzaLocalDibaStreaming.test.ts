@@ -138,7 +138,7 @@ test('server Diba status is non-blocking and the streaming pool warms independen
  assert.match(server,/void warmForzaDibaLiveStt\(\)\.then/,
   'the streaming worker pool must warm before the first low-power call');
  assert.match(server,/setupForzaDibaLiveSttWebSocket\(server\)/);
- assert.match(status,/serverLiveSttConfigured:dibaConfigured/);
+ assert.match(status,/serverLiveSttConfigured:isForzaDibaLiveSttConfigured\(\)/);
  assert.match(status,/serverLiveSttReady:choice\.provider==='diba'\?isForzaDibaLiveSttReady\(\)/);
  const stream=readFileSync('server/ai/forzaDibaLiveStt.ts','utf8');
  assert.match(stream,/MAX_SESSIONS = 40/);
@@ -149,8 +149,8 @@ test('server Diba status is non-blocking and the streaming pool warms independen
  assert.match(worker,/PartialResult\(\)/);
  assert.match(worker,/FinalResult\(\)/);
  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
- assert.match(ui,/const dibaConfigured=info\.serverSttProvider==='diba'&&info\.serverSttConfigured===true/);
- assert.match(ui,/serverSttConfiguredRef\.current=dibaConfigured/);
+ assert.match(ui,/const dibaLiveConfigured=info\.serverSttProvider==='diba'&&info\.serverLiveSttConfigured===true/);
+ assert.match(ui,/serverLiveSttConfiguredRef\.current=dibaLiveConfigured/);
  assert.match(ui,/attempts<12/,
   'the browser should poll a configured but cold worker instead of permanently disabling fallback');
 });
