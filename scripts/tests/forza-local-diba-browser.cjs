@@ -139,6 +139,7 @@ function wav(seconds=0.2){
   assert.equal(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0),farFrames,
    'distant PCM must not reach the STT recognizer');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal(''));
+  await page.waitForFunction(()=>window.__forzaDibaHypothesisDebug?.reason==='empty_final_boundary',null,{timeout:1000});
   await page.evaluate(()=>{window.__forzaMicSample=0.02;});
   await page.waitForTimeout(1000);
   console.log('FORZA_ADMISSION_DIAGNOSTICS',JSON.stringify(await page.evaluate(()=>window.__forzaSpeechAdmissionDiagnostics||null)));
@@ -148,6 +149,8 @@ function wav(seconds=0.2){
   await page.waitForTimeout(100);
   console.log('FORZA_DIBA_HYPOTHESIS_DEBUG',JSON.stringify(await page.evaluate(()=>window.__forzaDibaHypothesisDebug||null)));
   await page.waitForFunction(text=>document.body.innerText.includes(text),'می خواهم مشخصات تسمه تایمینگ را بدانم',{timeout:1500});
+  assert.equal(await page.evaluate(()=>window.__forzaDibaHypothesisDebug?.reason),'accepted',
+   'a fresh foreground utterance must be admitted after an empty Diba final boundary');
   assert.ok(await page.evaluate(()=>window.__forzaVoskFrames||0)>0,'local recognizer must receive live PCM frames');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal('تسمه تایمینگ چیست؟'));
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
