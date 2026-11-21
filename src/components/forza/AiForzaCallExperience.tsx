@@ -343,6 +343,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(isFinal)admission.reset();
     if(admitted.rejected)rejectedRecordingRef.current=true;
     if(!admitted.changed)return;
+    if(localSttActiveRef.current&&!serverLiveSttActiveRef.current)
+      liveSttActiveRef.current=true;
     lastDibaHypothesisAtRef.current=Date.now();
     const recognized=extractPersianSpeechSince(admitted.results,0);
     if(isFinal&&recognized.text)
@@ -366,6 +368,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const ctx=ctxRef.current,source=micSourceNodeRef.current;
     if(!ctx||!source)return false;
     serverLiveSttStartingRef.current=true;
+    if(forceLocalFallback)liveSttActiveRef.current=false;
     let client:ForzaLiveSttClient|null=null;
     try{
       if(!serverLiveSttConfiguredRef.current){
@@ -430,11 +433,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_STT] provider=diba-server-live foreground_gate=1 ready=1');
           }else if(state==='reconnecting'||state==='connecting'||state==='warming'){
             serverLiveSttActiveRef.current=false;
-            liveSttActiveRef.current=localSttActiveRef.current;
+            liveSttActiveRef.current=forceLocalFallback?false:localSttActiveRef.current;
             setServerSttLabel('اتصال مجدد به تشخیص زنده دایبا...');
           }else if(state==='failed'){
             serverLiveSttActiveRef.current=false;
-            liveSttActiveRef.current=localSttActiveRef.current;
+            liveSttActiveRef.current=forceLocalFallback?false:localSttActiveRef.current;
             setServerSttLabel('تشخیص زنده دایبا موقتاً قطع شد؛ مسیر پشتیبان فعال است');
             console.warn('[FORZA_STT] provider=diba-server-live unavailable code='+
               String(code||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
