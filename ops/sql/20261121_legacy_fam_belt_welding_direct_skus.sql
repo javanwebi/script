@@ -205,24 +205,24 @@ BEGIN
   LEFT JOIN public.catalog_direct_skus d ON d.sku_code=s.sku_code
   ON CONFLICT (sku_code) DO UPDATE SET
     name=CASE
-      WHEN trim(public.catalog_direct_skus.name)='' THEN excluded.name
-      ELSE public.catalog_direct_skus.name
+      WHEN trim(catalog_direct_skus.name)='' THEN excluded.name
+      ELSE catalog_direct_skus.name
     END,
     category_slug=excluded.category_slug,
     category_name=excluded.category_name,
     submenu=excluded.submenu,
     subcategory=excluded.subcategory,
     brand=CASE
-      WHEN trim(public.catalog_direct_skus.brand)='' THEN excluded.brand
-      ELSE public.catalog_direct_skus.brand
+      WHEN trim(catalog_direct_skus.brand)='' THEN excluded.brand
+      ELSE catalog_direct_skus.brand
     END,
-    image_url=coalesce(public.catalog_direct_skus.image_url,excluded.image_url),
+    image_url=coalesce(catalog_direct_skus.image_url,excluded.image_url),
     technical_specs=CASE
-      WHEN public.catalog_direct_skus.technical_specs='[]'::jsonb
+      WHEN catalog_direct_skus.technical_specs='[]'::jsonb
         THEN excluded.technical_specs
-      ELSE public.catalog_direct_skus.technical_specs
+      ELSE catalog_direct_skus.technical_specs
     END,
-    price_snapshot=coalesce(public.catalog_direct_skus.price_snapshot,'{}'::jsonb),
+    price_snapshot=coalesce(catalog_direct_skus.price_snapshot,'{}'::jsonb),
     source_family_code=excluded.source_family_code,
     is_active=true,
     updated_at=now();
