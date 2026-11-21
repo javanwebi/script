@@ -252,6 +252,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       words,heardSpeechEchoRef.current,recentPlayback) || playbackEchoHistoryRef.current.matches(words);
   };
   const serverSttConfiguredRef=useRef(false);
+  const serverLiveSttConfiguredRef=useRef(false);
   const [serverSttLabel,setServerSttLabel]=useState('در حال بررسی موتور دایبا...');
 
   const stopServerLiveStt=useCallback(()=>{
@@ -367,13 +368,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     serverLiveSttStartingRef.current=true;
     let client:ForzaLiveSttClient|null=null;
     try{
-      if(!serverSttConfiguredRef.current){
+      if(!serverLiveSttConfiguredRef.current){
         const response=await fetch('/api/ai/forza-stt-info',{cache:'no-store'});
         if(!response.ok)throw new Error('diba_status_unavailable');
         const info=await response.json();
         serverSttConfiguredRef.current=info?.serverSttProvider==='diba'&&info?.serverSttConfigured===true;
+        serverLiveSttConfiguredRef.current=info?.serverSttProvider==='diba'&&info?.serverLiveSttConfigured===true;
       }
-      if(!serverSttConfiguredRef.current){
+      if(!serverLiveSttConfiguredRef.current){
         serverLiveSttRetryAfterRef.current=Date.now()+5000;
         setServerSttLabel('دایبا زنده سرور در دسترس نیست؛ متن خام ارسال نمی‌شود');
         return false;
@@ -497,7 +499,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         liveSttActiveRef.current=serverLiveSttActiveRef.current;
         recognizer.remove?.();
         setLocalSttStatus('fallback');
-        setServerSttLabel(serverSttConfiguredRef.current
+        setServerSttLabel(serverLiveSttConfiguredRef.current
           ? 'در حال اتصال به تشخیص زنده دایبا روی سرور'
           : 'دایبا سرور تنظیم نشده؛ تشخیص گفتار در دسترس نیست');
         void startServerLiveStt();
@@ -2147,7 +2149,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       setServerSttLabel(localSttModelRef.current
         ? 'دایبا محلی آماده است · صدای فیلترشده'
-        : serverSttConfiguredRef.current
+        : serverLiveSttConfiguredRef.current
           ? 'دایبا سرور زنده · فقط صدای فیلترشده'
           : 'در انتظار آماده‌شدن موتور تشخیص زنده؛ صدای خام ارسال نمی‌شود');
       if(greetingFinishedRef.current && !micMutedRef.current) startListening();
@@ -2191,25 +2193,28 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // worker is still a usable server fallback; never disable it forever
         // because the first status poll raced model startup.
         const dibaConfigured=info.serverSttProvider==='diba'&&info.serverSttConfigured===true;
+        const dibaLiveConfigured=info.serverSttProvider==='diba'&&info.serverLiveSttConfigured===true;
         serverSttConfiguredRef.current=dibaConfigured;
-        if(dibaConfigured&&micSourceNodeRef.current&&!localSttModelRef.current)
+        serverLiveSttConfiguredRef.current=dibaLiveConfigured;
+        if(dibaLiveConfigured&&micSourceNodeRef.current&&!localSttModelRef.current)
           void startServerLiveStt();
         setServerSttLabel(localSttModelRef.current
           ? 'دایبا محلی آماده است · تشخیص زنده'
           : localSttModelLoadingRef.current
             ? 'در حال آماده‌سازی دایبا محلی · فقط صدای نزدیک پردازش می‌شود'
-            : dibaConfigured
+            : dibaLiveConfigured
               ? info.serverLiveSttReady===true
                 ? 'دایبا سرور زنده آماده است · صدای فیلترشده'
                 : 'دایبا سرور زنده در حال آماده‌سازی · صدای فیلترشده نگه‌داری می‌شود'
               : 'دایبا تنظیم نشده؛ تشخیص گفتار در دسترس نیست');
-        if(dibaConfigured&&info.serverLiveSttReady!==true&&attempts<12){
+        if(dibaLiveConfigured&&info.serverLiveSttReady!==true&&attempts<12){
           attempts++;
           retryTimer=window.setTimeout(()=>void checkServerStt(),2500);
         }
       }catch{
         if(controller.signal.aborted)return;
         serverSttConfiguredRef.current=false;
+        serverLiveSttConfiguredRef.current=false;
         setServerSttLabel('وضعیت دایبا نامشخص؛ صدای خام ارسال نمی‌شود');
         if(attempts<4){
           attempts++;
