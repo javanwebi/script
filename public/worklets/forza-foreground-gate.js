@@ -142,7 +142,7 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
       (voicePeriodicity >= 0.10 || highRatio >= 0.13);
     const candidate = speechSnrDb >= 11 && highSnrDb >= 2 &&
       score >= 0.42 && voiceLike && !voice.overlap && speechRms >= 0.00055;
-    const preRollEligible = speechSnrDb >= 9 && highSnrDb >= 1 &&
+    const preRollEligible = speechSnrDb >= 10 && highSnrDb >= 2 &&
       speechRms >= 0.00035 && (voicePeriodicity >= 0.06 || highRatio >= 0.12) && !voice.overlap;
 
     if (!candidate && !this.gateOpen) {
