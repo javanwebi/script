@@ -1786,9 +1786,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 durationMs:progress.durationMs};
             }
           },
-          // The private Nima service defaults to one CPU inference worker.
-          // Two parallel phrase requests can fill its 2.5s FIFO waiter and
-          // make the second phrase fail, cancelling the rest of the answer.
+          // Trust only the private health probe's isolated worker count.
+          // Two requests are enabled only on pools with at least three workers,
+          // leaving capacity for other live calls and the bounded FIFO queue.
           maxConcurrent:nimaConcurrency,
           maxAheadPhrases:nimaConcurrency>=2?3:2,
           initialBufferSeconds:2,
