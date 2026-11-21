@@ -48,12 +48,12 @@ export function getOnnxSegmentationSession(): Promise<ort.InferenceSession> {
     sessionPromise = ort.InferenceSession.create(MODEL_URL, {
       executionProviders: ['wasm'],
       graphOptimizationLevel: 'all',
-    }).catch((error) => {
+    }).catch((error: unknown) => {
       sessionPromise = null;
       throw error;
     });
   }
-  return sessionPromise;
+  return sessionPromise!;
 }
 
 export async function preloadClientAiSegmentation(): Promise<void> {
@@ -211,7 +211,7 @@ export async function segmentImageWithClientAi(src: string): Promise<ClientAiSeg
     const outputs = await withTimeout(
       session.run({ [inputName]: inputTensor }),
       INFERENCE_TIMEOUT_MS,
-    );
+    ) as Record<string, ort.Tensor>;
     const output = outputs[outputName];
     if (!output?.data) return null;
 
