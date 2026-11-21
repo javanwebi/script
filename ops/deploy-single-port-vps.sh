@@ -1084,10 +1084,23 @@ else:raise AssertionError('HTTPS_BUILD_MISMATCH')
 health=json.loads(get('/api/health'))
 assert health.get('status')=='ok' and health.get('database')=='ok'
 if os.environ.get('SANATPISH_FORZA_ONLY') == '1':
- stt=json.loads(get('/api/ai/forza-stt-info'))
- assert stt.get('serverSttConfigured') is True and stt.get('serverSttProvider')=='diba' and stt.get('serverSttReady') is True, ('PUBLIC_FORZA_STT_NOT_READY',stt)
- voice=json.loads(get('/api/ai/forza-voice-info'))
- assert voice.get('ready') is True and voice.get('voice')=='piper-nima-gyro-medium' and voice.get('incrementalSpeech') is True, ('PUBLIC_FORZA_VOICE_NOT_READY',voice)
+ def wait_json(path,predicate,label,timeout_seconds=120):
+  deadline=time.time()+timeout_seconds
+  last=None
+  while time.time()<deadline:
+   try:
+    last=json.loads(get(path))
+    if predicate(last): return last
+   except Exception as error:
+    last={'error':str(error)[:160]}
+   time.sleep(2)
+  raise AssertionError((label+'_NOT_READY',last))
+ stt=wait_json('/api/ai/forza-stt-info',
+   lambda value:value.get('serverSttConfigured') is True and value.get('serverSttProvider')=='diba' and value.get('serverSttReady') is True,
+   'PUBLIC_FORZA_STT')
+ voice=wait_json('/api/ai/forza-voice-info',
+   lambda value:value.get('ready') is True and value.get('voice')=='piper-nima-gyro-medium' and value.get('incrementalSpeech') is True,
+   'PUBLIC_FORZA_VOICE',90)
  print('PUBLIC_FORZA_DIBA_AND_NIMA_READY_OK')
  # Exercise the public Nginx -> Express -> private Nima path once after
  # promotion. Two sequential turns are already checked in the private canary.
@@ -1100,7 +1113,7 @@ if os.environ.get('SANATPISH_FORZA_ONLY') == '1':
  if b'\r\n\r\n' not in raw: raise AssertionError('PUBLIC_FORZA_TTS_HEADERS_MISSING')
  headers,wav=raw.split(b'\r\n\r\n',1)
  parsed={}
- for line in headers.split(b'\\r\\n')[1:]:
+ for line in headers.split(b'\r\n')[1:]:
   if b':' in line:
    key,value=line.split(b':',1);parsed[key.decode().lower()]=value.decode().strip()
  assert parsed.get('content-type','').lower().startswith('audio/wav'), ('PUBLIC_FORZA_TTS_BAD_CONTENT_TYPE',parsed)
