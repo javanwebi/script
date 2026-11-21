@@ -575,8 +575,12 @@ print("LIVE_ENV_CAPTURE_OK multiline="+str(multiline))
 ' "$ENV_FILE" "$MULTILINE_ENV_FILE" "$APP/.local-vision-enabled" "$APP/.env.local-vision"
 mapfile -d '' MULTILINE_ENV_ARGS < "$MULTILINE_ENV_FILE"
 APP_EXTRA_ENV=()
+CANARY_EXTRA_ENV=()
 if [[ "$FORZA_ONLY" == "1" ]]; then
-  APP_EXTRA_ENV+=(-e SANATPISH_FORZA_ONLY_READ_ONLY_INDEX=1)
+  # Keep the read-only visual-index guard on the disposable canary only.
+  # The promoted app uses normal warmup after the canary proves the persisted
+  # index is already complete, so future catalog image updates still work.
+  CANARY_EXTRA_ENV+=(-e SANATPISH_FORZA_ONLY_READ_ONLY_INDEX=1)
 else
   APP_EXTRA_ENV+=(-e CUSTOMER_360_LOCAL_VAULT_ENABLED=true)
 fi
@@ -738,7 +742,7 @@ fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
- "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_DIBA_BROWSER_ARCHIVE=/opt/diba-stt/diba-stt-fa-small.tar.gz -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 "${APP_EXTRA_ENV[@]}" \
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_DIBA_BROWSER_ARCHIVE=/opt/diba-stt/diba-stt-fa-small.tar.gz -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 "${CANARY_EXTRA_ENV[@]}" "${APP_EXTRA_ENV[@]}" \
  "${MOUNTS[@]}" "$STT_IMAGE" node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do
