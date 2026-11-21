@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { consumeForzaNimaWavFrames } from '../src/utils/forzaNimaWavFrames';
+import { consumeForzaNimaWavFrames, splitForzaNimaSentenceText } from '../src/utils/forzaNimaWavFrames';
 
 function wav(dataBytes:number):Uint8Array {
   const value=new Uint8Array(44+dataBytes);
@@ -75,4 +75,16 @@ test('rejects non-WAV frames and unbounded frame lengths',async()=>{
 
 test('rejects an empty stream',async()=>{
   await assert.rejects(consumeForzaNimaWavFrames(stream([]),()=>{}),/stream_empty/);
+});
+
+
+test('sentence mapping matches Piper boundaries without splitting decimals or part codes',()=>{
+  assert.deepEqual(
+    splitForzaNimaSentenceText('قطر 3.25 و کد SWR.A19. سپس نصب شود.'),
+    ['قطر 3.25 و کد SWR.A19.','سپس نصب شود.'],
+  );
+  assert.deepEqual(
+    splitForzaNimaSentenceText('Dr. Smith بررسی کرد. نتیجه آماده است.'),
+    ['Dr. Smith بررسی کرد.','نتیجه آماده است.'],
+  );
 });
