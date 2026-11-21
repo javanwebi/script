@@ -1239,8 +1239,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const requestSignal=signal?AbortSignal.any([signal,timeoutSignal]):timeoutSignal;
     let frameCount=0;
     let fallbackAllowed=true;
+    let streamResponse:Response|null=null;
     try{
-      const response=await fetch('/api/ai/forza-speech-stream',{
+      const response=streamResponse=await fetch('/api/ai/forza-speech-stream',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
@@ -1280,6 +1281,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // verified single-WAV endpoint once. Never replay after partial audio,
       // exhaust a 429 budget, or hide an intentional interruption.
       if(!fallbackAllowed||frameCount!==0||requestSignal.aborted||signal?.aborted||callClosedRef.current)throw error;
+      if(streamResponse?.body)await streamResponse.body.cancel().catch(()=>{});
       console.warn('[FORZA_TTS_STREAM] fallback=single_nima_wav reason='+
         String((error as Error)?.message||'stream_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
       const wav=await requestPocketAudio(text,signal,turnId);
