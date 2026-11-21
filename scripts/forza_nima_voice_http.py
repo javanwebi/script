@@ -349,6 +349,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store, no-transform")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Forza-Voice", VOICE_ID)
+        self.send_header("X-Forza-Stream-Mode", "sentence-frames")
         self.send_header("X-Forza-Queue-Ms", str(queue_ms))
         self.end_headers()
         self.close_connection = True
