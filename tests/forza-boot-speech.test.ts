@@ -14,18 +14,19 @@ test('FORZA active session does not remount during catalog hydration',()=>{
   assert.equal(shouldRemountAfterCatalogHydration('/'),true);
 });
 
-test('FORZA renders live SSE words and sends complete Nima word groups to the existing private voice',()=>{
+test('FORZA renders live SSE words and plays progressive Nima WAV frames in order',()=>{
   assert.match(frontend,/await consumeForzaTextStream/);
   assert.match(frontend,/reply=callPlainText\.push\(fullText\)/);
   assert.match(frontend,/setAiText\(reply\)/);
   assert.match(frontend,/new ForzaIncrementalSpeechText\(\)/);
-  assert.match(frontend,/new ForzaNimaBufferedSpeech\(/);
+  assert.match(frontend,/new ForzaNimaProgressiveSpeech\(/);
   assert.match(frontend,/activeNimaBuffer\.add\(phrase\)/);
   assert.match(frontend,/flushTerminalIdle/);
   assert.match(frontend,/new ForzaContinuousWav\(/);
   assert.match(frontend,/await requestPocketAudio\(/);
   assert.match(frontend,/await player\.enqueueWav\(audio\)/);
-  assert.match(frontend,/phase=phrase_wav_ready/);
+  assert.match(frontend,/FORZA_TTS_STREAM/);
+  assert.match(frontend,/consumeForzaWavFrameStream/);
   assert.match(frontend,/piper-nima-gyro-medium/);
   assert.match(frontend,/playPocketFullAnswer/);
   assert.match(backend,/app\.post\('\/api\/ai\/forza-speech'/);
