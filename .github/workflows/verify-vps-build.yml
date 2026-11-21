@@ -51,6 +51,9 @@ on:
       - "docs/belt-family-engineering-research-2026-11-17.md"
       - "tests/database/belt-family-taxonomy-followup.test.ts"
       - "tests/database/belt-family-engineering-corrections.test.ts"
+      - "tests/database/legacy-fam-belt-welding-direct-skus.test.ts"
+      - "ops/sql/20261121_legacy_fam_belt_welding_direct_skus.sql"
+      - "ops/sql/20261121_legacy_fam_belt_welding_direct_skus_rollback.sql"
       - "ops/sql/20261116_belt_family_taxonomy_followup.sql"
       - "ops/sql/20261116_belt_family_taxonomy_followup_rollback.sql"
       - "ops/sql/20261117_belt_family_engineering_corrections.sql"
@@ -159,6 +162,8 @@ jobs:
         run: node --import tsx --test tests/database/belt-family-taxonomy-followup.test.ts
       - name: Belt engineering correction migration and rollback integration
         run: node --import tsx --test tests/database/belt-family-engineering-corrections.test.ts
+      - name: Legacy FAM welding equipment direct SKU migration and rollback integration
+        run: node --import tsx --test tests/database/legacy-fam-belt-welding-direct-skus.test.ts
       - name: Single-port deployment and migration ordering regression
         run: node --import tsx --test tests/single-port-deploy.test.ts
       - name: PVC conveyor Phase 1 classification regression suite
