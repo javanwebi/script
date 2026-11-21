@@ -22,6 +22,7 @@ function wav(seconds=0.2){
   const errors=[],queries=[],requests=[],speech=[],speechTurnIds=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(()=>{
+   window.__FORZA_TEST_MODE__=true;
    Object.defineProperty(navigator,'hardwareConcurrency',{configurable:true,value:8});
    Object.defineProperty(navigator,'deviceMemory',{configurable:true,value:8});
    let micLevel=0.0005,micGain=null;
@@ -140,6 +141,7 @@ function wav(seconds=0.2){
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal(''));
   await page.evaluate(()=>{window.__forzaMicSample=0.02;});
   await page.waitForTimeout(1000);
+  console.log('FORZA_ADMISSION_DIAGNOSTICS',JSON.stringify(await page.evaluate(()=>window.__forzaSpeechAdmissionDiagnostics||null)));
   assert.ok(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0)>farFrames,
    'only foreground-gated PCM reaches local Diba');
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('می خواهم مشخصات تسمه تایمینگ را بدانم'));
