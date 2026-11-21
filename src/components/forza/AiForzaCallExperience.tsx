@@ -2287,6 +2287,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(silenceTimerRef.current)clearTimeout(silenceTimerRef.current);
       if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
       stopListening();
+      stopServerLiveStt();
       streamRef.current?.getTracks().forEach(track=>track.stop());
       streamRef.current=null;
       audioEvidenceCleanupRef.current?.();audioEvidenceCleanupRef.current=null;
@@ -2305,6 +2306,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // the particle formation/greeting effect has ever acquired its cleanup.
   const releaseCallResources = useCallback(() => {
     callClosedRef.current=true;
+    stopServerLiveStt();
     stopAcknowledgementRef.current?.dispose();stopAcknowledgementRef.current=null;
     playbackEchoHistoryRef.current.clear();
     ++microphoneGenerationRef.current;
@@ -2339,7 +2341,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     audioEvidenceCleanupRef.current?.();audioEvidenceCleanupRef.current=null;
     speechAdmissionRef.current.reset();
     const localRecognizer=localSttRecognizerRef.current;localSttRecognizerRef.current=null;
-    localSttAdmissionRef.current=null;localSttActiveRef.current=false;localSttFinalRef.current='';
+    localSttAdmissionRef.current=null;localSttActiveRef.current=false;liveSttActiveRef.current=false;
+    serverLiveSttActiveRef.current=false;localSttFinalRef.current='';
     turnDispatchPendingRef.current=false;
     try{localRecognizer?.remove?.();}catch{}
     const localModel=localSttModelRef.current;localSttModelRef.current=null;
@@ -2366,7 +2369,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     audioChunksRef.current=[];
     audioSegmentsRef.current=[];
     isProcessingTurnRef.current=false;
-  },[stopAudio]);
+  },[stopAudio,stopServerLiveStt]);
 
   useEffect(()=>()=>releaseCallResources(),[releaseCallResources]);
 
