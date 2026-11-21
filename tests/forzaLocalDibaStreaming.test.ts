@@ -114,6 +114,10 @@ test('native browser SpeechRecognition is disabled because it bypasses the foreg
  assert.match(ui,/startServerLiveStt\(true\)/);
  assert.match(ui,/localSttFinalRef\.current=activeTranscriptRef\.current\.trim\(\)/,
   'the local interim transcript must be committed before changing to the server decoder');
+ assert.match(ui,/if\(forceLocalFallback\)liveSttActiveRef\.current=false/);
+ assert.match(ui,/liveSttActiveRef\.current=forceLocalFallback\?false:localSttActiveRef\.current/);
+ assert.match(ui,/if\(localSttActiveRef\.current&&!serverLiveSttActiveRef\.current\)\s*liveSttActiveRef\.current=true/);
+
  assert.match(ui,/localSttAdmissionRef\.current\?\.reset\(\)/);
  assert.match(ui,/lastDibaHypothesisAtRef\.current>3000/);
  assert.match(ui,/speechStartedAtRef\.current===0/);
