@@ -6,6 +6,12 @@ on:
       - 'public/worklets/forza-foreground-gate.js'
       - 'public/worklets/forza-speech-evidence.js'
       - 'src/utils/forzaAudioEvidence.ts'
+      - 'src/utils/forzaLiveSttClient.ts'
+      - 'server/ai/forzaDibaLiveStt.ts'
+      - 'scripts/forza_diba_live_worker.py'
+      - 'public/worklets/forza-stt-pcm.js'
+      - 'tests/forzaLiveSttClient.test.ts'
+      - 'tests/test_forza_diba_live_worker.py'
       - 'tests/forzaAudioEvidence.test.ts'
       - 'src/utils/forzaSpeechAdmission.ts'
       - 'scripts/tests/forza-exhibition-noise.cjs'
@@ -56,6 +62,12 @@ on:
       - 'public/worklets/forza-foreground-gate.js'
       - 'public/worklets/forza-speech-evidence.js'
       - 'src/utils/forzaAudioEvidence.ts'
+      - 'src/utils/forzaLiveSttClient.ts'
+      - 'server/ai/forzaDibaLiveStt.ts'
+      - 'scripts/forza_diba_live_worker.py'
+      - 'public/worklets/forza-stt-pcm.js'
+      - 'tests/forzaLiveSttClient.test.ts'
+      - 'tests/test_forza_diba_live_worker.py'
       - 'tests/forzaAudioEvidence.test.ts'
       - 'src/utils/forzaSpeechAdmission.ts'
       - 'scripts/tests/forza-exhibition-noise.cjs'
@@ -115,8 +127,12 @@ jobs:
       - run: npm ci
       - name: Validate Persian voice text normalization and WAV leveling
         run: node --import tsx --test tests/forzaPersianVoiceQuality.test.ts
+      - name: Validate live Diba streaming transport and worker protocol
+        run: |
+          node --import tsx --test tests/forzaLiveSttClient.test.ts
+          python3 tests/test_forza_diba_live_worker.py
       - name: Validate pre-STT foreground gate, live admission, endpointing, and recognizer recovery
-        run: node --import tsx --test tests/forzaAudioEvidence.test.ts tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
+        run: node --import tsx --test tests/forzaAudioEvidence.test.ts tests/forzaLiveSttClient.test.ts tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
       - name: Validate complete Persian streaming and speech chunk integrity
         run: node --import tsx --test tests/forzaCompleteSpeech.test.ts tests/forza-speech-chunks.test.ts
       - name: Validate immediate SSE completion through slow proxies
