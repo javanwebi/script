@@ -524,6 +524,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     localSttAdmissionRef.current=null;
     localSttActiveRef.current=false;
     liveSttActiveRef.current=serverLiveSttActiveRef.current;
+    speechStartedAtRef.current=0;
     localSttFinalRef.current='';
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       try {
@@ -1283,9 +1284,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setStatus('listening');
         setTurn('user');
         activeTranscriptRef.current='';
-         // Keep Chrome's cumulative recognition from replaying the stop words
-        // as the next customer turn when the recognizer remains active.
-         localSttFinalRef.current='';
+        // Reset only this Diba utterance; keep the live recognizer session open.
+        localSttFinalRef.current='';
         localSttAdmissionRef.current?.reset();
         lastTranscriptChangedAtRef.current=0;
         turnDispatchPendingRef.current=false;
@@ -2268,7 +2268,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     speechAdmissionRef.current.reset();
     const localRecognizer=localSttRecognizerRef.current;localSttRecognizerRef.current=null;
     localSttAdmissionRef.current=null;localSttActiveRef.current=false;liveSttActiveRef.current=false;
-    serverLiveSttActiveRef.current=false;localSttFinalRef.current='';
+    serverLiveSttActiveRef.current=false;speechStartedAtRef.current=0;localSttFinalRef.current='';
     turnDispatchPendingRef.current=false;
     try{localRecognizer?.remove?.();}catch{}
     const localModel=localSttModelRef.current;localSttModelRef.current=null;
