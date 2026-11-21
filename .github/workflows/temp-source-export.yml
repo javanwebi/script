@@ -4,7 +4,7 @@ on:
     branches:
       - tmp/export-main-source-20261121
     paths:
-      - 'tmp/export/READY_SOURCE_2'
+      - 'tmp/export/READY_SOURCE_3'
 permissions:
   contents: read
 jobs:
@@ -17,11 +17,8 @@ jobs:
         run: |
           set -euo pipefail
           {
-            git ls-files | grep -E '^(src|tests|scripts|ops|\\.github/workflows)/' \
-              | grep -Ev '^src/assets/' \
-              | grep -Ev '^src/data/.*\\.json$' \
-              | grep -E '\\.(ts|tsx|js|jsx|css|mjs|cjs|sh|yml|yaml|md|svg)$'
-            printf '%s\\n' package.json package-lock.json tsconfig.json vite.config.ts server.ts Dockerfile
+            git ls-files | grep -E '^(src|tests|scripts|ops|.github/workflows)/' | grep -Ev '^src/assets/' | grep -Ev '^src/data/.*[.]json$' | grep -E '[.](ts|tsx|js|jsx|css|mjs|cjs|sh|yml|yaml|md|svg)$'
+            for f in package.json package-lock.json tsconfig.json vite.config.ts server.ts Dockerfile; do echo "$f"; done
           } | sort -u | tar -czf /tmp/sanatpish-main-code-source.tar.gz -T -
           ls -lh /tmp/sanatpish-main-code-source.tar.gz
       - uses: actions/upload-artifact@v4
