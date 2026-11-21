@@ -18,6 +18,26 @@ on:
       - 'src/utils/forzaContinuousWav.ts'
       - 'scripts/tests/forza-live-stt-browser.cjs'
       - 'tests/forza-continuous-wav.test.ts'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/components/forza/**'
+      - 'src/utils/forzaSpeechPipeline.ts'
+      - 'src/utils/silenceDetector.ts'
+      - 'tests/forza-smart-turn.test.ts'
+      - 'tests/forza-speech-pipeline.test.ts'
+      - 'tests/forzaBrowserRecognitionLifecycle.test.ts'
+      - 'tests/forzaVoiceRecoveryUi.test.ts'
+      - 'src/services/forzaGreetingAudio.ts'
+      - 'server.ts'
+      - 'scripts/tests/forza-pocket-ubuntu-browser.cjs'
+      - '.github/workflows/forza-private-ubuntu-browser.yml'
+      - 'tests/forza-boot-speech.test.ts'
+      - 'src/utils/forzaStreamingSpeech.ts'
+      - 'src/utils/forzaContinuousWav.ts'
+      - 'scripts/tests/forza-live-stt-browser.cjs'
+      - 'tests/forza-continuous-wav.test.ts'
   workflow_dispatch:
 permissions:
   contents: read
