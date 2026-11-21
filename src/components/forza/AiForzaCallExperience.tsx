@@ -26,6 +26,7 @@ import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaLiveSttClient, attachForzaLivePcmTap } from '../../utils/forzaLiveSttClient';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
+import { consumeForzaNimaWavFrames } from '../../utils/forzaNimaWavFrames';
 import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
 import {forzaNimaClientConcurrency} from '../../utils/forzaTtsConcurrency';
 import { ForzaCallPlainText, forzaSpokenPlainText } from '../../utils/forzaCallPlainText';
@@ -1224,6 +1225,66 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return audio;
   },[setActiveVoiceLabel]);
 
+  // Live Nima uses framed sentence audio. Each complete WAV is passed to the
+  // shared AudioContext scheduler as soon as it arrives, not after the HTTP
+  // response has delivered the entire phrase.
+  const requestPocketAudioStream=useCallback(async(
+    phrase:string,
+    signal:AbortSignal|undefined,
+    turnId:string|undefined,
+    onFrame:(wav:Uint8Array)=>void,
+  ):Promise<void>=>{
+    const text=phrase.trim();
+    if(!text)throw new Error('forza_empty_answer');
+    const started=performance.now();
+    const timeoutSignal=AbortSignal.timeout(65000);
+    const requestSignal=signal?AbortSignal.any([signal,timeoutSignal]):timeoutSignal;
+    const response=await fetch('/api/ai/forza-speech-stream',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        text,
+        turnId:turnId||('call-'+callIdRef.current+'-stream-'+Math.round(performance.now())),
+      }),
+      signal:requestSignal,
+    });
+    if(!response.ok){
+      const failure:any=await response.clone().json().catch(()=>null);
+      const code=String(failure?.errorCode||failure?.error||'unknown')
+        .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,64);
+      if(response.status===429)throw new Error('pocket_http_429_'+code);
+      throw new Error('pocket_stream_http_'+response.status+'_'+code);
+    }
+    const returnedVoice=response.headers.get('X-Forza-Voice');
+    if(returnedVoice!=='piper-nima-gyro-medium')
+      throw new Error('forza_stream_wrong_voice');
+    if(!(response.headers.get('Content-Type')||'').includes('application/x-forza-wav-frames'))
+      throw new Error('forza_stream_wrong_content_type');
+    if(!response.body)throw new Error('forza_stream_body_missing');
+
+    let frameCount=0;
+    try{
+      const stats=await consumeForzaNimaWavFrames(response.body,wav=>{
+        frameCount++;
+        onFrame(wav);
+      },requestSignal);
+      if(signal?.aborted||callClosedRef.current)throw new Error('forza_tts_aborted');
+      console.info('[FORZA_TTS_STREAM] turn='+String(turnId||'unknown')+
+        ' frames='+stats.frames+' firstFrameMs='+stats.firstFrameMs+
+        ' totalMs='+stats.totalMs+' bytes='+stats.bytes+
+        ' queueMs='+String(response.headers.get('X-Forza-Queue-Ms')||'unknown'));
+    }catch(error){
+      // If the stream endpoint is temporarily unavailable before audio starts,
+      // use the same verified Nima WAV endpoint once. Never replay after a
+      // partial stream, and never hide an intentional interruption.
+      if(frameCount!==0||requestSignal.aborted||signal?.aborted||callClosedRef.current)throw error;
+      console.warn('[FORZA_TTS_STREAM] fallback=single_nima_wav reason='+
+        String((error as Error)?.message||'stream_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+      const wav=await requestPocketAudio(text,signal,turnId);
+      onFrame(wav);
+    }
+  },[requestPocketAudio,setActiveVoiceLabel]);
+
   useEffect(()=>{
     if(greetingPhase!=='complete'||voiceModeRef.current!=='piper-nima-gyro-medium')return;
     const acknowledgement=new ForzaStopAcknowledgement(signal=>
@@ -1761,6 +1822,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         bufferedNima=new ForzaNimaBufferedSpeech({
           synthesize:(phrase,signal)=>requestPocketAudio(forzaSpokenPlainText(phrase),signal,
             'call-'+callIdRef.current+'-turn-'+generation),
+          synthesizeStream:(phrase,signal,onFrame)=>requestPocketAudioStream(
+            forzaSpokenPlainText(phrase),signal,
+            'call-'+callIdRef.current+'-turn-'+generation,onFrame),
           player:continuousPlayer,
           signal:pocketAbort.signal,
           onPhrasePlayed:recordHeard,
@@ -1786,13 +1850,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 durationMs:progress.durationMs};
             }
           },
-          // Trust only the private health probe's isolated worker count.
-          // Two requests are enabled only on pools with at least three workers,
-          // leaving capacity for other live calls and the bounded FIFO queue.
-          maxConcurrent:nimaConcurrency,
+          // A streamed phrase owns one synthesis worker at a time. The next
+          // phrase starts as soon as the prior frames are delivered, while
+          // up to two complete phrases may remain queued for gapless playback.
+          maxConcurrent:1,
           maxAheadPhrases:nimaConcurrency>=2?3:2,
-          initialBufferSeconds:2,
-          maximumInitialWaitMs:180,
+          initialBufferSeconds:0,
+          maximumInitialWaitMs:0,
           onBuffered:info=>console.info('[FORZA_NIMA_BUFFER] audio_s='+
             info.bufferedSeconds.toFixed(2)+' phrases='+info.queuedPhrases+
             ' started='+Number(info.started)),
