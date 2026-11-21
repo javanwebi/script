@@ -32,15 +32,18 @@ test('approved category totals include direct SKUs without changing the approved
   assert.match(page, /directSkus\.filter\(item => item\.categorySlug === slug\)\.length/);
 });
 
-test('deployment refuses belt categories that regress to zero or disagree with detail counts', () => {
+test('deployment validates belt family and direct SKU projections independently', () => {
   const canary = source('ops/verify-single-port-canary.mjs');
-  assert.match(canary, /BELT_CATEGORY_ZERO_OR_MISSING/);
+  assert.match(canary, /BELT_CATEGORY_HAS_NO_FAMILIES_OR_DIRECT_SKUS/);
   assert.match(canary, /BELT_CATEGORY_FAMILY_COUNT_MISMATCH/);
-  assert.match(canary, /BELT_CATEGORY_DETAILS_EMPTY/);
+  assert.match(canary, /BELT_CATEGORY_DIRECT_SKU_COUNT_MISMATCH/);
+  assert.match(canary, /BELT_CATEGORY_DETAILS_INVALID/);
+  assert.match(canary, /summary\.skuCount, liveTotalSkuCount/);
   assert.match(canary, /excel-v2-1-4/);
   const deploy = source('ops/deploy-main-bluegreen-vps.sh');
-  assert.match(deploy, /BELT_CATEGORY_ZERO/);
-  assert.match(deploy, /BELT_CATEGORY_DETAILS_EMPTY/);
+  assert.match(deploy, /BELT_CATEGORY_HAS_NO_FAMILIES_OR_DIRECT_SKUS/);
+  assert.match(deploy, /BELT_DIRECT_SKU_COUNT_DRIFT/);
+  assert.match(deploy, /BELT_CATEGORY_DETAILS_INVALID/);
   assert.match(deploy, /BELT_FAMILY_COUNT_DRIFT/);
   assert.match(deploy, /BELT_SKU_COUNT_DRIFT/);
 });
