@@ -120,7 +120,7 @@ export class ForzaLiveSttClient {
           this.options.onState?.('failed', code);
           if (/model_missing|ip_limit/.test(code)) this.fatal = true;
           finish(new Error(code));
-          try { socket.close(1011, code); } catch {}
+          try { socket.close(4000, code); } catch {}
         }
       };
 
