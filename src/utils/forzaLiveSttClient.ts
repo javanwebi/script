@@ -118,7 +118,7 @@ export class ForzaLiveSttClient {
         if (message.type === 'error') {
           const code = String(message.code || 'diba_stream_error').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
           this.options.onState?.('failed', code);
-          if (/model_missing/.test(code)) this.fatal = true;
+          if (/model_missing|ip_limit/.test(code)) this.fatal = true;
           finish(new Error(code));
           try { socket.close(1011, code); } catch {}
         }
