@@ -144,6 +144,7 @@ test("Forza-only release classifier includes only the reviewed call-engine fix p
     "src/utils/forzaNimaBufferedSpeech.ts",
     "src/utils/forzaNimaWavFrames.ts",
     "tests/forzaNimaWavFrames.test.ts",
+    "tests/forzaNimaBufferedSpeech.test.ts",
     "src/utils/forzaUnbrokenText.ts",
     "tests/forzaUnbrokenFullAnswer.test.ts",
     "src/utils/forzaSpeechPipeline.ts",
