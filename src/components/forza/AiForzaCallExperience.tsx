@@ -666,9 +666,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(current.speechStarted||current.speaking)lastMicActivityRef.current=micNow;
         const admissionState=speechAdmissionRef.current.diagnostics(micNow);
         if(localSttActiveRef.current&&!serverLiveSttActiveRef.current&&
-           !serverLiveSttClientRef.current&&admissionState.utteranceLatched&&!admissionState.playback&&
+           !serverLiveSttClientRef.current&&current.speaking&&!admissionState.playback&&
            !isAiSpeakingRef.current&&!isProcessingTurnRef.current&&!isManualReplayPendingRef.current&&
-           lastForegroundAudioAtRef.current>0&&micNow-lastForegroundAudioAtRef.current<450&&
+           micNow-lastMicActivityRef.current<450&&
            micNow-lastDibaHypothesisAtRef.current>3000&&
            micNow>=serverLiveSttRetryAfterRef.current){
           console.warn('[FORZA_STT] local_diba_partial_timeout=1 switching_to_server_live=1');
