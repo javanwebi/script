@@ -56,7 +56,7 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
     for (let i = 0; i < samples.length; i += step) down.push(samples[i]);
     const minLag = Math.max(2, Math.floor(rate / 360));
     const maxLag = Math.min(Math.floor(rate / 75), Math.floor(down.length * 0.45));
-    let best = 0;
+    const peaks = [];
     for (let lag = minLag; lag <= maxLag; lag += 1) {
       let cross = 0, left = 0, right = 0;
       for (let i = lag; i < down.length; i += 2) {
@@ -65,10 +65,23 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
         left += a * a;
         right += b * b;
       }
-      const score = cross / Math.sqrt(Math.max(1e-12, left * right));
-      if (score > best) best = score;
+      const score = this.clamp(cross / Math.sqrt(Math.max(1e-12, left * right)), 0, 1);
+      peaks.push({ lag, score });
     }
-    return this.clamp(best, 0, 1);
+    peaks.sort((a, b) => b.score - a.score);
+    const primary = peaks[0] || { lag: 0, score: 0 };
+    const secondary = peaks.find(peak => {
+      if (peak === primary || peak.score < Math.max(0.24, primary.score * 0.70)) return false;
+      const ratio = peak.lag / Math.max(1, primary.lag);
+      const inverse = 1 / Math.max(0.001, ratio);
+      const harmonic = [2, 3, 4].some(value =>
+        Math.abs(ratio - value) < 0.12 || Math.abs(inverse - value) < 0.12
+      );
+      return !harmonic;
+    });
+    // Two strong non-harmonic pitch periods usually indicate overlapping voices.
+    // A mono microphone cannot separate them safely, so ambiguous mixtures fail closed.
+    return { score: primary.score, overlap: Boolean(secondary) };
   }
 
   analyzeFrame() {
@@ -96,7 +109,8 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
     const speechRms = Math.sqrt(speechEnergy / this.frameSize);
     const highRms = Math.sqrt(highEnergy / this.frameSize);
     const zcr = crossings / Math.max(1, this.frameSize - 1);
-    const voicePeriodicity = this.periodicity(speechSamples);
+    const voice = this.periodicity(speechSamples);
+    const voicePeriodicity = voice.score;
     const speechSnrDb = 20 * Math.log10((speechRms + 1e-7) / Math.max(0.00025, this.noiseSpeech));
     const highSnrDb = 20 * Math.log10((highRms + 1e-7) / Math.max(0.00010, this.noiseHigh));
     const highRatio = highRms / Math.max(1e-6, speechRms);
@@ -107,7 +121,7 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
     const voiceLike = zcr >= 0.006 && zcr <= 0.34 &&
       (voicePeriodicity >= 0.10 || highRatio >= 0.13);
     const candidate = speechSnrDb >= 11 && highSnrDb >= 2 &&
-      score >= 0.42 && voiceLike && speechRms >= 0.00055;
+      score >= 0.42 && voiceLike && !voice.overlap && speechRms >= 0.00055;
 
     if (!candidate && !this.gateOpen) {
       this.noiseSpeechHistory.push(speechRms);
