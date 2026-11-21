@@ -15,6 +15,9 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
     this.audioRing = new Float32Array(this.ringSize);
     this.maskRing = new Uint8Array(this.ringSize);
     this.frameRanges = [];
+    this.pitchHistory = new Float32Array(this.frameSize * 2);
+    this.pitchWrite = 0;
+    this.pitchCount = 0;
     this.frames = [];
     this.inFlight = false;
 
@@ -116,7 +119,17 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
     const speechRms = Math.sqrt(speechEnergy / this.frameSize);
     const highRms = Math.sqrt(highEnergy / this.frameSize);
     const zcr = crossings / Math.max(1, this.frameSize - 1);
-    const voice = this.periodicity(speechSamples);
+    for (let i = 0; i < speechSamples.length; i += 1) {
+      this.pitchHistory[this.pitchWrite] = speechSamples[i];
+      this.pitchWrite = (this.pitchWrite + 1) % this.pitchHistory.length;
+      this.pitchCount = Math.min(this.pitchHistory.length, this.pitchCount + 1);
+    }
+    const pitchSamples = new Float32Array(this.pitchCount);
+    const pitchStart = (this.pitchWrite - this.pitchCount + this.pitchHistory.length) % this.pitchHistory.length;
+    for (let i = 0; i < this.pitchCount; i += 1) {
+      pitchSamples[i] = this.pitchHistory[(pitchStart + i) % this.pitchHistory.length];
+    }
+    const voice = this.periodicity(pitchSamples);
     const voicePeriodicity = voice.score;
     const speechSnrDb = 20 * Math.log10((speechRms + 1e-7) / Math.max(0.00025, this.noiseSpeech));
     const highSnrDb = 20 * Math.log10((highRms + 1e-7) / Math.max(0.00010, this.noiseHigh));
@@ -141,7 +154,7 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
       }
     }
 
-    return { rms, speechRms, highRms, speechSnrDb, highSnrDb, voicePeriodicity, zcr, score, candidate };
+    return { rms, speechRms, highRms, speechSnrDb, highSnrDb, voicePeriodicity, zcr, score, candidate, overlap: voice.overlap };
   }
 
   markRange(range) {
@@ -150,31 +163,48 @@ class ForzaForegroundGate extends AudioWorkletProcessor {
     }
   }
 
+  clearRange(range) {
+    for (let index = range.start; index <= range.end; index += 1) {
+      this.maskRing[index % this.ringSize] = 0;
+    }
+  }
+
   finishFrame(timestamp) {
     const features = this.analyzeFrame();
     const start = this.writeIndex - this.frameSize;
     const range = { start, end: this.writeIndex - 1 };
-    this.frameRanges.push(range);
-    if (this.frameRanges.length > 4) this.frameRanges.shift();
 
-    if (features.candidate) {
-      this.attackFrames += 1;
-      this.releaseFrames = 10; // Keep unvoiced consonants and short word gaps.
-      if (this.attackFrames >= 2) this.gateOpen = true;
-    } else {
+    if (features.overlap) {
+      // A mono mix with two independent pitch tracks is ambiguous. Fail closed
+      // immediately and clear buffered overlap so it cannot leak through the delay.
       this.attackFrames = 0;
-      if (this.releaseFrames > 0) this.releaseFrames -= 1;
-      else this.gateOpen = false;
+      this.releaseFrames = 0;
+      this.gateOpen = false;
+      for (const previous of this.frameRanges) this.clearRange(previous);
+      this.frameRanges = [range];
+    } else {
+      this.frameRanges.push(range);
+      if (this.frameRanges.length > 4) this.frameRanges.shift();
+
+      if (features.candidate) {
+        this.attackFrames += 1;
+        if (this.attackFrames >= 2) {
+          this.gateOpen = true;
+          this.releaseFrames = 10; // Keep unvoiced consonants and short word gaps.
+        }
+      } else {
+        this.attackFrames = 0;
+        if (this.gateOpen && this.releaseFrames > 0) this.releaseFrames -= 1;
+        else if (this.releaseFrames <= 0) this.gateOpen = false;
+      }
+
+      if (this.gateOpen) {
+        // The fixed 80ms output delay lets a confirmed onset release its pre-roll.
+        for (const previous of this.frameRanges.slice(-3)) this.markRange(previous);
+      }
     }
 
-    if (this.gateOpen) {
-      // The fixed 80ms output delay lets a confirmed onset release its pre-roll.
-      for (const previous of this.frameRanges) this.markRange(previous);
-    } else if (this.releaseFrames > 0) {
-      this.markRange(range);
-    }
-
-    const acceptedRms = this.gateOpen || this.releaseFrames > 0 ? features.rms : 0;
+    const acceptedRms = this.gateOpen ? features.rms : 0;
     this.frames.push([timestamp, acceptedRms, features.score, this.gateOpen ? 1 : 0]);
     if (this.frames.length > 32) this.frames.shift();
     this.frameCounter += 1;
