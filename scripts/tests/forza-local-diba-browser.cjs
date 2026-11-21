@@ -30,12 +30,20 @@ function wav(seconds=0.2){
    });
    // Synthetic near-field voice: voiced harmonics plus articulation energy above 2kHz.
    AudioContext.prototype.createMediaStreamSource=function(){
-    const low=this.createOscillator(),high=this.createOscillator(),gain=this.createGain();
-    const lowGain=this.createGain(),highGain=this.createGain();
-    low.frequency.value=140;high.frequency.value=2500;
-    lowGain.gain.value=0.75;highGain.gain.value=0.25;
-    low.connect(lowGain);high.connect(highGain);lowGain.connect(gain);highGain.connect(gain);
-    low.start();high.start();gain.gain.value=micLevel;micGain=gain;window.__forzaMicGain=gain;
+    const fundamental=this.createOscillator(),gain=this.createGain();
+    const fundamentalGain=this.createGain();
+    fundamental.frequency.value=140;
+    fundamentalGain.gain.value=0.75;
+    fundamental.connect(fundamentalGain);fundamentalGain.connect(gain);
+    // These are harmonics of the same 140 Hz voice, not a second independent
+    // 2.5 kHz tone. The foreground gate must accept articulation detail without
+    // misclassifying one synthetic speaker as two overlapping people.
+    for(const frequency of [2240,2380,2520,2660]){
+      const partial=this.createOscillator(),partialGain=this.createGain();
+      partial.frequency.value=frequency;partialGain.gain.value=0.06;
+      partial.connect(partialGain);partialGain.connect(gain);partial.start();
+    }
+    fundamental.start();gain.gain.value=micLevel;micGain=gain;window.__forzaMicGain=gain;
     return gain;
    };
    class FakeBrowserRecognition{
