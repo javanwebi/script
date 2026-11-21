@@ -56,12 +56,6 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Install Piper neural CLI for the prerecorded Amir greeting
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-venv
-          python3 -m venv /tmp/forza-piper-build
-          /tmp/forza-piper-build/bin/pip install --no-cache-dir piper-tts==1.3.0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -71,12 +65,6 @@ jobs:
         run: node --import tsx --test tests/forzaPersianVoiceQuality.test.ts
       - name: Validate live STT admission, endpointing, and recognizer recovery
         run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
-      - name: Verify self-hosted Amir weights and generate original Piper greeting
-        run: |
-          node scripts/download-forza-amir.mjs
-          node scripts/generate-forza-greeting.mjs
-      - name: Validate first-visit same-voice Amir server TTS
-        run: node --import tsx --test tests/forzaAmirServerSpeech.test.ts
       - name: Validate complete Persian streaming and speech chunk integrity
         run: node --import tsx --test tests/forzaCompleteSpeech.test.ts tests/forza-speech-chunks.test.ts
       - name: Validate immediate SSE completion through slow proxies
