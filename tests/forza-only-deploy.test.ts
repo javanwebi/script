@@ -29,7 +29,7 @@ test("Forza-only deployment runs voice tests and never promotes unrelated privat
   assert.match(deploy, /FORZA_ONLY_FRONTEND_AND_DIBA_ASSETS_OK/);
 });
 
-test("Forza-only startup loads the persisted visual index read-only", () => {
+test("Forza-only canary loads the persisted visual index read-only without changing production warmup", () => {
   const start = server.indexOf("function warmCatalogVisualIndex");
   const end = server.indexOf("\n}\n\n// Ensure catalog images cache folder exists", start);
   assert.notEqual(start, -1, "visual index warmup function must exist");
@@ -41,7 +41,7 @@ test("Forza-only startup loads the persisted visual index read-only", () => {
   assert.match(guard, /SANATPISH_FORZA_ONLY_READ_ONLY_INDEX/);
   assert.match(guard, /catalogVisualIndex\.load\(\)/);
   assert.doesNotMatch(guard, /catalogVisualIndex\.update\(/);
-  assert.match(deploy, /SANATPISH_FORZA_ONLY_READ_ONLY_INDEX=1/);
+  assert.match(deploy, /CANARY_EXTRA_ENV\+=\(-e SANATPISH_FORZA_ONLY_READ_ONLY_INDEX=1\)/);\n  assert.doesNotMatch(deploy, /APP_EXTRA_ENV\+=\(-e SANATPISH_FORZA_ONLY_READ_ONLY_INDEX=1\)/);
   assert.match(canary, /FORZA_CANARY_VISION_INDEX_HAS_PENDING_WRITES/);
 });
 
