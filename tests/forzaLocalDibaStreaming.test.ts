@@ -71,7 +71,7 @@ test('the Persian Diba browser recognizer is loaded from the same origin, never 
  assert.match(canary,/DIBA_BROWSER_VOSK_SCRIPT_CONTENT_LENGTH_MISSING/);
 });
 
-test('local Diba streams partial and final hypotheses and falls back to browser recognition on model errors',()=>{
+test('local Diba streams partials and low-power devices use the filtered server Diba websocket',()=>{
  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
  assert.match(ui,/loadDibaSttModel\(\)\.then\(model=>/);
  assert.match(ui,/dibaCpuCount>=4/);
@@ -84,7 +84,10 @@ test('local Diba streams partial and final hypotheses and falls back to browser 
  assert.match(ui,/recognizer\.on\('partialresult'/);
  assert.match(ui,/recognizer\.on\('result'/);
  assert.match(ui,/recognizer\.on\('error'/);
- assert.match(ui,/recognitionStartRef\.current\(\)/);
+ assert.match(ui,/acceptDibaHypothesis\(value,isFinal\)/);
+ assert.match(ui,/recognizer\.on\('partialresult'/);
+ assert.match(ui,/recognizer\.on\('result'/);
+ assert.match(ui,/void startServerLiveStt\(\)/);
  assert.match(ui,/const localReady=startDibaTurn\(\)/);
  assert.match(ui,/دایبا محلی آماده است · صدای فیلترشده/);
 });
@@ -92,7 +95,7 @@ test('local Diba streams partial and final hypotheses and falls back to browser 
 test('native browser SpeechRecognition is disabled because it bypasses the foreground gate',()=>{
   const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
   const start=ui.indexOf('const initializeMicrophone = useCallback(async () => {');
-  const end=ui.indexOf('},[ensureCtx,setupMediaRecorder,startListening,attachLocalStt]);',start);
+  const end=ui.indexOf('},[ensureCtx,setupMediaRecorder,startListening,attachLocalStt,startDibaTurn,startServerLiveStt,stopServerLiveStt]);',start);
   assert.ok(start>0&&end>start);
   const mic=ui.slice(start,end);
   assert.ok(mic.includes('recognitionRef.current=null'));
@@ -100,7 +103,10 @@ test('native browser SpeechRecognition is disabled because it bypasses the foreg
   assert.ok(mic.includes('setupMediaRecorder(route.stream)'));
   assert.ok(!ui.includes('if (!localReady && !micMutedRef.current && recognitionRef.current'));
   assert.ok(!ui.includes('new SpeechRec()'));
-  assert.match(ui,/دایبا سرور · فقط صدای نزدیک پردازش می‌شود/);
+  assert.match(ui,/دایبا سرور زنده · فقط صدای فیلترشده/);
+  assert.match(ui,/attachForzaLivePcmTap\(ctx,source/);
+  assert.match(ui,/client\.sendPcm\(pcm\)/);
+  assert.match(ui,/liveSttActiveRef\.current/);
 });
 
 test('the browser keeps one Diba recognizer alive across listen/monitor transitions',()=>{
@@ -111,7 +117,7 @@ test('the browser keeps one Diba recognizer alive across listen/monitor transiti
   'final Vosk segments must append to the same customer turn');
 });
 
-test('server Diba status is non-blocking and only filtered audio is used while local Vosk warms',()=>{
+test('server Diba status is non-blocking and the streaming pool warms independently',()=>{
  const server=readFileSync('server.ts','utf8');
  const status=server.split("app.get('/api/ai/forza-stt-info'")[1].split("// POST: /api/ai/forza-live")[0];
  assert.match(status,/serverSttConfigured:choice\.provider==='gemini'\|\|dibaConfigured/);
