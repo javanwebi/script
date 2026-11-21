@@ -6,6 +6,7 @@ const deploy = readFileSync(new URL("../ops/deploy-single-port-vps.sh", import.m
 const entrypoint = readFileSync(new URL("../ops/deploy-forza-only-vps.sh", import.meta.url), "utf8");
 const canary = readFileSync(new URL("../ops/verify-forza-only-canary.mjs", import.meta.url), "utf8");
 const server = readFileSync(new URL("../server.ts", import.meta.url), "utf8");
+const deployWorkflow = readFileSync(new URL("../.github/workflows/deploy-production-after-main-ci.yml", import.meta.url), "utf8");
 
 test("Forza-only deployment skips every catalog/customer database migration block", () => {
   const marker = 'if [[ "$FORZA_ONLY" == "1" ]]; then\n  # Strict Forza-only release:';
@@ -54,6 +55,16 @@ test("Forza-only canary checks Diba, Nima, and two sequential TTS turns without 
   assert.match(canary, /FORZA_TTS_SEQUENTIAL_TURN_OK/);
   assert.match(canary, /for\s*\(let index = 1; index <= 2/);
   assert.doesNotMatch(canary, /consult-stream|forza-live|database\(\)\.query|INSERT\s+INTO|UPDATE\s+public\./i);
+});
+
+test("main CI deploy routes only the exact Forza-only commit through the safe entrypoint", () => {
+  assert.match(deployWorkflow, /Classify exact main release as Forza-only or standard/);
+  assert.match(deployWorkflow, /forza_only=true/);
+  assert.match(deployWorkflow, /Deploy exact Forza-only main commit without database migrations/);
+  assert.match(deployWorkflow, /ops\/deploy-forza-only-vps\.sh/);
+  assert.match(deployWorkflow, /Deploy standard main release/);
+  assert.match(entrypoint, /REQUESTED_SHA="\\$\\{1:-\\}"/);
+  assert.match(entrypoint, /merge-base --is-ancestor/);
 });
 
 test("standalone entrypoint pins origin/main without resetting the server worktree", () => {
