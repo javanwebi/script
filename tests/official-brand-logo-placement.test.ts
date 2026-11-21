@@ -12,7 +12,8 @@ test("FORZA workspace has the owner's orange triangular emblem at all old icon c
   assert.match(mark,/viewBox="0 0 256 256"/);
   assert.match(mark,/fill-rule="evenodd"/);
   assert.match(mark,/#fe5100/);
-  assert.match(launcher,/import forzaWorkspaceMark from/);
+  assert.match(launcher,/const forzaWorkspaceMark = "\/images\/brand\/forza-emblem\.webp"/);
+  assert.ok(fs.existsSync(path.resolve(process.cwd(), "public/images/brand/forza-emblem.webp")));
   assert.match(launcher,/src={forzaWorkspaceMark}/);
   assert.match(launcher,/export const CognivoGeometricLogo/);
   assert.ok((workspace.match(/<CognivoGeometricLogo/g)||[]).length>=3,
