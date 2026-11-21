@@ -7252,7 +7252,8 @@ app.get('/api/ai/forza-stt-info',async(_req,res)=>{
   res.setHeader('Cache-Control','no-store');
   const choice=selectForzaSttProvider(process.env);
   const dibaConfigured=choice.provider==='diba'&&hasForzaDibaSttModel();
-  if(dibaConfigured&&!isForzaDibaSttReady())await warmForzaDibaStt();
+  // Keep diagnostics non-blocking. Workers warm during server startup;
+  // transcription requests can also trigger recovery if a worker is cold.
   res.json({
     serverSttConfigured:choice.provider==='gemini'||dibaConfigured,
     serverSttProvider:choice.provider,
