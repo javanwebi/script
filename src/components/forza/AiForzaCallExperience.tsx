@@ -1255,6 +1255,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         console.warn('[FORZA_TTS_STREAM_RETRY] status='+response.status+' attempt='+(attempt+1));
         await response.body?.cancel().catch(()=>{});
       }catch(error){
+        response=null;
         lastNetworkError=error;
         if(requestSignal.aborted||callClosedRef.current||attempt===2)throw error;
         console.warn('[FORZA_TTS_STREAM_RETRY] network attempt='+(attempt+1));

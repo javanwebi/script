@@ -220,6 +220,9 @@ export class ForzaNimaProgressiveSpeech {
           const played=this.options.player.enqueueWav(wav,
             progress=>this.options.onPhraseProgress?.(phrase.text,progress));
           phrase.playPromises.push(played);
+          void played.catch(error=>{
+            if(!this.cancelled)this.fail(error instanceof Error?error:new Error(String(error)));
+          });
         }catch(error){
           this.fail(error instanceof Error?error:new Error(String(error)));
           return;

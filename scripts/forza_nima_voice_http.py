@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Private low-memory Piper gyro (Nima in karim23657 demo) for FORZA.
 
-Wire-compatible with /speak and /speak-stream on the previous Pocket worker.
-Each *complete* response is synthesized once and sent as one gap-free PCM WAV
-frame. No customer WAV, transcript or PCM is written to disk or stored in a cache.
+Wire-compatible with the private /speak and /speak-stream endpoints.
+The legacy /speak path returns one complete WAV. /speak-stream sends ordered,
+bounded clause-level WAV frames as each clause finishes synthesis; it does not
+buffer the whole phrase. Frames remain in RAM and are never cached or persisted.
 """
 import concurrent.futures
 from concurrent.futures.process import BrokenProcessPool
