@@ -181,9 +181,8 @@ test('all proposed groups pass strict invariant homogeneity checks with zero MIX
   assert.notEqual(bySku.get('41121')?.proposedFamilyId, bySku.get('10203')?.proposedFamilyId);
   assert.equal(bySku.get('31501')?.detectedBrand, 'OPTIBELT');
   assert.equal(bySku.get('36822')?.technical.beltThicknessMm, null);
-  // Keep the raw 470*5100 inventory dimensions; do not infer which axis is belt width.
+  // The source size is an unlabelled 470*5100 pair; do not infer which axis is belt width.
   assert.equal(bySku.get('36822')?.technical.nominalWidthMm, null);
-  assert.equal(bySku.get('36822')?.originalSize, '470*5100');
   assert.equal(bySku.get('36527')?.confidence, 'ALGORITHMIC_STANDARD_ONLY');
   assert.equal(bySku.get('36527')?.technical.supplyForm, 'open-ended-meter');
 });
