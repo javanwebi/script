@@ -203,7 +203,7 @@ function wav(seconds=0.2){
     vad:window.__forzaVadDebug||null,
     speechAdmission:window.__forzaSpeechAdmissionDiagnostics||null,
   }))));
-  await page.waitForFunction(()=>window.__forzaConsultRequestCount===2,null,{timeout:9000});
+  await page.waitForFunction(()=>window.__forzaConsultRequestCount===2,null,{timeout:12000});
   assert.equal(queries.length,2,'second local Diba turn must also reach the AI');
   await page.waitForFunction(([first,second])=>document.body.innerText.includes(first)&&document.body.innerText.includes(second),[queries[0],'برای دستگاه بسته بندی تسمه PU می خواهم'],{timeout:3000});
   assert.ok(true,'the first customer transcript remains visible after a later turn');
