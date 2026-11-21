@@ -56,6 +56,7 @@ RUN mkdir -p public/forza-runtime/ort public/forza-runtime/piper public/forza-ru
  && cp node_modules/@diffusionstudio/piper-wasm/build/piper_phonemize.wasm public/forza-runtime/piper/ \
  && cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/ \
  && echo 'FORZA_WASM_ASSETS_COPIED'
+RUN node scripts/prepare-vision-assets.mjs
 RUN npm run lint
 RUN npm run build && npm prune --omit=dev
 ENV NODE_ENV=production
