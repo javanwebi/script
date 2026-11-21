@@ -206,3 +206,31 @@ test('streamed sentence WAV frames are scheduled immediately and phrase streams 
   assert.deepEqual(played,['first sentence','second sentence']);
   assert.equal(engine.statistics.scheduled,2);
 });
+
+
+test('barge-in progress aggregates completed and interrupted sentence frames into one phrase',async()=>{
+  const callbacks:Array<(progress:{phase:'started'|'finished'|'interrupted';playedMs:number;durationMs:number})=>void>=[];
+  const releases:Array<()=>void>=[];
+  const progress:Array<{phase:string;playedMs:number;durationMs:number}>=[];
+  const engine=new ForzaNimaBufferedSpeech({
+    synthesize:async()=>pcm(0.1),
+    synthesizeStream:async(_text,_signal,onFrame)=>{
+      onFrame(pcm(0.4));
+      onFrame(pcm(0.6));
+    },
+    player:{enqueueWav:(_wav,onProgress)=>{
+      callbacks.push(onProgress!);
+      return new Promise<void>(resolve=>releases.push(resolve));
+    }},
+    onPhraseProgress:(_phrase,event)=>progress.push(event),
+  });
+  engine.add('sentence one. sentence two.');
+  await flush();await flush();
+  assert.equal(callbacks.length,2);
+  engine.cancel();
+  callbacks[0]({phase:'finished',playedMs:400,durationMs:400});
+  callbacks[1]({phase:'interrupted',playedMs:150,durationMs:600});
+  assert.deepEqual(progress.at(-1),{phase:'interrupted',playedMs:550,durationMs:1000});
+  releases.forEach(release=>release());
+  await assert.rejects(engine.finish(),/aborted/);
+});
