@@ -587,7 +587,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               Math.round(acousticSilence));
             if(candidate){
               const engine=conversationEngineRef.current;
-              if(engine){engine.updateTranscript(candidate);engine.commitUserTurn();}
+              if(engine){engine.commitUserTurn(candidate);}
               sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,candidate);
               pendingCommittedTranscriptRef.current=candidate;
               setUserText(sessionTranscriptRef.current);
@@ -1275,7 +1275,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // model request can be interrupted. A resumed customer phrase must never
       // make this already-heard transcript disappear.
       const transcriptAlreadyCommitted=Boolean(q&&pendingCommittedTranscriptRef.current===q);
-      if(q&&!transcriptAlreadyCommitted){const engine=conversationEngineRef.current;if(engine){engine.updateTranscript(q);engine.commitUserTurn();}}
+      if(q&&!transcriptAlreadyCommitted){const engine=conversationEngineRef.current;if(engine){engine.commitUserTurn(q);}}
       pendingCommittedTranscriptRef.current='';
       if(q){
         if(!transcriptAlreadyCommitted){
@@ -1464,7 +1464,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(engine){
             const lastEngineTurn=engine.turns[engine.turns.length-1];
             if(q&&lastEngineTurn?.role==='user'&&lastEngineTurn.text===q){if(q!==resolvedUserQuery)engine.replaceLastUserTurn(q,resolvedUserQuery);}
-            else{engine.updateTranscript(resolvedUserQuery);engine.commitUserTurn();}
+            else{engine.commitUserTurn(resolvedUserQuery);}
           }
           sessionTranscriptRef.current=q
             ?replaceForzaLastSessionTurn(sessionTranscriptRef.current,q,resolvedUserQuery)
@@ -2118,7 +2118,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             detectedSpeechEndAtRef.current=vadRef.current.heardSpeech
               ? performance.now()-vadRef.current.silenceDuration(Date.now()) : 0;
             const engine=conversationEngineRef.current;
-            if(engine){engine.updateTranscript(candidate);engine.commitUserTurn();}
+            if(engine){engine.commitUserTurn(candidate);}
             console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length+
               ' endToSttFinalMs='+(detectedSpeechEndAtRef.current
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
