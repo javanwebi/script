@@ -69,6 +69,13 @@ class NimaCandidateTests(unittest.TestCase):
             self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),0.92)
         self.assertEqual(scope["NIMA_LENGTH_SCALE"],0.92)
         self.assertIn("voice_config.length_scale = NIMA_LENGTH_SCALE",worker)
+        frontend=(ROOT/"src/components/forza/AiForzaCallExperience.tsx").read_text()
+        self.assertIn("maximumInitialWaitMs:180",frontend)
+        upgrade=ROOT/"ops/upgrade-forza-realtime-vps.sh"
+        subprocess.run(["bash","-n",str(upgrade)],check=True,capture_output=True)
+        upgrade_source=upgrade.read_text(encoding="utf-8")
+        self.assertIn("FORZA_NIMA_LENGTH_SCALE",upgrade_source)
+        self.assertIn('d.length_scale>=0.85&&d.length_scale<=1',upgrade_source)
 
         # Filling the bounded admission pool fails fast, without allowing
         # an unbounded queue or simultaneous inference on the same model.
