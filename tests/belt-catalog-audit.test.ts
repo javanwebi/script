@@ -71,7 +71,7 @@ test('audit accounts for all 1,383 raw families and 10,435 SKUs with a complete,
   assert.equal(audit.confidenceCounts.ALGORITHMIC_STANDARD_ONLY,
     7709 - exactVerified - seriesVerified - audit.confidenceCounts.NOMINAL_TABLE_VERIFIED -
       audit.confidenceCounts.INVENTORY_DESCRIPTION_ONLY - audit.confidenceCounts.REQUIRES_REVIEW);
-  assert.equal(audit.confidenceCounts.REQUIRES_REVIEW, 723);
+  assert.equal(audit.confidenceCounts.REQUIRES_REVIEW, 688);
 
   // Every SKU record must carry an explicit sourceUrl & documentType, and DATASHEET_VERIFIED requires same-brand match
   for (const r of audit.reportA_skuClassifications) {
@@ -181,7 +181,9 @@ test('all proposed groups pass strict invariant homogeneity checks with zero MIX
   assert.notEqual(bySku.get('41121')?.proposedFamilyId, bySku.get('10203')?.proposedFamilyId);
   assert.equal(bySku.get('31501')?.detectedBrand, 'OPTIBELT');
   assert.equal(bySku.get('36822')?.technical.beltThicknessMm, null);
-  assert.equal(bySku.get('36822')?.technical.nominalWidthMm, 470);
+  // Keep the raw 470*5100 inventory dimensions; do not infer which axis is belt width.
+  assert.equal(bySku.get('36822')?.technical.nominalWidthMm, null);
+  assert.equal(bySku.get('36822')?.originalSize, '470*5100');
   assert.equal(bySku.get('36527')?.confidence, 'ALGORITHMIC_STANDARD_ONLY');
   assert.equal(bySku.get('36527')?.technical.supplyForm, 'open-ended-meter');
 });
@@ -434,7 +436,7 @@ test('misplaced belts outside belt categories and non-belts inside belt categori
 
   // Pre-approval audit targets + untouched live taxonomy check
   // 10111 is 1400DH075: DH is double-sided, so it must not be placed in the single-sided H/XH/L/XL leaf.
-  assert.equal(bySku.get('10111')?.technical.profile, 'H');
+  assert.equal(bySku.get('10111')?.technical.profile, 'DH');
   assert.equal(bySku.get('10111')?.technical.sidedness, 'double-sided');
   assert.equal(bySku.get('10111')?.proposedLeaf, null);
   assert.match(bySku.get('10111')?.taxonomyGap || '', /GAP-TIMING-DOUBLE-SIDED/);
