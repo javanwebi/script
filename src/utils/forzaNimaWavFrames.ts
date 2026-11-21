@@ -85,3 +85,42 @@ export async function consumeForzaNimaWavFrames(
     reader.releaseLock();
   }
 }
+
+
+/** Mirror the private Piper worker's sentence boundaries for echo/barging text. */
+export function splitForzaNimaSentenceText(value:string):string[] {
+  const text=value
+    .replace(/(?:https?:\/\/|www\.)\S+/giu,' ')
+    .replace(/(?<=\d)\s*\*\s*(?=\d)/gu,' در ')
+    .replace(/[*\x60#]/gu,' ');
+  const closers=new Set(['»','”','’','"',"'",')',']','}','〉']);
+  const abbreviations=new Set(['dr','mr','mrs','ms','prof','e.g','i.e','vs','no']);
+  const sentences:string[]=[];
+  let start=0;
+  for(let index=0;index<text.length;index++){
+    const character=text[index];
+    let boundary=-1;
+    if(character==='\n')boundary=index+1;
+    else if('.!?؟۔'.includes(character)){
+      const previous=index>0?text[index-1]:'';
+      const following=index+1<text.length?text[index+1]:'';
+      if(/[\p{L}\p{N}]/u.test(previous)&&/[\p{L}\p{N}]/u.test(following))continue;
+      boundary=index+1;
+      while(boundary<text.length&&closers.has(text[boundary]))boundary++;
+      const nextCharacter=boundary<text.length?text[boundary]:'';
+      if(nextCharacter&&!/\s/u.test(nextCharacter))continue;
+      if(character==='.'){
+        const token=text.slice(start,index).match(/([A-Za-z](?:[A-Za-z.]*)?)\s*$/u)?.[1];
+        if(token&&abbreviations.has(token.toLowerCase().replace(/\.+$/u,'')))continue;
+      }
+    }
+    if(boundary<0)continue;
+    const sentence=text.slice(start,boundary).trim();
+    if(sentence&&/[\p{L}\p{N}]/u.test(sentence))sentences.push(sentence);
+    start=boundary;
+    index=boundary-1;
+  }
+  const tail=text.slice(start).trim();
+  if(tail&&/[\p{L}\p{N}]/u.test(tail))sentences.push(tail);
+  return sentences;
+}
