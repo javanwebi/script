@@ -159,12 +159,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const micMutedRef = useRef(false);
   const speechInterimRef = useRef(false);
   const pendingAudioResolveRef = useRef<(() => void) | null>(null);
-  const recognitionFailedRef = useRef(false);
-  const recognitionRetryRef=useRef(0);
-  const recognitionRetryTimerRef=useRef<number|null>(null);
-  const recognitionStartWatchdogRef=useRef<number|null>(null);
-  const recognitionStartPendingRef=useRef(false);
-  const recognitionStartRef=useRef<()=>void>(()=>{});
   const vadRef = useRef(new ForzaVoiceActivity());
   const speechAdmissionRef=useRef(new ForzaSpeechAdmission());
   const audioEvidenceCleanupRef=useRef<(()=>void)|null>(null);
@@ -230,8 +224,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }
   const interruptRequestRef = useRef<() => void>(()=>{});
   const isAiSpeakingRef = useRef<boolean>(false);
-  const recognitionRef = useRef<any>(null);
-  const isRecognitionActiveRef = useRef<boolean>(false);
   const isProcessingTurnRef = useRef<boolean>(false);
   const turnDispatchPendingRef=useRef(false);
   const silenceTimerRef = useRef<number | null>(null);
@@ -243,14 +235,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const pendingHistoryTurnRef = useRef<string>('');
   const pendingTranscriptRef = useRef<string>('');
   const lastTranscriptChangedAtRef = useRef<number>(0);
-  const webSpeechFailedRef = useRef<boolean>(false);
-  const recognitionResultCountRef=useRef(0);
-  const recognitionConsumedCountRef=useRef(0);
-  const recognitionCheckpointRef=useRef({count:0,interim:{} as Record<number,string>});
-  const recognitionConsumedInterimRef=useRef<Record<number,string>>({});
-  // The local Diba recognizer may emit partials after a pause. Keep the current
-  // utterance as the base for the next recognition session instead of losing it.
-  const recognitionSessionBaseRef=useRef<string>('');
   // Compare only to speech entering the WebAudio player, not the LLM's
   // unspoken answer. Acoustic echo suppression is NOT diarization.
   const heardSpeechEchoRef=useRef('');
@@ -504,14 +488,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(!monitorOnly){
       setStatus('listening');
       setTurn('user');
-      // Resuming listening must preserve words that arrived as playback ended.
-      if (!activeTranscriptRef.current.trim()) {
-        lastTranscriptChangedAtRef.current = 0;
-        hasSpeechSoundRef.current = false;
-        audioChunksRef.current = [];
-        audioSegmentsRef.current = [];
-        recognitionSessionBaseRef.current='';
-      }
     }
 
     // Only the foreground-gated stream may reach STT. Native Web Speech is
@@ -519,16 +495,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     // into a direct-microphone browser recognizer; low-power devices use the server Diba fallback.
     const localReady=startDibaTurn();
     if(!localReady)void startServerLiveStt();
-    if(localReady){
-      if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
-      recognitionRetryTimerRef.current=null;
-      if(recognitionStartWatchdogRef.current!==null)window.clearTimeout(recognitionStartWatchdogRef.current);
-      recognitionStartWatchdogRef.current=null;
-      recognitionStartPendingRef.current=false;
-      if(isRecognitionActiveRef.current){
-        try{recognitionRef.current?.stop();}catch{}
-      }
-    }
     const recorder = mediaRecorderRef.current;
     if (!micMutedRef.current && recorder?.state === 'inactive') {
       try {
@@ -555,13 +521,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     localSttActiveRef.current=false;
     liveSttActiveRef.current=serverLiveSttActiveRef.current;
     localSttFinalRef.current='';
-    if (recognitionRef.current && isRecognitionActiveRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {}
-      isRecognitionActiveRef.current = false;
-    }
-
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       try {
         mediaRecorderRef.current.stop();
@@ -606,8 +565,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       const analyser=micAnalyserRef.current;
       if(!analyser || !streamRef.current?.active){
-        // WebSpeech may be available without Web Audio; expose real mic
-        // readiness rather than pretending to hear any sound.
+        // A secure WebAudio route is mandatory: raw browser STT is not allowed.
         setAudioLevel(0);
         return;
       }
@@ -634,8 +592,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setAudioLevel(current.level);
         if(current.speechStarted && speechAdmissionRef.current.acousticSpeech){
           hasSpeechSoundRef.current=true;
-          // During TTS this is only a VAD *candidate*. WebSpeech/local STT
-          // must provide non-echo words before cancelling the AI response.
+          // During TTS this is only a VAD candidate. Diba must provide
+          // non-echo foreground words before cancelling the AI response.
           if(!isProcessingTurnRef.current)setIsUserSpeaking(true);
           else console.info('[FORZA_TURN] phase=barge-in-vad-candidate');
         }
@@ -686,8 +644,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               setUserText(sessionTranscriptRef.current);
               pendingTranscriptRef.current=candidate;
               activeTranscriptRef.current='';
-              recognitionSessionBaseRef.current='';
-              lastTranscriptChangedAtRef.current=0;
+                    lastTranscriptChangedAtRef.current=0;
               vadRef.current.reset();
               const recorder=mediaRecorderRef.current;
               if(recorder?.state==='recording'){
@@ -700,7 +657,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 void handleUserFinishedSpeaking(candidate);
               }
             }else if(mediaRecorderRef.current?.state==='recording'){
-              // Preserve the server STT fallback when browser STT is unavailable.
+              // Preserve the one-shot Diba recovery when live Diba is unavailable.
               mediaRecorderRef.current.stop();
               vadRef.current.reset();
             }else{
@@ -1302,8 +1259,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // gate may reject ambient speech, and server Diba may still be warming.
       // Never start an unavailable server fallback or clear the last valid text.
       if(!q&&audioBlob&&serverSttConfiguredRef.current===false){
-        if(recognitionFailedRef.current||webSpeechFailedRef.current)
-          setMicrophoneError('ارتباط تشخیص گفتار مرورگر قطع است؛ روی «اتصال دوباره میکروفون» بزنید.');
+        if(!liveSttActiveRef.current)
+          setMicrophoneError('موتور تشخیص زنده در دسترس نیست؛ اتصال میکروفون را دوباره برقرار کنید.');
         startListening(true);
         return;
       }
@@ -1322,12 +1279,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setStatus('listening');
         setTurn('user');
         activeTranscriptRef.current='';
-        recognitionSessionBaseRef.current='';
-        // Keep Chrome's cumulative recognition from replaying the stop words
+         // Keep Chrome's cumulative recognition from replaying the stop words
         // as the next customer turn when the recognizer remains active.
-        recognitionConsumedCountRef.current=recognitionCheckpointRef.current.count;
-        recognitionConsumedInterimRef.current={...recognitionCheckpointRef.current.interim};
-        localSttFinalRef.current='';
+         localSttFinalRef.current='';
         localSttAdmissionRef.current?.reset();
         lastTranscriptChangedAtRef.current=0;
         turnDispatchPendingRef.current=false;
@@ -1384,9 +1338,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       turnDispatchPendingRef.current=true;
       stopAcknowledgementRef.current?.cancel();
-      // Chrome keeps final results from older turns while recognition stays
-      // open to hear interruptions. Mark them consumed instead of stopping
-      // and restarting the mic (which drops first syllables).
+      // Keep the single local/server Diba stream open to hear interruptions.
       recognitionConsumedCountRef.current=recognitionCheckpointRef.current.count;
         recognitionConsumedInterimRef.current={...recognitionCheckpointRef.current.interim};
       recognitionSessionBaseRef.current='';
@@ -1399,9 +1351,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setVoicePending(false);
       setVoiceStage('text');
       setErrorNotice(null);
-      // Keep browser/local recognition and mic recording alive during the
-      // model request. Stopping then immediately restarting WebSpeech loses
-      // the first syllable of a customer interruption on some browsers.
+      // Keep local/server Diba recognition and gated microphone capture alive
+      // during the model request so the first interruption syllable is retained.
       // Only the previous transcript is cleared; VAD resets below.
       // No audio-unlock call here: it can accidentally replay the introduction
       // while the customer's recording is being submitted.
@@ -1451,10 +1402,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        // Browser/local interim text stays visible immediately. On devices
-        // using Chrome as the live recognizer, run the local server Diba model
-        // as a bounded final verifier too; on devices already using local Diba,
-        // avoid wasting a second inference on the same model.
+        // Local or server-streaming Diba text stays visible immediately.
+        // Use one-shot server verification only if live Diba was unavailable
+        // or a pre-stream recorder segment must be recovered.
         const needsServerFinal = Boolean(audioBlob) &&
           serverSttConfiguredRef.current === true && (!q || !liveSttActiveRef.current);
         if(audioBlob && needsServerFinal){
@@ -1984,8 +1934,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             return;
           }
 
-          // Preserve the live browser interim. Complete WebM segments are
-          // available to Diba only when the browser did not produce usable text.
+          // Preserve the live Diba transcript. Complete WebM segments are
+          // retained only when no live Diba stream was available.
           const currentTranscript=(pendingTranscriptRef.current||activeTranscriptRef.current||'').trim();
           pendingTranscriptRef.current='';
           if (currentTranscript) {
@@ -2005,7 +1955,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
 
           // With no server ASR, empty VAD segments are not failed requests.
-          // Retain browser recognition and restart only the RAM recorder.
+          // Keep the gated capture running; never fall back to raw browser STT.
           if(serverSttConfiguredRef.current===false||(rejectedSpeech&&audioSegmentsRef.current.length===0)){
             audioSegmentsRef.current=[];
             vadRef.current.reset();
@@ -2105,9 +2055,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       void startServerLiveStt();
 
       // Prefer on-device Diba partials when the device has modest headroom.
-      // Lower-powered devices still send only gated audio to the server Diba
-      // after the utterance ends; native Web Speech is not allowed to bypass
-      // the foreground filter with direct microphone access.
+      // Lower-powered devices stream only gated PCM to the server Diba worker.
       const dibaCpuCount=Number(navigator.hardwareConcurrency||0);
       const dibaDeviceMemory=Number((navigator as any).deviceMemory||0);
       const dibaSaveData=Boolean((navigator as any).connection?.saveData);
@@ -2144,7 +2092,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }).finally(()=>{localSttModelLoadingRef.current=false;});
       }
 
-      if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
       recognitionRetryTimerRef.current=null;
       if(recognitionStartWatchdogRef.current!==null)window.clearTimeout(recognitionStartWatchdogRef.current);
       recognitionStartWatchdogRef.current=null;
@@ -2184,9 +2131,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
   },[ensureCtx,setupMediaRecorder,startListening,attachLocalStt,startDibaTurn,startServerLiveStt,stopServerLiveStt]);
 
-  // STT prefers same-origin local Diba/Vosk partials on capable devices,
-  // keeps browser recognition active during warmup, and retains server Diba
-  // as a final fallback. Low-power/save-data devices stay on browser STT.
+  // STT uses one persistent Diba session: local WASM on capable devices,
+  // same-origin server streaming on low-power devices. Both consume only the
+  // foreground-gated PCM stream; one-shot Diba is a recovery path only.
 
   // Discover the independent Diba stream service. Local Vosk remains primary
   // on capable devices; low-power devices use the same foreground-gated PCM
@@ -2318,19 +2265,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     activeTurnRef.current=null;
     if(silenceTimerRef.current)clearTimeout(silenceTimerRef.current);
     silenceTimerRef.current=null;
-    if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
-    recognitionRetryTimerRef.current=null;
-    if(recognitionStartWatchdogRef.current!==null)window.clearTimeout(recognitionStartWatchdogRef.current);
-    recognitionStartWatchdogRef.current=null;
-    recognitionStartPendingRef.current=false;
-    recognitionStartRef.current=()=>{};
-    const recognition=recognitionRef.current;
-    recognitionRef.current=null;
-    if(recognition){
-      recognition.onresult=null;recognition.onerror=null;recognition.onend=null;
-      try{recognition.abort();}catch{}
-    }
-    isRecognitionActiveRef.current=false;
     const recorder=mediaRecorderRef.current;
     mediaRecorderRef.current=null;
     if(recorder){
