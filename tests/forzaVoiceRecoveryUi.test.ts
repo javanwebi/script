@@ -23,6 +23,13 @@ test('new FORZA turns retain the mic instead of stopping live WebSpeech before A
   assert.match(turn,/bounded_idle_flush=1/);
 });
 
+test('final STT text is authoritative when the UI commits a customer turn',()=>{
+  assert.equal((ui.match(/engine\\.commitUserTurn\\(candidate\\)/g)||[]).length,2);
+  assert.match(ui,/engine\\.commitUserTurn\\(q\\)/);
+  assert.match(ui,/engine\\.commitUserTurn\\(resolvedUserQuery\\)/);
+  assert.doesNotMatch(ui,/engine\\.updateTranscript\\((?:candidate|q|resolvedUserQuery)\\);engine\\.commitUserTurn\\(\\)/);
+});
+
 test('text correction can stop a pending/playing answer and does not block on UI thinking state',()=>{
   assert.match(ui,/interruptCurrentTurn\(\);/);
   assert.match(ui,/const submitUserText = \(text: string\)/);
@@ -150,7 +157,7 @@ test('a two-second pause preserves the same live transcript across browser recog
   assert.match(ui,/appendForzaSpeechSegment\(recognitionSessionBaseRef\.current,currentSpeech\)/);
   assert.match(ui,/: 5200;/);
   assert.match(ui,/Math\.max\(5200,pauseMs\)-acousticSilence/);
-  assert.match(speechPipeline,/hasInterim\?4600:4200/);
+  assert.match(speechPipeline,/hasInterim\?6_500:5_500/);
 });
 
 test('FORZA hair animation remains visible during the spoken greeting despite microphone echo cancellation',()=>{
