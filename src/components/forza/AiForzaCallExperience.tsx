@@ -2055,12 +2055,23 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(!ctx)throw new Error('audio_context_unavailable');
       // A single ordinary mic is sufficient; no external array is required.
       // Disable AGC so proximity/SNR cues are not flattened by automatic gain.
-      acquiredStream=await navigator.mediaDevices.getUserMedia({audio:{
+      const baseAudioConstraints:MediaTrackConstraints={
         echoCancellation:true,noiseSuppression:true,autoGainControl:false,channelCount:1,
-        // Ask browsers/OS audio stacks for their speaker-focused isolation when available.
-        // Unsupported implementations ignore this optional constraint.
-        voiceIsolation:true,
-      } as MediaTrackConstraints});
+      };
+      try{
+        // Ask browsers/OS audio stacks for speaker-focused isolation when available.
+        acquiredStream=await navigator.mediaDevices.getUserMedia({audio:{
+          ...baseAudioConstraints,voiceIsolation:true,
+        } as MediaTrackConstraints});
+      }catch(constraintError){
+        const errorName=String((constraintError as any)?.name||'');
+        const constraint=String((constraintError as any)?.constraint||'');
+        // An unsupported optional isolation constraint must never block an
+        // ordinary USB/laptop microphone. Permission/device errors still surface.
+        if(errorName!=='OverconstrainedError'&&constraint!=='voiceIsolation'&&errorName!=='TypeError')
+          throw constraintError;
+        acquiredStream=await navigator.mediaDevices.getUserMedia({audio:baseAudioConstraints});
+      }
       if(callClosedRef.current || microphoneGeneration!==microphoneGenerationRef.current){
         acquiredStream.getTracks().forEach(track=>track.stop());
         return;
