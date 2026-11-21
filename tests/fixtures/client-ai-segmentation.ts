@@ -1,4 +1,4 @@
-import fixtureUrl from '../../src/assets/images/knowledge_caliper_guide_1794570605426.jpg?url';
+import fixtureUrl from '../../src/assets/images/hero_timing_belt_studio_1794523125679.jpg?url';
 import { getForegroundRegion, segmentImageWithClientAi } from '../../src/utils/clientAiSegmentation';
 
 type VisionSmokeResult = {
