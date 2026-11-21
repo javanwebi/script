@@ -131,6 +131,7 @@ function wav(seconds=0.2){
    'distant speech must not become STT text');
   assert.equal(await page.evaluate(()=>window.__forzaVoskNonZeroFrames||0),farFrames,
    'distant PCM must not reach the STT recognizer');
+  await page.evaluate(()=>window.__forzaVoskRecognizer.emitFinal(''));
   await page.evaluate(()=>{window.__forzaMicSample=0.003;});
   await page.waitForTimeout(450);
   await page.evaluate(()=>window.__forzaVoskRecognizer.emitPartial('می خواهم مشخصات تسمه تایمینگ را بدانم'));
