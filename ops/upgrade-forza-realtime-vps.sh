@@ -156,6 +156,30 @@ docker exec "$APP" node -e '
 fetch("http://127.0.0.1:3000/api/ai/forza-speech",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"سلام، شماره فنی قطعه را بفرمایید.",turnId:"realtime-upgrade-check"}),signal:AbortSignal.timeout(15000)})
 .then(async r=>{const b=Buffer.from(await r.arrayBuffer());if(!r.ok||r.headers.get("X-Forza-Voice")!=="piper-nima-gyro-medium"||b.toString("ascii",0,4)!=="RIFF"||b.toString("ascii",8,12)!=="WAVE")process.exit(1);console.log("FORZA_SITE_VOICE_WAV_OK bytes="+b.length)})
 .catch(()=>process.exit(1))'
+# Verify Express -> private Nima -> framed WAV proxy after live promotion.
+docker exec "$APP" node -e '
+const text="مشخصات تسمه صنعتی را بررسی می‌کنم. لطفاً کد فنی روی بدنه را اعلام کنید تا مدل و سایز دقیق را پیدا کنم.";
+fetch("http://127.0.0.1:3000/api/ai/forza-speech-stream",{
+ method:"POST",headers:{"Content-Type":"application/json"},
+ body:JSON.stringify({text,turnId:"realtime-stream-proxy-check"}),
+ signal:AbortSignal.timeout(30000)
+}).then(async r=>{
+ const body=Buffer.from(await r.arrayBuffer());
+ if(!r.ok||!r.headers.get("Content-Type")?.includes("application/x-forza-wav-frames")||
+    r.headers.get("X-Forza-Voice")!=="piper-nima-gyro-medium"||
+    r.headers.get("X-Forza-Stream-Protocol")!=="length-prefixed-wav-v1")process.exit(1);
+ let offset=0,frames=0;
+ while(offset<body.length){
+  if(body.length-offset<4)process.exit(1);
+  const size=body.readUInt32LE(offset);offset+=4;
+  if(size<44||size>8000000||offset+size>body.length)process.exit(1);
+  if(body.toString("ascii",offset,offset+4)!=="RIFF"||
+     body.toString("ascii",offset+8,offset+12)!=="WAVE")process.exit(1);
+  offset+=size;frames++;
+ }
+ if(frames<2)process.exit(1);
+ console.log("FORZA_SITE_PROGRESSIVE_STREAM_OK frames="+frames+" bytes="+body.length);
+}).catch(()=>process.exit(1))'
 SUCCESS=1
 echo "FORZA_REALTIME_VOICE_READY workers=$WORKERS cpu_limit=$WORKERS memory_limit=$MEMORY"
 echo "VOICE_ROLLBACK_CONTAINER=$BACKUP"
