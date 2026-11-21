@@ -549,12 +549,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(!active)return;
       const evidenceAnalyser=micAnalyserRef.current;
       if(evidenceAnalyser&&streamRef.current?.active&&ctxRef.current?.state==='running'&&!micMutedRef.current){
-        if(!audioEvidenceCleanupRef.current){
-        if(samples.length!==evidenceAnalyser.fftSize)samples=new Float32Array(evidenceAnalyser.fftSize);
-        evidenceAnalyser.getFloatTimeDomainData(samples);
-        speechAdmissionRef.current.sample(rootMeanSquareFromFloatTimeDomain(samples),Date.now(),
-          isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current);
-        }
+        // Never authorize STT from raw analyser RMS. Only the pre-STT worklet
+        // may publish foreground evidence; if it is absent, fail closed.
+        if(!audioEvidenceCleanupRef.current)speechAdmissionRef.current.reset();
       }else speechAdmissionRef.current.reset();
       if(!greetingFinishedRef.current || micMutedRef.current ||
          (statusRef.current!=='listening' && !isProcessingTurnRef.current &&
