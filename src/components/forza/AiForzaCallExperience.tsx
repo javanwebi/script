@@ -380,6 +380,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       // The local model may have completed while the status request was in flight.
       if(callClosedRef.current||(!forceLocalFallback&&localSttRecognizerRef.current))return false;
+      if(forceLocalFallback&&Date.now()-lastDibaHypothesisAtRef.current<1500)return false;
       client=new ForzaLiveSttClient({
         onHypothesis:(text,isFinal)=>{
           if(serverLiveSttClientRef.current===client)acceptDibaHypothesis(text,isFinal);
@@ -387,6 +388,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         onState:(state,code)=>{
           if(serverLiveSttClientRef.current!==client)return;
           if(state==='ready'){
+            if(forceLocalFallback&&localSttActiveRef.current&&
+               Date.now()-lastDibaHypothesisAtRef.current<1500){
+              // Local Vosk recovered while the server connection was warming.
+              stopServerLiveStt();
+              return;
+            }
             // If local Vosk was not producing timely partials, switch the
             // already-filtered PCM source to the server stream without a mic reset.
             if(forceLocalFallback||!localSttRecognizerRef.current){
@@ -451,7 +458,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }finally{
       serverLiveSttStartingRef.current=false;
     }
-  },[acceptDibaHypothesis]);
+  },[acceptDibaHypothesis,stopServerLiveStt]);
 
   const startDibaTurn=useCallback(()=>{
     const model=localSttModelRef.current;
