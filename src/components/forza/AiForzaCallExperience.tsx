@@ -378,6 +378,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setServerSttLabel('دایبا زنده سرور در دسترس نیست؛ متن خام ارسال نمی‌شود');
         return false;
       }
+      // The local model may have completed while the status request was in flight.
+      if(callClosedRef.current||(!forceLocalFallback&&localSttRecognizerRef.current))return false;
       client=new ForzaLiveSttClient({
         onHypothesis:(text,isFinal)=>{
           if(serverLiveSttClientRef.current===client)acceptDibaHypothesis(text,isFinal);
