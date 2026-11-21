@@ -95,7 +95,6 @@ await new Promise((resolve, reject) => {
       setTimeout(() => {
         try { socket.send(JSON.stringify({ type: "stop" })); socket.close(); } catch {}
         console.log("FORZA_DIBA_LIVE_STREAM_OK sampleRate=16000 frames=8");
-        finish();
       }, 750);
     }
   });
