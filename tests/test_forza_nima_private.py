@@ -67,7 +67,10 @@ class NimaCandidateTests(unittest.TestCase):
             self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),1.0)
         with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"not-a-number"}):
             self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),0.92)
-        self.assertEqual(scope["NIMA_LENGTH_SCALE"],0.92)
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),0.92)
+        self.assertGreaterEqual(scope["NIMA_LENGTH_SCALE"],0.85)
+        self.assertLessEqual(scope["NIMA_LENGTH_SCALE"],1.0)
         self.assertIn("voice_config.length_scale = NIMA_LENGTH_SCALE",worker)
         frontend=(ROOT/"src/components/forza/AiForzaCallExperience.tsx").read_text()
         self.assertIn("maximumInitialWaitMs:180",frontend)
