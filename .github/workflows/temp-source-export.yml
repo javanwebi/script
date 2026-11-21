@@ -4,7 +4,7 @@ on:
     branches:
       - tmp/export-main-source-20261121
     paths:
-      - 'tmp/export/READY_SOURCE'
+      - 'tmp/export/READY_SOURCE_2'
 permissions:
   contents: read
 jobs:
@@ -17,10 +17,10 @@ jobs:
         run: |
           set -euo pipefail
           {
-            git ls-files | grep -E '^(src|tests|scripts|ops|\.github/workflows)/' \
+            git ls-files | grep -E '^(src|tests|scripts|ops|\\.github/workflows)/' \
               | grep -Ev '^src/assets/' \
-              | grep -Ev '^src/data/.*\.json$' \
-              | grep -E '\.(ts|tsx|js|jsx|css|mjs|cjs|sh|yml|yaml|md|svg)$'
+              | grep -Ev '^src/data/.*\\.json$' \
+              | grep -E '\\.(ts|tsx|js|jsx|css|mjs|cjs|sh|yml|yaml|md|svg)$'
             printf '%s\\n' package.json package-lock.json tsconfig.json vite.config.ts server.ts Dockerfile
           } | sort -u | tar -czf /tmp/sanatpish-main-code-source.tar.gz -T -
           ls -lh /tmp/sanatpish-main-code-source.tar.gz
