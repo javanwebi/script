@@ -120,6 +120,12 @@ test('native browser SpeechRecognition is disabled because it bypasses the foreg
 
  assert.match(ui,/localSttAdmissionRef\.current\?\.reset\(\)/);
  assert.match(ui,/lastDibaHypothesisAtRef\.current>3000/);
+ assert.match(ui,/micNow-lastForzaPlaybackAtRef\.current>1500/,
+  'speaker echo tail must not trigger a local-to-server Diba handoff immediately after playback');
+ const accept=ui.slice(ui.indexOf('const acceptDibaHypothesis'),ui.indexOf('const startServerLiveStt'));
+ assert.ok(accept.indexOf('lastDibaHypothesisAtRef.current=Date.now()')<
+  accept.indexOf('const echo=likelySpeakerEcho(words)'),
+  'any non-empty Diba hypothesis proves the decoder is active, even when rejected as speaker echo');
  assert.match(ui,/speechStartedAtRef\.current===0/);
 });
 
