@@ -376,6 +376,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     // already arriving during the last milliseconds of playback.
     if(localSttRecognizerRef.current){
       localSttActiveRef.current=true;
+      liveSttActiveRef.current=true;
+      stopServerLiveStt();
       return true;
     }
     try{
@@ -394,26 +396,104 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         localSttRecognizerRef.current=null;
         localSttAdmissionRef.current=null;
         localSttActiveRef.current=false;
+        liveSttActiveRef.current=serverLiveSttActiveRef.current;
         recognizer.remove?.();
         setLocalSttStatus('fallback');
-        // Do not reopen the raw microphone through a browser recognizer.
-        // The existing MediaRecorder continues to hold only gated PCM and
-        // server Diba will transcribe it when the customer finishes speaking.
         setServerSttLabel(serverSttConfiguredRef.current
-          ? 'دایبا سرور آماده است · تشخیص پس از پایان گفتار'
+          ? 'در حال اتصال به تشخیص زنده دایبا روی سرور'
           : 'دایبا سرور تنظیم نشده؛ تشخیص گفتار در دسترس نیست');
+        void startServerLiveStt();
       });
       localSttRecognizerRef.current=recognizer;
       localSttActiveRef.current=true;
+      liveSttActiveRef.current=true;
+      stopServerLiveStt();
       return true;
     }catch(error){
       localSttAdmissionRef.current=null;
       localSttActiveRef.current=false;
+      liveSttActiveRef.current=serverLiveSttActiveRef.current;
       console.warn('[FORZA Diba] Recognizer failed',error);
+      void startServerLiveStt();
       setLocalSttStatus('fallback');
       return false;
     }
   },[]);
+  const startServerLiveStt=useCallback(async()=>{
+    if(callClosedRef.current||localSttRecognizerRef.current||serverLiveSttClientRef.current||
+       serverLiveSttStartingRef.current)return false;
+    const ctx=ctxRef.current,source=micSourceNodeRef.current;
+    if(!ctx||!source)return false;
+    serverLiveSttStartingRef.current=true;
+    let client:ForzaLiveSttClient|null=null;
+    try{
+      if(!serverSttConfiguredRef.current){
+        const response=await fetch('/api/ai/forza-stt-info',{cache:'no-store'});
+        if(!response.ok)throw new Error('diba_status_unavailable');
+        const info=await response.json();
+        serverSttConfiguredRef.current=info?.serverSttProvider==='diba'&&info?.serverSttConfigured===true;
+      }
+      if(!serverSttConfiguredRef.current){
+        setServerSttLabel('دایبا زنده سرور در دسترس نیست؛ متن خام ارسال نمی‌شود');
+        return false;
+      }
+      client=new ForzaLiveSttClient({
+        onHypothesis:(text,isFinal)=>{
+          if(serverLiveSttClientRef.current===client)acceptDibaHypothesis(text,isFinal);
+        },
+        onState:(state,code)=>{
+          if(serverLiveSttClientRef.current!==client)return;
+          if(state==='ready'){
+            serverLiveSttActiveRef.current=true;
+            liveSttActiveRef.current=true;
+            localSttAdmissionRef.current??=new ForzaRecognitionAdmission();
+            setServerSttLabel('دایبا سرور زنده · فقط صدای فیلترشده');
+            setMicrophoneError(null);
+            console.info('[FORZA_STT] provider=diba-server-live foreground_gate=1 ready=1');
+          }else if(state==='reconnecting'||state==='connecting'||state==='warming'){
+            serverLiveSttActiveRef.current=false;
+            liveSttActiveRef.current=localSttActiveRef.current;
+            setServerSttLabel('اتصال مجدد به تشخیص زنده دایبا...');
+          }else if(state==='failed'){
+            serverLiveSttActiveRef.current=false;
+            liveSttActiveRef.current=localSttActiveRef.current;
+            setServerSttLabel('تشخیص زنده دایبا موقتاً قطع شد؛ مسیر پشتیبان فعال است');
+            console.warn('[FORZA_STT] provider=diba-server-live unavailable code='+
+              String(code||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+          }
+        },
+      });
+      serverLiveSttClientRef.current=client;
+      const cleanup=await attachForzaLivePcmTap(ctx,source,pcm=>{
+        if(greetingFinishedRef.current&&!micMutedRef.current&&!callClosedRef.current)
+          client?.sendPcm(pcm);
+      });
+      if(callClosedRef.current||serverLiveSttClientRef.current!==client){
+        cleanup();client.stop();return false;
+      }
+      serverLivePcmCleanupRef.current=cleanup;
+      void client.start().catch(error=>{
+        if(serverLiveSttClientRef.current!==client)return;
+        console.warn('[FORZA_STT] live socket initial connect failed code='+
+          String((error as any)?.message||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+      });
+      return true;
+    }catch(error){
+      if(client&&serverLiveSttClientRef.current===client){
+        serverLivePcmCleanupRef.current?.();serverLivePcmCleanupRef.current=null;
+        client.stop();serverLiveSttClientRef.current=null;
+      }
+      serverLiveSttActiveRef.current=false;
+      liveSttActiveRef.current=localSttActiveRef.current;
+      setServerSttLabel('اتصال زنده دایبا برقرار نشد؛ ضبط فیلترشده برای تشخیص نهایی نگه داشته می‌شود');
+      console.warn('[FORZA_STT] live setup failed code='+
+        String((error as any)?.message||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+      return false;
+    }finally{
+      serverLiveSttStartingRef.current=false;
+    }
+  },[acceptDibaHypothesis]);
+
   // Start/Stop voice listening helpers
   const startListening = useCallback((monitorOnly=false) => {
     if (callClosedRef.current || !isCallActive || !greetingFinishedRef.current || micMutedRef.current ||
