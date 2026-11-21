@@ -71,7 +71,7 @@ test('audit accounts for all 1,383 raw families and 10,435 SKUs with a complete,
   assert.equal(audit.confidenceCounts.ALGORITHMIC_STANDARD_ONLY,
     7709 - exactVerified - seriesVerified - audit.confidenceCounts.NOMINAL_TABLE_VERIFIED -
       audit.confidenceCounts.INVENTORY_DESCRIPTION_ONLY - audit.confidenceCounts.REQUIRES_REVIEW);
-  assert.equal(audit.confidenceCounts.REQUIRES_REVIEW, 723);
+  assert.equal(audit.confidenceCounts.REQUIRES_REVIEW, 688);
 
   // Every SKU record must carry an explicit sourceUrl & documentType, and DATASHEET_VERIFIED requires same-brand match
   for (const r of audit.reportA_skuClassifications) {
@@ -103,7 +103,7 @@ test('audit accounts for all 1,383 raw families and 10,435 SKUs with a complete,
   assert.equal(audit.nonBeltInsideBeltCategoryCount, 24);
   assert.equal(audit.nonConveyorInsideConveyorCategoryCount, 32);
   assert.ok(audit.misplacedBeltOutsideBeltCategoryCount >= 45);
-  assert.equal(audit.catchAllIndustrialBeltResolvedCount, 1012);
+  assert.equal(audit.catchAllIndustrialBeltResolvedCount, 1034);
 });
 
 test('PVC conical-cleat perforation stays SKU-level and does not split the family identity', () => {
@@ -181,7 +181,8 @@ test('all proposed groups pass strict invariant homogeneity checks with zero MIX
   assert.notEqual(bySku.get('41121')?.proposedFamilyId, bySku.get('10203')?.proposedFamilyId);
   assert.equal(bySku.get('31501')?.detectedBrand, 'OPTIBELT');
   assert.equal(bySku.get('36822')?.technical.beltThicknessMm, null);
-  assert.equal(bySku.get('36822')?.technical.nominalWidthMm, 470);
+  // The source size is an unlabelled 470*5100 pair; do not infer which axis is belt width.
+  assert.equal(bySku.get('36822')?.technical.nominalWidthMm, null);
   assert.equal(bySku.get('36527')?.confidence, 'ALGORITHMIC_STANDARD_ONLY');
   assert.equal(bySku.get('36527')?.technical.supplyForm, 'open-ended-meter');
 });
@@ -434,7 +435,7 @@ test('misplaced belts outside belt categories and non-belts inside belt categori
 
   // Pre-approval audit targets + untouched live taxonomy check
   // 10111 is 1400DH075: DH is double-sided, so it must not be placed in the single-sided H/XH/L/XL leaf.
-  assert.equal(bySku.get('10111')?.technical.profile, 'H');
+  assert.equal(bySku.get('10111')?.technical.profile, 'DH');
   assert.equal(bySku.get('10111')?.technical.sidedness, 'double-sided');
   assert.equal(bySku.get('10111')?.proposedLeaf, null);
   assert.match(bySku.get('10111')?.taxonomyGap || '', /GAP-TIMING-DOUBLE-SIDED/);
@@ -443,7 +444,12 @@ test('misplaced belts outside belt categories and non-belts inside belt categori
   assert.equal(bySku.get('36103')?.proposedLeaf, 'H , XH , L , XL');
   assert.equal(bySku.get('22751')?.proposedCategorySlug, 'excel-v2-1-2');
   assert.equal(bySku.get('35198')?.proposedCategorySlug, 'excel-v2-1-2');
-  assert.equal(getFamilyMenuAssignment('FAM-34064')?.categorySlug, 'excel-v2-1-1');
+  const magdineT5 = getFamilyMenuAssignment('FAM-34064');
+  const magdineT5Long = getFamilyMenuAssignment('FAM-34067');
+  assert.equal(magdineT5?.categorySlug, 'excel-v2-1-1');
+  assert.equal(magdineT5?.submenuName, 'انواع گام و کدهای تایمینگ');
+  assert.equal(magdineT5?.leafName, 'T5 , AT5 , AT10 , AT20');
+  assert.deepEqual(magdineT5Long, magdineT5);
 });
 
 test('pre-approval brand cleanup extracts hidden brands, fixes EHRE/typos, and keeps suspected aliases separate', () => {

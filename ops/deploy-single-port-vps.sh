@@ -406,7 +406,7 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
   console.log("PRODUCTION_CATALOG_FAMILY_LINEAGE",JSON.stringify({active_pfam:activePfam,active_fam:activeFam}));
   if(activePfam===0&&activeFam>0){
    console.log("PRODUCTION_BELT_PFAM_FOLLOWUP_SKIPPED reason=legacy_fam_catalog active_fam="+activeFam);
-   console.log("PRODUCTION_BELT_DIRECT_SKU_FOLLOWUP_DEFERRED reason=pfam_family_baseline_absent");
+   console.log("PRODUCTION_PFAM_DIRECT_SKU_FOLLOWUP_SKIPPED reason=legacy_fam_catalog active_fam="+activeFam);
   }else{
    if(activePfam===0)throw Error("No active PFAM or FAM family baseline found; refusing to apply belt taxonomy follow-up");
    if(activeFam>0)throw Error("Mixed active FAM/PFAM family lineage; refusing to apply PFAM-only belt taxonomy follow-up");
@@ -492,6 +492,63 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
   process.exitCode=1;
  }finally{await closeDatabase()}
 ' < "$BELT_ENGINEERING_SQL"
+
+echo '===== APPLY LEGACY FAM-ONLY WELDING EQUIPMENT DIRECT SKU PROJECTION ====='
+LEGACY_FAM_WELDING_SQL="$STAGE/ops/sql/20261121_legacy_fam_belt_welding_direct_skus.sql"
+test -s "$LEGACY_FAM_WELDING_SQL" || { echo "REQUIRED_LEGACY_FAM_WELDING_SQL_MISSING=$LEGACY_FAM_WELDING_SQL"; exit 1; }
+# The VPS source of truth remains the self-hosted legacy FAM catalog. This
+# additive projection publishes only three source-verified welding tools;
+# it does not rewrite/deactivate any family or variant and never touches cloud PFAM.
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+ import {readFileSync} from "node:fs";
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const sql=readFileSync(0,"utf8");
+  const lineage=await database().query(
+   "select " +
+   "count(*) filter(where code like \x27PFAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_pfam, " +
+   "count(*) filter(where code like \x27FAM-%\x27 and is_active=true and coalesce(is_deleted,false)=false)::int as active_fam " +
+   "from public.catalog_families");
+  const activePfam=Number(lineage.rows[0].active_pfam||0);
+  const activeFam=Number(lineage.rows[0].active_fam||0);
+  if(activePfam===0&&activeFam>0){
+   await database().query(sql);
+   const backup=await database().query(
+    "select count(*)::int as rows, count(*) filter(where migration_state=\x27applied\x27)::int as applied " +
+    "from internal.catalog_legacy_fam_belt_welding_direct_backup_20261121");
+   const direct=await database().query(
+    "select count(*)::int as rows from public.catalog_direct_skus " +
+    "where sku_code=any(array[\x2741497\x27,\x2735852\x27,\x27110049\x27]::text[]) " +
+    "and category_slug=\x27excel-v2-1-4\x27 and submenu=\x27دستگاه‌های تسمه جوشی\x27 " +
+    "and subcategory=\x27دستگاه جوش تسمه صنعتی\x27 and is_active=true " +
+    "and ((sku_code=\x2741497\x27 and source_family_code=\x27FAM-41497\x27) or " +
+    "(sku_code=\x2735852\x27 and source_family_code=\x27FAM-35852\x27) or " +
+    "(sku_code=\x27110049\x27 and source_family_code=\x27FAM-90062\x27))");
+   if(Number(backup.rows[0].rows)!==3||Number(backup.rows[0].applied)!==3||Number(direct.rows[0].rows)!==3){
+    throw Error("Legacy FAM welding direct-SKU migration postcondition failed");
+   }
+   console.log("PRODUCTION_LEGACY_FAM_WELDING_DIRECT_SKUS_APPLIED_OR_VERIFIED count=3");
+  }else if(activePfam>0&&activeFam===0){
+   const direct=await database().query(
+    "select count(*)::int as rows from public.catalog_direct_skus " +
+    "where sku_code=any(array[\x2741497\x27,\x2735852\x27,\x27110049\x27]::text[]) " +
+    "and category_slug=\x27excel-v2-1-4\x27 and submenu=\x27دستگاه‌های تسمه جوشی\x27 " +
+    "and subcategory=\x27دستگاه جوش تسمه صنعتی\x27 and is_active=true " +
+    "and ((sku_code=\x2741497\x27 and source_family_code=\x27FAM-41497\x27) or " +
+    "(sku_code=\x2735852\x27 and source_family_code=\x27FAM-35852\x27) or " +
+    "(sku_code=\x27110049\x27 and source_family_code=\x27FAM-90062\x27))");
+   if(Number(direct.rows[0].rows)!==3){
+    throw Error("PFAM lineage is missing the three source-verified welding equipment direct SKUs");
+   }
+   console.log("PRODUCTION_PFAM_WELDING_DIRECT_SKUS_ALREADY_PRESENT count=3");
+  }else{
+   throw Error("Mixed or missing FAM/PFAM lineage; refusing legacy welding SKU projection");
+  }
+ }catch(error){
+  console.error("PRODUCTION_LEGACY_FAM_WELDING_DIRECT_SKU_FAILED",error.code||"",error.message);
+  process.exitCode=1;
+ }finally{await closeDatabase()}
+' < "$LEGACY_FAM_WELDING_SQL"
 
 echo '===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA ====='
 for MIGRATION in \
