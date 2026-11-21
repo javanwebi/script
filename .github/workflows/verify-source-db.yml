@@ -3,7 +3,9 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [fix/source-ui-postgres-data-boundary-20261022]
+    branches:
+      - main
+      - fix/source-ui-postgres-data-boundary-20261022
 permissions:
   contents: read
 jobs:
