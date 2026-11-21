@@ -22,6 +22,7 @@ on:
       - "package-lock.json"
       - ".github/workflows/forza-conversation-engine.yml"
       - ".github/workflows/deploy-production-after-main-ci.yml"
+      - ".github/workflows/deploy-production-after-main-ci.yml"
   push:
     branches:
       - "feat/forza-conversation-engine-v2-*"
@@ -43,6 +44,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/forza-conversation-engine.yml"
+      - ".github/workflows/deploy-production-after-main-ci.yml"
       - ".github/workflows/deploy-production-after-main-ci.yml"
 
 permissions:
