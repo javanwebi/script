@@ -184,6 +184,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const speechStartedAtRef=useRef(0);
   const lastForegroundAudioAtRef=useRef(0);
   const lastDibaHypothesisAtRef=useRef(0);
+  const serverLiveSttRetryAfterRef=useRef(0);
   const serverLiveSttClientRef=useRef<ForzaLiveSttClient|null>(null);
   const serverLivePcmCleanupRef=useRef<(()=>void)|null>(null);
   const serverLiveSttStartingRef=useRef(false);
@@ -373,6 +374,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         serverSttConfiguredRef.current=info?.serverSttProvider==='diba'&&info?.serverSttConfigured===true;
       }
       if(!serverSttConfiguredRef.current){
+        serverLiveSttRetryAfterRef.current=Date.now()+5000;
         setServerSttLabel('دایبا زنده سرور در دسترس نیست؛ متن خام ارسال نمی‌شود');
         return false;
       }
@@ -397,6 +399,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             }
             serverLiveSttActiveRef.current=true;
             serverLiveSttReadyAtRef.current=Date.now();
+            serverLiveSttRetryAfterRef.current=0;
             lastDibaHypothesisAtRef.current=Date.now();
             liveSttActiveRef.current=true;
             localSttAdmissionRef.current??=new ForzaRecognitionAdmission();
@@ -437,6 +440,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         client.stop();serverLiveSttClientRef.current=null;
       }
       serverLiveSttActiveRef.current=false;
+      serverLiveSttRetryAfterRef.current=Date.now()+5000;
       liveSttActiveRef.current=localSttActiveRef.current;
       setServerSttLabel('اتصال زنده دایبا برقرار نشد؛ ضبط فیلترشده برای تشخیص نهایی نگه داشته می‌شود');
       console.warn('[FORZA_STT] live setup failed code='+
@@ -612,8 +616,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(localSttActiveRef.current&&!serverLiveSttActiveRef.current&&
            !serverLiveSttClientRef.current&&lastForegroundAudioAtRef.current>0&&
            micNow-lastForegroundAudioAtRef.current<450&&
-           micNow-lastDibaHypothesisAtRef.current>3000){
+           micNow-lastDibaHypothesisAtRef.current>3000&&
+           micNow>=serverLiveSttRetryAfterRef.current){
           console.warn('[FORZA_STT] local_diba_partial_timeout=1 switching_to_server_live=1');
+          serverLiveSttRetryAfterRef.current=micNow+5000;
           void startServerLiveStt(true);
         }
         setAudioLevel(current.level);
