@@ -82,8 +82,10 @@ test("main CI deploy routes only the exact Forza-only commit through the safe en
   assert.match(deployWorkflow, /FORZA autoplay\/microphone UX smoke/);
   assert.match(deployWorkflow, /FORZA private Ubuntu Pocket browser integration/);
   assert.match(deployWorkflow, /FORZA Nima private voice and SSE speech tests/);
-  assert.ok(deployWorkflow.indexOf('"FORZA Nima private voice and SSE speech tests"') >
-    deployWorkflow.indexOf("REQUIRED_WORKFLOWS = ["),"Nima private test must be a required Forza deploy check");
+  const requiredWorkflowsStart=deployWorkflow.indexOf("REQUIRED_WORKFLOWS = [");
+  assert.ok(requiredWorkflowsStart>=0&&
+    deployWorkflow.indexOf('"FORZA Nima private voice and SSE speech tests"',requiredWorkflowsStart)>requiredWorkflowsStart,
+    "Nima private test must be a required Forza deploy check");
   assert.match(deployWorkflow, /if \[\[ "\$FORZA_ONLY" == "true" \]\]; then[\s\S]*FORZA Conversation Engine/);
   assert.match(deployWorkflow, /Verify VPS frontend build before deployment/);
   assert.match(deployWorkflow, /forza_only=true/);
