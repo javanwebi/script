@@ -230,7 +230,7 @@ test('barge-in progress aggregates completed and interrupted sentence frames int
   engine.cancel();
   callbacks[0]({phase:'finished',playedMs:400,durationMs:400});
   callbacks[1]({phase:'interrupted',playedMs:150,durationMs:600});
-  assert.deepEqual(progress.at(-1),{phase:'interrupted',playedMs:550,durationMs:1000});
+  assert.deepEqual(progress[progress.length-1],{phase:'interrupted',playedMs:550,durationMs:1000});
   releases.forEach(release=>release());
   await assert.rejects(engine.finish(),/aborted/);
 });
