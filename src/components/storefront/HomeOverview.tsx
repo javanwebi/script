@@ -106,30 +106,122 @@ export function HomeAboutSection() {
       </div>
 
       <div className="home-about-preview__copy">
-        <span className="home-about-preview__eyebrow">درباره صنعت پیش</span>
-        <h2 id="home-about-preview-title">
-          از تجربه اطلس تا
-          <em> بازار جامع قطعات صنعتی</em>
-        </h2>
-        <p>
-          صنعت پیش با پشتوانه بیش از سه دهه تجربه بازرگانی تسمه اطلس (تأسیس ۱۳۶۶) شکل
-          گرفته است تا مسیر پراکنده تأمین قطعات کارخانجات را به یک سامانه تخصصی، دقیق و
-          آنلاین تبدیل کند. ما قطعات انتقال قدرت، تجهیزات خطوط کاشی و سرامیک، نساجی و
-          صنایع مادر را با کد فنی، برند و مشخصات مستند در یک بستر واحد گردآوری کرده‌ایم.
-        </p>
-        <p>
-          از جستجوی کاتالوگ و شناسایی تصویری قطعه با هوش مصنوعی FORZA تا بررسی ساخت سفارشی،
-          مشاوره مهندسی و هماهنگی ارسال، همراه مطمئن خطوط تولید هستیم. برای آشنایی کامل با
-          پیشینه، توانمندی‌ها و خدمات، برندهای همکار و راه‌های ارتباط با ما، روی دکمه زیر کلیک
-          کنید و وارد صفحه درباره ما شوید.
-        </p>
-        <div className="home-about-preview__actions">
-          <Link to="/about" className="home-about-preview__primary">
-            آشنایی کامل و ورود به صفحه درباره ما <ArrowLeft size={18} />
-          </Link>
-          <Link to="/services" className="home-about-preview__secondary">
-            مشاهده توانمندی‌ها و خدمات
-          </Link>
+        <div className="w-full">
+          <span className="home-about-preview__eyebrow">درباره صنعت پیش</span>
+          <h2 id="home-about-preview-title">
+            از تجربه اطلس تا
+            <em> بازار جامع قطعات صنعتی</em>
+          </h2>
+          <p>
+            صنعت پیش با پشتوانه بیش از سه دهه تجربه بازرگانی تسمه اطلس (تأسیس ۱۳۶۶) شکل
+            گرفته است تا مسیر پراکنده تأمین قطعات کارخانجات را به یک سامانه تخصصی، دقیق و
+            آنلاین تبدیل کند. ما قطعات انتقال قدرت، تجهیزات خطوط کاشی و سرامیک، نساجی و
+            صنایع مادر را با کد فنی، برند و مشخصات مستند در یک بستر واحد گردآوری کرده‌ایم.
+          </p>
+          <p>
+            از جستجوی کاتالوگ و شناسایی تصویری قطعه با هوش مصنوعی FORZA تا بررسی ساخت سفارشی،
+            مشاوره مهندسی و هماهنگی ارسال، همراه مطمئن خطوط تولید هستیم. برای آشنایی کامل با
+            پیشینه، توانمندی‌ها و خدمات، برندهای همکار و راه‌های ارتباط با ما، روی دکمه زیر کلیک
+            کنید و وارد صفحه درباره ما شوید.
+          </p>
+        </div>
+
+        {/* ================================================================= */}
+        {/* BOTTOM DARK GLASSMORPHIC STATS & CTA BAR IN COPY COLUMN           */}
+        {/* ================================================================= */}
+        <div className="w-full mt-4 sm:mt-auto sm:pt-3 relative rounded-xl sm:rounded-2xl overflow-hidden bg-[#35383E]/95 backdrop-blur-xl border border-white/15 shadow-lg text-white">
+          {/* Glowing Factory Line Perspective Image on the Left Side of Bar */}
+          <div className="absolute inset-y-0 left-0 w-full sm:w-2/5 z-0 pointer-events-none opacity-25 sm:opacity-60">
+            <img
+              fetchPriority="low"
+              decoding="async"
+              src={STORE_ASSETS.industries.ceramic}
+              alt=""
+              className="w-full h-full object-cover object-left"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#35383E]/80 to-[#35383E]" />
+          </div>
+
+          <div className="relative z-10 p-3 sm:px-4 sm:py-3.5 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
+            {/* Rightmost on Desktop / Bottom on Mobile: Solid Orange CTA Button */}
+            <div className="order-2 xl:order-1 shrink-0">
+              <Link
+                to="/about"
+                className="w-full xl:w-auto h-9 sm:h-10 px-3.5 rounded-lg sm:rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white font-bold text-[11px] xl:text-xs flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/25 transition-all active:scale-95 whitespace-nowrap"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+                <span>درباره صنعت پیش بیشتر بدانید</span>
+              </Link>
+            </div>
+
+            {/* 4 Key Industrial Metrics (2x2 Grid on Mobile, 4 Columns on Desktop) */}
+            <div className="order-1 xl:order-2 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-2 divide-y sm:divide-y-0 sm:divide-x sm:divide-x-reverse divide-white/15">
+              {/* Stat 1: +5,000 مشتری فعال */}
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 pt-1 sm:pt-0 sm:pr-2">
+                <div className="text-right">
+                  <div
+                    className="text-sm sm:text-base xl:text-[17px] font-black tracking-tight tabular-nums text-white"
+                    dir="ltr"
+                  >
+                    +5,000
+                  </div>
+                  <div className="text-[9.5px] sm:text-[10px] text-slate-300 font-medium mt-0.5 whitespace-nowrap">
+                    مشتری فعال
+                  </div>
+                </div>
+                <Users className="w-4 h-4 text-[#E06518] shrink-0" />
+              </div>
+
+              {/* Stat 2: +24 صنعت تحت پوشش */}
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 pt-1 sm:pt-0 sm:pr-2.5">
+                <div className="text-right">
+                  <div
+                    className="text-sm sm:text-base xl:text-[17px] font-black tracking-tight tabular-nums text-white"
+                    dir="ltr"
+                  >
+                    +24
+                  </div>
+                  <div className="text-[9.5px] sm:text-[10px] text-slate-300 font-medium mt-0.5 whitespace-nowrap">
+                    صنعت تحت پوشش
+                  </div>
+                </div>
+                <Building2 className="w-4 h-4 text-slate-300 shrink-0" />
+              </div>
+
+              {/* Stat 3: +864 تصویر واقعی محصول */}
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 pt-1.5 sm:pt-0 sm:pr-2.5">
+                <div className="text-right">
+                  <div
+                    className="text-sm sm:text-base xl:text-[17px] font-black tracking-tight tabular-nums text-white"
+                    dir="ltr"
+                  >
+                    +864
+                  </div>
+                  <div className="text-[9.5px] sm:text-[10px] text-slate-300 font-medium mt-0.5 whitespace-nowrap">
+                    تصویر واقعی محصول
+                  </div>
+                </div>
+                <Warehouse className="w-4 h-4 text-slate-300 shrink-0" />
+              </div>
+
+              {/* Stat 4: +10,000 کد کالای صنعتی */}
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 pt-1.5 sm:pt-0 sm:pr-2.5">
+                <div className="text-right">
+                  <div
+                    className="text-sm sm:text-base xl:text-[17px] font-black tracking-tight tabular-nums text-white"
+                    dir="ltr"
+                  >
+                    +10,000
+                  </div>
+                  <div className="text-[9.5px] sm:text-[10px] text-slate-300 font-medium mt-0.5 whitespace-nowrap">
+                    کد کالای صنعتی
+                  </div>
+                </div>
+                <Box className="w-4 h-4 text-[#E06518] shrink-0" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
