@@ -1265,9 +1265,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(!(response.headers.get('Content-Type')||'').includes('application/x-forza-wav-frames'))
         throw new Error('forza_stream_wrong_content_type');
       if(!response.body)throw new Error('forza_stream_body_missing');
+      const sentenceFrames=response.headers.get('X-Forza-Stream-Mode')==='sentence-frames';
       const stats=await consumeForzaNimaWavFrames(response.body,wav=>{
         frameCount++;
-        onFrame(wav);
+        onFrame(wav,sentenceFrames?undefined:text);
       },requestSignal);
       if(signal?.aborted||callClosedRef.current)throw new Error('forza_tts_aborted');
       console.info('[FORZA_TTS_STREAM] turn='+String(turnId||'unknown')+
