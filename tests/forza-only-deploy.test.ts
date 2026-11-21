@@ -104,6 +104,10 @@ test("Forza-only release classifier includes only the reviewed call-engine fix p
   for(const path of [
     "src/components/forza/AiForzaCallExperience.tsx",
     "src/utils/forzaSpeechPipeline.ts",
+    "src/utils/forzaAudioEvidence.ts",
+    "public/worklets/forza-foreground-gate.js",
+    "tests/forzaAudioEvidence.test.ts",
+    "scripts/tests/forza-local-diba-browser.cjs",
     "src/utils/silenceDetector.ts",
     ".github/workflows/forza-browser-smoke.yml",
     ".github/workflows/forza-private-ubuntu-browser.yml",
@@ -112,6 +116,9 @@ test("Forza-only release classifier includes only the reviewed call-engine fix p
   ]){
     assert.ok(deployWorkflow.includes(path),`release classifier must allow ${path}`);
   }
+  assert.match(deployWorkflow,/public\/worklets\/forza-foreground-gate\.js/);
+  assert.match(deployWorkflow,/scripts\/tests\/forza-local-diba-browser\.cjs/);
+  assert.match(deployWorkflow,/tests\/forzaAudioEvidence\.test\.ts/);
   assert.match(deployWorkflow,/FORZA_ONLY_RELEASE_HAS_UNEXPECTED_FILES/);
 });
 
