@@ -41,7 +41,8 @@ test("Forza-only canary loads the persisted visual index read-only without chang
   assert.match(guard, /SANATPISH_FORZA_ONLY_READ_ONLY_INDEX/);
   assert.match(guard, /catalogVisualIndex\.load\(\)/);
   assert.doesNotMatch(guard, /catalogVisualIndex\.update\(/);
-  assert.match(deploy, /CANARY_EXTRA_ENV\+=\(-e SANATPISH_FORZA_ONLY_READ_ONLY_INDEX=1\)/);\n  assert.doesNotMatch(deploy, /APP_EXTRA_ENV\+=\(-e SANATPISH_FORZA_ONLY_READ_ONLY_INDEX=1\)/);
+  assert.match(deploy, /CANARY_EXTRA_ENV\+=\(-e SANATPISH_FORZA_ONLY_READ_ONLY_INDEX=1\)/);
+  assert.doesNotMatch(deploy, /APP_EXTRA_ENV\+=\(-e SANATPISH_FORZA_ONLY_READ_ONLY_INDEX=1\)/);
   assert.match(canary, /FORZA_CANARY_VISION_INDEX_HAS_PENDING_WRITES/);
 });
 
