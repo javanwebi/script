@@ -83,7 +83,7 @@ export class ForzaLiveSttClient {
       this.connectTimer = setTimeout(() => {
         finish(new Error('diba_stream_connect_timeout'));
         try { socket.close(); } catch {}
-      }, 25_000);
+      }, 35_000);
 
       socket.onopen = () => {
         opened = true;
@@ -118,7 +118,7 @@ export class ForzaLiveSttClient {
         if (message.type === 'error') {
           const code = String(message.code || 'diba_stream_error').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
           this.options.onState?.('failed', code);
-          if (/capacity_reached|live_unavailable|model_missing/.test(code)) this.fatal = true;
+          if (/model_missing/.test(code)) this.fatal = true;
           finish(new Error(code));
           try { socket.close(1011, code); } catch {}
         }
