@@ -24,6 +24,7 @@ import './style.css';
 import { FORZA_DIBA_SAMPLE_RATE, loadDibaSttModel, resampleDibaPcm, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
+import { ForzaLiveSttClient, attachForzaLivePcmTap } from '../../utils/forzaLiveSttClient';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
 import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
 import { ForzaCallPlainText, forzaSpokenPlainText } from '../../utils/forzaCallPlainText';
@@ -183,6 +184,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const localSttNodeRef=useRef<ScriptProcessorNode|null>(null);
   const localSttSinkRef=useRef<GainNode|null>(null);
   const localSttFinalRef=useRef('');
+  const liveSttActiveRef=useRef(false);
+  const serverLiveSttActiveRef=useRef(false);
+  const serverLiveSttClientRef=useRef<ForzaLiveSttClient|null>(null);
+  const serverLivePcmCleanupRef=useRef<(()=>void)|null>(null);
+  const serverLiveSttStartingRef=useRef(false);
   const [,setLocalSttStatus]=useState<'loading'|'ready'|'fallback'>('fallback');
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
@@ -259,6 +265,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const serverSttConfiguredRef=useRef(false);
   const [serverSttLabel,setServerSttLabel]=useState('در حال بررسی موتور دایبا...');
 
+  const stopServerLiveStt=useCallback(()=>{
+    serverLivePcmCleanupRef.current?.();serverLivePcmCleanupRef.current=null;
+    serverLiveSttClientRef.current?.stop();serverLiveSttClientRef.current=null;
+    serverLiveSttStartingRef.current=false;
+    serverLiveSttActiveRef.current=false;
+    liveSttActiveRef.current=localSttActiveRef.current;
+  },[]);
+
   // MediaRecorder audio capture refs (fallback & complementary for STT)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -323,6 +337,37 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }catch(error){console.warn('[FORZA Diba] Audio bridge error',error);setLocalSttStatus('fallback');}
   },[]);
 
+  const acceptDibaHypothesis=useCallback((value:string,isFinal:boolean)=>{
+    if(micMutedRef.current||!greetingFinishedRef.current||
+       (statusRef.current!=='listening'&&!isProcessingTurnRef.current&&
+        !isAiSpeakingRef.current&&!isManualReplayPendingRef.current))return;
+    const words=value.trim();
+    if(!words)return;
+    const admission=localSttAdmissionRef.current||
+      (localSttAdmissionRef.current=new ForzaRecognitionAdmission());
+    const slot={0:{transcript:words},isFinal};
+    const playback=isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current;
+    const admitted=admission.filter([slot],(text,final)=>likelySpeakerEcho(text)?'reject':
+      speechAdmissionRef.current.decide(text,final,playback,Date.now()));
+    if(isFinal)admission.reset();
+    if(admitted.rejected)rejectedRecordingRef.current=true;
+    if(!admitted.changed)return;
+    const recognized=extractPersianSpeechSince(admitted.results,0);
+    if(isFinal&&recognized.text)
+      localSttFinalRef.current=appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
+    const transcript=isFinal
+      ?localSttFinalRef.current
+      :appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
+    if(!transcript)return;
+    if(playback){conversationEngineRef.current?.updateTranscript(transcript);interruptRequestRef.current();}
+    else conversationEngineRef.current?.updateTranscript(transcript);
+    if(transcript!==activeTranscriptRef.current||speechInterimRef.current===isFinal)
+      lastTranscriptChangedAtRef.current=Date.now();
+    activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
+    hasSpeechSoundRef.current=true;
+    setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,transcript));
+    setIsUserSpeaking(true);
+  },[]);
   const startDibaTurn=useCallback(()=>{
     const model=localSttModelRef.current;
     if(!model||!localSttNodeRef.current||!ctxRef.current)return false;
@@ -339,33 +384,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const admission=new ForzaRecognitionAdmission();
       localSttAdmissionRef.current=admission;
       const update=(value:string,isFinal:boolean)=>{
-        if(localSttRecognizerRef.current!==recognizer||micMutedRef.current||
-           (statusRef.current!=='listening'&&!isProcessingTurnRef.current &&
-            !isAiSpeakingRef.current&&!isManualReplayPendingRef.current))return;
-        const words=value.trim();
-        const slot={0:{transcript:words},isFinal};
-        const playback=isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current;
-        const admitted=admission.filter([slot],(text,final)=>likelySpeakerEcho(text)?'reject':
-          speechAdmissionRef.current.decide(text,final,playback,Date.now()));
-        if(isFinal)admission.reset();
-        if(admitted.rejected)rejectedRecordingRef.current=true;
-        if(!admitted.changed)return;
-        const recognized=extractPersianSpeechSince(admitted.results,0);
-        if(isFinal&&recognized.text)
-          localSttFinalRef.current=appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
-        const transcript=isFinal
-          ?localSttFinalRef.current
-          :appendForzaSpeechSegment(localSttFinalRef.current,recognized.text);
-        if(!transcript)return;
-        if(playback){conversationEngineRef.current?.updateTranscript(transcript);interruptRequestRef.current();}
-        else conversationEngineRef.current?.updateTranscript(transcript);
-        if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
-          lastTranscriptChangedAtRef.current=Date.now();
-        }
-        activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
-        hasSpeechSoundRef.current=true;
-        setUserText(composeForzaSessionTranscript(sessionTranscriptRef.current,transcript));
-        setIsUserSpeaking(true);
+        if(localSttRecognizerRef.current!==recognizer)return;
+        acceptDibaHypothesis(value,isFinal);
       };
       recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
       recognizer.on('result',msg=>update(String(msg?.result?.text||''),true));
