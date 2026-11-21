@@ -575,7 +575,9 @@ print("LIVE_ENV_CAPTURE_OK multiline="+str(multiline))
 ' "$ENV_FILE" "$MULTILINE_ENV_FILE" "$APP/.local-vision-enabled" "$APP/.env.local-vision"
 mapfile -d '' MULTILINE_ENV_ARGS < "$MULTILINE_ENV_FILE"
 APP_EXTRA_ENV=()
-if [[ "$FORZA_ONLY" != "1" ]]; then
+if [[ "$FORZA_ONLY" == "1" ]]; then
+  APP_EXTRA_ENV+=(-e SANATPISH_FORZA_ONLY_READ_ONLY_INDEX=1)
+else
   APP_EXTRA_ENV+=(-e CUSTOMER_360_LOCAL_VAULT_ENABLED=true)
 fi
 mapfile -d '' MOUNTS < <(
