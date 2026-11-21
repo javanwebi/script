@@ -73,6 +73,7 @@ const privateHealthResponse = await fetch("http://forza-voice:8080/health", {
 assert.ok(privateHealthResponse.ok, "FORZA_PRIVATE_NIMA_HEALTH_HTTP_FAILED");
 const privateHealth = await privateHealthResponse.json();
 assert.equal(privateHealth.voice, "piper-nima-gyro-medium", "FORZA_PRIVATE_NIMA_WRONG_VOICE");
+assert.equal(privateHealth.generated_audio_persisted, false, "FORZA_PRIVATE_NIMA_MUST_NOT_PERSIST_AUDIO");
 
 const browserModel = await fetch(origin + "/forza-runtime/stt/diba-stt-fa-small-c244182d.tar.gz", {
   method: "HEAD",
