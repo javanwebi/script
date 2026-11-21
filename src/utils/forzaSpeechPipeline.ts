@@ -215,7 +215,7 @@ export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number
   const normalized=normalizePersianTranscript(text);
   // No transcript yet is not proof that the customer stopped speaking. Keep
   // the recorder open long enough for delayed local/browser ASR hypotheses.
-  if(!normalized)return 5200;
+  if(!normalized)return 10_000;
   // Only explicit control commands bypass the natural-pause continuation window.
   if(/^(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|توقف|بسه|ساکت|ساکت شو|ادامه بده|ادامه بدید|ادامه)$/.test(normalized))
     return 650;
