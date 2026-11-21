@@ -135,6 +135,14 @@ BEGIN
       backup_count, applied_count, rolled_back_count;
   END IF;
 
+  IF (
+    SELECT count(*)::integer
+    FROM internal.catalog_legacy_fam_belt_welding_direct_backup_20261121
+    WHERE sku_code IN ('41497','35852','110049')
+  ) <> 3 THEN
+    RAISE EXCEPTION 'LEGACY_FAM_WELDING_BACKUP_SKU_SET_MISMATCH';
+  END IF;
+
   IF applied_count=3 THEN
     SELECT count(*)::integer
     INTO target_count
