@@ -1807,19 +1807,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         playerForTurn=continuousPlayer;
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
-        // Nima: group *complete words* across punctuation, so a full stop
-        // never forces its own neural WAV or an avoidable gap. Stream tokens
-        // to subtitles immediately and keep the Pocket fallback unchanged.
+        // Nima receives bounded complete-word groups while SSE continues.
+        // The private worker removes pause-inducing punctuation, then streams
+        // each completed sentence WAV; the browser schedules frames immediately.
         const useNima=voiceModeRef.current==='piper-nima-gyro-medium';
         const phrasePlanner=new ForzaIncrementalSpeechText();
         const callPlainText=new ForzaCallPlainText();
-        const nimaConcurrency=forzaNimaClientConcurrency(nimaSynthesisConcurrencyRef.current);
+        const nimaCapacityTier=forzaNimaClientConcurrency(nimaSynthesisConcurrencyRef.current);
+        const nimaMaxAheadPhrases=nimaCapacityTier>=2?3:2;
         console.info('[FORZA_NIMA_CAPACITY] turn='+generation+
-          ' synthesisConcurrency='+nimaConcurrency);
-        // Text updates are displayed immediately. Piper gets its first small,
-        // completed word group while SSE continues, then synthesizes further
-        // phrases in bounded lookahead on the same AudioContext clock.
-        // Begin the first ready WAV with only a tiny optional buffer hold.
+          ' activeStreams=1 maxAheadPhrases='+nimaMaxAheadPhrases);
+        // Text updates are displayed immediately. The first complete-word
+        // group is streamed while SSE continues; subsequent phrase streams are
+        // sequential, with bounded audio lookahead on the same AudioContext clock.
         bufferedNima=new ForzaNimaBufferedSpeech({
           synthesize:(phrase,signal)=>requestPocketAudio(forzaSpokenPlainText(phrase),signal,
             'call-'+callIdRef.current+'-turn-'+generation),
@@ -1855,7 +1855,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // phrase starts as soon as the prior frames are delivered, while
           // up to two complete phrases may remain queued for gapless playback.
           maxConcurrent:1,
-          maxAheadPhrases:nimaConcurrency>=2?3:2,
+          maxAheadPhrases:nimaMaxAheadPhrases,
           initialBufferSeconds:0,
           maximumInitialWaitMs:0,
           onBuffered:info=>console.info('[FORZA_NIMA_BUFFER] audio_s='+
