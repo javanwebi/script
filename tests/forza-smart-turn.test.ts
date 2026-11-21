@@ -43,7 +43,11 @@ test('ambiguous multiword industrial requests are not split by a five-second pau
 });
 
 test('direct Persian product requests ending in want/need are complete unless a continuation follows',()=>{
-  for(const phrase of ['یه تسمه میخوام','یه تسمه می‌خوام','من یه بلبرینگ نیاز دارم','تسمه تایمینگ میخواهم']){
+  for(const phrase of [
+    'یه تسمه میخوام','یه تسمه می‌خوام','من یه بلبرینگ نیاز دارم',
+    'تسمه تایمینگ میخواهم','برای دستگاه بسته بندی تسمه PU می خواهم',
+    'برای دستگاه بسته بندی تسمه PU می‌خواهم','برای دستگاه بسته بندی تسمه PU میخواهم',
+  ]){
     const result=analyzePersianSentenceCompletion(phrase);
     assert.equal(result.isComplete,true,phrase);
     assert.equal(result.confidence,0.82,phrase);
