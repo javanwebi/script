@@ -131,6 +131,7 @@ test("Forza-only release classifier includes only the reviewed call-engine fix p
     "tests/forzaSpeechAdmission.test.ts",
     "tests/forzaBrowserRecognitionLifecycle.test.ts",
     "tests/forzaCallTeardown.test.ts",
+    "tests/forzaConversationContinuity.test.ts",
     "tests/forzaLocalDibaStreaming.test.ts",
     "public/worklets/forza-foreground-gate.js",
     "tests/forzaAudioEvidence.test.ts",
