@@ -67,6 +67,10 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertGreater(len(chunks),1)
         self.assertEqual(" ".join(chunks),scope["spoken_text"](progressive_source))
         self.assertTrue(all(chunks))
+        long_unpunctuated="برای بررسی مشخصات تسمه صنعتی لطفاً مدل دستگاه و کد فنی دقیق را برای ما ارسال کنید تا موجودی و سازگاری را بررسی کنیم"
+        long_chunks=scope["split_spoken_chunks"](long_unpunctuated)
+        self.assertGreater(len(long_chunks),1)
+        self.assertEqual(" ".join(long_chunks),scope["spoken_text"](long_unpunctuated))
 
         # The speaking-rate override is deliberately bounded to protect Persian clarity.
         with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"0.70"}):

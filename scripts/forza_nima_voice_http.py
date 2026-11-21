@@ -34,7 +34,7 @@ VOICE_ID = "piper-nima-gyro-medium"
 MAX_TEXT_CHARS = 1000
 MAX_REQUEST_BYTES = 8192
 MAX_WAV_BYTES = 8_000_000
-MAX_STREAM_CHUNK_CHARS = 72
+MAX_STREAM_CHUNK_CHARS = 64
 MIN_STREAM_CHUNK_CHARS = 22
 MAX_STREAM_FRAMES = 48
 # Bounded FIFO admission across isolated CPU workers. Default stays one worker;
