@@ -4,11 +4,14 @@ on:
     paths:
       - 'src/components/forza/**'
       - 'src/utils/forzaSpeechPipeline.ts'
+      - 'src/utils/forzaAudioEvidence.ts'
+      - 'public/worklets/forza-foreground-gate.js'
       - 'src/utils/silenceDetector.ts'
       - 'tests/forza-smart-turn.test.ts'
       - 'tests/forza-speech-pipeline.test.ts'
       - 'tests/forzaBrowserRecognitionLifecycle.test.ts'
       - 'tests/forzaVoiceRecoveryUi.test.ts'
+      - 'tests/forzaAudioEvidence.test.ts'
       - 'src/services/forzaGreetingAudio.ts'
       - 'server.ts'
       - 'scripts/tests/forza-pocket-ubuntu-browser.cjs'
@@ -56,7 +59,7 @@ jobs:
         run: |
           npm run lint
           node --import tsx --test tests/forza-boot-speech.test.ts tests/forza-streaming-speech.test.ts tests/forza-continuous-wav.test.ts tests/forza-speech-chunks.test.ts
-          node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaVoiceRecoveryUi.test.ts
+          node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts
       - name: Prepare Vite runtime
         run: |
           npm pkg set overrides.tslib=2.8.1
@@ -76,4 +79,4 @@ jobs:
       - name: Exercise SSE to private Pocket WAV playback in real Chromium
         run: |
           node scripts/tests/forza-pocket-ubuntu-browser.cjs
-          node scripts/tests/forza-live-stt-browser.cjs
+          node scripts/tests/forza-local-diba-browser.cjs
