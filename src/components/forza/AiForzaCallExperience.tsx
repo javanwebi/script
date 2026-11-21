@@ -2370,12 +2370,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setServerSttLabel(localSttModelRef.current
           ? 'دایبا محلی آماده است · تشخیص زنده'
           : localSttModelLoadingRef.current
-            ? 'در حال آماده‌سازی دایبا محلی · متن مرورگر فعال است'
+            ? 'در حال آماده‌سازی دایبا محلی · فقط صدای نزدیک پردازش می‌شود'
             : dibaConfigured
               ? info.serverSttReady===true
-                ? 'دایبا سرور آماده است'
-                : 'دایبا سرور در حال آماده‌سازی · متن زنده فعال است'
-              : 'دایبا تنظیم نشده؛ متن زنده مرورگر');
+                ? 'دایبا سرور آماده است · صدای فیلترشده'
+                : 'دایبا سرور در حال آماده‌سازی · صدای فیلترشده نگه‌داری می‌شود'
+              : 'دایبا تنظیم نشده؛ تشخیص گفتار در دسترس نیست');
         if(dibaConfigured&&info.serverSttReady!==true&&attempts<12){
           attempts++;
           retryTimer=window.setTimeout(()=>void checkServerStt(),2500);
@@ -2383,7 +2383,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }catch{
         if(controller.signal.aborted)return;
         serverSttConfiguredRef.current=false;
-        setServerSttLabel('وضعیت دایبا نامشخص؛ متن زنده مرورگر');
+        setServerSttLabel('وضعیت دایبا نامشخص؛ صدای خام ارسال نمی‌شود');
         if(attempts<4){
           attempts++;
           retryTimer=window.setTimeout(()=>void checkServerStt(),2500);
