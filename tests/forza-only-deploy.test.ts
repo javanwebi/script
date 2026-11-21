@@ -63,6 +63,7 @@ test("Forza-only canary checks Diba, Nima, and two sequential TTS turns without 
 test("main CI deploy routes only the exact Forza-only commit through the safe entrypoint", () => {
   assert.match(deployWorkflow, /Classify exact main release as Forza-only or standard/);
   assert.match(deployWorkflow, /forza_only=true/);
+  assert.match(deployWorkflow, /FORZA_ONLY_RELEASE_HAS_UNEXPECTED_FILES/);
   assert.match(deployWorkflow, /Deploy exact Forza-only main commit without database migrations/);
   assert.match(deployWorkflow, /ops\/deploy-forza-only-vps\.sh/);
   assert.match(deployWorkflow, /Deploy standard main release/);
