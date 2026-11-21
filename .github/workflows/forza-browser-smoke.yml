@@ -115,8 +115,8 @@ jobs:
       - run: npm ci
       - name: Validate Persian voice text normalization and WAV leveling
         run: node --import tsx --test tests/forzaPersianVoiceQuality.test.ts
-      - name: Validate live STT admission, endpointing, and recognizer recovery
-        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
+      - name: Validate pre-STT foreground gate, live admission, endpointing, and recognizer recovery
+        run: node --import tsx --test tests/forzaAudioEvidence.test.ts tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationHistory.test.ts tests/forzaConsultContract.test.ts
       - name: Validate complete Persian streaming and speech chunk integrity
         run: node --import tsx --test tests/forzaCompleteSpeech.test.ts tests/forza-speech-chunks.test.ts
       - name: Validate immediate SSE completion through slow proxies
