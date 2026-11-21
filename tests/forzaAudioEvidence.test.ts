@@ -120,7 +120,7 @@ test('foreground bridge routes the gated stream to consumers and owns its cleanu
  worklet.port.onmessage({data:[[1.1,0.7,0.9,1]]});
  assert.equal(received.length,1,'suspended audio context cannot authorize speech');
  ctx.state='running';listener();ctx.currentTime=1.2;
- worklet.port.onmessage({data:[[1.18,0.02,0.7,1]]});
+ worklet.port.onmessage({data:[[1.2,0.02,0.7,1]]});
  assert.equal(received.length,2);
  assert.equal(received[1].open,true);
  route.dispose();route.dispose();
