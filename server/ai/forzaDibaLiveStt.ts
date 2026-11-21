@@ -120,9 +120,8 @@ function startWorker(): LiveWorker {
         if (text) send(socket, { type: message.type, text, streamId });
       } else if (message?.type === 'error') {
         send(socket, { type: 'error', code: String(message.code || 'diba_stream_error') });
-        if (message.code === 'stream_not_found' || message.code === 'worker_stream_capacity') {
-          closeSession(worker, streamId, false);
-        }
+        closeSession(worker, streamId, false);
+        if (socket.readyState === WebSocket.OPEN) socket.close(1011, 'Diba stream error');
       } else if (message?.type === 'ended') {
         send(socket, { type: 'ended', streamId });
         worker.sessions.delete(streamId);
@@ -183,6 +182,7 @@ function rejectUpgrade(socket: import('node:stream').Duplex, status: number, rea
 /** Attach a same-origin Diba streaming endpoint to the existing HTTP server. */
 export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024, perMessageDeflate: false });
+  const connectionsPerIp = new Map<string, number>();
 
   server.on('upgrade', (request, socket, head) => {
     let url: URL;
@@ -205,7 +205,15 @@ export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
     wss.handleUpgrade(request, socket, head, ws => wss.emit('connection', ws, request));
   });
 
-  wss.on('connection', socket => {
+  wss.on('connection', (socket, request) => {
+    const ip = String(request.socket.remoteAddress || 'unknown').slice(0, 96);
+    const activeForIp = connectionsPerIp.get(ip) || 0;
+    if (activeForIp >= 4) {
+      send(socket, { type: 'error', code: 'diba_stream_ip_limit' });
+      socket.close(1013, 'Too many Diba streams from this address');
+      return;
+    }
+    connectionsPerIp.set(ip, activeForIp + 1);
     let worker: LiveWorker | null = null;
     let streamId = '';
     let startPending = false;
@@ -217,6 +225,9 @@ export function setupForzaDibaLiveSttWebSocket(server: http.Server): void {
       if (worker && streamId) closeSession(worker, streamId, cancel);
       worker = null;
       streamId = '';
+      const remaining = Math.max(0, (connectionsPerIp.get(ip) || 1) - 1);
+      if (remaining) connectionsPerIp.set(ip, remaining);
+      else connectionsPerIp.delete(ip);
     };
 
     socket.on('message', (data, isBinary) => {
