@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import WebSocket from "ws";
 
 const origin = "http://127.0.0.1:3000";
 const timeout = ms => AbortSignal.timeout(ms);
@@ -54,8 +55,56 @@ const stt = await waitFor(
   "/api/ai/forza-stt-info",
   value => value.serverSttConfigured === true &&
     value.serverSttProvider === "diba" &&
-    value.serverSttReady === true
+    value.serverSttReady === true &&
+    value.serverLiveSttConfigured === true &&
+    value.serverLiveSttReady === true
 );
+
+// Exercise the same-origin streaming endpoint and its binary PCM protocol.
+await new Promise((resolve, reject) => {
+  const socket = new WebSocket("ws://127.0.0.1:3000/api/forza-stt-stream");
+  let ready = false;
+  let settled = false;
+  const timer = setTimeout(() => {
+    if (settled) return;
+    settled = true;
+    try { socket.terminate(); } catch {}
+    reject(new Error("FORZA_DIBA_LIVE_WS_TIMEOUT"));
+  }, 15000);
+  const finish = error => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    if (error) reject(error);
+    else resolve();
+  };
+  socket.on("open", () => socket.send(JSON.stringify({ type: "start", sampleRate: 16000 })));
+  socket.on("message", data => {
+    let message;
+    try { message = JSON.parse(data.toString("utf8")); } catch { return; }
+    if (message.type === "error") {
+      finish(new Error("FORZA_DIBA_LIVE_WS_" + String(message.code || "ERROR")));
+      try { socket.close(); } catch {}
+      return;
+    }
+    if (message.type === "ready" && !ready) {
+      ready = true;
+      // Eight 200 ms silence frames exercise PCM16 transport and worker decoding.
+      const silence = Buffer.alloc(6400);
+      for (let index = 0; index < 8; index += 1) socket.send(silence, { binary: true });
+      setTimeout(() => {
+        try { socket.send(JSON.stringify({ type: "stop" })); socket.close(); } catch {}
+        console.log("FORZA_DIBA_LIVE_STREAM_OK sampleRate=16000 frames=8");
+        finish();
+      }, 750);
+    }
+  });
+  socket.on("error", error => finish(error));
+  socket.on("close", () => {
+    if (!ready) finish(new Error("FORZA_DIBA_LIVE_WS_CLOSED_BEFORE_READY"));
+    else finish();
+  });
+});
 
 const voice = await waitFor(
   "FORZA_PRIVATE_NIMA",
@@ -117,6 +166,6 @@ for (let index = 1; index <= 2; index += 1) {
   console.log("FORZA_TTS_SEQUENTIAL_TURN_OK index=" + index + " bytes=" + wav.length);
 }
 
-console.log("FORZA_ONLY_CANARY_OK stt=diba voice=" + voice.voice +
+console.log("FORZA_ONLY_CANARY_OK stt=diba liveStt=ready voice=" + voice.voice +
   " incrementalSpeech=" + voice.incrementalSpeech +
   " catalogMigrations=skipped llmRequests=0 audioFiles=0");
