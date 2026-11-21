@@ -1996,7 +1996,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // Disable AGC so proximity/SNR cues are not flattened by automatic gain.
       acquiredStream=await navigator.mediaDevices.getUserMedia({audio:{
         echoCancellation:true,noiseSuppression:true,autoGainControl:false,channelCount:1,
-      }});
+        // Ask browsers/OS audio stacks for their speaker-focused isolation when available.
+        // Unsupported implementations ignore this optional constraint.
+        voiceIsolation:true,
+      } as MediaTrackConstraints});
       if(callClosedRef.current || microphoneGeneration!==microphoneGenerationRef.current){
         acquiredStream.getTracks().forEach(track=>track.stop());
         return;
