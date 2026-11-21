@@ -925,6 +925,17 @@ async function embedCatalogImages(buffers:Buffer[],publishImage:ImagePublisher):
  return (response.embeddings || []).map(embedding=>embedding.values || []);
 }
 function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus>,publishImage:ImagePublisher){
+ // A Forza-only release must not write catalog embeddings as an incidental
+ // server-startup side effect. Load the already-persisted index read-only;
+ // the deployment Canary rejects the release if its coverage is incomplete.
+ if(process.env.SANATPISH_FORZA_ONLY_READ_ONLY_INDEX==='1'){
+  void catalogVisualIndex.load().then(()=>{
+   const coverage=catalogVisualIndex.coverage(corpus);
+   if(!coverage.ready)console.warn('[Visual index] Forza-only read-only mode; persisted index incomplete:',JSON.stringify(coverage));
+   else console.log('[Visual index] Forza-only read-only persisted index:',JSON.stringify(coverage));
+  }).catch(error=>console.warn('[Visual index] Forza-only read-only load failed:',String(error?.message || 'index_unavailable').slice(0,120)));
+  return;
+ }
  if(Date.now()<nextVisualIndexBuild)return;
  nextVisualIndexBuild=Date.now()+60000;
  void catalogVisualIndex.update(corpus,row=>getCatalogImageBuffer(row.url,row.revision),buffers=>embedCatalogImages(buffers,publishImage))
