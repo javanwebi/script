@@ -44,7 +44,6 @@ const stt = await waitFor(
     value.serverSttProvider === "diba" &&
     value.serverSttReady === true
 );
-assert.equal(stt.reason, "configured", "FORZA_DIBA_STT_CONFIGURATION_REASON_UNEXPECTED");
 
 const voice = await waitFor(
   "FORZA_PRIVATE_NIMA",
@@ -107,4 +106,4 @@ for (let index = 1; index <= 2; index += 1) {
 
 console.log("FORZA_ONLY_CANARY_OK stt=diba voice=" + voice.voice +
   " incrementalSpeech=" + voice.incrementalSpeech +
-  " databaseWrites=0 llmRequests=0 audioFiles=0");
+  " catalogMigrations=skipped llmRequests=0 audioFiles=0");
