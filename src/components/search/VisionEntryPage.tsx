@@ -191,7 +191,7 @@ export const VisionEntryPage: React.FC<VisionEntryPageProps> = ({
               <h2 className="text-base font-extrabold sm:text-lg">از تصویر تا قطعه منطبق</h2>
               <p className="mt-1.5 text-xs leading-6 text-white/70">
                 تصویر، ناحیه انتخاب‌شده و نتیجه تطبیق در یک جریان مشخص بررسی می‌شوند؛
-                پیشنهاد نامرتبط به‌عنوان نتیجه قطعی نمایش داده نمی‌شود.
+                نتیجه‌های پیشنهادی برای بررسی فنی و مقایسه نمایش داده می‌شوند.
               </p>
               <div className="mt-4 grid grid-cols-4 gap-2 text-center">
                 <div className="flex flex-col items-center gap-1.5 text-white/85">
