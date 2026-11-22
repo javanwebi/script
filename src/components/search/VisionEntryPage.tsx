@@ -4,7 +4,6 @@ import {
   Camera,
   CheckCircle2,
   Focus,
-  Image as ImageIcon,
   Loader2,
   ScanSearch,
   ShieldCheck,
