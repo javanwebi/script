@@ -122,6 +122,23 @@ async function testVisionEntryResponsive(browser) {
           fullPage: true,
         });
       }
+      if (width === 390) {
+        const scrollRegion = page.locator('[role="dialog"][data-fullscreen="true"] > div.overflow-y-auto');
+        const scrollState = await scrollRegion.evaluate(el => ({
+          clientHeight: el.clientHeight,
+          scrollHeight: el.scrollHeight,
+          overflowY: getComputedStyle(el).overflowY,
+        }));
+        assert.equal(scrollState.overflowY, "auto");
+        assert.ok(scrollState.scrollHeight > scrollState.clientHeight, "Mobile VISION content must remain reachable in the modal scroll region");
+        const footer = entry.locator("footer").last();
+        await footer.scrollIntoViewIfNeeded();
+        assert.ok(await footer.isVisible(), "Bottom of the mobile VISION page must be reachable by scrolling");
+        await page.screenshot({
+          path: dir + "/sanat-forza-vision-entry-390-bottom.png",
+          fullPage: false,
+        });
+      }
       console.log("PASS FORZA VISION entry responsive", width, metrics);
     } finally {
       await page.close();
