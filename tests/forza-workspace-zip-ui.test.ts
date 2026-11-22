@@ -64,3 +64,13 @@ test('approved optical tap feedback is cosmetic and retains the live region sele
   assert.match(scanner, /ImageRegionSelector/);
   assert.match(scanner, /clientAiSegmentation/);
 });
+
+test('approved workspace keeps catalog search collapsible without dropping live callbacks', () => {
+  const page = read('src/pages/AiConsultPage.tsx');
+  assert.match(page, /isCatalogSearchOpen/);
+  assert.match(page, /forza-workspace-catalog-drawer/);
+  assert.match(page, /setIsCatalogSearchOpen\(open => !open\)/);
+  assert.match(page, /startCatalogFamilyConsultation\(family\)/);
+  assert.match(page, /startCatalogConsultation\(product\)/);
+  assert.match(page, /consumeForzaTextStream/);
+});

@@ -234,6 +234,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const [feedbackState, setFeedbackState] = useState<Record<string, 'up' | 'down'>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isCatalogSearchOpen, setIsCatalogSearchOpen] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
   const [showCalculatorModal, setShowCalculatorModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -1889,9 +1890,21 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             /* TAB 2: ENGINEERING CHAT WORKSPACE                                 */
             /* ================================================================= */
             <div className="flex-1 overflow-hidden flex flex-col justify-between relative">
-              <div className="relative z-30 shrink-0 border-b border-slate-200 bg-white px-3 py-2">
-                <WorkspaceCatalog onSelect={startCatalogFamilyConsultation} onAddToConsultation={startCatalogConsultation} />
-              </div>
+              {/* Approved ZIP: collapsible catalog drawer keeps the engineering conversation spacious. */}
+              {isCatalogSearchOpen && (
+                <section id="forza-workspace-catalog-drawer" className="relative z-30 shrink-0 border-b border-[#DFE3E6] bg-[#FAFBFB] px-3 sm:px-6 py-2.5 max-h-[48dvh] overflow-y-auto" aria-label="جستجوی کاتالوگ محصولات">
+                  <div className="flex justify-between items-center gap-2 pb-2">
+                    <strong className="text-xs font-bold text-[#2B313A]">افزودن محصول از کاتالوگ</strong>
+                    <button type="button" onClick={() => setIsCatalogSearchOpen(false)} aria-label="بستن جستجوی کاتالوگ" className="w-9 h-9 inline-flex items-center justify-center rounded-lg hover:bg-[#EAECEF] text-[#55565A]">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <WorkspaceCatalog
+                    onSelect={family => { setIsCatalogSearchOpen(false); startCatalogFamilyConsultation(family); }}
+                    onAddToConsultation={product => { setIsCatalogSearchOpen(false); startCatalogConsultation(product); }}
+                  />
+                </section>
+              )}
               {/* Message Feed Area */}
               <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 max-w-4xl mx-auto w-full pb-4 md:pb-6">
                 {messages.length === 0 ? (
@@ -2014,7 +2027,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       {/* Add a product to the current technical consultation */}
                       <button
                         type="button"
-                        onClick={() => document.getElementById('forza-workspace-product-search')?.focus()}
+                        onClick={() => setIsCatalogSearchOpen(open => !open)}
+                        aria-expanded={isCatalogSearchOpen}
+                        aria-controls="forza-workspace-catalog-drawer"
                         className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
                         title="افزودن محصول به مشاوره"
                       >
