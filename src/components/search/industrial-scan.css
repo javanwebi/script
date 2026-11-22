@@ -1397,3 +1397,36 @@
   .sanat-visual-result-card { transition: none; }
   .sp-catalog-photo__open:hover img { transform: none; }
 }
+
+/* Approved 2026-11-22 FORZA ZIP: focus dot and tactile tap feedback.
+   Scoped to the existing selector; actual region detection is not replaced. */
+.sanat-region-picker__frame > .fv-object-dot {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  width: 16px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2.5px solid #fff;
+  background: #e06518;
+  box-shadow: 0 0 0 4px rgba(224,101,24,.36), 0 2px 8px rgba(0,0,0,.28);
+}
+@keyframes fv-approved-tap-ripple {
+  0% { transform: translate(-50%,-50%) scale(.35); opacity: .95; }
+  100% { transform: translate(-50%,-50%) scale(2.1); opacity: 0; }
+}
+.sanat-region-picker__frame > .fv-tap-ripple {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid #e06518;
+  background: radial-gradient(circle,rgba(224,101,24,.32),transparent 72%);
+  animation: fv-approved-tap-ripple 480ms cubic-bezier(.16,1,.3,1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sanat-region-picker__frame > .fv-tap-ripple { animation: none; opacity: .35; }
+}
