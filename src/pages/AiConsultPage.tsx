@@ -918,6 +918,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   };
 
   const startCatalogConsultation = (product: ConsultationProduct) => {
+    setIsCatalogSearchOpen(false);
     addProductToConsultation(product);
     setActiveWorkspaceTab('chat');
     void handleSend(
@@ -1891,20 +1892,17 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             /* ================================================================= */
             <div className="flex-1 overflow-hidden flex flex-col justify-between relative">
               {/* Approved ZIP: collapsible catalog drawer keeps the engineering conversation spacious. */}
-              {isCatalogSearchOpen && (
-                <section id="forza-workspace-catalog-drawer" className="relative z-30 shrink-0 border-b border-[#DFE3E6] bg-[#FAFBFB] px-3 sm:px-6 py-2.5 max-h-[48dvh] overflow-y-auto" aria-label="جستجوی کاتالوگ محصولات">
+                              <section id="forza-workspace-catalog-drawer" className="relative z-30 shrink-0 border-b border-[#DFE3E6] bg-[#FAFBFB] px-3 sm:px-6 py-2.5 max-h-[48dvh] overflow-y-auto" hidden={!isCatalogSearchOpen} aria-hidden={!isCatalogSearchOpen} aria-label="جستجوی کاتالوگ محصولات">
                   <div className="flex justify-between items-center gap-2 pb-2">
                     <strong className="text-xs font-bold text-[#2B313A]">افزودن محصول از کاتالوگ</strong>
                     <button type="button" onClick={() => setIsCatalogSearchOpen(false)} aria-label="بستن جستجوی کاتالوگ" className="w-9 h-9 inline-flex items-center justify-center rounded-lg hover:bg-[#EAECEF] text-[#55565A]">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <WorkspaceCatalog
-                    onSelect={family => { setIsCatalogSearchOpen(false); startCatalogFamilyConsultation(family); }}
-                    onAddToConsultation={product => { setIsCatalogSearchOpen(false); startCatalogConsultation(product); }}
+                  <WorkspaceCatalog onSelect={family => { setIsCatalogSearchOpen(false); startCatalogFamilyConsultation(family); }}
+                    onAddToConsultation={startCatalogConsultation}
                   />
                 </section>
-              )}
               {/* Message Feed Area */}
               <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 max-w-4xl mx-auto w-full pb-4 md:pb-6">
                 {messages.length === 0 ? (
