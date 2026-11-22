@@ -889,7 +889,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     <Modal
       dialogLabel="شناسایی تصویری قطعه"
       fullScreen={standalone || fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing"}
-      closeLabel={fullScreen || cameraFlowActive ? (initialCamera ? "بازگشت به سایت" : "بازگشت به میزکار") : "بستن"}
+      closeLabel={standalone ? "بازگشت" : fullScreen || cameraFlowActive ? (initialCamera ? "بازگشت به سایت" : "بازگشت به میزکار") : "بستن"}
       isOpen={isOpen}
       onClose={() => {
         stopCamera();
