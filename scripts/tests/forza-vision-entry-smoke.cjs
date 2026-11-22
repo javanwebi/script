@@ -19,6 +19,26 @@ async function noHorizontalOverflow(page, width, label) {
   return metrics;
 }
 
+async function captureWorkspace(page, label) {
+  const toggle = page.locator('button[aria-controls="forza-workspace-catalog-drawer"]').first();
+  await toggle.waitFor({ timeout: 15000 });
+  await page.screenshot({
+    path: dir + "/sanat-forza-workspace-" + label + ".png",
+    fullPage: false,
+  });
+  await toggle.scrollIntoViewIfNeeded();
+  await toggle.click();
+  const drawer = page.locator("#forza-workspace-catalog-drawer");
+  await drawer.waitFor({ state: "visible", timeout: 10000 });
+  await drawer.locator("#forza-workspace-product-search").waitFor({ state: "visible" });
+  await page.screenshot({
+    path: dir + "/sanat-forza-workspace-" + label + "-catalog.png",
+    fullPage: false,
+  });
+  await drawer.getByRole("button", { name: "بستن جستجوی کاتالوگ" }).click();
+  await drawer.waitFor({ state: "hidden" });
+}
+
 async function testMobileForzaSwipe(browser) {
   const page = await browser.newPage({
     viewport: { width: 390, height: 844 },
@@ -69,6 +89,7 @@ async function testMobileForzaSwipe(browser) {
     });
     await page.waitForURL(url => url.pathname === "/ai-consult", { timeout: 15000 });
     assert.equal(await page.getByTestId("forza-mobile-contact-sheet").count(), 0);
+    await captureWorkspace(page, "mobile-390");
     console.log("PASS FORZA mobile swipe enters the real workspace");
   } finally {
     await page.close();
@@ -88,6 +109,7 @@ async function testDesktopLauncher(browser) {
     await launcher.click();
     await page.waitForURL(url => url.pathname === "/ai-consult", { timeout: 15000 });
     assert.equal(await page.getByTestId("forza-mobile-contact-sheet").count(), 0);
+    await captureWorkspace(page, "desktop-1280");
     console.log("PASS desktop FORZA launcher opens the workspace directly");
   } finally {
     await page.close();
