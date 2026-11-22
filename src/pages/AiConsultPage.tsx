@@ -2009,7 +2009,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                   <div className="w-full max-w-[740px] mx-auto flex flex-col flex-1 sm:flex-initial">
                     <div className="order-1 text-center pt-5 sm:pt-0 pb-4 sm:pb-6">
                       <img
-                        src="/assets/aistudio/logo-forza_9b7fcf6e.png"
+                        src="/images/brand/logo-forza.webp"
                         alt="FORZA"
                         className="h-9 sm:h-11 w-auto mx-auto mb-3 object-contain"
                         loading="eager"
