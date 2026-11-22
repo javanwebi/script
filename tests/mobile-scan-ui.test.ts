@@ -179,7 +179,7 @@ test("identification hides mobile dock with React state, scoped class and CSS fa
   assert.match(provider, /document\.body\.classList\.remove\("sanat-identification-open"\)/);
   assert.match(css, /body\.sanat-identification-open \.storefront \.store-bottom-nav/);
   assert.match(css, /\.storefront\.no-mobile-dock \.store-ai-quick-actions/);
-  assert.match(source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing"\}/);
+  assert.match(source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{standalone \|\| fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing"\}/);
 });
 
 test("reference-design scanner has actual gallery, reversible lens and flash controls, a round shutter and scan-line", () => {
@@ -191,4 +191,20 @@ test("reference-design scanner has actual gallery, reversible lens and flash con
   assert.match(modal, /toggleTorch/);
   assert.match(modal, /sanat-camera-experience__instruction/);
   assert.match(css, /sanat-camera-experience__scan-line/);
+});
+
+
+test("standalone identification route uses the new entry design and existing camera/upload pipeline", () => {
+  const provider = source("src/components/search/PartIdentificationProvider.tsx");
+  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  const entry = source("src/components/search/VisionEntryPage.tsx");
+  assert.match(provider, /<Studio isOpen standalone fullScreen/);
+  assert.match(modal, /standalone && currentStep === 1 && !selectedImage && !isUsingCamera/);
+  assert.match(modal, /setCameraFlowActive\(true\); void startCamera\(\)/);
+  assert.match(modal, /onUpload=\{\(\) => fileInputRef\.current\?\.click\(\)\}/);
+  assert.match(entry, /data-testid="forza-vision-entry"/);
+  assert.match(entry, /onCamera/);
+  assert.match(entry, /onUpload/);
+  assert.match(entry, /مقایسه با کاتالوگ واقعی/);
+  assert.doesNotMatch(entry, /02166700000|989120000000|DEFAULT_RECENT_SEARCHES/);
 });
