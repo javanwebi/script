@@ -1990,15 +1990,17 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             /* ================================================================= */
             <div className="flex-1 overflow-hidden flex flex-col justify-between relative">
               {/* Approved ZIP: collapsible catalog drawer keeps the engineering conversation spacious. */}
-                              <section id="forza-workspace-catalog-drawer" className="relative z-30 shrink-0 border-b border-[#DFE3E6] bg-[#FAFBFB] px-3 sm:px-6 py-2.5 max-h-[48dvh] overflow-y-auto" hidden={!isCatalogSearchOpen} aria-hidden={!isCatalogSearchOpen} aria-label="جستجوی کاتالوگ محصولات">
-                  <div className="flex justify-between items-center gap-2 pb-2">
-                    <strong className="text-xs font-bold text-[#2B313A]">افزودن محصول از کاتالوگ</strong>
-                    <button type="button" onClick={() => setIsCatalogSearchOpen(false)} aria-label="بستن جستجوی کاتالوگ" className="w-9 h-9 inline-flex items-center justify-center rounded-lg hover:bg-[#EAECEF] text-[#55565A]">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <WorkspaceCatalog onSelect={family => { setIsCatalogSearchOpen(false); startCatalogFamilyConsultation(family); }}
+                              <section
+                  id="forza-workspace-catalog-drawer"
+                  className="relative z-30 shrink-0 border-b border-[#DFE3E6] bg-[#FAFBFB] px-3 sm:px-6 py-2.5"
+                  hidden={!isCatalogSearchOpen}
+                  aria-hidden={!isCatalogSearchOpen}
+                  aria-label="جستجوی کاتالوگ محصولات"
+                >
+                  <WorkspaceCatalog
+                    onSelect={family => { setIsCatalogSearchOpen(false); startCatalogFamilyConsultation(family); }}
                     onAddToConsultation={startCatalogConsultation}
+                    onClose={() => setIsCatalogSearchOpen(false)}
                   />
                 </section>
               {messages.length === 0 ? (
