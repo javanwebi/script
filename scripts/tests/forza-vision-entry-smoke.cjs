@@ -54,6 +54,7 @@ async function testMobileForzaSwipe(browser) {
     const sheet = page.getByTestId("forza-mobile-contact-sheet");
     await sheet.waitFor({ timeout: 10000 });
     await page.getByTestId("forza-swipe-instruction").waitFor();
+    await page.screenshot({ path: dir + "/sanat-forza-mobile-contact-sheet.png", fullPage: false });
     assert.equal(await sheet.getAttribute("aria-modal"), "true");
     assert.ok(await sheet.locator(".sp-forza-contact__channel").count() >= 3);
     assert.match(await sheet.locator(".sp-forza-contact__phone").getAttribute("href"), /^tel:/);
