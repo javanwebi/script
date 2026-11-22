@@ -79,4 +79,5 @@ jobs:
           path: |
             /tmp/sanat-mobile-category-*.png
             /tmp/sanat-forza-vision-entry-*.png
+            /tmp/sanat-forza-workspace-*.png
           if-no-files-found: ignore
