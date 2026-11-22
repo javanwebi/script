@@ -1203,6 +1203,104 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     </div>
   );
 
+  // Shared composer keeps the exact same live send, catalog, camera and calculator handlers
+  // in both the empty-state hero and the active conversation footer.
+  const renderComposerBox = () => (
+    <>
+      {selectedConsultProducts.length > 0 && (
+        <div className="mx-auto mb-2 flex max-w-[740px] flex-wrap gap-1.5">
+          {selectedConsultProducts.map(product => (
+            <span
+              key={product.code}
+              className="inline-flex max-w-[240px] items-center gap-1.5 rounded-xl border border-orange-100 bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#A64B14]"
+              title={product.name}
+            >
+              {product.image && (
+                <img src={product.image} alt="" loading="lazy" decoding="async" className="h-7 w-7 shrink-0 rounded-md bg-white object-contain" />
+              )}
+              <span className="min-w-0 truncate">{product.name}</span>
+              <span dir="ltr" className="shrink-0">{product.code}</span>
+              <button
+                type="button"
+                aria-label={"حذف " + product.code + " از فهرست مشاوره"}
+                onClick={() => setSelectedConsultProducts(current => current.filter(item => item.code !== product.code))}
+                className="rounded-md px-1 text-[#A64B14] hover:bg-orange-100"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="max-w-[740px] mx-auto w-full bg-[#F5F6F6] rounded-2xl border border-[#DFE3E6] p-2 focus-within:border-[#E06518] focus-within:bg-[#FFFFFF] transition-all">
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={textareaRef}
+            value={inputQuery}
+            onChange={e => setInputQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            rows={1}
+            placeholder="پرسش فنی درباره تسمه، پولی، یاتاقان، زنجیر..."
+            className="flex-1 bg-transparent text-xs sm:text-sm text-[#2B313A] placeholder-[#777A7D] resize-none focus:outline-none min-h-[38px] max-h-28 py-1.5 px-1 leading-relaxed"
+          />
+          <div className="flex items-center gap-1 shrink-0 pb-0.5">
+            <button
+              type="button"
+              onClick={() => setIsDeeperResearchActive(!isDeeperResearchActive)}
+              className={isDeeperResearchActive
+                ? "p-2 rounded-xl text-xs font-bold transition-all cursor-pointer bg-[#E06518] text-white shadow-xs"
+                : "p-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5]"}
+              title="تحلیل عمیق فنی استاندارد"
+              aria-pressed={isDeeperResearchActive}
+            >
+              <Sparkles className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCatalogSearchOpen(open => !open)}
+              aria-expanded={isCatalogSearchOpen}
+              aria-controls="forza-workspace-catalog-drawer"
+              className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
+              title="افزودن محصول به مشاوره"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/identify-part?from=workspace')}
+              className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
+              title="شناسایی قطعه با دوربین"
+            >
+              <Camera className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCalculatorModal(true)}
+              className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
+              title="محاسبه‌گر تسمه DIN 2215"
+            >
+              <DinCalculatorIcon size={18} className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSend()}
+              disabled={!inputQuery.trim() || loading}
+              className="w-9 h-9 rounded-xl bg-[#E06518] hover:bg-[#C95210] disabled:bg-[#CBD2D8] text-white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+              title="ارسال"
+            >
+              <SendArrowIcon size={18} className="w-4 h-4 -rotate-45" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div
       className="h-[100dvh] max-h-[100dvh] w-full flex flex-col bg-[#FFFFFF] text-[#2B313A] overflow-hidden select-none"
@@ -1903,26 +2001,38 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                     onAddToConsultation={startCatalogConsultation}
                   />
                 </section>
-              {/* Message Feed Area */}
-              <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 max-w-4xl mx-auto w-full pb-4 md:pb-6">
-                {messages.length === 0 ? (
-                  /* INITIAL WELCOME SCREEN */
-                  <div className="min-h-full flex flex-col items-center justify-center py-6 sm:py-10 max-w-2xl mx-auto text-center">
-                    {/* Brand Logo & Status */}
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-sm flex items-center justify-center mb-4">
-                      <CognivoGeometricLogo className="w-10 h-10 sm:w-12 sm:h-12 text-[#E06518]" />
+              {messages.length === 0 ? (
+                <div className="flex-1 flex flex-col overflow-y-auto px-3 sm:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                  <div className="hidden sm:block sm:flex-1" />
+                  <div className="w-full max-w-[740px] mx-auto flex flex-col flex-1 sm:flex-initial">
+                    <div className="order-1 text-center pt-5 sm:pt-0 pb-4 sm:pb-6">
+                      <img
+                        src="/assets/aistudio/logo-forza_9b7fcf6e.png"
+                        alt="FORZA"
+                        className="h-9 sm:h-11 w-auto mx-auto mb-3 object-contain"
+                        loading="eager"
+                        decoding="async"
+                      />
+                      <h1 className="text-[19px] sm:text-[26px] font-extrabold text-[#2B313A] tracking-tight text-balance">
+                        امروز روی چه قطعه‌ای کار می‌کنیم؟
+                      </h1>
+                      <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-[#74757C]">
+                        <button
+                          type="button"
+                          onClick={() => setShowSettingsModal(true)}
+                          className="inline-flex items-center gap-1 hover:text-[#E06518] transition-colors cursor-pointer"
+                        >
+                          <span>حوزه فعال:</span>
+                          <strong className="text-[#2B313A] font-semibold">
+                            {INDUSTRY_DOMAINS.find(d => d.id === selectedIndustry)?.label || 'صنایع عمومی'}
+                          </strong>
+                        </button>
+                        <span aria-hidden="true">·</span>
+                        <span>کاتالوگ صنعت پیش و اطلس</span>
+                      </div>
                     </div>
 
-                    <h1 className="text-xl sm:text-2xl font-black text-[#2B313A] mb-1.5">
-                      میزکار هوشمند FORZA
-                    </h1>
-                    <p className="text-xs sm:text-sm text-[#55565A] mb-6 max-w-md leading-relaxed">
-                      مشاوره انتخاب قطعات، جستجوی مشخصات کاتالوگ و محاسبات مهندسی در یک میزکار
-                    </p>
-
-                    {/* Quick Suggestions Grid */}
-
-                  <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-right">
+                    <div className="order-2 sm:order-3 pt-1 sm:pt-5 pb-4 sm:pb-0 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 text-right">
                       {PROMPT_SUGGESTIONS.map((item, idx) => {
                         const Icon = item.icon;
                         return (
@@ -1930,13 +2040,13 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                             key={idx}
                             type="button"
                             onClick={() => handleSend(item.query)}
-                            className="p-3.5 rounded-2xl bg-[#FFFFFF] border border-[#DFE3E6] hover:border-[#E06518] hover:shadow-sm text-right transition-all cursor-pointer group flex items-start gap-3"
+                            className="min-h-[56px] sm:min-h-[64px] px-3.5 py-2.5 sm:py-3 rounded-2xl bg-[#FFFFFF] border border-[#DFE3E6] hover:bg-[#FAFBFB] hover:border-[#E06518]/65 text-right transition-all duration-150 cursor-pointer group flex items-center gap-3"
                           >
-                            <div className="w-8 h-8 rounded-xl bg-[#F5F6F6] group-hover:bg-orange-50 text-[#55565A] group-hover:text-[#E06518] flex items-center justify-center shrink-0 mt-0.5 transition-colors">
-                              <Icon className="w-4 h-4" />
+                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#F5F6F6] group-hover:bg-[#FFF4EC] text-[#55565A] group-hover:text-[#E06518] flex items-center justify-center shrink-0 transition-colors">
+                              <Icon size={17} />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="font-black text-xs text-[#2B313A] group-hover:text-[#E06518] transition-colors">
+                              <div className="font-bold text-xs sm:text-[13px] text-[#2B313A] truncate">
                                 {item.title}
                               </div>
                               <div className="text-[11px] text-[#74757C] mt-0.5 line-clamp-1">
@@ -1947,127 +2057,53 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         );
                       })}
                     </div>
-                  </div>
-                ) : (
-                  /* ACTIVE MESSAGE STREAM */
-                  <div className="space-y-4">
-                    {messages.map(m => (
-                      <WorkspaceMessageItem
-                        key={m.id}
-                        message={m}
-                        isCopied={copiedId === m.id}
-                        feedback={feedbackState[m.id]}
-                        onCopy={copyToClipboard}
-                        onFeedback={(id, vote) => setFeedbackState(prev => ({ ...prev, [id]: vote }))}
-                        onNavigateLink={link => navigate(link)}
-                      />
-                    ))}
 
-                    {loading && (
-                      <div className="flex items-center gap-2.5 p-3.5 bg-[#FFFFFF] rounded-2xl border border-[#DFE3E6] text-xs text-[#E06518] font-bold shadow-2xs max-w-sm">
-                        <Sparkles className="w-4 h-4 animate-spin text-[#E06518]" />
-                        <span>مشاور FORZA در حال پردازش و استخراج پاسخ فنی...</span>
-                      </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-                )}
-              </div>
-
-              {/* Bottom Sticky Composer Bar (Ergonomic with safe-area padding on mobile) */}
-              <div className="p-2 sm:p-3 bg-[#FFFFFF] border-t border-[#DFE3E6] shrink-0 z-20 shadow-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-                {selectedConsultProducts.length > 0 && (
-                  <div className="mx-auto mb-2 flex max-w-4xl flex-wrap gap-1.5">
-                    {selectedConsultProducts.map(product => (
-                      <span key={product.code} className="inline-flex max-w-[240px] items-center gap-1.5 rounded-xl border border-orange-100 bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#A64B14]" title={product.name}>
-                        {product.image && <img src={product.image} alt="" loading="lazy" decoding="async" className="h-7 w-7 shrink-0 rounded-md bg-white object-contain" />}
-                        <span className="min-w-0 truncate">{product.name}</span>
-                        <span dir="ltr" className="shrink-0">{product.code}</span>
-                        <button type="button" aria-label={`حذف ${product.code} از فهرست مشاوره`}
-                          onClick={() => setSelectedConsultProducts(current => current.filter(item => item.code !== product.code))}>×</button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="max-w-4xl mx-auto w-full bg-[#F5F6F6] rounded-2xl border border-[#DFE3E6] p-2 focus-within:border-[#E06518] focus-within:bg-[#FFFFFF] transition-all">
-                  <div className="flex items-end gap-2">
-                    <textarea
-                      ref={textareaRef}
-                      value={inputQuery}
-                      onChange={e => setInputQuery(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSend();
-                        }
-                      }}
-                      rows={1}
-                      placeholder="پرسش فنی درباره تسمه، پولی، یاتاقان، زنجیر..."
-                      className="flex-1 bg-transparent text-xs sm:text-sm text-[#2B313A] placeholder-[#777A7D] resize-none focus:outline-none min-h-[38px] max-h-28 py-1.5 px-1 leading-relaxed"
-                    />
-
-                    {/* Action buttons inside composer */}
-                    <div className="flex items-center gap-1 shrink-0 pb-0.5">
-                      {/* Deep Research toggle */}
-                      <button
-                        type="button"
-                        onClick={() => setIsDeeperResearchActive(!isDeeperResearchActive)}
-                        className={`p-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                          isDeeperResearchActive
-                            ? 'bg-[#E06518] text-white shadow-xs'
-                            : 'text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5]'
-                        }`}
-                        title="تحلیل عمیق فنی استاندارد"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                      </button>
-
-                      {/* Add a product to the current technical consultation */}
-                      <button
-                        type="button"
-                        onClick={() => setIsCatalogSearchOpen(open => !open)}
-                        aria-expanded={isCatalogSearchOpen}
-                        aria-controls="forza-workspace-catalog-drawer"
-                        className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
-                        title="افزودن محصول به مشاوره"
-                      >
-                        <Search className="w-4 h-4" />
-                      </button>
-
-                      {/* Camera / Visual Part Switch */}
-                      <button
-                        type="button"
-                        onClick={() => navigate('/identify-part?from=workspace')}
-                        className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
-                        title="شناسایی قطعه با دوربین"
-                      >
-                        <Camera className="w-4 h-4" />
-                      </button>
-
-                      {/* Calculator Trigger */}
-                      <button
-                        type="button"
-                        onClick={() => setShowCalculatorModal(true)}
-                        className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
-                        title="محاسبه‌گر تسمه DIN 2215"
-                      >
-                        <DinCalculatorIcon size={18} className="w-4 h-4" />
-                      </button>
-
-                      {/* Send Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleSend()}
-                        disabled={!inputQuery.trim() || loading}
-                        className="w-9 h-9 rounded-xl bg-[#E06518] hover:bg-[#C95210] disabled:bg-[#CBD2D8] text-white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
-                        title="ارسال"
-                      >
-                        <SendArrowIcon size={18} className="w-4 h-4 -rotate-45" />
-                      </button>
+                    <div className="order-3 sm:order-2 mt-auto sm:mt-0 sticky bottom-0 sm:static pt-2 bg-[#FFFFFF]">
+                      {renderComposerBox()}
+                      <p className="hidden sm:block text-center text-[11px] text-[#74757C] mt-2.5">
+                        مشخصات فنی بر اساس کاتالوگ صنعت پیش و بازرگانی تسمه اطلس استخراج می‌شود.
+                      </p>
                     </div>
                   </div>
+                  <div className="hidden sm:block sm:flex-1" />
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6">
+                    <div className="space-y-3 sm:space-y-4 max-w-[740px] mx-auto w-full">
+                      {messages.map(m => (
+                        <WorkspaceMessageItem
+                          key={m.id}
+                          message={m}
+                          isCopied={copiedId === m.id}
+                          feedback={feedbackState[m.id]}
+                          onCopy={copyToClipboard}
+                          onFeedback={(id, vote) => setFeedbackState(prev => ({ ...prev, [id]: vote }))}
+                          onNavigateLink={link => navigate(link)}
+                        />
+                      ))}
+                      {loading && (
+                        <div className="flex items-start gap-2.5 sm:gap-4 py-2">
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#FFFFFF] border border-[#DFE3E6] flex items-center justify-center shrink-0">
+                            <CognivoGeometricLogo className="w-4 h-4 animate-pulse" />
+                          </div>
+                          <div className="flex items-center gap-2.5 text-xs text-[#55565A] pt-1.5">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E06518]" />
+                            <span>FORZA در حال تنظیم پاسخ فنی...</span>
+                          </div>
+                        </div>
+                      )}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  </div>
+                  <div className="px-3 sm:px-6 pt-1 bg-[#FFFFFF] shrink-0 z-20 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                    {renderComposerBox()}
+                    <p className="hidden sm:block text-center text-[11px] text-[#74757C] mt-2">
+                      مشخصات فنی بر اساس کاتالوگ صنعت پیش و بازرگانی تسمه اطلس استخراج می‌شود.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </main>
