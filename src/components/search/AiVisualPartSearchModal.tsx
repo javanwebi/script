@@ -910,6 +910,19 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       noPadding={currentStep === 1 || currentStep === "analyzing"}
     >
       <div className="sanat-visual-search-shell fv-workbench" dir="rtl">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="انتخاب تصویر قطعه"
+        onChange={(event) => {
+          const image = event.currentTarget.files?.[0];
+          if (image) handleFile(image);
+          event.currentTarget.value = "";
+        }}
+      />
       {!cameraFlowActive && currentStep === 1 && !selectedImage && (
         <nav className="sp-vision-journey" aria-label="مراحل شناسایی قطعه" data-testid="vision-journey">
           {[
@@ -1284,15 +1297,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </div>
               )}
 
-              <input
-                ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
-                className="sr-only" tabIndex={-1} aria-label="انتخاب تصویر قطعه"
-                onChange={(event) => {
-                  const image = event.currentTarget.files?.[0];
-                  if (image) handleFile(image);
-                  event.currentTarget.value = "";
-                }}
-              />
+
               {/* Upload Dropzone OR Camera OR Selected Image */}
               {!selectedImage && !isUsingCamera ? (
                 <div
