@@ -1057,7 +1057,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             </p>
           </footer>
         </section>
-      ) : standalone && currentStep === 1 && !selectedImage && !isUsingCamera ? (
+      ) : standalone && !initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera ? (
         <VisionEntryPage
           onCamera={() => { setCameraFlowActive(true); void startCamera(); }}
           onUpload={() => fileInputRef.current?.click()}
