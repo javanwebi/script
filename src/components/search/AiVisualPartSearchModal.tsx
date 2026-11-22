@@ -63,6 +63,7 @@ import { pricingCreditService } from "../../services/pricingCreditService";
 import { IMAGES } from "../../assets/images";
 import "./industrial-scan.css";
 import "./vision-camera-design.css";
+import { VisionEntryPage } from "./VisionEntryPage";
 import { VisionAnalysisProgress } from "./VisionAnalysisProgress";
 import { saveCustomerDeviceImage, getCustomerDeviceImage, getCustomerDeviceImageMetadata, adoptCustomerDeviceImage, customerImageBlobToDataUrl } from "../../services/customerImageVault";
 import { createCustomerImageIdentification, completeCustomerImageIdentification, selectCustomerImageProduct } from "../../services/customerIntelligenceService";
@@ -118,6 +119,7 @@ interface Props {
   onClose: () => void;
   fullScreen?: boolean;
   initialCamera?: boolean;
+  standalone?: boolean;
   onAnalysisResult?: (result: AiPartAnalysisResult, image: string) => void;
 }
 
@@ -152,6 +154,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   onClose,
   fullScreen = false,
   initialCamera = false,
+  standalone = false,
   onAnalysisResult,
 }) => {
   const navigate = useNavigate();
@@ -885,7 +888,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     <>
     <Modal
       dialogLabel="شناسایی تصویری قطعه"
-      fullScreen={fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing"}
+      fullScreen={standalone || fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing"}
       closeLabel={fullScreen || cameraFlowActive ? (initialCamera ? "بازگشت به سایت" : "بازگشت به میزکار") : "بستن"}
       isOpen={isOpen}
       onClose={() => {
@@ -1054,6 +1057,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             </p>
           </footer>
         </section>
+      ) : standalone && currentStep === 1 && !selectedImage && !isUsingCamera ? (
+        <VisionEntryPage
+          onCamera={() => { void startCamera(); }}
+          onUpload={() => fileInputRef.current?.click()}
+          onClose={() => { stopCamera(); onClose(); }}
+          errorMessage={errorMessage}
+          isUploading={isUploadingImage}
+        />
       ) : currentStep === 1 ? (
         <div style={fullScreen ? { minHeight: "100dvh" } : undefined} dir="rtl" data-testid="identification-wizard" className="sp-vision-entry sanat-visual-search-wizard grid grid-cols-1 lg:grid-cols-12 min-h-[580px] lg:min-h-[630px] rounded-2xl md:rounded-3xl overflow-hidden bg-white text-right font-['Vazirmatn'] relative">
           {/* Absolute Close Button for Step 1 */}
