@@ -28,7 +28,7 @@ export function PartIdentificationProvider({children}: {children:React.ReactNode
     setOpen(true);
   };
   return <IdentificationContext.Provider value={openIdentification}><IdentificationOverlayContext.Provider value={open}>{children}
-    {open && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 grid place-items-center bg-white/90">در حال باز کردن شناسایی قطعه…</div>}><Studio isOpen initialCamera={startWithCamera} fullScreen={startWithCamera} onClose={()=>setOpen(false)} /></Suspense>}
+    {open && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 grid place-items-center bg-white/90">در حال باز کردن شناسایی قطعه…</div>}><Studio isOpen standalone initialCamera={startWithCamera} fullScreen onClose={()=>setOpen(false)} /></Suspense>}
   </IdentificationOverlayContext.Provider></IdentificationContext.Provider>;
 }
 /** Ordinary links retain normal navigation, including Ctrl/cmd-click and new tabs. */
