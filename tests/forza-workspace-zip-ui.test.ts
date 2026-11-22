@@ -50,6 +50,22 @@ test('approved 121-file ZIP homepage layout removes redundant why section and ke
   assert.doesNotMatch(home, /<WhySanatPish\s*\/>/);
 });
 
+test('mobile FORZA launcher preserves the swipe-up contact sheet and direct desktop entry', () => {
+  const launcher = read('src/components/common/AiFloatingButton.tsx');
+  const styles = read('src/components/common/floating-quick-actions.css');
+
+  assert.match(launcher, /data-testid="forza-mobile-contact-sheet"/);
+  assert.match(launcher, /data-testid="forza-swipe-instruction"/);
+  assert.match(launcher, /onTouchStart=\{onTouchStart\}/);
+  assert.match(launcher, /onTouchMove=\{onTouchMove\}/);
+  assert.match(launcher, /dragOffsetRef\.current > 58/);
+  assert.match(launcher, /navigate\("\/ai-consult"\)/);
+  assert.match(launcher, /matchMedia\("\(max-width: 1023px\)"\)/);
+  assert.match(styles, /sp-forza-contact__sheet/);
+  assert.match(styles, /env\(safe-area-inset-bottom\)/);
+  assert.match(styles, /prefers-reduced-motion/);
+});
+
 test('approved optical tap feedback is cosmetic and retains the live region selector', () => {
   const selector = read('src/components/search/ImageRegionSelector.tsx');
   const styles = read('src/components/search/industrial-scan.css');
