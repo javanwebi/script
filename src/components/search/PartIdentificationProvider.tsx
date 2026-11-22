@@ -47,6 +47,6 @@ export function PartIdentificationPage() {
   const location = useLocation();
   const fullScreen = new URLSearchParams(location.search).get('from') === 'workspace';
   return <div className="min-h-[100dvh] bg-slate-100"><Suspense fallback={<div role="status">در حال بارگذاری شناسایی قطعه…</div>}>
-    <Studio isOpen fullScreen={fullScreen} onClose={()=>navigate(fullScreen ? '/ai-consult' : '/', {replace:true})} />
+    <Studio isOpen standalone fullScreen onClose={()=>navigate(fullScreen ? '/ai-consult' : '/', {replace:true})} />
   </Suspense></div>;
 }
