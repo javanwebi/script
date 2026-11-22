@@ -80,4 +80,5 @@ jobs:
             /tmp/sanat-mobile-category-*.png
             /tmp/sanat-forza-vision-entry-*.png
             /tmp/sanat-forza-workspace-*.png
+            /tmp/sanat-forza-mobile-contact-sheet.png
           if-no-files-found: ignore
