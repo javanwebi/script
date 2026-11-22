@@ -9,6 +9,9 @@ on:
       - "src/components/catalog/mobile-category-explorer.css"
       - "tests/mobile-category-drawer.test.ts"
       - "scripts/tests/mobile-category-drawer-smoke.cjs"
+      - "scripts/tests/forza-vision-entry-smoke.cjs"
+      - "src/components/common/AiFloatingButton.tsx"
+      - "src/components/common/floating-quick-actions.css"
       - "src/components/layout/industrial-mobile-nav.css"
       - "src/components/layout/Layout.tsx"
       - "src/components/search/**"
@@ -67,9 +70,13 @@ jobs:
         run: node scripts/tests/image-region-interaction.cjs
       - name: Screenshot and interaction tests at four mobile widths
         run: node scripts/tests/mobile-category-drawer-smoke.cjs
+      - name: FORZA mobile swipe, VISION entry and camera browser smoke
+        run: node scripts/tests/forza-vision-entry-smoke.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: sanat-home-mobile-category-drawer
-          path: /tmp/sanat-mobile-category-*.png
+          path: |
+            /tmp/sanat-mobile-category-*.png
+            /tmp/sanat-forza-vision-entry-*.png
           if-no-files-found: ignore
