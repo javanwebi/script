@@ -42,3 +42,25 @@ test('FORZA vision keeps the current scanner engine and adds the ZIP optical HUD
   assert.match(styles, /\.fv-lens-corner--br/);
   assert.doesNotMatch(styles.match(/\.fv-corner-brackets\s*\{[^}]*\}/)?.[0] || '', /position:\s*relative/);
 });
+
+test('approved 121-file ZIP homepage layout removes redundant why section and keeps about', () => {
+  const home = read('src/pages/HomePage.tsx');
+  assert.match(home, /<HomeAboutSection\s*\/>/);
+  assert.match(home, /<HomeForzaBanner\s*\/>/);
+  assert.doesNotMatch(home, /<WhySanatPish\s*\/>/);
+});
+
+test('approved optical tap feedback is cosmetic and retains the live region selector', () => {
+  const selector = read('src/components/search/ImageRegionSelector.tsx');
+  const styles = read('src/components/search/industrial-scan.css');
+  const scanner = read('src/components/search/AiVisualPartSearchModal.tsx');
+  assert.match(selector, /tapFeedback/);
+  assert.match(selector, /fv-tap-ripple/);
+  assert.match(selector, /fv-object-dot--active/);
+  assert.match(selector, /findImageRegionAtPoint/);
+  assert.match(selector, /tapImageRegion/);
+  assert.match(styles, /fv-approved-tap-ripple/);
+  assert.match(styles, /prefers-reduced-motion/);
+  assert.match(scanner, /ImageRegionSelector/);
+  assert.match(scanner, /clientAiSegmentation/);
+});
