@@ -30,9 +30,19 @@ interface Props {
   familyReference?: boolean;
   className?: string;
   eager?: boolean;
+  hideZoomPill?: boolean;
+  cleanSurface?: boolean;
 }
 
-export function CatalogResultImage({ sources, alt, familyReference = false, className = '', eager = false }: Props) {
+export function CatalogResultImage({
+  sources,
+  alt,
+  familyReference = false,
+  className = '',
+  eager = false,
+  hideZoomPill = false,
+  cleanSurface = false,
+}: Props) {
   const candidates = getCatalogDisplayImageCandidates(sources);
   const [sourceIndex, setSourceIndex] = useState(0);
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -75,7 +85,15 @@ export function CatalogResultImage({ sources, alt, familyReference = false, clas
   );
 
   return (
-    <div className={['sp-catalog-photo', className].filter(Boolean).join(' ')}>
+    <div
+      className={[
+        'sp-catalog-photo',
+        cleanSurface ? 'sp-catalog-photo--clean' : '',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {image ? (
         <button
           type="button"
@@ -86,7 +104,9 @@ export function CatalogResultImage({ sources, alt, familyReference = false, clas
           aria-haspopup="dialog"
         >
           {photo}
-          <span className="sp-catalog-photo__zoom"><ZoomIn size={16} aria-hidden="true" /> بزرگ‌نمایی</span>
+          {!hideZoomPill && (
+            <span className="sp-catalog-photo__zoom"><ZoomIn size={16} aria-hidden="true" /> بزرگ‌نمایی</span>
+          )}
         </button>
       ) : (
         <div className="sp-catalog-photo__empty" role="img" aria-label={'بدون تصویر: ' + alt}>{photo}</div>

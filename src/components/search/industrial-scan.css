@@ -1430,3 +1430,6 @@
 @media (prefers-reduced-motion: reduce) {
   .sanat-region-picker__frame > .fv-tap-ripple { animation: none; opacity: .35; }
 }
+
+/* Approved ZIP: product imagery stays clean inside result cards, with zoom retained. */
+.sp-catalog-photo--clean { border: 0; border-radius: 0; background: transparent; }

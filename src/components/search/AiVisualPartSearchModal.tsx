@@ -2297,6 +2297,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                       sources={[match.image, ...(Array.isArray(catalogItem?.images) ? catalogItem.images : []), catalogItem?.image]}
                                       alt={match.name}
                                       className="sp-vision-match-photo"
+                                      hideZoomPill
+                                      cleanSurface
                                       eager={idx === 0}
                                     />
                                     <div className="flex-1 min-w-0">
