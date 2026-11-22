@@ -199,7 +199,7 @@ test("standalone identification route uses the new entry design and existing cam
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const entry = source("src/components/search/VisionEntryPage.tsx");
   assert.match(provider, /<Studio isOpen standalone fullScreen/);
-  assert.match(modal, /standalone && currentStep === 1 && !selectedImage && !isUsingCamera/);
+  assert.match(modal, /standalone && !initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera/);
   assert.match(modal, /setCameraFlowActive\(true\); void startCamera\(\)/);
   assert.match(modal, /onUpload=\{\(\) => fileInputRef\.current\?\.click\(\)\}/);
   assert.match(entry, /data-testid="forza-vision-entry"/);
