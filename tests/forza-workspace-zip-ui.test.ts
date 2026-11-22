@@ -71,6 +71,8 @@ test('approved workspace keeps catalog search collapsible without dropping live 
   assert.match(page, /forza-workspace-catalog-drawer/);
   assert.match(page, /setIsCatalogSearchOpen\(open => !open\)/);
   assert.match(page, /startCatalogFamilyConsultation\(family\)/);
-  assert.match(page, /startCatalogConsultation\(product\)/);
+  assert.match(page, /onAddToConsultation=\{startCatalogConsultation\}/);
+  assert.match(page, /const startCatalogConsultation = \(product: ConsultationProduct\)/);
+  assert.match(page, /setIsCatalogSearchOpen\(false\)/);
   assert.match(page, /consumeForzaTextStream/);
 });
