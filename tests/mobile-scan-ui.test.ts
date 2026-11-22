@@ -99,7 +99,7 @@ test("dock camera opens a full-screen live preview, local review, retake, and ex
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const provider = source("src/components/search/PartIdentificationProvider.tsx");
   const styles = source("src/components/search/industrial-scan.css");
-  assert.match(provider, /fullScreen=\{startWithCamera\}/);
+  assert.match(provider, /<Studio isOpen standalone initialCamera=\{startWithCamera\} fullScreen/);
   assert.match(modal, /cameraFlowActive/);
   assert.match(modal, /data-testid="full-screen-camera-experience"/);
   assert.match(modal, /sanat-camera-experience__video/);
