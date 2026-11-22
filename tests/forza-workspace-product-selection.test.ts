@@ -28,7 +28,7 @@ test('live catalog returns the actual selected SKU and keeps commercial fields p
 test('workshop has one persistent search, picture-backed suggestions and exact SKU action', () => {
   const desk = read('src/pages/AiConsultPage.tsx');
   const search = read('src/components/search/WorkspaceCatalog.tsx');
-  assert.equal((desk.match(/<WorkspaceCatalog /g) || []).length, 1);
+  assert.equal((desk.match(/<WorkspaceCatalog(?:\\s|>)/g) || []).length, 1);
   assert.match(desk, /onAddToConsultation=\{startCatalogConsultation\}/);
   assert.match(desk, /productCodes: turnSelectedProducts\.map/);
   assert.match(desk, /productForTurn && !turnSelectedProducts\.some/);
