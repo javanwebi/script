@@ -169,6 +169,35 @@ async function testVisionEntryResponsive(browser) {
   }
 }
 
+async function testUploadEntry(browser) {
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    locale: "fa-IR",
+    reducedMotion: "reduce",
+  });
+  try {
+    await page.goto(base + "/identify-part", { waitUntil: "domcontentloaded" });
+    await page.getByTestId("forza-vision-entry").waitFor({ timeout: 30000 });
+    const chooserPromise = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: "انتخاب تصویر از دستگاه" }).click();
+    const chooser = await chooserPromise;
+    await chooser.setFiles({
+      name: "forza-vision-upload-smoke.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC",
+        "base64",
+      ),
+    });
+    await page.getByTestId("identification-wizard").waitFor({ timeout: 15000 });
+    assert.equal(await page.getByTestId("forza-vision-entry").count(), 0,
+      "Selecting an image must leave the VISION landing screen and enter the existing image-review flow");
+    console.log("PASS FORZA VISION upload action opens the picker and enters the existing image-review flow");
+  } finally {
+    await page.close();
+  }
+}
+
 async function testCameraEntry(browser) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -201,6 +230,7 @@ async function testCameraEntry(browser) {
     await testMobileForzaSwipe(browser);
     await testDesktopLauncher(browser);
     await testVisionEntryResponsive(browser);
+    await testUploadEntry(browser);
     await testCameraEntry(browser);
   } finally {
     await browser.close();
