@@ -720,7 +720,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 height: localSegmentation.result.height,
                 alphaMask: localSegmentation.result.alphaMask,
               },
-            ).catch(() => ({}));
+            ).catch(() => ({ modelInputUrl: undefined }));
             imageBase64 = cutout.modelInputUrl || localSegmentation.result.whiteBgDataUrl;
             analysisMimeType = 'image/jpeg';
           }
