@@ -32,9 +32,12 @@ function cleanText(value: unknown, maxLength: number): string {
 
 function safeCatalogImage(value: unknown): string | undefined {
   if (typeof value !== 'string' || !value.trim()) return undefined;
-  // This resolver only returns paths already registered in the real catalogue.
-  // data:, blob:, remote URLs and arbitrary customer-upload paths are rejected.
-  return getCatalogDisplayImageCandidates([value])[0];
+  // getProductImageUrl also permits data/blob URLs for unsaved admin previews,
+  // so require the resolver's output to be an official catalogue-volume path.
+  const resolved = getCatalogDisplayImageCandidates([value])[0];
+  if (!resolved) return undefined;
+  const officialCatalogPath = /^\\/storage\\/products\\/(?:catalog\\/e\\([1-9]\\d{0,3}\\)\\.png|legacy-jpg\\/images\\/e\\([1-9]\\d{0,3}\\)\\.jpg)$/i;
+  return officialCatalogPath.test(resolved) ? resolved : undefined;
 }
 
 function sanitizeItem(value: unknown): VisionRecentSearchItem | null {
