@@ -49,7 +49,8 @@ import { BRANDS } from '../../data/brands';
 import { getInstantSearchResults } from '../../data/mockGenerator';
 import { toPersianDigits, formatPrice } from '../../utils/formatters';
 import { Product } from '../../types';
-const LazyVisualPartSearchModal = React.lazy(() => import('../search/AiVisualPartSearchModal').then(m => ({default: m.AiVisualPartSearchModal})));
+import { preloadPartIdentificationStudio } from '../search/PartIdentificationProvider';
+const LazyVisualPartSearchModal = React.lazy(() => import('../search/KikiVisualPartSearchModal').then(m => ({default: m.AiVisualPartSearchModal})));
 const LazyAiConsultModal = React.lazy(() => import('../search/AiConsultModal').then(m => ({default: m.AiConsultModal})));
 
 import {
@@ -294,7 +295,10 @@ export const Header: React.FC = () => {
 
                 <button
                   type="button"
+                  onPointerEnter={preloadPartIdentificationStudio}
+                  onFocus={preloadPartIdentificationStudio}
                   onClick={() => {
+                    preloadPartIdentificationStudio();
                     setIsSearchDropdownOpen(false);
                     setIsCameraModalOpen(true);
                   }}
@@ -978,7 +982,10 @@ export const Header: React.FC = () => {
           <LazyAiConsultModal
             isOpen
             onClose={() => setIsConsultModalOpen(false)}
-            onOpenVisualSearch={() => setIsCameraModalOpen(true)}
+            onOpenVisualSearch={() => {
+              preloadPartIdentificationStudio();
+              setIsCameraModalOpen(true);
+            }}
           />
         </React.Suspense>
       )}

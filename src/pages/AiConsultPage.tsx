@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { apiUrl } from '../config/apiConfig';
 import { goBackOrFallback } from '../utils/navigateBackOrFallback';
+import { preloadPartIdentificationStudio } from '../components/search/PartIdentificationProvider';
 import { consumeForzaTextStream } from '../utils/forzaStreamClient';
 import { buildVisionConsultationPrompt } from '../utils/visionConsultationPrompt';
 import { CognivoGeometricLogo } from '../components/common/AiFloatingButton';
@@ -331,6 +332,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   // Use the image-identification design embedded in this supplied workspace.
   // Keep /identify-part outside the workspace on the existing production scanner.
   const openVisualStudio = useCallback(() => {
+    preloadPartIdentificationStudio();
     setIsMobileDrawerOpen(false);
     setIsComposerToolsOpen(false);
     setIsCatalogSearchOpen(false);

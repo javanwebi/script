@@ -52,7 +52,8 @@ import {
 import { CATEGORIES } from "../data/categories";
 import { STORE_ASSETS } from "../assets/images";
 import { toPersianDigits } from "../utils/formatters";
-const LazyVisualSearch = React.lazy(() => import("../components/search/AiVisualPartSearchModal").then(m => ({default:m.AiVisualPartSearchModal})));
+import { preloadPartIdentificationStudio } from "../components/search/PartIdentificationProvider";
+const LazyVisualSearch = React.lazy(() => import("../components/search/KikiVisualPartSearchModal").then(m => ({default:m.AiVisualPartSearchModal})));
 const LazyAiConsult = React.lazy(() => import("../components/search/AiConsultModal").then(m => ({default:m.AiConsultModal})));
 import { OurClientsSection } from "../components/home/OurClientsSection";
 
@@ -512,11 +513,14 @@ export const HomePage: React.FC = () => {
                   ) : (
                     <button
                       type="button"
+                      onPointerEnter={preloadPartIdentificationStudio}
+                      onFocus={preloadPartIdentificationStudio}
                       onClick={() => {
                         if (
                           heroSlides[heroSlideIndex].primaryBtn.action ===
                           "visualSearch"
                         ) {
+                          preloadPartIdentificationStudio();
                           setIsVisualSearchOpen(true);
                         } else if (
                           heroSlides[heroSlideIndex].primaryBtn.action ===
@@ -551,7 +555,12 @@ export const HomePage: React.FC = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => setIsVisualSearchOpen(true)}
+                      onPointerEnter={preloadPartIdentificationStudio}
+                      onFocus={preloadPartIdentificationStudio}
+                      onClick={() => {
+                        preloadPartIdentificationStudio();
+                        setIsVisualSearchOpen(true);
+                      }}
                       className="h-12 sm:h-13 px-5 sm:px-7 bg-[#55565A]/70 hover:bg-[#55565A]/85 text-white font-bold text-xs sm:text-sm rounded-xl border border-white/20 hover:border-orange-500/70 backdrop-blur-md transition-all flex items-center justify-center gap-2.5 cursor-pointer group shadow-md active:scale-95"
                     >
                       <span>
@@ -705,7 +714,12 @@ export const HomePage: React.FC = () => {
             <div className="mobile-hero-actions grid grid-cols-1 gap-2.5">
               <button
                 type="button"
-                onClick={() => setIsVisualSearchOpen(true)}
+                onPointerEnter={preloadPartIdentificationStudio}
+                      onFocus={preloadPartIdentificationStudio}
+                      onClick={() => {
+                        preloadPartIdentificationStudio();
+                        setIsVisualSearchOpen(true);
+                      }}
                 className="mobile-hero-action flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border border-[#D95F14] bg-gradient-to-l from-[#E96C1B] to-[#C9500E] px-4 py-3 text-[12px] font-extrabold text-white shadow-[0_5px_16px_rgba(213,91,20,.22)] transition active:scale-[.985]"
               >
                 <Camera size={19} strokeWidth={2} />

@@ -26,6 +26,10 @@ function preloadStudio(): void {
   void getOnnxSegmentationSession().catch(() => undefined);
 }
 
+export function preloadPartIdentificationStudio(): void {
+  preloadStudio();
+}
+
 const Studio = lazy(() =>
   loadStudioModule().then((m) => ({ default: m.AiVisualPartSearchModal })),
 );

@@ -13,7 +13,7 @@ const loaders: Record<string, () => Promise<unknown>> = {
   '/ai-forza': warmForza,
   '/face-to-face': warmForza,
   '/ai-consult': () => import('../../pages/AiConsultPage'),
-  '/identify-part': () => import('../search/AiVisualPartSearchModal'),
+  '/identify-part': () => import('../search/KikiVisualPartSearchModal'),
   '/products': () => import('../../pages/ProductsPage'),
   '/categories': () => import('../../pages/AllCategoriesPage'),
   '/cart': () => import('../../pages/CartPage'),

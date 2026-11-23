@@ -246,3 +246,24 @@ test('KIKI vision studio uses progressive local recognition and preserves privat
   assert.match(history, /sanatpish_forza_vision_recent_v2/);
   assert.match(history, /safeCatalogImage/);
 });
+
+
+test('all production image-search entry points use the KIKI studio and prewarm it', () => {
+  const home = read('src/pages/HomePage.tsx');
+  const header = read('src/components/layout/Header.tsx');
+  const voice = read('src/components/forza/AiForzaCallExperience.tsx');
+  const routePreload = read('src/components/layout/RouteIntentPreload.tsx');
+  const workspace = read('src/pages/AiConsultPage.tsx');
+  const provider = read('src/components/search/PartIdentificationProvider.tsx');
+
+  for (const source of [home, header, voice, routePreload, workspace, provider]) {
+    assert.match(source, /KikiVisualPartSearchModal/);
+    assert.match(source, /preloadPartIdentificationStudio/);
+  }
+  assert.match(voice, /onAnalysisResult=\{async\(result,image\)=>/);
+  assert.match(voice, /void handleUserFinishedSpeaking\(query\)/);
+  assert.doesNotMatch(home, /import\("\.\.\/components\/search\/AiVisualPartSearchModal"\)/);
+  assert.doesNotMatch(header, /import\('\.\.\/search\/AiVisualPartSearchModal'\)/);
+  assert.doesNotMatch(voice, /import\('\.\.\/search\/AiVisualPartSearchModal'\)/);
+  assert.doesNotMatch(routePreload, /import\('\.\.\/search\/AiVisualPartSearchModal'\)/);
+});
