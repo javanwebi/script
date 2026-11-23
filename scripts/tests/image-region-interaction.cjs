@@ -80,6 +80,10 @@ const {chromium}=require('playwright');
   await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
   await page.getByTestId('image-region-review').waitFor();
   await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).waitFor();
+  await page.screenshot({
+   path:path.join(os.tmpdir(),'sanat-forza-vision-entry-review-desktop.png'),
+   fullPage:true,
+  });
   // A warm local U²-NetP model may find the crop without a server detect call.
   // Wait for crop readiness rather than assuming a mandatory network roundtrip.
   await page.waitForFunction(() => {
@@ -96,6 +100,10 @@ const {chromium}=require('playwright');
   await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).click();
   await page.getByTestId('analysis-approved-crop').waitFor();
   await page.getByTestId('kiki-vision-results-shell').waitFor();
+  await page.screenshot({
+   path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-desktop.png'),
+   fullPage:true,
+  });
   assert.equal(queries.length,1);
   assert.ok(queries[0].imageBase64?.startsWith('data:image/'));
   // The locally segmented white-background crop can be a JPEG derived from
@@ -118,7 +126,11 @@ const {chromium}=require('playwright');
   await page.getByTestId('vision-analyzing-screen').waitFor();
   await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
   assert.equal(queries.length,3);assert.match(queries[2].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);assert.equal(queries[2].region,undefined);assert.equal(queries[2].fullImage,true);assert.equal(uploads,0);
-  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.deepEqual(errors,[]);
+  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);
+  await page.screenshot({
+   path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-mobile.png'),
+   fullPage:true,
+  });assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.deepEqual(errors,[]);
   await page.close();console.log('UPLOAD_DETECT_CONFIRM_CROP_ANALYSIS_FULL_IMAGE_FALLBACK_AND_MOBILE_LAYOUT_OK');
 
  }finally{await browser?.close();await server?.close();await fs.rm(fixture,{recursive:true,force:true});}
