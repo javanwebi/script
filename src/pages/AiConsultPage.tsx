@@ -205,14 +205,15 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const [entryParams]=useSearchParams();
   const { addToCart } = useCart();
 
-  React.useEffect(() => {
+  // Route visual identification into the dedicated standalone FORZA VISION experience.
+  useEffect(() => {
     if (!identificationOnly && entryParams.get('view') === 'visual') {
       navigate('/identify-part?from=workspace&' + entryParams.toString(), { replace: true });
     }
   }, [identificationOnly, entryParams, navigate]);
 
   // Mode: Engineering Chat OR Visual Part Identification Studio
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'chat' | 'visual_studio'>(()=>identificationOnly || entryParams.get('view')==='visual'?'visual_studio':'chat');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'chat' | 'visual_studio'>(() => identificationOnly ? 'visual_studio' : 'chat');
 
   // Chat sessions state
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -1672,7 +1673,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                   type="button"
                   onClick={() => {
                     if (isCatalogSearchOpen) {
-                      setIsCatalogSearchOpen(open => !open);
+                      setIsCatalogSearchOpen(false);
                     } else {
                       openCatalogFinder();
                     }
@@ -2226,7 +2227,10 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                           setIsCatalogSearchOpen(false);
                           startCatalogFamilyConsultation(family);
                         }}
-                        onAddToConsultation={startCatalogConsultation}
+                        onAddToConsultation={product => {
+                          setIsCatalogSearchOpen(false);
+                          startCatalogConsultation(product);
+                        }}
                         onClose={() => setIsCatalogSearchOpen(false)}
                       />
                     </div>
