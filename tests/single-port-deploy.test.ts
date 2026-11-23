@@ -385,3 +385,46 @@ test("standalone Nginx hotfix is idempotent and preserves the same root whitespa
     }
   } finally {fs.rmSync(sandbox,{recursive:true,force:true});}
 });
+
+test("one-time recovery removes only runaway whitespace from the actual live-style vhost", () => {
+  const repair = file("ops/repair-nginx-indentation-vps.sh");
+  assert.ok(repair.includes("flock -w 15 9"));
+  assert.ok(repair.includes("NGINX_REPAIR_ROLLBACK_OK"));
+  assert.ok(repair.includes("systemctl reload nginx"));
+  const marker = `python3 - "$CONF" <<'PY'`;
+  const start = repair.indexOf(marker);
+  assert.ok(start >= 0);
+  const begin = repair.indexOf("\n", start) + 1;
+  const end = repair.indexOf("\nPY\nnginx -t\nsystemctl reload nginx", begin);
+  assert.ok(end > begin);
+  const python = repair.slice(begin,end);
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "sanatpish-nginx-repair-test-"));
+  try {
+    const domain = path.join(sandbox,"domain.conf");
+    const huge = " ".repeat(65536);
+    const source = `server {
+    listen 80;
+    server_name sanatpish.com www.sanatpish.com;
+${huge}# SANATPISH_API_WRITE_ROUTE_V2
+${huge}location ^~ /api/ {
+${huge}return 308 https://$host$request_uri;
+${huge}}
+${huge}location / {
+        limit_except GET { deny all; }
+        proxy_pass http://127.0.0.1:3013;
+    }
+}
+`;
+    fs.writeFileSync(domain,source);
+    assert.ok(fs.statSync(domain).size>262144);
+    const run=spawnSync("python3",["-c",python,domain],{encoding:"utf8"});
+    assert.equal(run.status,0,run.stderr || run.stdout);
+    const clean=fs.readFileSync(domain,"utf8");
+    assert.ok(Buffer.byteLength(clean)<262144);
+    const normalize=(text:string)=>text.replace(/^[ \t]+/gm,"");
+    assert.equal(normalize(clean),normalize(source));
+    assert.equal(clean.split("SANATPISH_API_WRITE_ROUTE_V2").length-1,1);
+    assert.ok(clean.includes("proxy_pass http://127.0.0.1:3013;"));
+    assert.ok(clean.includes("limit_except GET { deny all; }"));
+  } finally { fs.rmSync(sandbox,{recursive:true,force:true}); }
+});
