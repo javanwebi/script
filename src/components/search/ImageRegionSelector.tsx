@@ -123,6 +123,22 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
     <button type="button" className="sanat-region-picker__full-image" onClick={()=>onFullImageSearch ? onFullImageSearch() : onChange(undefined)}>جست‌وجوی کل تصویر</button>
    </aside>
   </div>
+  {candidates.length > 1 && (
+   <div className="fv-region-candidates" role="group" aria-label="انتخاب قطعه از میان نواحی تصویر" data-testid="vision-region-candidates">
+    <span className="fv-region-candidates__heading">بخش‌های تصویر:</span>
+    {candidates.slice(0, 8).map((region, index) => (
+     <button
+      key={index}
+      type="button"
+      aria-pressed={sameRegion(selected, region)}
+      className={`fv-region-candidates__item ${sameRegion(selected, region) ? 'is-active' : ''}`}
+      onClick={() => { setDraft(undefined); onChange(region); }}
+     >
+      { `قطعه ${toPersianNumber(index + 1)}` }
+     </button>
+    ))}
+   </div>
+  )}
   <p className="sanat-region-picker__hint">لمس روی کادر پیشنهادی: انتخاب همان قطعه · لمس روی قطعه دیگر: ساخت برش جدید · کشیدن: تنظیم دقیق کادر</p>
  </section>;
 }
