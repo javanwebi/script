@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
@@ -304,4 +305,73 @@ test("local vision canary resumes only stale persisted PostgreSQL index rows bef
   const index = file("src/services/catalogVisualIndex.ts");
   assert.match(index, /storedEntries:this\.entries\.size,missing,signatureChanged/);
   assert.match(index, /const missing=images\.filter\(row=>this\.entries\.get\(row\.id\)\?\.signature!==signature\(row\)\)/);
+});
+
+test("Nginx API route upgrade is idempotent for 12 consecutive releases (regression: exponential indentation)", () => {
+  const match = one.match(/python3 - "\\$CONF1" "\\$CONF2" "\\$CONF_DOMAIN" "\\$FIXED_PORT" <<'PY'\\n([\\s\\S]*?)\\nPY\\nnginx -t\\nsystemctl reload nginx/);
+  assert.ok(match, "Could not extract actual three-vhost Python migration");
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "sanatpish-nginx-idempotence-"));
+  try {
+    const paths = ["ip", "https", "domain"].map(name => path.join(sandbox, name + ".conf"));
+    for (let i = 0; i < paths.length; i++) {
+      const indent = i === 2 ? " ".repeat(32) : " ".repeat(4);
+      const host = i === 2 ? "sanatpish.com www.sanatpish.com" : "localhost";
+      fs.writeFileSync(paths[i], `server {
+    server_name ${host};
+    location = /api/live {
+        proxy_pass http://127.0.0.1:3013;
+    }
+${indent}location / {
+        limit_except GET {
+            deny all;
+        }
+        try_files $uri /index.html;
+    }
+}
+`);
+    }
+    let first: string[] | undefined;
+    for (let iteration = 0; iteration < 12; iteration++) {
+      const cmd = spawnSync("python3", ["-c", match[1], ...paths, "3013"], {encoding: "utf8"});
+      assert.equal(cmd.status, 0, `Nginx rewrite failed at repeat ${iteration + 1}: ${cmd.stderr || cmd.stdout}`);
+      const current = paths.map(p => fs.readFileSync(p, "utf8"));
+      if (first) assert.deepEqual(current, first, `vhost changed on identical deploy repeat ${iteration + 1}`);
+      else first = current;
+      assert.ok(current.every(config => config.length < 4096), "Nginx vhost unexpectedly ballooned");
+      assert.match(current[2], /(?m)^ {32}location \\/ \\{/);
+      assert.equal(current[1].split("# SANATPISH_API_WRITE_ROUTE_V2").length - 1, 1);
+      assert.equal(current[2].split("# SANATPISH_API_WRITE_ROUTE_V2").length - 1, 1);
+      assert.match(current[0], /limit_except GET/);
+    }
+  } finally {
+    fs.rmSync(sandbox, {recursive: true, force: true});
+  }
+});
+
+test("standalone Nginx hotfix is idempotent and preserves the same root whitespace", () => {
+  const standalone = file("ops/fix-nginx-api-write-routing-vps.sh");
+  const match = standalone.match(/python3 - "\\$HTTPS" "\\$HTTP" "\\$PORT" <<'PY'\\n([\\s\\S]*?)\\nPY\\n\\nnginx -t/);
+  assert.ok(match, "Cannot find standalone Nginx rewrite");
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "sanatpish-nginx-hotfix-"));
+  try {
+    const names = ["https", "http"].map(name => path.join(sandbox, name + ".conf"));
+    for (const p of names) fs.writeFileSync(p, `server {
+    server_name sanatpish.com www.sanatpish.com;
+    location = /api/live { proxy_pass http://127.0.0.1:3013; }
+    location / {
+        limit_except GET { deny all; }
+        try_files $uri /index.html;
+    }
+}
+`);
+    let snapshot: string[] | undefined;
+    for (let i=0;i<8;i++) {
+      const cmd=spawnSync("python3",["-c",match[1],...names,"3013"],{encoding:"utf8"});
+      assert.equal(cmd.status,0,cmd.stderr || cmd.stdout);
+      const next=names.map(p=>fs.readFileSync(p,"utf8"));
+      if(snapshot)assert.deepEqual(next,snapshot);
+      snapshot=next;
+      assert.ok(next.every(s=>s.length<4096));
+    }
+  } finally {fs.rmSync(sandbox,{recursive:true,force:true});}
 });
