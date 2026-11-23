@@ -754,15 +754,18 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       const photoHistoryMatch = result.catalogImageMatches?.find((photo) =>
         Boolean(primaryHistoryMatch?.code && photo.bindings?.some((binding) => binding.code === primaryHistoryMatch.code)),
       ) || result.catalogImageMatches?.[0];
-      const historyCode = primaryHistoryMatch?.code || photoHistoryMatch?.bindings?.find((binding) => binding.code)?.code;
-      const historyTitle = primaryHistoryMatch?.name || photoHistoryMatch?.label || result.summary?.partFamilyFarsi || result.summary?.detectedPartType;
+      const verifiedPhotoCode = photoHistoryMatch?.bindings?.find((binding) => binding.code && binding.verified)?.code;
+      const historyCode = primaryHistoryMatch?.code || verifiedPhotoCode;
+      const historyTitle = primaryHistoryMatch?.name || photoHistoryMatch?.label;
       if (historyCode && historyTitle) {
+        const historySubtitle = [
+          primaryHistoryMatch?.brand,
+          primaryHistoryMatch?.visualVerdictFarsi || (primaryHistoryMatch ? 'نامزد کاتالوگ · نیازمند بررسی فنی' : 'تصویر ثبت‌شده در کاتالوگ'),
+        ].filter(Boolean).join(' · ');
         setRecentSearches(recordVisionRecentSearch({
           code: historyCode,
           title: historyTitle,
-          subtitle: primaryHistoryMatch?.brand
-            ? `${primaryHistoryMatch.brand} · ${historyCode}`
-            : primaryHistoryMatch?.visualVerdictFarsi || 'نتیجه کاتالوگ',
+          subtitle: historySubtitle,
           partHint: result.summary?.detectedPartType,
           imageUrl: primaryHistoryMatch?.image || photoHistoryMatch?.image,
         }));
