@@ -2016,7 +2016,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     <div>
                       <span>FORZA VISION · CATALOGUE MATCHING</span>
                       <h2>نتایج جستجوی تصویری کاتالوگ</h2>
-                      <p>{(analysisResult.matchedProducts?.length || 0) + (analysisResult.similarCandidates?.length || 0)} گزینه برای بررسی · کد و مشخصات باید تأیید شوند</p>
+                      <p>{(analysisResult.matchedProducts?.length || 0) + (analysisResult.similarCandidates?.length || 0)} مورد نامزد کاتالوگ · کد و مشخصات پیش از سفارش نیازمند تأیید است</p>
                     </div>
                   </div>
                   <div className="fv-catalog-sheet__actions">
@@ -2032,11 +2032,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       {mobileResultsExpanded ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}
                       {mobileResultsExpanded ? 'نمایش تصویر قطعه' : 'نمایش همه نتایج'}
                     </button>
-                    <button type="button" className="fv-catalog-sheet__new-search" onClick={() => { setMobileResultsExpanded(false); setAnalysisResult(null); setCurrentStep(1); }}>
+                    <button type="button" className="fv-catalog-sheet__new-search" onClick={() => { setMobileResultsExpanded(false); resetForm(); }}>
                       <RotateCcw size={16} aria-hidden="true" /> عکس یا قطعه دیگر
                     </button>
                   </div>
                 </header>
+                <div className="fv-catalog-sheet__layout" data-testid="forza-vision-two-panel-layout">
+                  <aside className="fv-catalog-sheet__lens" aria-label="تصویر و ناحیه انتخاب‌شده قطعه">
                 {localRegionEnabled && selectedImage && <ImageRegionSelector
                   src={selectedImage}
                   value={queryRegion}
@@ -2052,7 +2054,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     <p>تصویر اصلی برای مقایسه نگهداری شده است؛ نتیجه‌های مشابه به‌تنهایی تأیید فنی محسوب نمی‌شوند.</p>
                   </div>
                 )}
-                <div className="sp-vision-result-intro" id="forza-vision-catalog-results">
+                  </aside>
+                  <section className="fv-catalog-sheet__results" id="forza-vision-catalog-results" aria-label="نتایج واقعی شناسایی و تطبیق قطعه">
+                    <div className="sp-vision-result-intro">
                   <div>
                     <span>FORZA VISION · CATALOGUE EVIDENCE</span>
                     <h3>نتایج بررسی تصویری قطعه</h3>
@@ -2105,7 +2109,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 )}
 
                 {/* Summary Bar */}
-                <div className="bg-[#55565A] text-white p-4 rounded-2xl space-y-3">
+                <details className="fv-catalog-sheet__analysis-details">
+                  <summary>
+                    <Sparkles size={16} aria-hidden="true" />
+                    <strong>تحلیل تکمیلی تصویر</strong>
+                    <span>{analysisResult.summary.detectedPartType || 'قطعه صنعتی'} · مشاهده جزئیات و شواهد</span>
+                    <ChevronDown size={16} className="fv-catalog-sheet__details-chevron" aria-hidden="true" />
+                  </summary>
+                  <div className="bg-[#55565A] text-white p-4 rounded-2xl space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-xl bg-[#E06518] text-white flex items-center justify-center font-bold text-xs">
@@ -2192,7 +2203,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       <p className="text-sm text-slate-100 leading-7"><strong>تحلیل قطعه: </strong>{analysisResult.summary.visualAnalysis}</p>
                     </div>
                   </div>
-                </div>
+                  </div>
+                </details>
 
                 {/* Refine CTA: visible after quick (image-only) analysis */}
                 {(analysisResult.stage || lastStage) === "quick" && (
@@ -2757,6 +2769,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   >
                     شروع جستجوی جدید
                   </button>
+                </div>
+                  </section>
                 </div>
               </motion.div>
             )}
