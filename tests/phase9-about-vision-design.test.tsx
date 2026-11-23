@@ -92,7 +92,9 @@ test('both recognition result paths share full-resolution zoomable photography a
   const wizard = read('src/components/search/AiVisualPartSearchModal.tsx');
   const modelResults = read('src/components/search/LocalModelResults.tsx');
   const css = read('src/components/search/industrial-scan.css');
-  assert.match(wizard,/data-testid="vision-journey"/);
+  assert.match(wizard,/data-testid="kiki-vision-review-shell"/);
+  assert.match(wizard,/data-testid="kiki-vision-results-shell"/);
+  assert.match(read("src/components/search/VisionEntryPage.tsx"),/data-testid="forza-vision-entry"/);
   assert.match(wizard,/sp-vision-result-intro/);
   assert.match(wizard,/sp-vision-match-photo/);
   assert.match(wizard,/sources=\{\[match\.image,/);
