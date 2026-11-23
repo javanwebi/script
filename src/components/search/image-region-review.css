@@ -256,3 +256,44 @@
     max-height: 48dvh;
   }
 }
+
+/* Keep one hierarchy: the outer VISION workbench owns the title and status.
+   The nested widget retains its semantic labels but does not repeat chrome. */
+.kiki-vision-review-shell .sp-region-review__header {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.kiki-vision-review-shell .sanat-region-picker__header {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.kiki-vision-review-shell .sp-region-review__instruction {
+  margin: 0;
+  padding: 12px 15px;
+  border: 0;
+  border-bottom: 1px solid #dfe3e6;
+  border-radius: 0;
+  background: #fff;
+}
+.kiki-vision-review-shell .sp-region-review > .sanat-region-picker {
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+}
+.kiki-vision-review-shell .sp-region-review__actions {
+  border-top: 1px solid #dfe3e6;
+  margin-top: 0;
+}
