@@ -27,20 +27,29 @@ test('FORZA workspace uses the approved ZIP icon and modal components', () => {
   assert.match(modals, /setConfirmClear\(true\)/);
 });
 
-test('FORZA vision keeps the current scanner engine and adds the ZIP optical HUD', () => {
+test('FORZA vision restores the approved ZIP contour pipeline and local ONNX segmentation', () => {
   const modal = read('src/components/search/AiVisualPartSearchModal.tsx');
-  const selector = read('src/components/search/ImageRegionSelector.tsx');
-  const styles = read('src/components/search/vision-camera-design.css');
+  const provider = read('src/components/search/PartIdentificationProvider.tsx');
+  const contours = read('src/utils/smartPartContour.ts');
+  const history = read('src/components/search/visionRecentHistory.ts');
+  const segmentation = read('src/utils/clientAiSegmentation.ts');
+  const styles = read('src/components/search/industrial-scan.css');
 
-  assert.match(modal, /vision-camera-design\.css/);
-  assert.match(modal, /fv-camera-stage/);
-  assert.match(modal, /fv-corner-brackets/);
-  assert.match(modal, /fv-scan-laser/);
-  assert.match(selector, /fv-lens-corner--tl/);
-  assert.match(selector, /fv-lens-corner--br/);
+  assert.match(modal, /analyzeImageAutoContour/);
+  assert.match(modal, /refineAutoContoursWithAiMask/);
+  assert.match(modal, /segmentPartAtTapPoint/);
+  assert.match(modal, /inferVisualDescriptor/);
+  assert.match(modal, /useOnnxPartSegmentation/);
+  assert.match(modal, /recordVisionRecentSearch/);
+  assert.match(provider, /export function useOnnxPartSegmentation/);
+  assert.match(provider, /preloadClientAiSegmentation/);
+  assert.match(contours, /export async function analyzeImageAutoContour/);
+  assert.match(contours, /export async function segmentPartAtTapPoint/);
+  assert.match(history, /export function recordVisionRecentSearch/);
+  assert.match(segmentation, /wasmPaths = '\/forza-runtime\/ort\//);
+  assert.doesNotMatch(provider, /wasmPaths = '\/ort\//);
   assert.match(styles, /\.fv-camera-stage/);
-  assert.match(styles, /\.fv-lens-corner--br/);
-  assert.doesNotMatch(styles.match(/\.fv-corner-brackets\s*\{[^}]*\}/)?.[0] || '', /position:\s*relative/);
+  assert.match(styles, /\.fv-scan-laser/);
 });
 
 test('mobile FORZA launcher preserves the swipe-up contact sheet and direct desktop entry', () => {
@@ -59,23 +68,35 @@ test('mobile FORZA launcher preserves the swipe-up contact sheet and direct desk
   assert.match(styles, /prefers-reduced-motion/);
 });
 
-test('approved optical tap feedback is cosmetic and retains the live region selector', () => {
-  const selector = read('src/components/search/ImageRegionSelector.tsx');
+test('ZIP tap-to-isolate uses contour-aware sub-part selection and optical feedback', () => {
+  const contours = read('src/utils/smartPartContour.ts');
   const styles = read('src/components/search/industrial-scan.css');
   const scanner = read('src/components/search/AiVisualPartSearchModal.tsx');
-  assert.match(selector, /tapFeedback/);
-  assert.match(selector, /fv-tap-ripple/);
-  assert.match(selector, /fv-object-dot--active/);
-  assert.match(selector, /findImageRegionAtPoint/);
-  assert.match(selector, /tapImageRegion/);
-  assert.match(styles, /fv-approved-tap-ripple/);
+  assert.match(scanner, /segmentPartAtTapPoint/);
+  assert.match(scanner, /isPointInsidePolygon/);
+  assert.match(scanner, /fv-tap-ripple/);
+  assert.match(scanner, /fv-object-dot/);
+  assert.match(contours, /export async function segmentPartAtTapPoint/);
+  assert.match(contours, /export function isPointInsidePolygon/);
+  assert.match(styles, /\.fv-tap-ripple/);
+  assert.match(styles, /\.fv-object-dot/);
   assert.match(styles, /prefers-reduced-motion/);
-  assert.match(scanner, /ImageRegionSelector/);
-  assert.match(scanner, /clientAiSegmentation/);
 });
 
-test('approved workspace keeps catalog search collapsible without dropping live callbacks', () => {
+test('approved ZIP workspace keeps the catalog drawer and live consultation callbacks', () => {
   const page = read('src/pages/AiConsultPage.tsx');
+  assert.match(page, /isCatalogSearchOpen/);
+  assert.match(page, /Collapsible Catalog Search Drawer/);
+  assert.match(page, /openCatalogFinder/);
+  assert.match(page, /setIsCatalogSearchOpen\(true\)/);
+  assert.match(page, /startCatalogFamilyConsultation\(family\)/);
+  assert.match(page, /onAddToConsultation=\{product =>/);
+  assert.match(page, /const startCatalogConsultation = \(product: ConsultationProduct\)/);
+  assert.match(page, /setIsCatalogSearchOpen\(false\)/);
+  assert.match(page, /consumeForzaTextStream/);
+});
+
+');
   assert.match(page, /isCatalogSearchOpen/);
   assert.match(page, /forza-workspace-catalog-drawer/);
   assert.match(page, /setIsCatalogSearchOpen\(open => !open\)/);
