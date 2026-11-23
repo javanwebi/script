@@ -2693,56 +2693,40 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   }
 
                   return (
-                    /* ─── Custom Order Panel (no matching items at all) ─── */
-                    <div className="p-5 rounded-2xl border-2 border-dashed border-amber-300 bg-gradient-to-l from-amber-50 via-orange-50 to-amber-50 space-y-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-[#E06518] text-white flex items-center justify-center shrink-0 shadow-md">
-                          <Wrench className="w-6 h-6" />
-                        </div>
-                        <div className="space-y-1.5 flex-1">
-                          <div className="font-black text-base text-[#55565A]">
-                            درخواست بررسی تخصصی قطعه 🔧
-                          </div>
-                          <p className="text-xs text-slate-600 leading-relaxed">
-                            در کاتالوگ، محصولی با شباهت تصویری کافی پیدا نشد.
-                            این به معنی ناممکن بودن تأمین نیست؛ کارشناسان صنعت پیش
-                            پس از بررسی ابعاد، جنس و شرایط کارکرد، امکان تأمین یا
-                            ساخت سفارشی را اعلام می‌کنند.
-                          </p>
-                          <p className="text-[11px] text-slate-500 leading-relaxed">
-                            می‌توانید با همین تصویر، تعداد موردنیاز و اطلاعات تماس خود درخواست ساخت ثبت کنید.
-                            کارشناسان صنعت پیش امکان تأمین، مهندسی معکوس و زمان ساخت را بررسی می‌کنند.
-                          </p>
-                          <p className="text-[10px] text-slate-500 leading-relaxed">
-                            تصویر اصلی تا زمان ارسال نهایی فرم فقط روی دستگاه شما می‌ماند؛ با ارسال فرم، به‌صورت پیوست خصوصی درخواست ساخت برای کارشناسان مجاز CRM ثبت می‌شود.
-                          </p>
+                    /* KIKI source: calm no-match message with a compact pinned manufacturing rail. */
+                    <div className="fv-kiki-empty-state" data-testid="vision-kiki-no-match">
+                      <div className="fv-kiki-empty-state__message">
+                        <Target size={22} className="text-[#E06518]" aria-hidden="true" />
+                        <div>
+                          <strong>محصول مشابهی در کاتالوگ پیدا نشد</strong>
+                          <p>روی قطعه دیگری در تصویر بزنید یا درخواست ساخت سفارشی ثبت کنید. نبود نتیجه به معنی ناممکن بودن تأمین نیست.</p>
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <button
-                          type="button"
-                          disabled={isPreparingCustomRequest || !selectedImage}
-                          onClick={() => void openCustomManufacturingRequest()}
-                          className="w-full min-h-12 rounded-xl bg-gradient-to-l from-[#E06518] to-[#C95210] px-4 py-3 text-white font-black text-xs shadow-lg shadow-orange-500/20 transition hover:brightness-105 disabled:cursor-wait disabled:opacity-60"
-                        >
-                          {isPreparingCustomRequest ? 'در حال آماده‌سازی تصویر...' : 'ثبت درخواست ساخت با همین تصویر'}
-                        </button>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <a
-                            href="tel:03535254703"
-                            className="h-11 bg-[#55565A] hover:bg-[#1B293E] text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
+                      <details className="fv-kiki-empty-state__details">
+                        <summary>نحوه بررسی تخصصی و حریم خصوصی عکس</summary>
+                        <p>کارشناسان صنعت پیش پس از بررسی ابعاد، جنس و شرایط کارکرد، امکان تأمین، مهندسی معکوس یا ساخت سفارشی را اعلام می‌کنند.</p>
+                        <p>تصویر اصلی تا زمان ارسال نهایی فرم روی دستگاه شما می‌ماند؛ هنگام ارسال فرم، پیوست خصوصی برای کارشناسان مجاز ثبت می‌شود.</p>
+                      </details>
+                      <div className="fv-kiki-empty-state__rail">
+                        <div className="fv-kiki-empty-state__rail-copy">
+                          <strong>قطعه موردنظر پیدا نشد؟ امکان بررسی ساخت سفارشی وجود دارد.</strong>
+                          <span>با همین عکس، درخواست بررسی ثبت کنید یا با صنعت پیش تماس بگیرید.</span>
+                        </div>
+                        <div className="fv-kiki-empty-state__buttons">
+                          <button
+                            type="button"
+                            disabled={isPreparingCustomRequest || !selectedImage}
+                            onClick={() => void openCustomManufacturingRequest()}
+                            className="fv-kiki-empty-state__primary"
                           >
-                            <Phone className="w-4 h-4" />
-                            <span>تماس با صنعت پیش: ۰۳۵-۳۵۲۵۴۷۰۳</span>
+                            <Wrench size={15} aria-hidden="true" />
+                            {isPreparingCustomRequest ? 'آماده‌سازی تصویر…' : 'ثبت درخواست ساخت'}
+                          </button>
+                          <a href="tel:03535254703" className="fv-kiki-empty-state__secondary" aria-label="تماس با صنعت پیش: ۰۳۵-۳۵۲۵۴۷۰۳">
+                            <Phone size={15} aria-hidden="true" /><span>تماس</span>
                           </a>
-                          <a
-                            href="https://wa.me/989903427027?text=سلام%2C%20این%20تصویر%20قطعه%20را%20برای%20ساخت%20سفارشی%20ارسال%20می‌کنم"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                            <span>ارسال عکس در واتس‌اپ</span>
+                          <a href="https://wa.me/989903427027?text=سلام%2C%20این%20تصویر%20قطعه%20را%20برای%20ساخت%20سفارشی%20ارسال%20می‌کنم" target="_blank" rel="noreferrer" className="fv-kiki-empty-state__whatsapp" aria-label="ارسال درخواست در واتس‌اپ">
+                            <MessageCircle size={15} aria-hidden="true" /><span>واتس‌اپ</span>
                           </a>
                         </div>
                       </div>
