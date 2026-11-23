@@ -54,6 +54,12 @@ const {chromium}=require('playwright');
     await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
     assert.equal(await page.evaluate(()=>window.__searchCount),1);
    }
+   // Original KIKI quick selector must choose a real second region, not run a search.
+   const rail=page.getByTestId('vision-region-candidates');
+   await rail.getByRole('button',{name:'قطعه ۲'}).click();
+   const second=await page.evaluate(()=>window.lastRegion);
+   assert.ok(Math.abs(second.x-0.15)<0.01 && Math.abs(second.y-0.3)<0.01,JSON.stringify(second));
+   assert.equal(await page.evaluate(()=>window.__searchCount),1,'candidate change must not auto-search');
    await page.getByRole('button',{name:'جست‌وجوی کل تصویر'}).click();assert.equal(await page.evaluate(()=>window.lastRegion),null);
    assert.deepEqual(errors,[]);await context.close();console.log(mobile?'TOUCH_SELECTION_OK':'POINTER_DRAG_KEYBOARD_OK');
   }
