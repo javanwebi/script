@@ -236,6 +236,8 @@
 .sp-vision-result-panel:has(> .sanat-region-picker) > *,
 .sp-vision-result-panel:has(> .kiki-vision-image-evidence) > * {
   margin-top: 0 !important;
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
 }
 .sp-vision-result-panel:has(> .sanat-region-picker) > .sanat-region-picker,
 .sp-vision-result-panel:has(> .kiki-vision-image-evidence) > .kiki-vision-image-evidence {
