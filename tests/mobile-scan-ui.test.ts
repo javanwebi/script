@@ -10,7 +10,7 @@ test("mobile scan action uses existing product identification context, not a dup
   const nav = source("src/components/layout/MobileBottomBar.tsx");
   const provider = source("src/components/search/PartIdentificationProvider.tsx");
   assert.match(nav, /className="store-scan-action"/);
-  assert.match(nav, /openIdentification/fullScreen=\\{standalone \\|\\| fullScreen \\|\\| initialCamera \\|\\| cameraFlowActive \\|\\| currentStep === "analyzing" \\|\\| currentStep === 1\\}/?\.\("camera"\)/);
+  assert.match(nav, /openIdentification\?\.\("camera"\)/);
   assert.match(provider, /startWithCamera/);
   assert.match(provider, /initialCamera=\{startWithCamera\}/);
   assert.match(provider, /<Studio isOpen/);
@@ -179,7 +179,7 @@ test("identification hides mobile dock with React state, scoped class and CSS fa
   assert.match(provider, /document\.body\.classList\.remove\("sanat-identification-open"\)/);
   assert.match(css, /body\.sanat-identification-open \.storefront \.store-bottom-nav/);
   assert.match(css, /\.storefront\.no-mobile-dock \.store-ai-quick-actions/);
-  assert.match(source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\\{standalone \\|\\| fullScreen \\|\\| initialCamera \\|\\| cameraFlowActive \\|\\| currentStep === "analyzing" \\|\\| currentStep === 1\\}/);
+  assert.match(source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{standalone \|\| fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing" \|\| currentStep === 1\}/);
 });
 
 test("reference-design scanner has actual gallery, reversible lens and flash controls, a round shutter and scan-line", () => {
@@ -209,7 +209,10 @@ test("standalone identification route uses the new entry design and existing cam
   assert.match(modal, /!initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera/);
   assert.match(modal, /setCameraFlowActive\(true\); void startCamera\(\)/);
   assert.match(modal, /onUpload=\{\(\) => fileInputRef\.current\?\.click\(\)\}/);
-  assert.match(entry, /data-testid="forza-vision-entry"/);\n  assert.match(entry, /data-testid="forza-vision-upload-panel"/);\n  assert.match(entry, /LOCAL LENS · CATALOG MATCH/);\n  assert.match(entry, /onDropFile\\?: \\(file: File\\) => void/);
+  assert.match(entry, /data-testid="forza-vision-entry"/);
+  assert.match(entry, /data-testid="forza-vision-upload-panel"/);
+  assert.match(entry, /LOCAL LENS · CATALOG MATCH/);
+  assert.match(entry, /onDropFile\?: \(file: File\) => void/);
   assert.match(entry, /onCamera/);
   assert.match(entry, /onUpload/);
   assert.match(entry, /تصاویر واقعی کاتالوگ اطلس/);
