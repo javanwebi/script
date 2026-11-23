@@ -7,7 +7,6 @@ import {
   Focus,
   Image as GalleryImage,
   Search,
-  ShieldCheck,
   Sparkles,
   UploadCloud,
 } from 'lucide-react';
