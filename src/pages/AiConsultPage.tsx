@@ -205,10 +205,6 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const [entryParams]=useSearchParams();
   const { addToCart } = useCart();
 
-  React.useEffect(() => {
-    if (!identificationOnly && entryParams.get('view') === 'visual') navigate('/identify-part?from=workspace&' + entryParams.toString(), { replace: true });
-  }, [identificationOnly, entryParams, navigate]);
-
   // Mode: Engineering Chat OR Visual Part Identification Studio
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'chat' | 'visual_studio'>(()=>identificationOnly || entryParams.get('view')==='visual'?'visual_studio':'chat');
 
@@ -323,6 +319,15 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     setActiveWorkspaceTab('chat');
     setIsCatalogSearchOpen(true);
     window.setTimeout(() => document.getElementById('forza-workspace-product-search')?.focus(), 70);
+  }, []);
+
+  // Use the image-identification design embedded in this supplied workspace.
+  // Keep /identify-part outside the workspace on the existing production scanner.
+  const openVisualStudio = useCallback(() => {
+    setIsMobileDrawerOpen(false);
+    setIsComposerToolsOpen(false);
+    setIsCatalogSearchOpen(false);
+    setActiveWorkspaceTab('visual_studio');
   }, []);
 
   const scrollToBottom = () => {
@@ -1142,10 +1147,7 @@ summary,
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={() => {
-                      setIsComposerToolsOpen(false);
-                      navigate('/identify-part?from=workspace');
-                    }}
+                    onClick={openVisualStudio}
                     className="w-full min-h-[40px] px-3 rounded-xl hover:bg-[#F5F6F6] text-[#2B313A] text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer text-right"
                   >
                     <VisualScannerIcon size={16} className="text-[#55565A] shrink-0" />
@@ -1272,10 +1274,7 @@ summary,
 
           <button
             type="button"
-            onClick={() => {
-              setIsMobileDrawerOpen(false);
-              navigate('/identify-part?from=workspace');
-            }}
+            onClick={openVisualStudio}
             className="w-full min-h-[38px] px-2.5 rounded-xl hover:bg-[#EAECEF] text-[#55565A] hover:text-[#2B313A] text-[13px] font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
           >
             <VisualScannerIcon size={17} className="text-[#74757C] shrink-0 mx-0.5" />
@@ -1623,6 +1622,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                   className="min-h-[38px] px-2 sm:px-2.5 rounded-xl hover:bg-[#F3F4F6] flex items-center gap-1.5 transition-colors cursor-pointer min-w-0"
                   title="تنظیمات مدل و حوزه صنعتی"
                 >
+                  <CognivoGeometricLogo className="w-4 h-4 shrink-0" />
                   <span className="font-extrabold text-[13.5px] sm:text-[15px] text-[#2B313A] tracking-tight whitespace-nowrap truncate">
                     FORZA مهندسی
                   </span>
@@ -1648,7 +1648,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                 </button>
                 <button
                   type="button"
-                  onClick={() => navigate('/identify-part?from=workspace')}
+                  onClick={openVisualStudio}
                   className={`min-h-[30px] px-3.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                     activeWorkspaceTab === 'visual_studio'
                       ? 'bg-[#FFFFFF] text-[#2B313A] shadow-2xs'
@@ -1666,7 +1666,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                   type="button"
                   onClick={() => {
                     if (isCatalogSearchOpen) {
-                      setIsCatalogSearchOpen(false);
+                      setIsCatalogSearchOpen(open => !open);
                     } else {
                       openCatalogFinder();
                     }
@@ -2082,7 +2082,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                       </h3>
                     </div>
                     <span className="text-xs font-bold text-[#C95210] font-mono tabular-nums">
-                      دقت تطبیق: {analysisResult.summary.confidence}%
+                      دقت تطبیق: {Number.isFinite(analysisResult.summary.confidence) ? `${analysisResult.summary.confidence}%` : 'اعلام نشده'}
                     </span>
                   </div>
 
@@ -2103,13 +2103,13 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                       <div>
                         <span className="text-[#8E8EA0] block text-[10px]">خانواده قطعه</span>
                         <strong className="text-[#0D0D0D]">
-                          {analysisResult.summary.partFamilyFarsi || 'قطعات انتقال قدرت'}
+                          {analysisResult.summary.partFamilyFarsi || 'نامشخص'}
                         </strong>
                       </div>
                       <div>
                         <span className="text-[#8E8EA0] block text-[10px]">متریال</span>
                         <strong className="text-[#0D0D0D]">
-                          {analysisResult.summary.material || 'فولاد / لاستیک صنعتی'}
+                          {analysisResult.summary.material || 'نامشخص'}
                         </strong>
                       </div>
                     </div>
@@ -2209,7 +2209,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.18 }}
-                    className="relative z-30 shrink-0 border-b border-[#DFE3E6] bg-[#FAFBFB] overflow-visible"
+                    className="forza-workspace-catalog-drawer relative z-30 shrink-0 border-b border-[#DFE3E6] bg-[#FAFBFB] overflow-visible"
                   >
                     <div className="px-3 sm:px-6 py-2.5">
                       <WorkspaceCatalog
@@ -2217,10 +2217,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                           setIsCatalogSearchOpen(false);
                           startCatalogFamilyConsultation(family);
                         }}
-                        onAddToConsultation={product => {
-                          setIsCatalogSearchOpen(false);
-                          startCatalogConsultation(product);
-                        }}
+                        onAddToConsultation={startCatalogConsultation}
                         onClose={() => setIsCatalogSearchOpen(false)}
                       />
                     </div>
