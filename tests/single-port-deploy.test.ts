@@ -343,7 +343,7 @@ ${indent}location / {
       if (first) assert.deepEqual(current, first, `vhost changed on identical deploy repeat ${iteration + 1}`);
       else first = current;
       assert.ok(current.every(config => config.length < 4096), "Nginx vhost unexpectedly ballooned");
-      assert.match(current[2], /^ {32}location \\/ \\{/m);
+      assert.ok(current[2].includes(" ".repeat(32) + "location / {"), "original 32-space root indent changed");
       assert.equal(current[1].split("# SANATPISH_API_WRITE_ROUTE_V2").length - 1, 1);
       assert.equal(current[2].split("# SANATPISH_API_WRITE_ROUTE_V2").length - 1, 1);
       assert.match(current[0], /limit_except GET/);
