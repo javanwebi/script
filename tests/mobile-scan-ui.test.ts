@@ -192,6 +192,13 @@ test("reference-design scanner has actual gallery, reversible lens and flash con
   assert.match(modal, /toggleTorch/);
   assert.match(modal, /sanat-camera-experience__instruction/);
   assert.match(css, /sanat-camera-experience__scan-line/);
+  assert.match(modal, /fv-camera-stage/);
+  assert.match(modal, /fv-corner-brackets/);
+  assert.match(modal, /fv-scan-laser/);
+  assert.match(css, /\.fv-workbench\s*\{/);
+  assert.match(css, /\.fv-camera-stage\s*\{/);
+  assert.match(css, /\.fv-corner-brackets\s*\{/);
+  assert.match(css, /\.fv-scan-laser\s*\{/);
 });
 
 
