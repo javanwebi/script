@@ -2,7 +2,7 @@ import {LocalModelResults} from './LocalModelResults';
 import {CatalogResultImage} from './CatalogResultImage';
 import { loadVisionRecentSearches, recordVisionRecentSearch, type VisionRecentSearchItem } from './visionRecentHistory';
 import {apiUrl} from '../../config/apiConfig';
-import { getForegroundRegion, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
+import { getForegroundRegion, preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
@@ -175,6 +175,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [fullImageSelected,setFullImageSelected]=useState(false);
   const regionDetectionSequenceRef=useRef(0);
   const localSegmentationRef=useRef<{source:string;result:ClientAiSegmentationResult;region:ImageRegion}|null>(null);
+  React.useEffect(() => {
+    if (isOpen) void preloadClientAiSegmentation();
+  }, [isOpen]);
   const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
@@ -274,6 +277,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [showSimilar, setShowSimilar] = useState<boolean>(true);
+  const [mobileResultsExpanded, setMobileResultsExpanded] = useState(false);
+  const resultsSwipeStartY = useRef<number | null>(null);
   const [recentSearches, setRecentSearches] = useState<VisionRecentSearchItem[]>(() => loadVisionRecentSearches());
   const visiblePhotoMatches=(analysisResult?.catalogImageMatches || []).filter(photo=>
     !analysisResult?.modelSuggestions?.length || photo.bindings.length===0);
@@ -321,8 +326,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             return response.blob();
           })
         : source;
-      const saved = await saveCustomerDeviceImage(blob, currentUser?.id || "guest", originalName);
-      const dataUrl = await customerImageBlobToDataUrl(blob);
+      const [saved, dataUrl] = await Promise.all([
+        saveCustomerDeviceImage(blob, currentUser?.id || "guest", originalName),
+        customerImageBlobToDataUrl(blob),
+      ]);
       if (sequence === imageUploadSequenceRef.current) {
         setLocalImageId(saved.id);
         setMimeType(saved.mimeType);
@@ -358,11 +365,16 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setRegionDetectionMessage('');
     setRegionDetectionId(null);
 
-    const tryClientSegmentation = async (): Promise<boolean> => {
-      const segmented = await segmentImageWithClientAi(imageUrl);
-      if (sequence !== regionDetectionSequenceRef.current) return true;
-      const region = segmented ? getForegroundRegion(segmented) : null;
-      if (!segmented || !region) return false;
+    let localSucceeded = false;
+    let serverCommitted = false;
+
+    // Local model and server fallback are both real; a warm model can return
+    // first without waiting for the server's detection round-trip.
+    const localDetection = segmentImageWithClientAi(imageUrl).then(segmented => {
+      if (sequence !== regionDetectionSequenceRef.current || serverCommitted || !segmented) return false;
+      const region = getForegroundRegion(segmented);
+      if (!region) return false;
+      localSucceeded = true;
       localSegmentationRef.current = { source: imageUrl, result: segmented, region };
       setRegionDetectionId(null);
       setQueryRegion(region);
@@ -370,32 +382,37 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setFullImageSelected(false);
       setRegionDetectionState('ready');
       setLocalRegionEnabled(true);
-      setRegionDetectionMessage('ناحیه قطعه با مدل محلی U²-NetP پیشنهاد شده است؛ کادر را بررسی و در صورت نیاز اصلاح کنید.');
+      setRegionDetectionMessage('مدل محلی قطعه را پیدا کرد. اگر چند قطعه در تصویر است، کادر را روی قطعه موردنظر تنظیم کنید.');
       return true;
-    };
+    }).catch(() => false);
+
+    const fastLocal = await Promise.race([
+      localDetection,
+      new Promise<boolean>(resolve => setTimeout(() => resolve(false), 180)),
+    ]);
+    if (fastLocal || localSucceeded || sequence !== regionDetectionSequenceRef.current) return;
 
     try {
       const detection = await aiVisualSearchService.detectImageRegions(imageUrl);
-      if (sequence !== regionDetectionSequenceRef.current) return;
-      if (!detection.queryRegion && !(detection.queryRegions || []).length) {
-        if (await tryClientSegmentation()) return;
-      }
+      if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
+      serverCommitted = Boolean(detection.queryRegion || detection.queryRegions?.length);
       setRegionDetectionId(detection.detectionId);
       setQueryRegion(detection.queryRegion);
-      setCandidateRegions(detection.queryRegions);
+      setCandidateRegions(detection.queryRegions || []);
       setFullImageSelected(!detection.queryRegion);
       setRegionDetectionState('ready');
       setLocalRegionEnabled(true);
-      if (!detection.queryRegion) setRegionDetectionMessage('ناحیه خودکار قابل‌اعتماد پیدا نشد؛ می‌توانید کادر را دستی بکشید یا کل تصویر را انتخاب کنید.');
+      if (!detection.queryRegion) setRegionDetectionMessage('کادر مطمئن پیدا نشد؛ قطعه را لمس کنید یا محدوده را دستی انتخاب کنید.');
     } catch (error: any) {
-      if (sequence !== regionDetectionSequenceRef.current) return;
-      if (await tryClientSegmentation()) return;
-      if (sequence !== regionDetectionSequenceRef.current) return;
+      if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
+      if (await localDetection || sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
+      serverCommitted = true;
       setRegionDetectionId(null);
       setQueryRegion(undefined);
       setCandidateRegions([]);
       setFullImageSelected(true);
       setRegionDetectionState('fallback');
+      setLocalRegionEnabled(true);
       setRegionDetectionMessage(friendlyVisionError(error));
     }
   };
@@ -701,7 +718,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         const localRecord = await getCustomerDeviceImage(effectiveLocalImageId);
         if (!localRecord) throw new Error("تصویر محلی پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.");
         if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
-        imageBase64 = await customerImageBlobToDataUrl(localRecord.blob);
+        imageBase64 = temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob);
         const localSegmentation = localSegmentationRef.current;
         if (localSegmentation && localSegmentation.source === temporaryImageDataUrl && requestRegion) {
           const a = requestRegion;
@@ -1976,9 +1993,52 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }}
-                className="space-y-5 sp-vision-result-panel" data-testid="kiki-vision-results-shell"
+                className="space-y-5 sp-vision-result-panel"
+                data-testid="kiki-vision-results-shell"
+                data-sheet-expanded={mobileResultsExpanded}
               >
                 <span data-testid="vision-journey" className="sr-only" aria-hidden="true" />
+                <header
+                  className="fv-catalog-sheet__header"
+                  data-testid="forza-vision-catalog-sheet-header"
+                  onTouchStart={event => { resultsSwipeStartY.current = event.touches[0]?.clientY ?? null; }}
+                  onTouchEnd={event => {
+                    const start = resultsSwipeStartY.current;
+                    resultsSwipeStartY.current = null;
+                    if (start === null) return;
+                    const movement = start - (event.changedTouches[0]?.clientY ?? start);
+                    if (movement > 48) setMobileResultsExpanded(true);
+                    if (movement < -48) setMobileResultsExpanded(false);
+                  }}
+                >
+                  <div className="fv-catalog-sheet__identity">
+                    {selectedImage && <img src={selectedImage} alt="تصویر ارسالی برای جستجوی قطعه" />}
+                    <div>
+                      <span>FORZA VISION · CATALOGUE MATCHING</span>
+                      <h2>نتایج جستجوی تصویری کاتالوگ</h2>
+                      <p>{(analysisResult.matchedProducts?.length || 0) + (analysisResult.similarCandidates?.length || 0)} مورد نامزد کاتالوگ · کد و مشخصات پیش از سفارش نیازمند تأیید است</p>
+                    </div>
+                  </div>
+                  <div className="fv-catalog-sheet__actions">
+                    <button
+                      type="button"
+                      className="fv-catalog-sheet__mobile-toggle"
+                      aria-expanded={mobileResultsExpanded}
+                      aria-controls="forza-vision-catalog-results"
+                      onTouchStart={event => event.stopPropagation()}
+                      onTouchEnd={event => event.stopPropagation()}
+                      onClick={() => setMobileResultsExpanded(expanded => !expanded)}
+                    >
+                      {mobileResultsExpanded ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}
+                      {mobileResultsExpanded ? 'نمایش تصویر قطعه' : 'نمایش همه نتایج'}
+                    </button>
+                    <button type="button" className="fv-catalog-sheet__new-search" onClick={() => { setMobileResultsExpanded(false); resetForm(); }}>
+                      <RotateCcw size={16} aria-hidden="true" /> عکس یا قطعه دیگر
+                    </button>
+                  </div>
+                </header>
+                <div className="fv-catalog-sheet__layout" data-testid="forza-vision-two-panel-layout">
+                  <aside className="fv-catalog-sheet__lens" aria-label="تصویر و ناحیه انتخاب‌شده قطعه">
                 {localRegionEnabled && selectedImage && <ImageRegionSelector
                   src={selectedImage}
                   value={queryRegion}
@@ -1994,7 +2054,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     <p>تصویر اصلی برای مقایسه نگهداری شده است؛ نتیجه‌های مشابه به‌تنهایی تأیید فنی محسوب نمی‌شوند.</p>
                   </div>
                 )}
-                <div className="sp-vision-result-intro">
+                  </aside>
+                  <section className="fv-catalog-sheet__results" id="forza-vision-catalog-results" aria-label="نتایج واقعی شناسایی و تطبیق قطعه">
+                    <div className="sp-vision-result-intro">
                   <div>
                     <span>FORZA VISION · CATALOGUE EVIDENCE</span>
                     <h3>نتایج بررسی تصویری قطعه</h3>
@@ -2047,7 +2109,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 )}
 
                 {/* Summary Bar */}
-                <div className="bg-[#55565A] text-white p-4 rounded-2xl space-y-3">
+                <details className="fv-catalog-sheet__analysis-details">
+                  <summary>
+                    <Sparkles size={16} aria-hidden="true" />
+                    <strong>تحلیل تکمیلی تصویر</strong>
+                    <span>{analysisResult.summary.detectedPartType || 'قطعه صنعتی'} · مشاهده جزئیات و شواهد</span>
+                    <ChevronDown size={16} className="fv-catalog-sheet__details-chevron" aria-hidden="true" />
+                  </summary>
+                  <div className="bg-[#55565A] text-white p-4 rounded-2xl space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-xl bg-[#E06518] text-white flex items-center justify-center font-bold text-xs">
@@ -2134,7 +2203,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       <p className="text-sm text-slate-100 leading-7"><strong>تحلیل قطعه: </strong>{analysisResult.summary.visualAnalysis}</p>
                     </div>
                   </div>
-                </div>
+                  </div>
+                </details>
 
                 {/* Refine CTA: visible after quick (image-only) analysis */}
                 {(analysisResult.stage || lastStage) === "quick" && (
@@ -2699,6 +2769,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   >
                     شروع جستجوی جدید
                   </button>
+                </div>
+                  </section>
                 </div>
               </motion.div>
             )}

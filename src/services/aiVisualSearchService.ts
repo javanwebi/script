@@ -242,9 +242,13 @@ export const aiVisualSearchService = {
       const jobId = (data as any).jobId;
       if (typeof jobId !== "string") throw new Error("شناسهٔ بررسی تصاویر دریافت نشد.");
       const deadline = Date.now() + 30 * 60 * 1000;
+      let polls = 0;
       while (true) {
         if (Date.now() > deadline) throw new Error("مهلت بررسی کامل تصاویر تمام شد؛ دوباره تلاش کنید.");
-        await new Promise(resolve => setTimeout(resolve, 1200));
+        // Short initial poll improves response for quick matches while the
+        // steady-state interval remains conservative for long catalog jobs.
+        const interval = polls++ === 0 ? 450 : polls === 2 ? 850 : 1200;
+        await new Promise(resolve => setTimeout(resolve, interval));
         const poll = await fetch(apiUrl(`/api/ai/recognition-jobs/${encodeURIComponent(jobId)}`), { cache: "no-store" });
         const job = await poll.json();
         if (!poll.ok) throw new Error(job.error?.message || "دریافت وضعیت بررسی تصاویر ناموفق بود.");

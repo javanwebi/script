@@ -1,0 +1,65 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import test from 'node:test';
+
+const source = (relative: string) =>
+  readFileSync(fileURLToPath(new URL('../' + relative, import.meta.url)), 'utf8');
+
+test('KIKI entry, camera, crop review and results share one real identification flow', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  assert.ok(modal.includes('<VisionEntryPage'));
+  assert.ok(modal.includes('full-screen-camera-experience'));
+  assert.ok(modal.includes('<ImageRegionReview'));
+  assert.ok(modal.includes('kiki-vision-results-shell'));
+  assert.ok(modal.includes('forza-vision-catalog-sheet-header'));
+  assert.ok(modal.includes('forza-vision-catalog-results'));
+  assert.ok(modal.includes('src={selectedImage}'));
+  assert.ok(modal.includes('onConfirm={confirmRegionAndAnalyze}'));
+  assert.ok(modal.includes('aiVisualSearchService.analyzePartWithAi'));
+});
+
+test('local segmenter is warmed and can win without serial server crop detection', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const fast = modal.slice(
+    modal.indexOf('const detectUploadedImageRegions'),
+    modal.indexOf('const uploadAndPrepareImage'),
+  );
+  assert.ok(modal.includes('preloadClientAiSegmentation()'));
+  assert.ok(fast.includes('const localDetection = segmentImageWithClientAi(imageUrl)'));
+  assert.ok(fast.includes('Promise.race'));
+  assert.ok(fast.includes('aiVisualSearchService.detectImageRegions(imageUrl)'));
+  assert.ok(fast.includes('sequence !== regionDetectionSequenceRef.current'));
+  assert.ok(fast.includes('getForegroundRegion(segmented)'));
+  assert.ok(fast.indexOf('const localDetection') < fast.indexOf('aiVisualSearchService.detectImageRegions'));
+  assert.ok(modal.includes('saveCustomerDeviceImage(blob'));
+  assert.ok(modal.includes('customerImageBlobToDataUrl(blob)'));
+  assert.ok(modal.includes('Promise.all(['));
+  assert.ok(modal.includes('temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob)'));
+});
+
+test('mobile KIKI result sheet supports pull-up and image-return without dropping crop actions', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const css = source('src/components/search/vision-camera-design.css');
+  assert.ok(modal.includes('resultsSwipeStartY'));
+  assert.ok(modal.includes('data-sheet-expanded={mobileResultsExpanded}'));
+  assert.ok(modal.includes('aria-expanded={mobileResultsExpanded}'));
+  assert.ok(modal.includes('setMobileResultsExpanded(true)'));
+  assert.ok(modal.includes('setMobileResultsExpanded(false)'));
+  assert.ok(modal.includes('onFullImageSearch'));
+  assert.ok(modal.includes('onRegionChange={handleRegionSelection}'));
+  assert.ok(css.includes('KIKI mobile results: swipe up to expand'));
+  assert.ok(css.includes('data-sheet-expanded="true"'));
+  assert.ok(css.includes('prefers-reduced-motion'));
+});
+
+test('new presentation remains isolated from FORZA voice and catalog data', () => {
+  const styles = source('src/components/search/vision-camera-design.css');
+  const service = source('src/services/aiVisualSearchService.ts');
+  assert.ok(styles.includes('.kiki-vision-review-shell'));
+  assert.ok(styles.includes('.fv-catalog-sheet__header'));
+  assert.ok(service.includes('/api/ai/analyze-part'));
+  assert.ok(service.includes('/api/ai/detect-regions'));
+  assert.ok(service.includes('const interval = polls++ === 0 ? 450 : polls === 2 ? 850 : 1200;'));
+  assert.ok(!styles.includes('body * {'));
+});
