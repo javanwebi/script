@@ -111,3 +111,14 @@ test('no-match catalogue view uses real custom-request actions and truthful priv
   assert.ok(!modal.includes('wa.me/989120000000'));
   assert.ok(style.includes('.fv-kiki-empty-state__rail'));
 });
+
+test('KIKI results header stays within the independently scrollable catalogue pane', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const style = source('src/components/search/vision-camera-design.css');
+  const layout = modal.indexOf('className="fv-catalog-sheet__layout"');
+  const panel = modal.indexOf('className="fv-catalog-sheet__results"', layout);
+  const header = modal.indexOf('className="fv-catalog-sheet__header"', layout);
+  assert.ok(layout > 0 && panel > layout && header > panel);
+  assert.ok(style.includes('.fv-catalog-sheet__results > .fv-catalog-sheet__header'));
+  assert.ok(style.includes('.sp-vision-result-panel[data-sheet-expanded="true"]'));
+});
