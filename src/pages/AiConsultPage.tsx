@@ -1679,6 +1679,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                   }}
                   title="جستجو در کاتالوگ اطلس"
                   aria-label="جستجو در کاتالوگ اطلس"
+                  aria-controls="forza-workspace-catalog-drawer"
+                  aria-expanded={isCatalogSearchOpen}
                   className={`min-w-[40px] min-h-[40px] rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
                     isCatalogSearchOpen
                       ? 'bg-[#FFF4EC] text-[#E06518] border border-[#F8D3B8]'
@@ -2215,6 +2217,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.18 }}
+                    id="forza-workspace-catalog-drawer"
                     className="relative z-30 shrink-0 border-b border-[#DFE3E6] bg-[#FAFBFB] overflow-visible"
                   >
                     <div className="px-3 sm:px-6 py-2.5">
