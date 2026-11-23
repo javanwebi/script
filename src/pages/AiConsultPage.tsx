@@ -1224,7 +1224,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         <div className="h-14 px-3 flex items-center justify-between shrink-0 border-b border-[#DFE3E6]/70">
           <div className="flex items-center gap-2">
             <img
-              src="/images/brand/forza-emblem.webp"
+              src="/images/brand/logo-forza.webp"
               alt="FORZA"
               className="h-8 sm:h-9 w-auto object-contain"
             />
@@ -1516,7 +1516,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
               className="relative flex flex-col items-center"
             >
               <img
-                src="/images/brand/forza-emblem.webp"
+                src="/images/brand/logo-forza.webp"
                 alt="لوگوی FORZA"
                 className="w-64 sm:w-80 md:w-[360px] h-auto object-contain drop-shadow-[0_12px_32px_rgba(224,101,24,0.18)]"
               />
@@ -1572,7 +1572,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             <header className="h-14 px-4 sm:px-6 border-b border-[#DFE3E6] flex items-center justify-between bg-[#FFFFFF] shrink-0">
               <div className="flex items-center gap-3">
                 <img
-                  src="/images/brand/forza-emblem.webp"
+                  src="/images/brand/logo-forza.webp"
                   alt="FORZA"
                   className="h-8 sm:h-9 w-auto object-contain"
                 />
@@ -2257,7 +2257,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         initial={{ y: -18, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ duration: 0.45, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-                        src="/images/brand/forza-emblem.webp"
+                        src="/images/brand/logo-forza.webp"
                         alt="FORZA"
                         className="h-9 sm:h-11 w-auto mx-auto mb-3 object-contain"
                       />
