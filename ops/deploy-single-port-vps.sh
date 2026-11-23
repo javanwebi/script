@@ -969,7 +969,12 @@ for index,(filename,source) in enumerate(zip(files,contents)):
   found=[m for m in old_markers if m in source]
   if found:
    assert len(found)==1 and source.count(found[0])==1,("DUPLICATE_API_ROUTE_MARKERS",filename,found)
-   route_start=source.index(found[0])
+   marker_offset=source.index(found[0])
+   # Trim from the START of the marker line. Keeping its leading whitespace
+   # joins that indentation to the next root line; repeated deploys then
+   # double the root indentation and balloon the vhost exponentially.
+   route_start=source.rfind("\n",0,marker_offset)+1
+   assert source[route_start:marker_offset].strip()=="",("API_ROUTE_MARKER_NOT_LINE_ANCHORED",filename)
    assert route_start<roots[0].start(),("API_ROUTE_AFTER_SPA_FALLBACK",filename)
    source=source[:route_start]+source[roots[0].start():]
   else:
