@@ -943,7 +943,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     setScreen('results');
 
     try {
-      let resolvedUrl =
+      const resolvedUrl =
         typeof source === 'string' && source.startsWith('data:') ? source : displayUrl;
       let savedId: string | null = null;
 
