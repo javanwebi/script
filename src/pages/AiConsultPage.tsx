@@ -6,7 +6,6 @@ import React, { lazy, Suspense, useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  Sparkles,
   ChevronLeft,
   X,
   RotateCcw,
