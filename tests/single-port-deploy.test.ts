@@ -308,8 +308,13 @@ test("local vision canary resumes only stale persisted PostgreSQL index rows bef
 });
 
 test("Nginx API route upgrade is idempotent for 12 consecutive releases (regression: exponential indentation)", () => {
-  const match = one.match(/python3 - "\\$CONF1" "\\$CONF2" "\\$CONF_DOMAIN" "\\$FIXED_PORT" <<'PY'\\n([\\s\\S]*?)\\nPY\\nnginx -t\\nsystemctl reload nginx/);
-  assert.ok(match, "Could not extract actual three-vhost Python migration");
+  const startTag = `python3 - "$CONF1" "$CONF2" "$CONF_DOMAIN" "$FIXED_PORT" <<'PY'`;
+  const startPos = one.indexOf(startTag);
+  assert.ok(startPos >= 0);
+  const codeStart = one.indexOf("\n", startPos) + 1;
+  const codeEnd = one.indexOf("\nPY\nnginx -t\nsystemctl reload nginx", codeStart);
+  assert.ok(codeEnd > codeStart);
+  const migrationPython = one.slice(codeStart, codeEnd);
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "sanatpish-nginx-idempotence-"));
   try {
     const paths = ["ip", "https", "domain"].map(name => path.join(sandbox, name + ".conf"));
@@ -332,13 +337,13 @@ ${indent}location / {
     }
     let first: string[] | undefined;
     for (let iteration = 0; iteration < 12; iteration++) {
-      const cmd = spawnSync("python3", ["-c", match[1], ...paths, "3013"], {encoding: "utf8"});
+      const cmd = spawnSync("python3", ["-c", migrationPython, ...paths, "3013"], {encoding: "utf8"});
       assert.equal(cmd.status, 0, `Nginx rewrite failed at repeat ${iteration + 1}: ${cmd.stderr || cmd.stdout}`);
       const current = paths.map(p => fs.readFileSync(p, "utf8"));
       if (first) assert.deepEqual(current, first, `vhost changed on identical deploy repeat ${iteration + 1}`);
       else first = current;
       assert.ok(current.every(config => config.length < 4096), "Nginx vhost unexpectedly ballooned");
-      assert.match(current[2], /(?m)^ {32}location \\/ \\{/);
+      assert.match(current[2], /^ {32}location \\/ \\{/m);
       assert.equal(current[1].split("# SANATPISH_API_WRITE_ROUTE_V2").length - 1, 1);
       assert.equal(current[2].split("# SANATPISH_API_WRITE_ROUTE_V2").length - 1, 1);
       assert.match(current[0], /limit_except GET/);
@@ -350,8 +355,13 @@ ${indent}location / {
 
 test("standalone Nginx hotfix is idempotent and preserves the same root whitespace", () => {
   const standalone = file("ops/fix-nginx-api-write-routing-vps.sh");
-  const match = standalone.match(/python3 - "\\$HTTPS" "\\$HTTP" "\\$PORT" <<'PY'\\n([\\s\\S]*?)\\nPY\\n\\nnginx -t/);
-  assert.ok(match, "Cannot find standalone Nginx rewrite");
+  const startTag = `python3 - "$HTTPS" "$HTTP" "$PORT" <<'PY'`;
+  const startPos = standalone.indexOf(startTag);
+  assert.ok(startPos >= 0);
+  const codeStart = standalone.indexOf("\n", startPos) + 1;
+  const codeEnd = standalone.indexOf("\nPY\n\nnginx -t", codeStart);
+  assert.ok(codeEnd > codeStart);
+  const migrationPython = standalone.slice(codeStart, codeEnd);
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "sanatpish-nginx-hotfix-"));
   try {
     const names = ["https", "http"].map(name => path.join(sandbox, name + ".conf"));
@@ -366,7 +376,7 @@ test("standalone Nginx hotfix is idempotent and preserves the same root whitespa
 `);
     let snapshot: string[] | undefined;
     for (let i=0;i<8;i++) {
-      const cmd=spawnSync("python3",["-c",match[1],...names,"3013"],{encoding:"utf8"});
+      const cmd=spawnSync("python3",["-c",migrationPython,...names,"3013"],{encoding:"utf8"});
       assert.equal(cmd.status,0,cmd.stderr || cmd.stdout);
       const next=names.map(p=>fs.readFileSync(p,"utf8"));
       if(snapshot)assert.deepEqual(next,snapshot);
