@@ -205,6 +205,13 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const [entryParams]=useSearchParams();
   const { addToCart } = useCart();
 
+  // Route visual identification into the dedicated standalone FORZA VISION experience.
+  useEffect(() => {
+    if (!identificationOnly && entryParams.get('view') === 'visual') {
+      navigate('/identify-part?from=workspace&' + entryParams.toString(), { replace: true });
+    }
+  }, [identificationOnly, entryParams, navigate]);
+
   // Mode: Engineering Chat OR Visual Part Identification Studio
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'chat' | 'visual_studio'>(()=>identificationOnly || entryParams.get('view')==='visual'?'visual_studio':'chat');
 
@@ -327,8 +334,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     setIsMobileDrawerOpen(false);
     setIsComposerToolsOpen(false);
     setIsCatalogSearchOpen(false);
-    setActiveWorkspaceTab('visual_studio');
-  }, []);
+    navigate('/identify-part?from=workspace');
+  }, [navigate]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1666,13 +1673,15 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                   type="button"
                   onClick={() => {
                     if (isCatalogSearchOpen) {
-                      setIsCatalogSearchOpen(open => !open);
+                      setIsCatalogSearchOpen(false);
                     } else {
                       openCatalogFinder();
                     }
                   }}
                   title="جستجو در کاتالوگ اطلس"
                   aria-label="جستجو در کاتالوگ اطلس"
+                  aria-controls="forza-workspace-catalog-drawer"
+                  aria-expanded={isCatalogSearchOpen}
                   className={`min-w-[40px] min-h-[40px] rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
                     isCatalogSearchOpen
                       ? 'bg-[#FFF4EC] text-[#E06518] border border-[#F8D3B8]'
@@ -2209,6 +2218,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.18 }}
+                    id="forza-workspace-catalog-drawer"
                     className="forza-workspace-catalog-drawer relative z-30 shrink-0 border-b border-[#DFE3E6] bg-[#FAFBFB] overflow-visible"
                   >
                     <div className="px-3 sm:px-6 py-2.5">
@@ -2217,7 +2227,10 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                           setIsCatalogSearchOpen(false);
                           startCatalogFamilyConsultation(family);
                         }}
-                        onAddToConsultation={startCatalogConsultation}
+                        onAddToConsultation={product => {
+                          setIsCatalogSearchOpen(false);
+                          startCatalogConsultation(product);
+                        }}
                         onClose={() => setIsCatalogSearchOpen(false)}
                       />
                     </div>
