@@ -309,7 +309,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
   useEffect(() => {
     if (!showEntrySplash) return;
-    const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
     const timer = window.setTimeout(() => setShowEntrySplash(false), prefersReduced ? 120 : 950);
     return () => window.clearTimeout(timer);
   }, [showEntrySplash]);
