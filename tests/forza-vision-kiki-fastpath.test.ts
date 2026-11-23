@@ -63,3 +63,20 @@ test('new presentation remains isolated from FORZA voice and catalog data', () =
   assert.ok(service.includes('const interval = polls++ === 0 ? 450 : polls === 2 ? 850 : 1200;'));
   assert.ok(!styles.includes('body * {'));
 });
+
+test('VISION entry uses original KIKI portal layout while retaining real image handlers', () => {
+  const entry = source('src/components/search/VisionEntryPage.tsx');
+  assert.ok(entry.includes('data-testid="forza-vision-entry"'));
+  assert.ok(entry.includes('data-testid="forza-vision-upload-panel"'));
+  assert.ok(entry.includes('تشخیص خودکار کانتور و کد فنی'));
+  assert.ok(entry.includes('قطعه را با یک عکس بشناسید و نمونه مشابه را پیدا کنید'));
+  assert.ok(entry.includes('Photographic Optical Showcase'));
+  assert.ok(entry.includes('/images/company/ai-search-mobile.webp'));
+  assert.ok(entry.includes('onClick={onCamera}'));
+  assert.ok(entry.includes('onClick={onUpload}'));
+  assert.ok(entry.includes('onDropFile?.(f)'));
+  assert.ok(entry.includes('disabled={isUploading}'));
+  assert.ok(entry.includes('onRecentClick?.(item)'));
+  assert.ok(!entry.includes('handleFile(f)'));
+  assert.ok(!entry.includes('/src/assets/'));
+});
