@@ -1,5 +1,6 @@
 import {LocalModelResults} from './LocalModelResults';
 import {CatalogResultImage} from './CatalogResultImage';
+import { loadVisionRecentSearches, recordVisionRecentSearch, type VisionRecentSearchItem } from './visionRecentHistory';
 import {apiUrl} from '../../config/apiConfig';
 import { getForegroundRegion, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
 import {ImageRegionSelector} from './ImageRegionSelector';
@@ -273,6 +274,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [showSimilar, setShowSimilar] = useState<boolean>(true);
+  const [recentSearches, setRecentSearches] = useState<VisionRecentSearchItem[]>(() => loadVisionRecentSearches());
   const visiblePhotoMatches=(analysisResult?.catalogImageMatches || []).filter(photo=>
     !analysisResult?.modelSuggestions?.length || photo.bindings.length===0);
 
@@ -748,6 +750,23 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         }).catch(error => console.warn("[Customer image history] result sync unavailable", error));
       }
       setAnalysisResult(result);
+      const primaryHistoryMatch = result.matchedProducts?.[0] || result.similarCandidates?.[0];
+      const photoHistoryMatch = result.catalogImageMatches?.find((photo) =>
+        Boolean(primaryHistoryMatch?.code && photo.bindings?.some((binding) => binding.code === primaryHistoryMatch.code)),
+      ) || result.catalogImageMatches?.[0];
+      const historyCode = primaryHistoryMatch?.code || photoHistoryMatch?.bindings?.find((binding) => binding.code)?.code;
+      const historyTitle = primaryHistoryMatch?.name || photoHistoryMatch?.label || result.summary?.partFamilyFarsi || result.summary?.detectedPartType;
+      if (historyCode && historyTitle) {
+        setRecentSearches(recordVisionRecentSearch({
+          code: historyCode,
+          title: historyTitle,
+          subtitle: primaryHistoryMatch?.brand
+            ? `${primaryHistoryMatch.brand} · ${historyCode}`
+            : primaryHistoryMatch?.visualVerdictFarsi || 'نتیجه کاتالوگ',
+          partHint: result.summary?.detectedPartType,
+          imageUrl: primaryHistoryMatch?.image || photoHistoryMatch?.image,
+        }));
+      }
       if (!result.observationOnly && (result.matchedProducts?.length || result.similarCandidates?.length)) {
         const conversationImage = temporaryImageDataUrl || selectedImage;
         if (conversationImage) onAnalysisResult?.(result, conversationImage);
@@ -1057,6 +1076,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           onCamera={() => { setCameraFlowActive(true); void startCamera(); }}
           onUpload={() => fileInputRef.current?.click()}
           onDropFile={handleFile}
+          recentSearches={recentSearches}
+          onRecentClick={(item) => {
+            navigate(`/product/${encodeURIComponent(item.code)}`);
+            onClose();
+          }}
           onClose={() => { stopCamera(); onClose(); }}
           errorMessage={errorMessage}
           isUploading={isUploadingImage}
