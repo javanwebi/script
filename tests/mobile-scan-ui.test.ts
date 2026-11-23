@@ -251,4 +251,9 @@ test("local alpha matte separates disconnected parts and crops the component ins
   assert.ok(selected.polygon.every((point) =>
     point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1
   ));
+  assert.equal(
+    selectAlphaMaskContour(contours, { x: 0, y: 0, width: 1, height: 1 }),
+    null,
+    "a region containing multiple foreground components must preserve the whole assembly",
+  );
 });
