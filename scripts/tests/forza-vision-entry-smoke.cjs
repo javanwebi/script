@@ -129,9 +129,11 @@ async function testVisionEntryResponsive(browser) {
       await page.goto(base + "/identify-part", { waitUntil: "domcontentloaded" });
       const entry = page.getByTestId("forza-vision-entry");
       await entry.waitFor({ timeout: 30000 });
-      await page.getByRole("button", { name: "شروع اسکن با دوربین" }).waitFor();
-      await page.getByRole("button", { name: "انتخاب تصویر از دستگاه" }).waitFor();
-      const metrics = await noHorizontalOverflow(page, width, "FORZA VISION " + width);
+      await page.getByRole("button", { name: "گرفتن عکس با دوربین" }).waitFor();
+      await page.getByRole("button", { name: "انتخاب تصویر از گالری" }).waitFor();
+      const metrics = await noHorizontalOverflow(page, width, "KIKI FORZA VISION " + width);
+      await entry.getByRole("button", { name: "گرفتن عکس با دوربین" }).waitFor({ state: "visible" });
+      await entry.getByRole("button", { name: "انتخاب تصویر از گالری" }).waitFor({ state: "visible" });
       const images = await entry.locator("img").evaluateAll(nodes =>
         nodes.map(img => ({
           src: img.getAttribute("src"),
@@ -146,17 +148,11 @@ async function testVisionEntryResponsive(browser) {
         });
       }
       if (width === 390) {
-        const scrollRegion = page.locator('[role="dialog"][data-fullscreen="true"] > div.overflow-y-auto');
-        const scrollState = await scrollRegion.evaluate(el => ({
-          clientHeight: el.clientHeight,
-          scrollHeight: el.scrollHeight,
-          overflowY: getComputedStyle(el).overflowY,
-        }));
-        assert.equal(scrollState.overflowY, "auto");
-        assert.ok(scrollState.scrollHeight > scrollState.clientHeight, "Mobile VISION content must remain reachable in the modal scroll region");
-        const footer = entry.locator("footer").last();
-        await footer.scrollIntoViewIfNeeded();
-        assert.ok(await footer.isVisible(), "Bottom of the mobile VISION page must be reachable by scrolling");
+        // KIKI is a standalone full-height page, not the legacy nested scroll dialog.
+        // Verify that the last user-facing controls remain reachable on a narrow phone.
+        const bottom = entry.getByText("کوپلینگ", { exact: true }).first();
+        await bottom.scrollIntoViewIfNeeded();
+        assert.ok(await bottom.isVisible(), "Last VISION category must remain reachable on mobile");
         await page.screenshot({
           path: dir + "/sanat-forza-vision-entry-390-bottom.png",
           fullPage: false,
@@ -179,7 +175,7 @@ async function testUploadEntry(browser) {
     await page.goto(base + "/identify-part", { waitUntil: "domcontentloaded" });
     await page.getByTestId("forza-vision-entry").waitFor({ timeout: 30000 });
     const chooserPromise = page.waitForEvent("filechooser");
-    await page.getByRole("button", { name: "انتخاب تصویر از دستگاه" }).click();
+    await page.getByRole("button", { name: "انتخاب تصویر از گالری" }).click();
     const chooser = await chooserPromise;
     await chooser.setFiles({
       name: "forza-vision-upload-smoke.png",
@@ -189,10 +185,11 @@ async function testUploadEntry(browser) {
         "base64",
       ),
     });
-    await page.getByTestId("identification-wizard").waitFor({ timeout: 15000 });
+    await page.getByTestId("kiki-vision-results").waitFor({ timeout: 15000 });
+    await page.locator('[aria-label="لنز هوشمند و محصولات مشابه"]').waitFor({ timeout: 15000 });
     assert.equal(await page.getByTestId("forza-vision-entry").count(), 0,
-      "Selecting an image must leave the VISION landing screen and enter the existing image-review flow");
-    console.log("PASS FORZA VISION upload action opens the picker and enters the existing image-review flow");
+      "Selecting an image must leave the KIKI VISION landing screen and show the interactive lens/results UI");
+    console.log("PASS KIKI VISION upload opens native file picker and enters real image lens/results flow");
   } finally {
     await page.close();
   }
@@ -209,12 +206,62 @@ async function testCameraEntry(browser) {
   try {
     await page.goto(base + "/identify-part", { waitUntil: "domcontentloaded" });
     await page.getByTestId("forza-vision-entry").waitFor({ timeout: 30000 });
-    await page.getByRole("button", { name: "شروع اسکن با دوربین" }).click();
+    await page.getByRole("button", { name: "گرفتن عکس با دوربین" }).click();
     const camera = page.getByTestId("full-screen-camera-experience");
     await camera.waitFor({ timeout: 15000 });
     assert.ok(await camera.isVisible(), "Camera action did not enter the full-screen camera/review flow");
-    assert.ok(await camera.locator(".sanat-camera-experience__stage").count() > 0);
-    console.log("PASS FORZA VISION camera action enters the existing full-screen camera flow");
+    assert.ok(await camera.locator(".fv-camera-stage video").count() > 0,
+      "KIKI camera must have a real live video element");
+    assert.ok(await camera.getByRole("button", { name: "ثبت تصویر قطعه" }).isVisible(),
+      "KIKI camera shutter must be interactive");
+    console.log("PASS KIKI VISION camera opens the real full-screen viewfinder and shutter");
+  } finally {
+    await context.close();
+  }
+}
+
+async function testCameraUnavailableDoesNotAnalyzeSample(browser) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    locale: "fa-IR",
+    reducedMotion: "reduce",
+  });
+  const page = await context.newPage();
+  try {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "mediaDevices", {
+        configurable: true,
+        value: {
+          getUserMedia: async () => {
+            throw new DOMException("Camera permission denied", "NotAllowedError");
+          },
+        },
+      });
+    });
+    await page.goto(base + "/identify-part", { waitUntil: "domcontentloaded" });
+    await page.getByTestId("forza-vision-entry").waitFor({ timeout: 30000 });
+    await page.getByRole("button", { name: "گرفتن عکس با دوربین" }).click();
+
+    const camera = page.getByTestId("full-screen-camera-experience");
+    await camera.waitFor({ timeout: 15000 });
+    await camera.getByText(
+      "دوربین در دسترس نیست؛ برای شناسایی واقعی، تصویر قطعه را از گالری انتخاب کنید.",
+      { exact: true },
+    ).waitFor({ timeout: 10000 });
+    await camera.getByText(
+      "نمای نمونه؛ این تصویر برای شناسایی ارسال نمی‌شود",
+      { exact: true },
+    ).waitFor({ timeout: 10000 });
+
+    await camera.getByRole("button", { name: "ثبت تصویر قطعه" }).click();
+    await page.waitForTimeout(250);
+    assert.equal(
+      await page.getByTestId("kiki-vision-results").count(),
+      0,
+      "A camera failure must never submit the optical-bench placeholder as a customer image",
+    );
+    assert.ok(await camera.isVisible(), "Camera failure should keep the user in the camera flow");
+    console.log("PASS camera failure never analyzes the optical-bench placeholder");
   } finally {
     await context.close();
   }
@@ -232,6 +279,7 @@ async function testCameraEntry(browser) {
     await testVisionEntryResponsive(browser);
     await testUploadEntry(browser);
     await testCameraEntry(browser);
+    await testCameraUnavailableDoesNotAnalyzeSample(browser);
   } finally {
     await browser.close();
   }

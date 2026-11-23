@@ -25,6 +25,8 @@ export interface AiPartAnalysisRequest {
   observationOnly?:boolean;
   measurements?:Record<string,string>;
   stage?: AiAnalysisStage;
+  sampleHint?: string;
+  originalName?: string;
 }
 
 export interface BoundingBox {
@@ -75,11 +77,19 @@ export interface MatchedPartItem {
 }
 
 export interface ImageScanProgress {stage:'preparing'|'scanning'|'verifying'|'complete';total:number;compared:number;failed:number;}
+export interface DetectedPartRegion {
+  id: string;
+  label?: string;
+  partFamily?: string;
+  region: {x:number;y:number;width:number;height:number};
+  center: {x:number;y:number};
+}
 export interface ImageRegionDetectionResult {
   success: boolean;
   detectionId: string;
   queryRegion?: {x:number;y:number;width:number;height:number};
   queryRegions: {x:number;y:number;width:number;height:number}[];
+  detectedParts: DetectedPartRegion[];
   autoDetected: boolean;
   pipeline: string;
   model: string;
@@ -193,7 +203,7 @@ export const aiVisualSearchService = {
     return { imageUrl, fileName: '' };
   },
 
-  async detectImageRegions(imageData: string): Promise<ImageRegionDetectionResult> {
+  async detectImageRegions(imageData: string, signal?: AbortSignal): Promise<ImageRegionDetectionResult> {
     assertBackendConfigured();
     const isDataUrl = /^data:image\/(?:jpeg|png|webp);base64,/i.test(imageData || "");
     if (!imageData || typeof imageData !== "string" || (isDataUrl ? imageData.length > 15 * 1024 * 1024 : imageData.length > 2048)) {
@@ -205,10 +215,10 @@ export const aiVisualSearchService = {
     let data: any = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        response = await fetch(apiUrl("/api/ai/detect-regions"), { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify(body) });
+        response = await fetch(apiUrl("/api/ai/detect-regions"), { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", signal, body: JSON.stringify(body) });
         data = await response.json().catch(() => null);
         if (response.ok || (response.status !== 429 && response.status !== 503) || attempt === 1) break;
-      } catch (error) { if (attempt === 1) throw error; }
+      } catch (error) { if (signal?.aborted || attempt === 1) throw error; }
       await new Promise(resolve => setTimeout(resolve, 650));
     }
     if (!response?.ok || !data?.success || typeof data.detectionId !== "string") {
@@ -216,18 +226,33 @@ export const aiVisualSearchService = {
       error.status = response?.status; error.code = data?.error?.code; throw error;
     }
     const validRegion = (region: any) => region && [region.x, region.y, region.width, region.height].every((n: unknown) => typeof n === "number" && Number.isFinite(n)) && region.x >= 0 && region.y >= 0 && region.width >= 0.03 && region.height >= 0.03 && region.x + region.width <= 1.000001 && region.y + region.height <= 1.000001;
-    const queryRegions = Array.isArray(data.queryRegions) ? data.queryRegions.filter(validRegion).slice(0, 4) : [];
+    const queryRegions = Array.isArray(data.queryRegions) ? data.queryRegions.filter(validRegion).slice(0, 8) : [];
     const queryRegion = validRegion(data.queryRegion) ? data.queryRegion : undefined;
-    return { success: true, detectionId: data.detectionId, queryRegion, queryRegions, autoDetected: Boolean(queryRegion), pipeline: String(data.pipeline || ""), model: String(data.model || ""), elapsedMs: Number.isFinite(data.elapsedMs) ? data.elapsedMs : 0 };
+    const detectedParts: DetectedPartRegion[] = Array.isArray(data.detectedParts)
+      ? data.detectedParts
+          .filter((item: any) => item && validRegion(item.region))
+          .slice(0, 8)
+          .map((item: any, idx: number) => ({
+            id: typeof item.id === 'string' && item.id ? item.id : `ai-part-${idx + 1}`,
+            label: typeof item.label === 'string' ? item.label : undefined,
+            partFamily: typeof item.partFamily === 'string' ? item.partFamily : undefined,
+            region: item.region,
+            center:
+              item.center && typeof item.center.x === 'number' && typeof item.center.y === 'number'
+                ? { x: Math.max(0, Math.min(1, item.center.x)), y: Math.max(0, Math.min(1, item.center.y)) }
+                : { x: item.region.x + item.region.width / 2, y: item.region.y + item.region.height / 2 },
+          }))
+      : [];
+    return { success: true, detectionId: data.detectionId, queryRegion, queryRegions, detectedParts, autoDetected: Boolean(queryRegion || detectedParts.length), pipeline: String(data.pipeline || ""), model: String(data.model || ""), elapsedMs: Number.isFinite(data.elapsedMs) ? data.elapsedMs : 0 };
   },
 
-  async analyzePartWithAi(request: AiPartAnalysisRequest, onProgress?: (progress: ImageScanProgress) => void): Promise<AiPartAnalysisResult> {
+  async analyzePartWithAi(request: AiPartAnalysisRequest, onProgress?: (progress: ImageScanProgress) => void, signal?: AbortSignal): Promise<AiPartAnalysisResult> {
     assertBackendConfigured();
     const { imageBase64, mimeType, imageUrl, ...analysisFields } = request;
     const payload = { ...analysisFields, ...(imageUrl ? { imageUrl } : {}), ...(imageBase64 ? { imageBase64, mimeType: mimeType || "image/jpeg" } : {}) };
     let response: Response | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
-      response = await fetch(apiUrl("/api/ai/analyze-part"), { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify(payload) });
+      response = await fetch(apiUrl("/api/ai/analyze-part"), { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", signal, body: JSON.stringify(payload) });
       if (response.ok || (response.status !== 429 && response.status !== 503) || attempt === 1) break;
       await new Promise(resolve => setTimeout(resolve, 650));
     }
@@ -243,9 +268,10 @@ export const aiVisualSearchService = {
       if (typeof jobId !== "string") throw new Error("شناسهٔ بررسی تصاویر دریافت نشد.");
       const deadline = Date.now() + 30 * 60 * 1000;
       while (true) {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         if (Date.now() > deadline) throw new Error("مهلت بررسی کامل تصاویر تمام شد؛ دوباره تلاش کنید.");
         await new Promise(resolve => setTimeout(resolve, 1200));
-        const poll = await fetch(apiUrl(`/api/ai/recognition-jobs/${encodeURIComponent(jobId)}`), { cache: "no-store" });
+        const poll = await fetch(apiUrl(`/api/ai/recognition-jobs/${encodeURIComponent(jobId)}`), { cache: "no-store", signal });
         const job = await poll.json();
         if (!poll.ok) throw new Error(job.error?.message || "دریافت وضعیت بررسی تصاویر ناموفق بود.");
         if (job.progress) onProgress?.(job.progress);

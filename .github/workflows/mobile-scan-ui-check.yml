@@ -15,6 +15,10 @@ on:
       - "src/components/layout/industrial-mobile-nav.css"
       - "src/components/layout/Layout.tsx"
       - "src/components/search/**"
+      - "src/pages/AiConsultPage.tsx"
+      - "src/components/forza/ForzaWorkspace*.tsx"
+      - "src/components/forza/style.css"
+      - "tests/forza-workspace-zip-ui.test.ts"
       - "public/images/precision-scan-technical-overlay.svg"
       - "tests/mobile-scan-ui.test.ts"
       - "tests/image-region-interaction.test.ts"
@@ -48,7 +52,7 @@ jobs:
       - name: TypeScript
         run: npm run lint
       - name: Mobile scan source regression tests
-        run: node --import tsx --test tests/mobile-scan-ui.test.ts tests/image-region-interaction.test.ts tests/local-model-results.test.tsx tests/local-vision.test.ts
+        run: node --import tsx --test tests/mobile-scan-ui.test.ts tests/image-region-interaction.test.ts tests/local-model-results.test.tsx tests/local-vision.test.ts tests/forza-workspace-zip-ui.test.ts
       - name: Category drawer and approved taxonomy source tests
         run: node --import tsx --test tests/mobile-category-drawer.test.ts
       - name: Production bundle build
