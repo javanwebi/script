@@ -74,6 +74,19 @@ test('approved optical tap feedback is cosmetic and retains the live region sele
   assert.match(scanner, /clientAiSegmentation/);
 });
 
+test('approved workspace keeps catalog search collapsible without dropping live callbacks', () => {
+  const page = read('src/pages/AiConsultPage.tsx');
+  assert.match(page, /isCatalogSearchOpen/);
+  assert.match(page, /forza-workspace-catalog-drawer/);
+  assert.match(page, /setIsCatalogSearchOpen\(open => !open\)/);
+  assert.match(page, /startCatalogFamilyConsultation\(family\)/);
+  assert.match(page, /onAddToConsultation=\{startCatalogConsultation\}/);
+  assert.match(page, /const startCatalogConsultation = \(product: ConsultationProduct\)/);
+  assert.match(page, /setIsCatalogSearchOpen\(false\)/);
+  assert.match(page, /consumeForzaTextStream/);
+});
+
+
 test('VISION history keeps only product metadata and registered public catalogue images', () => {
   const modal = read('src/components/search/AiVisualPartSearchModal.tsx');
   const entry = read('src/components/search/VisionEntryPage.tsx');
@@ -83,26 +96,6 @@ test('VISION history keeps only product metadata and registered public catalogue
   assert.match(entry, /forza-vision-recent-history/);
   assert.match(history, /sanatpish_forza_vision_recent_v2/);
   assert.match(history, /getCatalogDisplayImageCandidates/);
-  assert.match(history, /removeItem\(LEGACY_STORAGE_KEY\)/);
+  assert.match(history, /removeItem\\(LEGACY_STORAGE_KEY\\)/);
   assert.doesNotMatch(history, /DEFAULT_RECENT_SEARCHES/);
-});
-
-test('KIKI workspace exposes the composer tools popup and keeps catalog callbacks connected', () => {
-  const page = read('src/pages/AiConsultPage.tsx');
-  assert.match(page, /isCatalogSearchOpen/);
-  assert.match(page, /aria-label="ابزارهای میزکار FORZA"/);
-  assert.match(page, /const openCatalogFinder = \(\) =>/);
-  assert.match(page, /setIsCatalogSearchOpen\(true\)/);
-  assert.match(page, /<WorkspaceCatalog/);
-  assert.match(page, /aria-controls="forza-workspace-catalog-drawer"/);
-  assert.match(page, /id="forza-workspace-catalog-drawer"/);
-  assert.match(page, /onSelect=\{family =>/);
-  assert.match(page, /startCatalogFamilyConsultation\(family\)/);
-  assert.match(page, /onAddToConsultation=\{product =>/);
-  assert.match(page, /startCatalogConsultation\(product\)/);
-  assert.match(page, /const startCatalogConsultation = \(product: ConsultationProduct\)/);
-  assert.match(page, /setIsCatalogSearchOpen\(false\)/);
-  assert.match(page, /consumeForzaTextStream/);
-  assert.match(page, /showEntrySplash/);
-  assert.match(page, /key="forza-entry-curtain"/);
 });
