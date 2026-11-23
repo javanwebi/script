@@ -16,8 +16,9 @@ test("FORZA workspace has the owner's orange triangular emblem at all old icon c
   assert.ok(fs.existsSync(path.resolve(process.cwd(), "public/images/brand/forza-emblem.webp")));
   assert.match(launcher,/src={forzaWorkspaceMark}/);
   assert.match(launcher,/export const CognivoGeometricLogo/);
-  assert.ok((workspace.match(/<CognivoGeometricLogo/g)||[]).length>=3,
-    "Sidebar, main topbar, welcome view must use new FORZA emblem");
+  assert.ok((workspace.match(/src="\\/images\\/brand\\/forza-emblem\\.webp"/g)||[]).length>=3,
+    "Sidebar, entry curtain, topbar and welcome view must use the uploaded FORZA emblem");
+  assert.match(workspace,/<CognivoGeometricLogo/);
 });
 
 test("corporate logo is used in portal, login, admin and storefront mobile sheet",()=>{
