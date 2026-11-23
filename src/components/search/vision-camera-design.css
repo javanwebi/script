@@ -587,3 +587,42 @@
   .kiki-vision-review-shell .sp-region-review > .sanat-region-picker { padding: 8px; }
   .fv-catalog-sheet__new-search { width: 100%; }
 }
+
+/* KIKI mobile results: swipe up to expand the sheet, swipe down for the photo. */
+.fv-catalog-sheet__actions { display: flex; align-items: center; gap: 9px; }
+.fv-catalog-sheet__mobile-toggle { display: none; }
+@media (max-width: 900px) {
+  .fv-catalog-sheet__actions { width: 100%; justify-content: space-between; }
+  .fv-catalog-sheet__mobile-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 42px;
+    padding: 0 13px;
+    border-radius: 12px;
+    border: 1px solid #e06518;
+    background: #fff5ed;
+    color: #a94e19;
+    font-size: 11px;
+    font-weight: 900;
+  }
+  .sp-vision-result-panel[data-sheet-expanded="false"] > .sanat-region-picker {
+    width: 100%;
+  }
+  .sp-vision-result-panel[data-sheet-expanded="true"] > .sanat-region-picker,
+  .sp-vision-result-panel[data-sheet-expanded="true"] > .kiki-vision-image-evidence {
+    display: none;
+  }
+  .sp-vision-result-panel[data-sheet-expanded="true"] > .fv-catalog-sheet__header {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    box-shadow: 0 9px 22px rgba(43,49,58,.08);
+  }
+}
+@media (max-width: 580px) {
+  .fv-catalog-sheet__actions { flex-wrap: wrap; }
+  .fv-catalog-sheet__mobile-toggle,
+  .fv-catalog-sheet__new-search { flex: 1 1 150px; }
+}
