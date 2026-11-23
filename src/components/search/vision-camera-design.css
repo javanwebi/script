@@ -276,3 +276,37 @@
     animation-duration: .01ms !important;
   }
 }
+
+
+.kiki-vision-review-shell__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.kiki-vision-review-shell__back {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #dfe3e6;
+  border-radius: 12px;
+  background: #fff;
+  padding: 0 12px;
+  color: #2b313a;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+.kiki-vision-review-shell__back:hover {
+  border-color: #e06518;
+  color: #c95210;
+  background: #fffaf6;
+}
+@media (max-width: 860px) {
+  .kiki-vision-review-shell__header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
