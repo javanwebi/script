@@ -1062,7 +1062,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           isUploading={isUploadingImage}
         />
       ) : currentStep === 1 && selectedImage ? (
-        <main className="kiki-vision-review-shell" dir="rtl" data-testid="kiki-vision-review-shell identification-wizard">
+        <main className="kiki-vision-review-shell" dir="rtl" data-testid="kiki-vision-review-shell">
           <header className="kiki-vision-review-shell__header">
             <div>
               <span>FORZA VISION · IMAGE REVIEW</span>
@@ -1084,7 +1084,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
               </button>
             </div>
           </header>
-          <div className="kiki-vision-review-shell__content">
+          <div className="kiki-vision-review-shell__content" data-testid="identification-wizard">
                 <ImageRegionReview
                   image={selectedImage || ''}
                   status={regionDetectionState}
