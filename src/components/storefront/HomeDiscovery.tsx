@@ -8,15 +8,9 @@ import {
   Layers,
   ScanLine,
   UserPlus,
-  LogIn,
-  ShieldCheck,
-  Zap,
-  FileText,
-  Sparkles,
 } from "lucide-react";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { INDUSTRIES } from "../../data/siteContent";
-import { useAuth } from "../../context/AuthContext";
 export function HomeAiIntroduction() {
   return (
     <section className="home-ai-introduction" aria-labelledby="home-ai-title">
@@ -158,62 +152,26 @@ export function HomeIndustryShowcase() {
   );
 }
 export function HomeMembership() {
-  const { openAuthModal, currentUser } = useAuth();
-  if (currentUser) return null;
-
   return (
-    <section
-      className="editorial-wrap my-10 overflow-hidden rounded-3xl border border-[#2B313A] bg-gradient-to-l from-[#2B313A] via-[#22272F] to-[#1A1E24] p-6 sm:p-9 text-white shadow-xl"
-      aria-labelledby="strategic-auth-banner-title"
-    >
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-        <div className="space-y-3 max-w-2xl">
-          <div className="inline-flex items-center gap-2 text-xs font-extrabold text-[#FF9D5C]">
-            <Sparkles size={15} />
-            <span>استراتژی تأمین هوشمند صنعت پیش و FORZA</span>
-          </div>
-          <h2 id="strategic-auth-banner-title" className="text-xl sm:text-2xl lg:text-3xl font-black leading-snug text-white">
-            از استعلام فوری قیمت کارخانه تا تأمین تضمینی خط تولید، یک ورود فاصله است
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            با ورود یا ساخت حساب صنعتی، لیست قیمت همکاری، سبد خرید یکپارچه، پیش‌فاکتور رسمی و سوابق شناسایی قطعه در میزکار FORZA برای شما فعال می‌شود.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 text-xs text-slate-200">
-            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-              <Zap size={15} className="text-[#E06518] shrink-0" />
-              <span className="font-bold">لیست قیمت کارخانه و همکاری</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-              <FileText size={15} className="text-[#E06518] shrink-0" />
-              <span className="font-bold">صدور آنی پیش‌فاکتور رسمی</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-              <ShieldCheck size={15} className="text-[#E06518] shrink-0" />
-              <span className="font-bold">ذخیره سوابق اسکن و سبد خرید</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0 lg:min-w-[230px]">
-          <button
-            type="button"
-            onClick={() => openAuthModal("/consumer-dashboard", "register")}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#E06518] hover:bg-[#C95210] px-6 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition-colors cursor-pointer whitespace-nowrap"
-          >
-            <UserPlus size={18} />
-            <span>ساخت حساب و دریافت قیمت</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => openAuthModal(undefined, "login")}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 hover:bg-white/15 px-6 text-xs sm:text-sm font-bold text-white transition-colors cursor-pointer whitespace-nowrap"
-          >
-            <LogIn size={17} />
-            <span>قبلاً ثبت‌نام کرده‌اید؟ ورود سریع</span>
-          </button>
-        </div>
+    <section className="home-membership editorial-wrap">
+      <span className="account-symbol">
+        <Layers size={28} />
+      </span>
+      <div>
+        <span className="store-eyebrow">با صنعت پیش، هوشمندانه پیش بروید</span>
+        <h2>از دیدن قطعه تا پیگیری خرید، یک حساب فاصله است.</h2>
+        <p>
+          قیمت و موجودی را در پنل ببینید، استعلام بگیرید و سفارش‌ها و مسیر
+          باشگاه مشتریان را دنبال کنید.
+        </p>
       </div>
+      <Link to="/register" className="store-btn-primary">
+        <UserPlus size={19} />
+        ساخت حساب کاربری
+      </Link>
+      <Link to="/login" className="editorial-text-link">
+        قبلاً ثبت‌نام کرده‌اید؟ ورود <ArrowLeft size={16} />
+      </Link>
     </section>
   );
 }
