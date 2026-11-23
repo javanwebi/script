@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { preloadPartIdentificationStudio } from '../search/PartIdentificationProvider';
 
 /**
  * Warm only on deliberate navigation intent; idle storefront browsing does not
@@ -13,7 +14,7 @@ const loaders: Record<string, () => Promise<unknown>> = {
   '/ai-forza': warmForza,
   '/face-to-face': warmForza,
   '/ai-consult': () => import('../../pages/AiConsultPage'),
-  '/identify-part': () => import('../search/AiVisualPartSearchModal'),
+  '/identify-part': () => import('../search/KikiVisualPartSearchModal'),
   '/products': () => import('../../pages/ProductsPage'),
   '/categories': () => import('../../pages/AllCategoriesPage'),
   '/cart': () => import('../../pages/CartPage'),
@@ -54,6 +55,7 @@ export function RouteIntentPreload() {
       const key = resolvePreloadKey(url.pathname);
       if (!key || pending.has(key)) return;
       const load = loaders[key];
+      if (key === '/identify-part') preloadPartIdentificationStudio();
       const task = load().catch(() => {
         // Permit retry on the next intentional navigation if a chunk failed.
         pending.delete(key);

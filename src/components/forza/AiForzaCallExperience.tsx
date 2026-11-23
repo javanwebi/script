@@ -32,7 +32,8 @@ import { ForzaPlaybackEchoHistory, forzaTurnIntent, shouldIgnoreForzaSpeakerEcho
 import { getForzaAudioContext } from '../../utils/forzaAudioUnlock';
 import { FORZA_CONVERSATION_HISTORY_LIMIT, prepareForzaConversationTurn } from '../../utils/forzaConversationHistory';
 import { ForzaConversationEngine } from '../../utils/forzaConversationEngine';
-const AiVisualPartSearchModal = lazy(() => import('../search/AiVisualPartSearchModal').then(module=>({default:module.AiVisualPartSearchModal})));
+import { preloadPartIdentificationStudio } from '../search/PartIdentificationProvider';
+const AiVisualPartSearchModal = lazy(() => import('../search/KikiVisualPartSearchModal').then(module=>({default:module.AiVisualPartSearchModal})));
 type LazyParticleAvatarProps = ParticleAvatarProps & { ref?: React.Ref<ParticleAvatarRef> };
 const ParticleAvatar = lazy(async () => {
   const module = await import('./ParticleAvatar');
@@ -2793,7 +2794,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             </button>
           </div>
         )}
-        <button type="button" onClick={() => { imageSearchGenerationRef.current++; micMutedBeforeImageSearchRef.current = micMutedRef.current; micMutedRef.current = true; setIsMicMuted(true); stopListening(); setShowImageSearch(true); }}
+        <button type="button"
+          onPointerEnter={preloadPartIdentificationStudio}
+          onFocus={preloadPartIdentificationStudio}
+          onClick={() => { preloadPartIdentificationStudio(); imageSearchGenerationRef.current++; micMutedBeforeImageSearchRef.current = micMutedRef.current; micMutedRef.current = true; setIsMicMuted(true); stopListening(); setShowImageSearch(true); }}
           className="forza-image-scan-button pointer-events-auto self-end flex items-center gap-3 rounded-2xl border border-orange-400/60 bg-gradient-to-l from-orange-950/95 to-slate-950/95 px-5 py-3 text-white shadow-xl backdrop-blur-xl"
           aria-label="شناسایی تصویر قطعه با فورزا">
           <Eye size={22} className="text-orange-400" />

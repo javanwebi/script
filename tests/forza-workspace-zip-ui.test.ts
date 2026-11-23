@@ -118,7 +118,9 @@ test('workspace visual-identification actions open the standalone VISION route',
   assert.match(page, /entryParams\.get\('view'\) === 'visual'/);
   assert.match(page, /aria-controls="forza-workspace-catalog-drawer"/);
   assert.match(page, /aria-expanded=\{isCatalogSearchOpen\}/);
-  assert.match(provider, /Studio isOpen standalone fullScreen/);
+  assert.match(provider, /KikiVisualPartSearchModal/);
+  assert.match(provider, /Studio isOpen standalone/);
+  assert.match(provider, /fullScreen/);
 });
 
 test('VISION history keeps only product metadata and registered public catalogue images', () => {
@@ -217,4 +219,53 @@ test('history de-duplicates by product code and keeps at most eight entries', ()
   assert.equal(items.length, 8);
   assert.equal(items[0].title, 'قطعه نهم - به‌روزرسانی');
   assert.equal(items.filter(item => item.code === 'SKU-9').length, 1);
+});
+
+
+test('KIKI vision studio uses progressive local recognition and preserves private customer images', () => {
+  const page = read('src/pages/AiConsultPage.tsx');
+  const provider = read('src/components/search/PartIdentificationProvider.tsx');
+  const scanner = read('src/components/search/KikiVisualPartSearchModal.tsx');
+  const history = read('src/components/search/visionRecentHistory.ts');
+
+  assert.match(page, /KikiVisualPartSearchModal/);
+  assert.match(page, /navigate\('\/identify-part\?from=workspace/);
+  assert.match(provider, /KikiVisualPartSearchModal/);
+  assert.match(provider, /useOnnxPartSegmentation/);
+  assert.match(provider, /preloadStudio/);
+  assert.match(scanner, /payloadIsCropped/);
+  assert.match(scanner, /queryRegions/);
+  assert.match(scanner, /analyzeImageAutoContour\(fastDetectUrl, 0\)/);
+  assert.match(scanner, /const aiSegPromise = segmentWithOnnx\(fastDetectUrl\)/);
+  assert.match(scanner, /void segmentationRefinementPromise\.finally/);
+  assert.doesNotMatch(scanner, /customerImageBlobToDataUrl\(blob\)/);
+  assert.doesNotMatch(scanner, /inferVisualDescriptor/);
+  assert.match(scanner, /formatVisionRecentTime\(item.createdAt\)/);
+  assert.match(scanner, /stage: 'first-contour'/);
+  assert.match(scanner, /stage: 'catalog-result'/);
+  assert.match(history, /sanatpish_forza_vision_recent_v2/);
+  assert.match(history, /safeCatalogImage/);
+});
+
+
+test('all production image-search entry points use the KIKI studio and prewarm it', () => {
+  const home = read('src/pages/HomePage.tsx');
+  const header = read('src/components/layout/Header.tsx');
+  const voice = read('src/components/forza/AiForzaCallExperience.tsx');
+  const routePreload = read('src/components/layout/RouteIntentPreload.tsx');
+  const workspace = read('src/pages/AiConsultPage.tsx');
+  const provider = read('src/components/search/PartIdentificationProvider.tsx');
+
+  for (const source of [home, header, voice, routePreload, workspace, provider]) {
+    assert.match(source, /KikiVisualPartSearchModal/);
+  }
+  for (const source of [home, header, voice, routePreload, workspace, provider]) {
+    assert.match(source, /preloadPartIdentificationStudio/);
+  }
+  assert.match(voice, /onAnalysisResult=\{async\(result,image\)=>/);
+  assert.match(voice, /void handleUserFinishedSpeaking\(query\)/);
+  assert.doesNotMatch(home, /import\("\.\.\/components\/search\/AiVisualPartSearchModal"\)/);
+  assert.doesNotMatch(header, /import\('\.\.\/search\/AiVisualPartSearchModal'\)/);
+  assert.doesNotMatch(voice, /import\('\.\.\/search\/AiVisualPartSearchModal'\)/);
+  assert.doesNotMatch(routePreload, /import\('\.\.\/search\/AiVisualPartSearchModal'\)/);
 });
