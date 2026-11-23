@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { extractAlphaMaskContours, selectAlphaMaskContour } from "../src/utils/alphaMaskContours";
 
 const root = process.cwd();
 const source = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
@@ -220,4 +221,32 @@ test("confirmed image region is cropped with the local U2-NetP alpha matte befor
   assert.match(crop, /if \(rotation !== 0\)/);
   assert.match(crop, /alphaMask\[y0 \* width \+ x0\]/);
   assert.match(crop, /output\.toDataURL\('image\/jpeg', 0\.91\)/);
+});
+
+
+test("local alpha matte separates disconnected parts and crops the component inside the confirmed region", () => {
+  const width = 40;
+  const height = 20;
+  const alphaMask = new Uint8Array(width * height);
+  const paint = (left: number, top: number, right: number, bottom: number) => {
+    for (let y = top; y < bottom; y++) {
+      for (let x = left; x < right; x++) alphaMask[y * width + x] = 255;
+    }
+  };
+  paint(2, 2, 9, 9);
+  paint(26, 4, 37, 15);
+
+  const contours = extractAlphaMaskContours({ width, height, alphaMask });
+  assert.equal(contours.length, 2);
+  assert.ok(contours.every((item) => item.polygon.length >= 3));
+
+  const selected = selectAlphaMaskContour(
+    contours,
+    { x: 0.6, y: 0.1, width: 0.35, height: 0.75 },
+  );
+  assert.ok(selected);
+  assert.ok(selected.region.x > 0.5);
+  assert.ok(selected.polygon.every((point) =>
+    point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1
+  ));
 });
