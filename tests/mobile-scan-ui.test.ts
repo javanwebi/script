@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { extractAlphaMaskContours, selectAlphaMaskContour } from "../src/utils/alphaMaskContours";
 
 const root = process.cwd();
 const source = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
@@ -99,7 +100,7 @@ test("dock camera opens a full-screen live preview, local review, retake, and ex
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const provider = source("src/components/search/PartIdentificationProvider.tsx");
   const styles = source("src/components/search/industrial-scan.css");
-  assert.match(provider, /fullScreen=\{startWithCamera\}/);
+  assert.match(provider, /<Studio isOpen standalone initialCamera=\{startWithCamera\} fullScreen/);
   assert.match(modal, /cameraFlowActive/);
   assert.match(modal, /data-testid="full-screen-camera-experience"/);
   assert.match(modal, /sanat-camera-experience__video/);
@@ -179,7 +180,7 @@ test("identification hides mobile dock with React state, scoped class and CSS fa
   assert.match(provider, /document\.body\.classList\.remove\("sanat-identification-open"\)/);
   assert.match(css, /body\.sanat-identification-open \.storefront \.store-bottom-nav/);
   assert.match(css, /\.storefront\.no-mobile-dock \.store-ai-quick-actions/);
-  assert.match(source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing"\}/);
+  assert.match(source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{standalone \|\| fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing"\}/);
 });
 
 test("reference-design scanner has actual gallery, reversible lens and flash controls, a round shutter and scan-line", () => {
@@ -191,4 +192,75 @@ test("reference-design scanner has actual gallery, reversible lens and flash con
   assert.match(modal, /toggleTorch/);
   assert.match(modal, /sanat-camera-experience__instruction/);
   assert.match(css, /sanat-camera-experience__scan-line/);
+  assert.match(modal, /fv-camera-stage/);
+  assert.match(modal, /fv-corner-brackets/);
+  assert.match(modal, /fv-scan-laser/);
+  assert.match(css, /\.fv-workbench\s*\{/);
+  assert.match(css, /\.fv-camera-stage\s*\{/);
+  assert.match(css, /\.fv-corner-brackets\s*\{/);
+  assert.match(css, /\.fv-scan-laser\s*\{/);
+});
+
+
+test("standalone identification route uses the new entry design and existing camera/upload pipeline", () => {
+  const provider = source("src/components/search/PartIdentificationProvider.tsx");
+  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  const entry = source("src/components/search/VisionEntryPage.tsx");
+  assert.match(provider, /<Studio isOpen standalone fullScreen/);
+  assert.match(modal, /standalone && !initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera/);
+  assert.match(modal, /setCameraFlowActive\(true\); void startCamera\(\)/);
+  assert.match(modal, /onUpload=\{\(\) => fileInputRef\.current\?\.click\(\)\}/);
+  assert.match(entry, /data-testid="forza-vision-entry"/);
+  assert.match(entry, /onCamera/);
+  assert.match(entry, /onUpload/);
+  assert.match(entry, /مقایسه با کاتالوگ واقعی/);
+  assert.doesNotMatch(entry, /02166700000|989120000000|DEFAULT_RECENT_SEARCHES/);
+});
+
+
+test("confirmed image region is cropped with the local U2-NetP alpha matte before catalog matching", () => {
+  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  const crop = source("src/utils/cropVisionImage.ts");
+  assert.match(modal, /renderSegmentedVisionCutout/);
+  assert.match(modal, /alphaMask:\s*localSegmentation\.result\.alphaMask/);
+  assert.match(modal, /imageBase64 = cutout\.modelInputUrl \|\| localSegmentation\.result\.whiteBgDataUrl/);
+  assert.match(crop, /context\.drawImage\(source, sx, sy, sw, sh, 0, 0, outW, outH\)/);
+  assert.match(crop, /if \(rotation !== 0\)/);
+  assert.match(crop, /polygon\.length >= 3/);
+  assert.match(crop, /Math\.min\(sourceWidth - sx, Math\.ceil\(rw \* sourceWidth\)\)/);
+  assert.match(crop, /alphaMask\[y0 \* width \+ x0\]/);
+  assert.match(crop, /output\.toDataURL\('image\/jpeg', 0\.91\)/);
+});
+
+
+test("local alpha matte separates disconnected parts and crops the component inside the confirmed region", () => {
+  const width = 40;
+  const height = 20;
+  const alphaMask = new Uint8Array(width * height);
+  const paint = (left: number, top: number, right: number, bottom: number) => {
+    for (let y = top; y < bottom; y++) {
+      for (let x = left; x < right; x++) alphaMask[y * width + x] = 255;
+    }
+  };
+  paint(2, 2, 9, 9);
+  paint(26, 4, 37, 15);
+
+  const contours = extractAlphaMaskContours({ width, height, alphaMask });
+  assert.equal(contours.length, 2);
+  assert.ok(contours.every((item) => item.polygon.length >= 3));
+
+  const selected = selectAlphaMaskContour(
+    contours,
+    { x: 0.6, y: 0.1, width: 0.35, height: 0.75 },
+  );
+  assert.ok(selected);
+  assert.ok(selected.region.x > 0.5);
+  assert.ok(selected.polygon.every((point) =>
+    point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1
+  ));
+  assert.equal(
+    selectAlphaMaskContour(contours, { x: 0, y: 0, width: 1, height: 1 }),
+    null,
+    "a region containing multiple foreground components must preserve the whole assembly",
+  );
 });

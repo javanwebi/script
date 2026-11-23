@@ -22,6 +22,7 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
  const start=useRef<{x:number;y:number;clientX:number;clientY:number}|null>(null);
  const [draft,setDraft]=useState<ImageRegion>();
  const [aspect,setAspect]=useState(1);
+ const [tapFeedback,setTapFeedback]=useState<{x:number;y:number;key:number}|null>(null);
  const candidates=candidateRegions.filter(validImageRegion);
  const selected=draft || value;
  const point=(event:PointerEvent<HTMLDivElement>):ImagePoint=>{
@@ -37,6 +38,8 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
    const region={x:Math.min(s.x,p.x),y:Math.min(s.y,p.y),width:Math.abs(p.x-s.x),height:Math.abs(p.y-s.y)};
    if(validImageRegion(region))onChange(region);
   }else{
+   // The approved FORZA optical HUD acknowledges the selected spot; selection logic stays unchanged.
+   setTapFeedback({x:p.x*100,y:p.y*100,key:Date.now()});
    // Prefer an actual server-proposed object box. If the tap lands on another
    // part not in the proposals, create a centered focus crop around that point.
    const candidate=findImageRegionAtPoint(p,candidates);
@@ -107,6 +110,8 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
       <i className="fv-lens-corner fv-lens-corner--bl" />
       <i className="fv-lens-corner fv-lens-corner--br" />
      </div>}
+     {selected&&validImageRegion(selected)&&<span aria-hidden="true" className="fv-object-dot fv-object-dot--active" style={{left:((selected.x+selected.width/2)*100)+"%",top:((selected.y+selected.height/2)*100)+"%"}}/>}
+     {tapFeedback&&<span key={tapFeedback.key} aria-hidden="true" className="fv-tap-ripple" style={{left:tapFeedback.x+"%",top:tapFeedback.y+"%"}}/>}
     </div>
    </div>
    <aside className="sanat-region-picker__side">

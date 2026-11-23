@@ -2,6 +2,8 @@ import {LocalModelResults} from './LocalModelResults';
 import {CatalogResultImage} from './CatalogResultImage';
 import {apiUrl} from '../../config/apiConfig';
 import { getForegroundRegion, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
+import { renderSegmentedVisionCutout } from '../../utils/cropVisionImage';
+import { extractAlphaMaskContours, selectAlphaMaskContour } from '../../utils/alphaMaskContours';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
@@ -63,6 +65,7 @@ import { pricingCreditService } from "../../services/pricingCreditService";
 import { IMAGES } from "../../assets/images";
 import "./industrial-scan.css";
 import "./vision-camera-design.css";
+import { VisionEntryPage } from "./VisionEntryPage";
 import { VisionAnalysisProgress } from "./VisionAnalysisProgress";
 import { saveCustomerDeviceImage, getCustomerDeviceImage, getCustomerDeviceImageMetadata, adoptCustomerDeviceImage, customerImageBlobToDataUrl } from "../../services/customerImageVault";
 import { createCustomerImageIdentification, completeCustomerImageIdentification, selectCustomerImageProduct } from "../../services/customerIntelligenceService";
@@ -118,6 +121,7 @@ interface Props {
   onClose: () => void;
   fullScreen?: boolean;
   initialCamera?: boolean;
+  standalone?: boolean;
   onAnalysisResult?: (result: AiPartAnalysisResult, image: string) => void;
 }
 
@@ -152,6 +156,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   onClose,
   fullScreen = false,
   initialCamera = false,
+  standalone = false,
   onAnalysisResult,
 }) => {
   const navigate = useNavigate();
@@ -705,8 +710,25 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           const intersectionHeight = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
           const intersectionArea = intersectionWidth * intersectionHeight;
           const smallerArea = Math.max(0.0001, Math.min(a.width * a.height, b.width * b.height));
+          // Use the local foreground matte to send a tight crop; retain the existing fallback on failure.
           if (intersectionArea / smallerArea >= 0.35) {
-            imageBase64 = localSegmentation.result.whiteBgDataUrl;
+            const alphaData = {
+              width: localSegmentation.result.width,
+              height: localSegmentation.result.height,
+              alphaMask: localSegmentation.result.alphaMask,
+            };
+            const selectedContour = selectAlphaMaskContour(
+              extractAlphaMaskContours(alphaData),
+              requestRegion,
+            );
+            const cutout = await renderSegmentedVisionCutout(
+              imageBase64,
+              requestRegion,
+              0,
+              selectedContour?.polygon,
+              alphaData,
+            ).catch(() => ({ modelInputUrl: undefined }));
+            imageBase64 = cutout.modelInputUrl || localSegmentation.result.whiteBgDataUrl;
             analysisMimeType = 'image/jpeg';
           }
         }
@@ -885,8 +907,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     <>
     <Modal
       dialogLabel="شناسایی تصویری قطعه"
-      fullScreen={fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing"}
-      closeLabel={fullScreen || cameraFlowActive ? (initialCamera ? "بازگشت به سایت" : "بازگشت به میزکار") : "بستن"}
+      fullScreen={standalone || fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing"}
+      closeLabel={standalone ? "بازگشت" : fullScreen || cameraFlowActive ? (initialCamera ? "بازگشت به سایت" : "بازگشت به میزکار") : "بستن"}
       isOpen={isOpen}
       onClose={() => {
         stopCamera();
@@ -907,6 +929,19 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       noPadding={currentStep === 1 || currentStep === "analyzing"}
     >
       <div className="sanat-visual-search-shell fv-workbench" dir="rtl">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="انتخاب تصویر قطعه"
+        onChange={(event) => {
+          const image = event.currentTarget.files?.[0];
+          if (image) handleFile(image);
+          event.currentTarget.value = "";
+        }}
+      />
       {!cameraFlowActive && currentStep === 1 && !selectedImage && (
         <nav className="sp-vision-journey" aria-label="مراحل شناسایی قطعه" data-testid="vision-journey">
           {[
@@ -1054,6 +1089,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             </p>
           </footer>
         </section>
+      ) : standalone && !initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera ? (
+        <VisionEntryPage
+          onCamera={() => { setCameraFlowActive(true); void startCamera(); }}
+          onUpload={() => fileInputRef.current?.click()}
+          onClose={() => { stopCamera(); onClose(); }}
+          errorMessage={errorMessage}
+          isUploading={isUploadingImage}
+        />
       ) : currentStep === 1 ? (
         <div style={fullScreen ? { minHeight: "100dvh" } : undefined} dir="rtl" data-testid="identification-wizard" className="sp-vision-entry sanat-visual-search-wizard grid grid-cols-1 lg:grid-cols-12 min-h-[580px] lg:min-h-[630px] rounded-2xl md:rounded-3xl overflow-hidden bg-white text-right font-['Vazirmatn'] relative">
           {/* Absolute Close Button for Step 1 */}
@@ -1273,15 +1316,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </div>
               )}
 
-              <input
-                ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
-                className="sr-only" tabIndex={-1} aria-label="انتخاب تصویر قطعه"
-                onChange={(event) => {
-                  const image = event.currentTarget.files?.[0];
-                  if (image) handleFile(image);
-                  event.currentTarget.value = "";
-                }}
-              />
+
               {/* Upload Dropzone OR Camera OR Selected Image */}
               {!selectedImage && !isUsingCamera ? (
                 <div
@@ -2297,6 +2332,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                       sources={[match.image, ...(Array.isArray(catalogItem?.images) ? catalogItem.images : []), catalogItem?.image]}
                                       alt={match.name}
                                       className="sp-vision-match-photo"
+                                      hideZoomPill
+                                      cleanSurface
                                       eager={idx === 0}
                                     />
                                     <div className="flex-1 min-w-0">

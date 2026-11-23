@@ -1397,3 +1397,222 @@
   .sanat-visual-result-card { transition: none; }
   .sp-catalog-photo__open:hover img { transform: none; }
 }
+
+/* Approved 2026-11-22 FORZA ZIP: focus dot and tactile tap feedback.
+   Scoped to the existing selector; actual region detection is not replaced. */
+.sanat-region-picker__frame > .fv-object-dot {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  width: 16px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2.5px solid #fff;
+  background: #e06518;
+  box-shadow: 0 0 0 4px rgba(224,101,24,.36), 0 2px 8px rgba(0,0,0,.28);
+}
+@keyframes fv-approved-tap-ripple {
+  0% { transform: translate(-50%,-50%) scale(.35); opacity: .95; }
+  100% { transform: translate(-50%,-50%) scale(2.1); opacity: 0; }
+}
+.sanat-region-picker__frame > .fv-tap-ripple {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid #e06518;
+  background: radial-gradient(circle,rgba(224,101,24,.32),transparent 72%);
+  animation: fv-approved-tap-ripple 480ms cubic-bezier(.16,1,.3,1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sanat-region-picker__frame > .fv-tap-ripple { animation: none; opacity: .35; }
+}
+
+/* Approved ZIP: product imagery stays clean inside result cards, with zoom retained. */
+.sp-catalog-photo--clean { border: 0; border-radius: 0; background: transparent; }
+
+
+/* Approved ZIP camera HUD: white industrial workbench, calibrated reticle and optical sweep. */
+.fv-workbench {
+  background-color: #ffffff;
+  color: #2b313a;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.fv-camera-stage {
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.fv-corner-brackets {
+  position: relative;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.94)) top left / 28px 3px no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.94)) top left / 3px 28px no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.94)) top right / 28px 3px no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.94)) top right / 3px 28px no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.94)) bottom left / 28px 3px no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.94)) bottom left / 3px 28px no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.94)) bottom right / 28px 3px no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.94)) bottom right / 3px 28px no-repeat;
+}
+
+@keyframes fv-scan-sweep {
+  0% { transform: translateY(8px); opacity: 0; }
+  15%, 85% { opacity: 0.85; }
+  100% { transform: translateY(calc(100% - 10px)); opacity: 0; }
+}
+
+.fv-scan-laser {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 0;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, #e06518 50%, transparent);
+  box-shadow: 0 0 12px rgba(224, 101, 24, 0.65);
+  animation: fv-scan-sweep 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.fv-lens-bracket {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 16px;
+  z-index: 10;
+  transition:
+    left 260ms cubic-bezier(0.16, 1, 0.3, 1),
+    top 260ms cubic-bezier(0.16, 1, 0.3, 1),
+    width 260ms cubic-bezier(0.16, 1, 0.3, 1),
+    height 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fv-lens-bracket--box-mask { box-shadow: 0 0 0 9999px rgba(17, 21, 28, 0.56); }
+.fv-lens-bracket--light-mask { box-shadow: 0 0 0 9999px rgba(255, 255, 255, 0.52); }
+
+@keyframes fv-bracket-lock {
+  0% { transform: scale(1.045); opacity: 0.72; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.fv-lens-bracket--locking { animation: fv-bracket-lock 320ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+.fv-lens-corner {
+  position: absolute;
+  width: clamp(12px, 28%, 22px);
+  height: clamp(12px, 28%, 22px);
+  border-color: #ffffff;
+  border-style: solid;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.55));
+}
+
+.fv-lens-corner--dark {
+  border-color: #2b313a;
+  filter: drop-shadow(0 1px 3px rgba(255, 255, 255, 0.65));
+}
+
+.fv-lens-corner--tl {
+  top: -1.5px; left: -1.5px;
+  border-width: 3.5px 0 0 3.5px;
+  border-top-left-radius: 14px;
+}
+.fv-lens-corner--tr {
+  top: -1.5px; right: -1.5px;
+  border-width: 3.5px 3.5px 0 0;
+  border-top-right-radius: 14px;
+}
+.fv-lens-corner--bl {
+  bottom: -1.5px; left: -1.5px;
+  border-width: 0 0 3.5px 3.5px;
+  border-bottom-left-radius: 14px;
+}
+.fv-lens-corner--br {
+  bottom: -1.5px; right: -1.5px;
+  border-width: 0 3.5px 3.5px 0;
+  border-bottom-right-radius: 14px;
+}
+
+@keyframes fv-dot-pulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25), 0 2px 8px rgba(0, 0, 0, 0.45);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.08), 0 2px 10px rgba(0, 0, 0, 0.5);
+  }
+}
+
+.fv-object-dot {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid rgba(43, 49, 58, 0.65);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.28), 0 2px 8px rgba(0, 0, 0, 0.45);
+  animation: fv-dot-pulse 2.2s ease-in-out infinite;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  transition: background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.fv-object-dot--active {
+  width: 16px;
+  height: 16px;
+  background: #e06518;
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 0 0 4px rgba(224, 101, 24, 0.36), 0 2px 8px rgba(0, 0, 0, 0.45);
+  animation: none;
+}
+
+@keyframes fv-tap-ripple {
+  0% { transform: translate(-50%, -50%) scale(0.35); opacity: 0.95; }
+  100% { transform: translate(-50%, -50%) scale(2.1); opacity: 0; }
+}
+
+.fv-tap-ripple {
+  width: 50px;
+  height: 50px;
+  border-radius: 9999px;
+  border: 2px solid #e06518;
+  background: radial-gradient(circle, rgba(224, 101, 24, 0.32) 0%, transparent 72%);
+  animation: fv-tap-ripple 480ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fv-indeterminate-slide {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-160%); }
+}
+
+.fv-indeterminate-bar {
+  position: relative;
+  overflow: hidden;
+  height: 2px;
+  width: 100%;
+  background: rgba(43, 49, 58, 0.08);
+}
+
+.fv-indeterminate-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, #e06518, #fb923c, transparent);
+  animation: fv-indeterminate-slide 1.1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fv-lens-bracket { transition: none; }
+  .fv-object-dot,
+  .fv-scan-laser,
+  .fv-indeterminate-bar::after,
+  .fv-lens-bracket--locking { animation: none; }
+}
