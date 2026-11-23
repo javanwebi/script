@@ -311,7 +311,11 @@ export const WorkspaceSettingsModal: React.FC<WorkspaceSettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => onChangeCalculationStandard('din')}
-                className={calculationStandard === 'din' ? 'min-h-[40px] px-3 py-2 rounded-lg text-center font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap bg-[#FFFFFF] text-[#C95210] shadow-2xs border border-[#DCE1E7]' : 'min-h-[40px] px-3 py-2 rounded-lg text-center font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap text-[#55565A] hover:text-[#181C22]'}
+                className={`min-h-[40px] px-3 py-2 rounded-lg text-center font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  calculationStandard === 'din'
+                    ? 'bg-[#FFFFFF] text-[#C95210] shadow-2xs border border-[#DCE1E7]'
+                    : 'text-[#55565A] hover:text-[#181C22]'
+                }`}
               >
                 {calculationStandard === 'din' && <Check className="w-3.5 h-3.5 shrink-0" />}
                 <span>استاندارد DIN 2215</span>
@@ -319,7 +323,11 @@ export const WorkspaceSettingsModal: React.FC<WorkspaceSettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => onChangeCalculationStandard('fast')}
-                className={calculationStandard === 'fast' ? 'min-h-[40px] px-3 py-2 rounded-lg text-center font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap bg-[#FFFFFF] text-[#C95210] shadow-2xs border border-[#DCE1E7]' : 'min-h-[40px] px-3 py-2 rounded-lg text-center font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap text-[#55565A] hover:text-[#181C22]'}
+                className={`min-h-[40px] px-3 py-2 rounded-lg text-center font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  calculationStandard === 'fast'
+                    ? 'bg-[#FFFFFF] text-[#C95210] shadow-2xs border border-[#DCE1E7]'
+                    : 'text-[#55565A] hover:text-[#181C22]'
+                }`}
               >
                 {calculationStandard === 'fast' && <Check className="w-3.5 h-3.5 shrink-0" />}
                 <span>استعلام سریع کارگاهی</span>
