@@ -1062,7 +1062,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           isUploading={isUploadingImage}
         />
       ) : currentStep === 1 && selectedImage ? (
-        <main className="kiki-vision-review-shell" dir="rtl" data-testid="kiki-vision-review-shell">
+        <main className="kiki-vision-review-shell" dir="rtl" data-testid="kiki-vision-review-shell identification-wizard">
           <header className="kiki-vision-review-shell__header">
             <div>
               <span>FORZA VISION · IMAGE REVIEW</span>
