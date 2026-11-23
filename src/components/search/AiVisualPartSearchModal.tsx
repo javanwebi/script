@@ -888,7 +888,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     <>
     <Modal
       dialogLabel="شناسایی تصویری قطعه"
-      fullScreen={standalone || fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing"}
+      fullScreen={standalone || fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing" || currentStep === 1 || currentStep === "results"}
       closeLabel={standalone ? "بازگشت" : fullScreen || cameraFlowActive ? (initialCamera ? "بازگشت به سایت" : "بازگشت به میزکار") : "بستن"}
       isOpen={isOpen}
       onClose={() => {
@@ -896,7 +896,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         onClose();
       }}
       title={
-        currentStep === 1 || currentStep === "analyzing"
+        currentStep === 1 || currentStep === "analyzing" || currentStep === "results"
           ? undefined
           : "شناسایی هوشمند قطعه و تسمه با هوش مصنوعی"
       }
@@ -907,7 +907,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             ? "2xl"
             : "lg"
       }
-      noPadding={currentStep === 1 || currentStep === "analyzing"}
+      noPadding={currentStep === 1 || currentStep === "analyzing" || currentStep === "results"}
     >
       <div className="sanat-visual-search-shell fv-workbench" dir="rtl">
       <input
@@ -923,24 +923,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           event.currentTarget.value = "";
         }}
       />
-      {!cameraFlowActive && currentStep === 1 && !selectedImage && (
-        <nav className="sp-vision-journey" aria-label="مراحل شناسایی قطعه" data-testid="vision-journey">
-          {[
-            { label: 'تصویر قطعه', detail: 'دوربین یا گالری' },
-            { label: 'ناحیه قطعه', detail: 'برش انتخابی' },
-            { label: 'جست‌وجوی کاتالوگ', detail: 'مقایسه واقعی' },
-            { label: 'نتیجه و مشاوره', detail: 'بررسی فنی' },
-          ].map((step, index) => {
-            const activeIndex = 0; // Intro rail is displayed only before a photo is selected.
-            return (
-              <div key={step.label} className={['sp-vision-journey__step', index === activeIndex ? 'is-current' : '', index < activeIndex ? 'is-complete' : ''].filter(Boolean).join(' ')} aria-current={index === activeIndex ? 'step' : undefined}>
-                <span className="sp-vision-journey__number">{index < activeIndex ? '✓' : index + 1}</span>
-                <span><strong>{step.label}</strong><small>{step.detail}</small></span>
-              </div>
-            );
-          })}
-        </nav>
-      )}
       {cameraFlowActive ? (
         <section className="sanat-camera-experience sanat-camera-reference" dir="rtl"
           data-testid="full-screen-camera-experience" aria-label="دوربین تمام صفحه شناسایی قطعه">
@@ -1070,14 +1052,55 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             </p>
           </footer>
         </section>
-      ) : standalone && !initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera ? (
+      ) : !initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera ? (
         <VisionEntryPage
           onCamera={() => { setCameraFlowActive(true); void startCamera(); }}
           onUpload={() => fileInputRef.current?.click()}
+          onDropFile={handleFile}
           onClose={() => { stopCamera(); onClose(); }}
           errorMessage={errorMessage}
           isUploading={isUploadingImage}
         />
+      ) : currentStep === 1 && selectedImage ? (
+        <main className="kiki-vision-review-shell" dir="rtl" data-testid="kiki-vision-review-shell">
+          <header className="kiki-vision-review-shell__header">
+            <div>
+              <span>FORZA VISION · IMAGE REVIEW</span>
+              <h1>قطعه را در تصویر مشخص و تأیید کنید</h1>
+              <p>کادر انتخاب‌شده مبنای جست‌وجو است؛ تصویر اصلی بدون تغییر در حافظه خصوصی دستگاه باقی می‌ماند.</p>
+            </div>
+            <div className="kiki-vision-review-shell__header-actions">
+              <span className="kiki-vision-review-shell__status">
+                {regionDetectionState === 'detecting' || regionDetectionState === 'uploading' ? 'در حال آماده‌سازی' : queryRegion ? 'ناحیه انتخاب شد' : 'نیازمند انتخاب ناحیه'}
+              </span>
+              <button
+                type="button"
+                onClick={() => { stopCamera(); onClose(); }}
+                className="kiki-vision-review-shell__back"
+                aria-label="بازگشت از شناسایی تصویر"
+              >
+                <ArrowRight size={16} aria-hidden="true" />
+                <span>بازگشت</span>
+              </button>
+            </div>
+          </header>
+          <div className="kiki-vision-review-shell__content" data-testid="identification-wizard">
+                <ImageRegionReview
+                  image={selectedImage || ''}
+                  status={regionDetectionState}
+                  selectedRegion={queryRegion}
+                  candidateRegions={candidateRegions}
+                  message={[regionDetectionMessage, localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
+                  analysisError={errorMessage}
+                  busy={isUploadingImage || !temporaryImageDataUrl}
+                  onRegionChange={handleRegionSelection}
+                  onConfirm={confirmRegionAndAnalyze}
+                  onRetryPreparation={retryRegionPreparation}
+                  onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
+                  onChangeImage={() => fileInputRef.current?.click()}
+                />
+          </div>
+        </main>
       ) : currentStep === 1 ? (
         <div style={fullScreen ? { minHeight: "100dvh" } : undefined} dir="rtl" data-testid="identification-wizard" className="sp-vision-entry sanat-visual-search-wizard grid grid-cols-1 lg:grid-cols-12 min-h-[580px] lg:min-h-[630px] rounded-2xl md:rounded-3xl overflow-hidden bg-white text-right font-['Vazirmatn'] relative">
           {/* Absolute Close Button for Step 1 */}
@@ -1364,22 +1387,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     </button>
                   </div>
                 </div>
-              ) : (
-                <ImageRegionReview
-                  image={selectedImage || ''}
-                  status={regionDetectionState}
-                  selectedRegion={queryRegion}
-                  candidateRegions={candidateRegions}
-                  message={[regionDetectionMessage, localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
-                  analysisError={errorMessage}
-                  busy={isUploadingImage || !temporaryImageDataUrl}
-                  onRegionChange={handleRegionSelection}
-                  onConfirm={confirmRegionAndAnalyze}
-                  onRetryPreparation={retryRegionPreparation}
-                  onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
-                  onChangeImage={() => fileInputRef.current?.click()}
-                />
-              )}
+              ) : null}
               {!selectedImage && !isUsingCamera && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
@@ -1941,7 +1949,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }}
-                className="space-y-5 sp-vision-result-panel"
+                className="space-y-5 sp-vision-result-panel" data-testid="kiki-vision-results-shell"
               >
                 {localRegionEnabled && selectedImage && <ImageRegionSelector
                   src={selectedImage}
@@ -1951,13 +1959,31 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   onSearch={() => { if(queryRegion)void handleAnalyze('quick', queryRegion); }}
                   onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
                 />}
+                {!localRegionEnabled && selectedImage && (
+                  <div className="kiki-vision-image-evidence" data-testid="kiki-vision-image-evidence">
+                    <span className="kiki-vision-image-evidence__label">تصویر مبنای شناسایی</span>
+                    <img src={selectedImage} alt="تصویر واقعی قطعه انتخاب‌شده برای تطبیق با کاتالوگ" />
+                    <p>تصویر اصلی برای مقایسه نگهداری شده است؛ نتیجه‌های مشابه به‌تنهایی تأیید فنی محسوب نمی‌شوند.</p>
+                  </div>
+                )}
                 <div className="sp-vision-result-intro">
                   <div>
                     <span>FORZA VISION · CATALOGUE EVIDENCE</span>
                     <h3>نتایج بررسی تصویری قطعه</h3>
                     <p>تصاویر را بزرگ کنید، تفاوت‌ها را بررسی کنید و پیش از سفارش، کد و ابعاد را تأیید کنید.</p>
                   </div>
-                  <span className="sp-vision-result-intro__status"><ShieldCheck size={16} /> نیازمند تأیید فنی</span>
+                  <div className="sp-vision-result-intro__actions">
+                    <span className="sp-vision-result-intro__status"><ShieldCheck size={16} /> نیازمند تأیید فنی</span>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="kiki-vision-review-shell__back"
+                      aria-label={standalone ? "بازگشت به سایت از نتایج شناسایی" : "بازگشت به میزکار از نتایج شناسایی"}
+                    >
+                      <ArrowRight size={16} aria-hidden="true" />
+                      <span>{standalone ? "بازگشت به سایت" : "بازگشت به میزکار"}</span>
+                    </button>
+                  </div>
                 </div>
                 {/* Fallback / AI-error notices */}
                 {!analysisResult.isAiGenerated &&
