@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
@@ -304,4 +305,126 @@ test("local vision canary resumes only stale persisted PostgreSQL index rows bef
   const index = file("src/services/catalogVisualIndex.ts");
   assert.match(index, /storedEntries:this\.entries\.size,missing,signatureChanged/);
   assert.match(index, /const missing=images\.filter\(row=>this\.entries\.get\(row\.id\)\?\.signature!==signature\(row\)\)/);
+});
+
+test("Nginx API route upgrade is idempotent for 12 consecutive releases (regression: exponential indentation)", () => {
+  const startTag = `python3 - "$CONF1" "$CONF2" "$CONF_DOMAIN" "$FIXED_PORT" <<'PY'`;
+  const startPos = one.indexOf(startTag);
+  assert.ok(startPos >= 0);
+  const codeStart = one.indexOf("\n", startPos) + 1;
+  const codeEnd = one.indexOf("\nPY\nnginx -t\nsystemctl reload nginx", codeStart);
+  assert.ok(codeEnd > codeStart);
+  const migrationPython = one.slice(codeStart, codeEnd);
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "sanatpish-nginx-idempotence-"));
+  try {
+    const paths = ["ip", "https", "domain"].map(name => path.join(sandbox, name + ".conf"));
+    for (let i = 0; i < paths.length; i++) {
+      const indent = i === 2 ? " ".repeat(32) : " ".repeat(4);
+      const host = i === 2 ? "sanatpish.com www.sanatpish.com" : "localhost";
+      fs.writeFileSync(paths[i], `server {
+    server_name ${host};
+    location = /api/live {
+        proxy_pass http://127.0.0.1:3013;
+    }
+${indent}location / {
+        limit_except GET {
+            deny all;
+        }
+        try_files $uri /index.html;
+    }
+}
+`);
+    }
+    let first: string[] | undefined;
+    for (let iteration = 0; iteration < 12; iteration++) {
+      const cmd = spawnSync("python3", ["-c", migrationPython, ...paths, "3013"], {encoding: "utf8"});
+      assert.equal(cmd.status, 0, `Nginx rewrite failed at repeat ${iteration + 1}: ${cmd.stderr || cmd.stdout}`);
+      const current = paths.map(p => fs.readFileSync(p, "utf8"));
+      if (first) assert.deepEqual(current, first, `vhost changed on identical deploy repeat ${iteration + 1}`);
+      else first = current;
+      assert.ok(current.every(config => config.length < 4096), "Nginx vhost unexpectedly ballooned");
+      assert.ok(current[2].includes(" ".repeat(32) + "location / {"), "original 32-space root indent changed");
+      assert.equal(current[1].split("# SANATPISH_API_WRITE_ROUTE_V2").length - 1, 1);
+      assert.equal(current[2].split("# SANATPISH_API_WRITE_ROUTE_V2").length - 1, 1);
+      assert.match(current[0], /limit_except GET/);
+    }
+  } finally {
+    fs.rmSync(sandbox, {recursive: true, force: true});
+  }
+});
+
+test("standalone Nginx hotfix is idempotent and preserves the same root whitespace", () => {
+  const standalone = file("ops/fix-nginx-api-write-routing-vps.sh");
+  const startTag = `python3 - "$HTTPS" "$HTTP" "$PORT" <<'PY'`;
+  const startPos = standalone.indexOf(startTag);
+  assert.ok(startPos >= 0);
+  const codeStart = standalone.indexOf("\n", startPos) + 1;
+  const codeEnd = standalone.indexOf("\nPY\n\nnginx -t", codeStart);
+  assert.ok(codeEnd > codeStart);
+  const migrationPython = standalone.slice(codeStart, codeEnd);
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "sanatpish-nginx-hotfix-"));
+  try {
+    const names = ["https", "http"].map(name => path.join(sandbox, name + ".conf"));
+    for (const p of names) fs.writeFileSync(p, `server {
+    server_name sanatpish.com www.sanatpish.com;
+    location = /api/live { proxy_pass http://127.0.0.1:3013; }
+    location / {
+        limit_except GET { deny all; }
+        try_files $uri /index.html;
+    }
+}
+`);
+    let snapshot: string[] | undefined;
+    for (let i=0;i<8;i++) {
+      const cmd=spawnSync("python3",["-c",migrationPython,...names,"3013"],{encoding:"utf8"});
+      assert.equal(cmd.status,0,cmd.stderr || cmd.stdout);
+      const next=names.map(p=>fs.readFileSync(p,"utf8"));
+      if(snapshot)assert.deepEqual(next,snapshot);
+      snapshot=next;
+      assert.ok(next.every(s=>s.length<4096));
+    }
+  } finally {fs.rmSync(sandbox,{recursive:true,force:true});}
+});
+
+test("one-time recovery removes only runaway whitespace from the actual live-style vhost", () => {
+  const repair = file("ops/repair-nginx-indentation-vps.sh");
+  assert.ok(repair.includes("flock -w 15 9"));
+  assert.ok(repair.includes("NGINX_REPAIR_ROLLBACK_OK"));
+  assert.ok(repair.includes("systemctl reload nginx"));
+  const marker = `python3 - "$CONF" <<'PY'`;
+  const start = repair.indexOf(marker);
+  assert.ok(start >= 0);
+  const begin = repair.indexOf("\n", start) + 1;
+  const end = repair.indexOf("\nPY\nnginx -t\nsystemctl reload nginx", begin);
+  assert.ok(end > begin);
+  const python = repair.slice(begin,end);
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "sanatpish-nginx-repair-test-"));
+  try {
+    const domain = path.join(sandbox,"domain.conf");
+    const huge = " ".repeat(65536);
+    const source = `server {
+    listen 80;
+    server_name sanatpish.com www.sanatpish.com;
+${huge}# SANATPISH_API_WRITE_ROUTE_V2
+${huge}location ^~ /api/ {
+${huge}return 308 https://$host$request_uri;
+${huge}}
+${huge}location / {
+        limit_except GET { deny all; }
+        proxy_pass http://127.0.0.1:3013;
+    }
+}
+`;
+    fs.writeFileSync(domain,source);
+    assert.ok(fs.statSync(domain).size>262144);
+    const run=spawnSync("python3",["-c",python,domain],{encoding:"utf8"});
+    assert.equal(run.status,0,run.stderr || run.stdout);
+    const clean=fs.readFileSync(domain,"utf8");
+    assert.ok(Buffer.byteLength(clean)<262144);
+    const normalize=(text:string)=>text.replace(/^[ \t]+/gm,"");
+    assert.equal(normalize(clean),normalize(source));
+    assert.equal(clean.split("SANATPISH_API_WRITE_ROUTE_V2").length-1,1);
+    assert.ok(clean.includes("proxy_pass http://127.0.0.1:3013;"));
+    assert.ok(clean.includes("limit_except GET { deny all; }"));
+  } finally { fs.rmSync(sandbox,{recursive:true,force:true}); }
 });
