@@ -1,8 +1,32 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import test from 'node:test';
+import test, { afterEach } from 'node:test';
+import { loadVisionRecentSearches, recordVisionRecentSearch } from '../src/components/search/visionRecentHistory';
 
 const read = (file: string) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+
+const LEGACY_KEY = 'sanatpish_forza_vision_recent_v1';
+const STORAGE_KEY = 'sanatpish_forza_vision_recent_v2';
+const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+
+function installStorage() {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, String(value)); },
+    removeItem: (key: string) => { values.delete(key); },
+    clear: () => values.clear(),
+    key: (index: number) => [...values.keys()][index] ?? null,
+    get length() { return values.size; },
+  } as Storage;
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
+  return { storage, values };
+}
+
+afterEach(() => {
+  if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
+  else Reflect.deleteProperty(globalThis, 'localStorage');
+});
 
 test('FORZA workspace uses the approved ZIP icon and modal components', () => {
   const page = read('src/pages/AiConsultPage.tsx');
@@ -78,7 +102,7 @@ test('approved workspace keeps catalog search collapsible without dropping live 
   const page = read('src/pages/AiConsultPage.tsx');
   assert.match(page, /isCatalogSearchOpen/);
   assert.match(page, /forza-workspace-catalog-drawer/);
-  assert.match(page, /if \(isCatalogSearchOpen\) \{\s*setIsCatalogSearchOpen\(false\);\s*\} else \{\s*setIsCatalogSearchOpen\(true\);\s*\}/);
+  assert.match(page, /setIsCatalogSearchOpen\(false\)/);
   assert.match(page, /startCatalogFamilyConsultation\(family\)/);
   assert.match(page, /onAddToConsultation=\{product => \{\s*setIsCatalogSearchOpen\(false\);\s*startCatalogConsultation\(product\);\s*\}\}/);
   assert.match(page, /const startCatalogConsultation = \(product: ConsultationProduct\)/);
@@ -86,31 +110,139 @@ test('approved workspace keeps catalog search collapsible without dropping live 
   assert.match(page, /consumeForzaTextStream/);
 });
 
-test('KIKI VISION is wired into the approved workspace without replacing its layout', () => {
+
+test('workspace visual-identification actions open the standalone VISION route', () => {
+  const page = read('src/pages/AiConsultPage.tsx');
+  const provider = read('src/components/search/PartIdentificationProvider.tsx');
+  assert.match(page, /navigate\('\/identify-part\?from=workspace'\)/);
+  assert.match(page, /entryParams\.get\('view'\) === 'visual'/);
+  assert.match(page, /aria-controls="forza-workspace-catalog-drawer"/);
+  assert.match(page, /aria-expanded=\{isCatalogSearchOpen\}/);
+  assert.match(provider, /KikiVisualPartSearchModal/);
+  assert.match(provider, /Studio isOpen standalone/);
+  assert.match(provider, /fullScreen/);
+});
+
+test('VISION history keeps only product metadata and registered public catalogue images', () => {
+  const modal = read('src/components/search/AiVisualPartSearchModal.tsx');
+  const entry = read('src/components/search/VisionEntryPage.tsx');
+  const history = read('src/components/search/visionRecentHistory.ts');
+  assert.match(modal, /recordVisionRecentSearch/);
+  assert.match(modal, /loadVisionRecentSearches/);
+  assert.match(entry, /forza-vision-recent-history/);
+  assert.match(history, /sanatpish_forza_vision_recent_v2/);
+  assert.match(history, /getCatalogDisplayImageCandidates/);
+  assert.ok(history.includes('removeItem(LEGACY_STORAGE_KEY)'));
+  assert.doesNotMatch(history, /DEFAULT_RECENT_SEARCHES/);
+});
+
+
+test('history starts empty and never injects sample records', () => {
+  const { values } = installStorage();
+  assert.deepEqual(loadVisionRecentSearches(), []);
+  assert.equal(values.has(STORAGE_KEY), false);
+});
+
+test('legacy v1 history is deleted instead of restoring arbitrary customer image URLs', () => {
+  const { values } = installStorage();
+  values.set(LEGACY_KEY, JSON.stringify([{
+    id: 'old',
+    title: 'تصویر مشتری',
+    subtitle: 'نمونه قدیمی',
+    timeLabel: 'امروز',
+    imageUrl: 'data:image/jpeg;base64,PRIVATE_CUSTOMER_IMAGE',
+    code: 'PRIVATE-1',
+  }]));
+
+  assert.deepEqual(loadVisionRecentSearches(), []);
+  assert.equal(values.has(LEGACY_KEY), false);
+});
+
+test('history stores metadata but rejects data URLs, blob URLs and remote images', () => {
+  const { values } = installStorage();
+  const items = recordVisionRecentSearch({
+    code: 'TEST-101',
+    title: 'بلبرینگ آزمایشی',
+    subtitle: 'نتیجه کاتالوگ',
+    imageUrl: 'data:image/jpeg;base64,PRIVATE_CUSTOMER_IMAGE',
+  });
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0].code, 'TEST-101');
+  assert.equal(items[0].imageUrl, undefined);
+  const stored = values.get(STORAGE_KEY) || '';
+  assert.ok(!stored.includes('data:image'));
+  assert.ok(!stored.includes('blob:'));
+  assert.ok(!stored.includes('PRIVATE_CUSTOMER_IMAGE'));
+
+  recordVisionRecentSearch({
+    code: 'TEST-102',
+    title: 'پولی آزمایشی',
+    imageUrl: 'blob:https://sanatpish.com/private-preview',
+  });
+  recordVisionRecentSearch({
+    code: 'TEST-103',
+    title: 'چرخ‌دنده آزمایشی',
+    imageUrl: 'https://external.invalid/private-photo.webp',
+  });
+  recordVisionRecentSearch({
+    code: 'TEST-104',
+    title: 'تصویر بارگذاری‌شده',
+    imageUrl: '/storage/products/550e8400-e29b-41d4-a716-446655440000.webp',
+  });
+  const afterRemote = values.get(STORAGE_KEY) || '';
+  assert.ok(!afterRemote.includes('blob:'));
+  assert.ok(!afterRemote.includes('https://'));
+  assert.ok(!afterRemote.includes('550e8400-e29b-41d4-a716-446655440000'));
+});
+
+test('history accepts only a registered public catalogue image path', () => {
+  const { values } = installStorage();
+  const items = recordVisionRecentSearch({
+    code: 'AT-E003',
+    title: 'قطعه کاتالوگ',
+    imageUrl: '/storage/products/catalog/e(3).png',
+  });
+
+  assert.equal(items[0].imageUrl, '/storage/products/catalog/e(3).png');
+  const stored = JSON.parse(values.get(STORAGE_KEY) || '[]') as Array<{ imageUrl?: string }>;
+  assert.equal(stored[0]?.imageUrl, '/storage/products/catalog/e(3).png');
+});
+
+test('history de-duplicates by product code and keeps at most eight entries', () => {
+  installStorage();
+  for (let i = 0; i < 10; i++) {
+    recordVisionRecentSearch({ code: `SKU-${i}`, title: `قطعه ${i}` });
+  }
+  recordVisionRecentSearch({ code: 'SKU-9', title: 'قطعه نهم - به‌روزرسانی' });
+  const items = loadVisionRecentSearches();
+  assert.equal(items.length, 8);
+  assert.equal(items[0].title, 'قطعه نهم - به‌روزرسانی');
+  assert.equal(items.filter(item => item.code === 'SKU-9').length, 1);
+});
+
+
+test('KIKI vision studio uses progressive local recognition and preserves private customer images', () => {
   const page = read('src/pages/AiConsultPage.tsx');
   const provider = read('src/components/search/PartIdentificationProvider.tsx');
   const scanner = read('src/components/search/KikiVisualPartSearchModal.tsx');
   const history = read('src/components/search/visionRecentHistory.ts');
 
   assert.match(page, /KikiVisualPartSearchModal/);
-  assert.match(page, /navigate\('\/identify-part\?from=workspace'\)/);
-  assert.match(page, /entryParams\.get\('view'\) === 'visual'/);
+  assert.match(page, /navigate\('\/identify-part\?from=workspace/);
   assert.match(provider, /KikiVisualPartSearchModal/);
   assert.match(provider, /useOnnxPartSegmentation/);
+  assert.match(provider, /preloadStudio/);
   assert.match(scanner, /payloadIsCropped/);
   assert.match(scanner, /queryRegions/);
-  assert.doesNotMatch(scanner, /launchDirectVisualResults\(OPTICAL_BENCH_ART/);
-  assert.match(history, /sanatpish_forza_vision_recent_v2/);
-  assert.match(history, /safeCatalogImage/);
-  assert.match(history, /LEGACY_STORAGE_KEY/);
-  assert.match(scanner, /formatVisionRecentTime/);
-  assert.match(scanner, /firstMatch\.image/);
-  assert.doesNotMatch(scanner, /customerImageBlobToDataUrl\(blob\)/);
-  assert.doesNotMatch(scanner, /inferVisualDescriptor/);
-  assert.match(provider, /preloadStudio/);
   assert.match(scanner, /analyzeImageAutoContour\(fastDetectUrl, 0\)/);
   assert.match(scanner, /const aiSegPromise = segmentWithOnnx\(fastDetectUrl\)/);
   assert.match(scanner, /void segmentationRefinementPromise\.finally/);
+  assert.doesNotMatch(scanner, /customerImageBlobToDataUrl\(blob\)/);
+  assert.doesNotMatch(scanner, /inferVisualDescriptor/);
+  assert.match(scanner, /formatVisionRecentTime\(item.createdAt\)/);
   assert.match(scanner, /stage: 'first-contour'/);
   assert.match(scanner, /stage: 'catalog-result'/);
+  assert.match(history, /sanatpish_forza_vision_recent_v2/);
+  assert.match(history, /safeCatalogImage/);
 });
