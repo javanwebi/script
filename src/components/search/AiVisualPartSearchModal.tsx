@@ -277,6 +277,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [showSimilar, setShowSimilar] = useState<boolean>(true);
+  const [mobileResultsExpanded, setMobileResultsExpanded] = useState(false);
+  const resultsSwipeStartY = useRef<number | null>(null);
   const [recentSearches, setRecentSearches] = useState<VisionRecentSearchItem[]>(() => loadVisionRecentSearches());
   const visiblePhotoMatches=(analysisResult?.catalogImageMatches || []).filter(photo=>
     !analysisResult?.modelSuggestions?.length || photo.bindings.length===0);
@@ -1991,10 +1993,24 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }}
-                className="space-y-5 sp-vision-result-panel" data-testid="kiki-vision-results-shell"
+                className="space-y-5 sp-vision-result-panel"
+                data-testid="kiki-vision-results-shell"
+                data-sheet-expanded={mobileResultsExpanded}
               >
                 <span data-testid="vision-journey" className="sr-only" aria-hidden="true" />
-                <header className="fv-catalog-sheet__header" data-testid="forza-vision-catalog-sheet-header">
+                <header
+                  className="fv-catalog-sheet__header"
+                  data-testid="forza-vision-catalog-sheet-header"
+                  onTouchStart={event => { resultsSwipeStartY.current = event.touches[0]?.clientY ?? null; }}
+                  onTouchEnd={event => {
+                    const start = resultsSwipeStartY.current;
+                    resultsSwipeStartY.current = null;
+                    if (start === null) return;
+                    const movement = start - (event.changedTouches[0]?.clientY ?? start);
+                    if (movement > 48) setMobileResultsExpanded(true);
+                    if (movement < -48) setMobileResultsExpanded(false);
+                  }}
+                >
                   <div className="fv-catalog-sheet__identity">
                     {selectedImage && <img src={selectedImage} alt="تصویر ارسالی برای جستجوی قطعه" />}
                     <div>
@@ -2003,9 +2019,23 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       <p>{(analysisResult.matchedProducts?.length || 0) + (analysisResult.similarCandidates?.length || 0)} گزینه برای بررسی · کد و مشخصات باید تأیید شوند</p>
                     </div>
                   </div>
-                  <button type="button" className="fv-catalog-sheet__new-search" onClick={() => { setAnalysisResult(null); setCurrentStep(1); }}>
-                    <RotateCcw size={16} aria-hidden="true" /> عکس یا قطعه دیگر
-                  </button>
+                  <div className="fv-catalog-sheet__actions">
+                    <button
+                      type="button"
+                      className="fv-catalog-sheet__mobile-toggle"
+                      aria-expanded={mobileResultsExpanded}
+                      aria-controls="forza-vision-catalog-results"
+                      onTouchStart={event => event.stopPropagation()}
+                      onTouchEnd={event => event.stopPropagation()}
+                      onClick={() => setMobileResultsExpanded(expanded => !expanded)}
+                    >
+                      {mobileResultsExpanded ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}
+                      {mobileResultsExpanded ? 'نمایش تصویر قطعه' : 'نمایش همه نتایج'}
+                    </button>
+                    <button type="button" className="fv-catalog-sheet__new-search" onClick={() => { setMobileResultsExpanded(false); setAnalysisResult(null); setCurrentStep(1); }}>
+                      <RotateCcw size={16} aria-hidden="true" /> عکس یا قطعه دیگر
+                    </button>
+                  </div>
                 </header>
                 {localRegionEnabled && selectedImage && <ImageRegionSelector
                   src={selectedImage}
@@ -2022,7 +2052,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     <p>تصویر اصلی برای مقایسه نگهداری شده است؛ نتیجه‌های مشابه به‌تنهایی تأیید فنی محسوب نمی‌شوند.</p>
                   </div>
                 )}
-                <div className="sp-vision-result-intro">
+                <div className="sp-vision-result-intro" id="forza-vision-catalog-results">
                   <div>
                     <span>FORZA VISION · CATALOGUE EVIDENCE</span>
                     <h3>نتایج بررسی تصویری قطعه</h3>
