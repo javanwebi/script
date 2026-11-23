@@ -171,8 +171,7 @@ export function selectAlphaMaskContour(
   if (!selectedRegion) return contours[0];
 
   const selectedArea = Math.max(0.000001, selectedRegion.width * selectedRegion.height);
-  let best: AlphaMaskContour | null = null;
-  let bestOverlap = 0;
+  const matches: AlphaMaskContour[] = [];
 
   for (const contour of contours) {
     const region = contour.region;
@@ -189,11 +188,11 @@ export function selectAlphaMaskContour(
     const intersection = intersectionWidth * intersectionHeight;
     const componentArea = Math.max(0.000001, region.width * region.height);
     const overlap = intersection / Math.min(selectedArea, componentArea);
-    if (overlap > bestOverlap) {
-      bestOverlap = overlap;
-      best = contour;
-    }
+    if (overlap >= minimumOverlap) matches.push(contour);
   }
 
-  return best && bestOverlap >= minimumOverlap ? best : null;
+  // A rectangle may contain a complete assembly with several disconnected
+  // foreground islands. In that case keep the full alpha matte instead of
+  // silently discarding every component except the largest one.
+  return matches.length === 1 ? matches[0] : null;
 }
