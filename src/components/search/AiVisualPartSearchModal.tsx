@@ -888,7 +888,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     <>
     <Modal
       dialogLabel="شناسایی تصویری قطعه"
-      fullScreen={standalone || fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing"}
+      fullScreen={standalone || fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing" || currentStep === 1}
       closeLabel={standalone ? "بازگشت" : fullScreen || cameraFlowActive ? (initialCamera ? "بازگشت به سایت" : "بازگشت به میزکار") : "بستن"}
       isOpen={isOpen}
       onClose={() => {
@@ -1070,14 +1070,31 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             </p>
           </footer>
         </section>
-      ) : standalone && !initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera ? (
+      ) : !initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera ? (
         <VisionEntryPage
           onCamera={() => { setCameraFlowActive(true); void startCamera(); }}
           onUpload={() => fileInputRef.current?.click()}
+          onDropFile={handleFile}
           onClose={() => { stopCamera(); onClose(); }}
           errorMessage={errorMessage}
           isUploading={isUploadingImage}
         />
+      ) : currentStep === 1 && selectedImage ? (
+        <main className="kiki-vision-review-shell" dir="rtl" data-testid="kiki-vision-review-shell">
+          <header className="kiki-vision-review-shell__header">
+            <div>
+              <span>FORZA VISION · IMAGE REVIEW</span>
+              <h1>قطعه را در تصویر مشخص و تأیید کنید</h1>
+              <p>کادر انتخاب‌شده مبنای جست‌وجو است؛ تصویر اصلی بدون تغییر در حافظه خصوصی دستگاه باقی می‌ماند.</p>
+            </div>
+            <span className="kiki-vision-review-shell__status">
+              {regionDetectionState === 'detecting' || regionDetectionState === 'uploading' ? 'در حال آماده‌سازی' : queryRegion ? 'ناحیه انتخاب شد' : 'نیازمند انتخاب ناحیه'}
+            </span>
+          </header>
+          <div className="kiki-vision-review-shell__content">
+
+          </div>
+        </main>
       ) : currentStep === 1 ? (
         <div style={fullScreen ? { minHeight: "100dvh" } : undefined} dir="rtl" data-testid="identification-wizard" className="sp-vision-entry sanat-visual-search-wizard grid grid-cols-1 lg:grid-cols-12 min-h-[580px] lg:min-h-[630px] rounded-2xl md:rounded-3xl overflow-hidden bg-white text-right font-['Vazirmatn'] relative">
           {/* Absolute Close Button for Step 1 */}
@@ -1951,6 +1968,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   onSearch={() => { if(queryRegion)void handleAnalyze('quick', queryRegion); }}
                   onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
                 />}
+                {!localRegionEnabled && selectedImage && (
+                  <div className="kiki-vision-image-evidence" data-testid="kiki-vision-image-evidence">
+                    <span className="kiki-vision-image-evidence__label">تصویر مبنای شناسایی</span>
+                    <img src={selectedImage} alt="تصویر واقعی قطعه انتخاب‌شده برای تطبیق با کاتالوگ" />
+                    <p>تصویر اصلی برای مقایسه نگهداری شده است؛ نتیجه‌های مشابه به‌تنهایی تأیید فنی محسوب نمی‌شوند.</p>
+                  </div>
+                )}
                 <div className="sp-vision-result-intro">
                   <div>
                     <span>FORZA VISION · CATALOGUE EVIDENCE</span>
