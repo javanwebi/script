@@ -98,3 +98,16 @@ test('real multi-part lens exposes KIKI quick-select buttons without auto-runnin
   assert.ok(review.includes('Source-parity optical review'));
   assert.ok(styles.includes('.fv-region-candidates__item.is-active'));
 });
+
+test('no-match catalogue view uses real custom-request actions and truthful privacy language', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const style = source('src/components/search/vision-camera-design.css');
+  assert.ok(modal.includes('data-testid="vision-kiki-no-match"'));
+  assert.ok(modal.includes('onClick={() => void openCustomManufacturingRequest()}'));
+  assert.ok(modal.includes('href="tel:03535254703"'));
+  assert.ok(modal.includes('https://wa.me/989903427027'));
+  assert.ok(modal.includes('محتوای لازم برای تحلیل به API شناسایی ارسال می‌شود'));
+  assert.ok(!modal.includes('tel:02166700000'));
+  assert.ok(!modal.includes('wa.me/989120000000'));
+  assert.ok(style.includes('.fv-kiki-empty-state__rail'));
+});
