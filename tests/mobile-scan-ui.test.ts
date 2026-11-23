@@ -208,3 +208,15 @@ test("standalone identification route uses the new entry design and existing cam
   assert.match(entry, /مقایسه با کاتالوگ واقعی/);
   assert.doesNotMatch(entry, /02166700000|989120000000|DEFAULT_RECENT_SEARCHES/);
 });
+
+
+test("confirmed image region is cropped with the local U2-NetP alpha matte before catalog matching", () => {
+  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  const crop = source("src/utils/cropVisionImage.ts");
+  assert.match(modal, /renderSegmentedVisionCutout/);
+  assert.match(modal, /alphaMask:\s*localSegmentation\.result\.alphaMask/);
+  assert.match(modal, /imageBase64 = cutout\.modelInputUrl \|\| localSegmentation\.result\.whiteBgDataUrl/);
+  assert.match(crop, /context\.drawImage\(rotated, sx, sy, sw, sh, 0, 0, outW, outH\)/);
+  assert.match(crop, /alphaMask\[y0 \* width \+ x0\]/);
+  assert.match(crop, /output\.toDataURL\('image\/jpeg', 0\.91\)/);
+});
