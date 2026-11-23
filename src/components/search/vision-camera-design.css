@@ -883,3 +883,46 @@
  .fv-kiki-empty-state__buttons {display:grid;grid-template-columns:minmax(0,1fr) auto auto;}
  .fv-kiki-empty-state__buttons :is(button,a) {min-height:43px;padding:8px 10px;}
 }
+
+/* In the original KIKI layout the catalogue heading belongs to the left
+   scrolling sheet, while the photo lens starts at the same vertical edge. */
+.sp-vision-result-panel .fv-catalog-sheet__results > .fv-catalog-sheet__header {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  flex: 0 0 auto;
+  margin: 0;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid #dfe3e6;
+  border-radius: 0;
+  box-shadow: none;
+}
+.sp-vision-result-panel .fv-catalog-sheet__layout {
+  align-items: stretch;
+  min-height: min(82dvh, 830px);
+}
+.sp-vision-result-panel .fv-catalog-sheet__lens {
+  top: 0;
+}
+.sp-vision-result-panel .fv-catalog-sheet__results {
+  padding: 0 0 20px;
+}
+.sp-vision-result-panel .fv-catalog-sheet__results > :not(.fv-catalog-sheet__header) {
+  margin-inline: 12px !important;
+}
+@media (max-width:900px) {
+  .sp-vision-result-panel .fv-catalog-sheet__layout { min-height: 0; }
+  .sp-vision-result-panel .fv-catalog-sheet__results > .fv-catalog-sheet__header {
+    position: sticky;
+    top: 0;
+    z-index: 22;
+    border-top: 1px solid #dfe3e6;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -8px 24px rgba(43,49,58,.07);
+  }
+  .sp-vision-result-panel[data-sheet-expanded="true"] .fv-catalog-sheet__results > .fv-catalog-sheet__header {
+    border-radius: 0;
+    box-shadow: 0 9px 22px rgba(43,49,58,.08);
+  }
+}
