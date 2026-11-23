@@ -51,9 +51,9 @@ export const VisionEntryPage: React.FC<VisionEntryPageProps> = ({
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:h-[72px] sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <img
-              src="/images/brand/forza-emblem.webp"
+              src="/images/brand/logo-forza.webp"
               alt="FORZA"
-              className="h-9 w-9 shrink-0 object-contain sm:h-11 sm:w-11"
+              className="h-9 sm:h-11 w-auto shrink-0 object-contain"
             />
             <span className="h-7 w-px bg-[#DFE3E6]" aria-hidden="true" />
             <div className="min-w-0">
