@@ -69,10 +69,22 @@ test('history stores metadata but rejects data URLs, blob URLs and remote images
   recordVisionRecentSearch({
     code: 'TEST-102',
     title: 'پولی آزمایشی',
+    imageUrl: 'blob:https://sanatpish.com/private-preview',
+  });
+  recordVisionRecentSearch({
+    code: 'TEST-103',
+    title: 'چرخ‌دنده آزمایشی',
     imageUrl: 'https://external.invalid/private-photo.webp',
   });
+  recordVisionRecentSearch({
+    code: 'TEST-104',
+    title: 'تصویر بارگذاری‌شده',
+    imageUrl: '/storage/products/550e8400-e29b-41d4-a716-446655440000.webp',
+  });
   const afterRemote = values.get(STORAGE_KEY) || '';
+  assert.ok(!afterRemote.includes('blob:'));
   assert.ok(!afterRemote.includes('https://'));
+  assert.ok(!afterRemote.includes('550e8400-e29b-41d4-a716-446655440000'));
 });
 
 test('history accepts only a registered public catalogue image path', () => {
