@@ -80,3 +80,21 @@ test('VISION entry uses original KIKI portal layout while retaining real image h
   assert.ok(!entry.includes('handleFile(f)'));
   assert.ok(!entry.includes('/src/assets/'));
 });
+
+test('real multi-part lens exposes KIKI quick-select buttons without auto-running analysis', () => {
+  const picker = source('src/components/search/ImageRegionSelector.tsx');
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const optical = source('src/components/search/vision-camera-design.css');
+  const review = source('src/components/search/image-region-review.css');
+  const styles = source('src/components/search/industrial-scan.css');
+  assert.ok(picker.includes('data-testid="vision-region-candidates"'));
+  assert.ok(picker.includes('candidates.length > 1'));
+  assert.ok(picker.includes('onClick={() => { setDraft(undefined); onChange(region); }}'));
+  assert.ok(picker.includes('aria-pressed={sameRegion(selected, region)}'));
+  assert.ok(modal.includes('data-testid="forza-vision-optical-toolbar"'));
+  assert.ok(modal.includes('setMobileResultsExpanded(false); resetForm();'));
+  assert.ok(modal.includes('resetForm(); setCameraFlowActive(true); void startCamera();'));
+  assert.ok(optical.includes('.fv-kiki-optical-toolbar'));
+  assert.ok(review.includes('Source-parity optical review'));
+  assert.ok(styles.includes('.fv-region-candidates__item.is-active'));
+});
