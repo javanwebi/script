@@ -43,6 +43,7 @@ import {
   ArrowUpLeft,
   ArrowRight,
   ChevronDown,
+  Square,
 } from 'lucide-react';
 import { apiUrl } from '../config/apiConfig';
 import { goBackOrFallback } from '../utils/navigateBackOrFallback';
