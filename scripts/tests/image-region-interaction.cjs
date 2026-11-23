@@ -98,7 +98,7 @@ const {chromium}=require('playwright');
   await page.getByTestId('kiki-vision-results-shell').waitFor();
   assert.equal(queries.length,1);
   assert.ok(queries[0].imageBase64?.startsWith('data:image/'));
-  if(detections.length)assert.equal(queries[0].imageBase64,queries[0].imageBase64);
+  if(detections.length)assert.equal(queries[0].imageBase64,detections[0].imageBase64);
   assert.ok(queries[0].region,'confirmed search must use an approved crop');
   assert.ok(0.75>=queries[0].region.x&&0.75<=queries[0].region.x+queries[0].region.width);
   assert.ok(0.45>=queries[0].region.y&&0.45<=queries[0].region.y+queries[0].region.height);
