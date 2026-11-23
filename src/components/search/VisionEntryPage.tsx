@@ -16,6 +16,7 @@ import {
   ChainCouplingIcon,
   PulleyIcon,
 } from '../forza/ForzaWorkspaceIcons';
+import { formatVisionRecentTime, type VisionRecentSearchItem } from './visionRecentHistory';
 
 interface VisionEntryPageProps {
   onCamera: () => void;
@@ -24,6 +25,8 @@ interface VisionEntryPageProps {
   onDropFile?: (file: File) => void;
   errorMessage?: string;
   isUploading?: boolean;
+  recentSearches?: VisionRecentSearchItem[];
+  onRecentClick?: (item: VisionRecentSearchItem) => void;
 }
 
 /**
@@ -38,6 +41,8 @@ export const VisionEntryPage: React.FC<VisionEntryPageProps> = ({
   onDropFile,
   errorMessage = '',
   isUploading = false,
+  recentSearches = [],
+  onRecentClick,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -278,6 +283,58 @@ export const VisionEntryPage: React.FC<VisionEntryPageProps> = ({
             </div>
           </div>
         </section>
+
+        {recentSearches.length > 0 && (
+          <section
+            className="mt-6 rounded-3xl border border-[#DFE3E6] bg-white p-4 sm:p-6"
+            aria-label="تاریخچه شناسایی تصویری"
+            data-testid="forza-vision-recent-history"
+          >
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <span className="text-[10px] font-extrabold tracking-[0.14em] text-[#E06518]">RECENT IDENTIFICATIONS</span>
+                <h2 className="mt-1 text-base font-extrabold text-[#2B313A] sm:text-lg">آخرین شناسایی‌های شما</h2>
+                <p className="mt-1 text-[11px] leading-5 text-[#74757C]">
+                  تاریخچه فقط کد و مشخصات محصول و تصویر عمومی کاتالوگ را نگه می‌دارد؛ تصویر مشتری در این فهرست ذخیره نمی‌شود.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+              {recentSearches.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onRecentClick?.(item)}
+                  disabled={!onRecentClick}
+                  aria-label={`مشاهده محصول ${item.title} با کد ${item.code}`}
+                  className="flex min-w-0 items-center gap-3 rounded-2xl border border-[#DFE3E6] bg-[#FAFBFB] p-3 text-right transition-colors hover:border-[#E06518] hover:bg-[#FFF8F3] disabled:cursor-default"
+                >
+                  <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-[#DFE3E6] bg-white">
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-contain p-1"
+                      />
+                    ) : (
+                      <GalleryImage className="h-5 w-5 text-[#A6ADB3]" aria-hidden="true" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <strong className="block truncate text-xs font-extrabold text-[#2B313A]">{item.title}</strong>
+                    <span className="mt-1 block truncate font-mono text-[10px] text-[#E06518]" dir="ltr">{item.code}</span>
+                    <span className="mt-1 block truncate text-[10px] text-[#74757C]">
+                      {item.subtitle || item.partHint || 'نتیجه کاتالوگ'} · {formatVisionRecentTime(item.createdAt)}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         <footer className="py-5 text-center text-[10px] font-medium text-[#8A9298]">
           صنعت پیش · شناسایی تصویری قطعات صنعتی با FORZA
