@@ -74,6 +74,19 @@ test('approved optical tap feedback is cosmetic and retains the live region sele
   assert.match(scanner, /clientAiSegmentation/);
 });
 
+test('VISION history keeps only product metadata and registered public catalogue images', () => {
+  const modal = read('src/components/search/AiVisualPartSearchModal.tsx');
+  const entry = read('src/components/search/VisionEntryPage.tsx');
+  const history = read('src/components/search/visionRecentHistory.ts');
+  assert.match(modal, /recordVisionRecentSearch/);
+  assert.match(modal, /loadVisionRecentSearches/);
+  assert.match(entry, /forza-vision-recent-history/);
+  assert.match(history, /sanatpish_forza_vision_recent_v2/);
+  assert.match(history, /getCatalogDisplayImageCandidates/);
+  assert.match(history, /removeItem\(LEGACY_STORAGE_KEY\)/);
+  assert.doesNotMatch(history, /DEFAULT_RECENT_SEARCHES/);
+});
+
 test('KIKI workspace exposes the composer tools popup and keeps catalog callbacks connected', () => {
   const page = read('src/pages/AiConsultPage.tsx');
   assert.match(page, /isCatalogSearchOpen/);
