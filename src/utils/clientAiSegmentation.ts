@@ -1,4 +1,4 @@
-import * as ort from 'onnxruntime-web/wasm';
+import * as ort from 'onnxruntime-web';
 
 export interface ClientAiSegmentationResult {
   width: number;

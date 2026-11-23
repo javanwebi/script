@@ -79,7 +79,8 @@ jobs:
           grep -RlF 'sanat-identification-open' dist/assets --include='*.js' >/dev/null
           grep -RlF 'store-scan-action' dist/assets --include='*.js' >/dev/null
           grep -RlF 'home-category-group' dist/assets --include='*.js' >/dev/null
-          grep -RlF 'sp-vision-analysis__viewer' dist/assets --include='*.css' >/dev/null
+          grep -RlF 'fv-workbench' dist/assets --include='*.css' >/dev/null
+          grep -RlF 'fv-camera-stage' dist/assets --include='*.css' >/dev/null
           test -s dist/images/scan-industrial-generated.webp
           test -s dist/images/precision-scan-technical-overlay.svg
           test "$(find dist/images -type f -name '*.webp' | wc -l)" -ge 21

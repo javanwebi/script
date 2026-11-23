@@ -145,8 +145,8 @@ grep -RlF 'forza-swipe-instruction' "$STAGE/dist/assets" --include='*.js' >/dev/
 grep -RlF 'forza-swipe-instruction' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'store-scan-action' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'home-category-group' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'sp-vision-analysis__viewer' "$STAGE/dist/assets" --include='*.css' >/dev/null
-grep -RlF 'sanat-camera-experience__stage' "$STAGE/dist/assets" --include='*.css' >/dev/null
+grep -RlF 'fv-workbench' "$STAGE/dist/assets" --include='*.css' >/dev/null
+grep -RlF 'fv-camera-stage' "$STAGE/dist/assets" --include='*.css' >/dev/null
 test -s "$STAGE/dist/images/scan-industrial-generated.webp"
 test -s "$STAGE/dist/images/precision-scan-technical-overlay.svg"
 WEBPS="$(find "$STAGE/dist/assets" -maxdepth 1 -type f -name '*.webp' | wc -l)"

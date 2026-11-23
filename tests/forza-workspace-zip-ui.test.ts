@@ -269,3 +269,17 @@ test('all production image-search entry points use the KIKI studio and prewarm i
   assert.doesNotMatch(voice, /import\('\.\.\/search\/AiVisualPartSearchModal'\)/);
   assert.doesNotMatch(routePreload, /import\('\.\.\/search\/AiVisualPartSearchModal'\)/);
 });
+
+
+test('KIKI client runtime and deploy guards target the new scanner assets', () => {
+  const segmentation = read('src/utils/clientAiSegmentation.ts');
+  const singlePortDeploy = read('ops/deploy-single-port-vps.sh');
+  const unifiedWorkflow = read('.github/workflows/unified-main-bluegreen.yml');
+
+  assert.match(segmentation, /from 'onnxruntime-web'/);
+  assert.doesNotMatch(segmentation, /onnxruntime-web\\/wasm/);
+  assert.match(singlePortDeploy, /fv-workbench/);
+  assert.match(singlePortDeploy, /fv-camera-stage/);
+  assert.match(unifiedWorkflow, /fv-workbench/);
+  assert.match(unifiedWorkflow, /fv-camera-stage/);
+});
