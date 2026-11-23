@@ -96,6 +96,6 @@ test('VISION history keeps only product metadata and registered public catalogue
   assert.match(entry, /forza-vision-recent-history/);
   assert.match(history, /sanatpish_forza_vision_recent_v2/);
   assert.match(history, /getCatalogDisplayImageCandidates/);
-  assert.match(history, /removeItem\\(LEGACY_STORAGE_KEY\\)/);
+  assert.ok(history.includes('removeItem(LEGACY_STORAGE_KEY)'));
   assert.doesNotMatch(history, /DEFAULT_RECENT_SEARCHES/);
 });
