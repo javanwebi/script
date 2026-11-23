@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { preloadPartIdentificationStudio } from '../search/PartIdentificationProvider';
 
 /**
  * Warm only on deliberate navigation intent; idle storefront browsing does not
@@ -54,6 +55,7 @@ export function RouteIntentPreload() {
       const key = resolvePreloadKey(url.pathname);
       if (!key || pending.has(key)) return;
       const load = loaders[key];
+      if (key === '/identify-part') preloadPartIdentificationStudio();
       const task = load().catch(() => {
         // Permit retry on the next intentional navigation if a chunk failed.
         pending.delete(key);

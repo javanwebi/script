@@ -258,6 +258,8 @@ test('all production image-search entry points use the KIKI studio and prewarm i
 
   for (const source of [home, header, voice, routePreload, workspace, provider]) {
     assert.match(source, /KikiVisualPartSearchModal/);
+  }
+  for (const source of [home, header, voice, routePreload, workspace, provider]) {
     assert.match(source, /preloadPartIdentificationStudio/);
   }
   assert.match(voice, /onAnalysisResult=\{async\(result,image\)=>/);
