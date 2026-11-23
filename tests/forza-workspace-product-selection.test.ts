@@ -29,7 +29,7 @@ test('workshop has one persistent search, picture-backed suggestions and exact S
   const desk = read('src/pages/AiConsultPage.tsx');
   const search = read('src/components/search/WorkspaceCatalog.tsx');
   assert.equal((desk.match(/<WorkspaceCatalog(?:\s|>)/g) || []).length, 1);
-  assert.match(desk, /onAddToConsultation=\{startCatalogConsultation\}/);
+  assert.match(desk, /onAddToConsultation=\{product =>/);\n  assert.match(desk, /startCatalogConsultation\(product\)/);
   assert.match(desk, /productCodes: turnSelectedProducts\.map/);
   assert.match(desk, /productForTurn && !turnSelectedProducts\.some/);
   assert.match(search, /id="forza-workspace-product-search"/);
