@@ -111,6 +111,16 @@ test('approved workspace keeps catalog search collapsible without dropping live 
 });
 
 
+test('workspace visual-identification actions open the standalone VISION route', () => {
+  const page = read('src/pages/AiConsultPage.tsx');
+  const provider = read('src/components/search/PartIdentificationProvider.tsx');
+  assert.match(page, /navigate\('\/identify-part\?from=workspace'\)/);
+  assert.match(page, /entryParams\.get\('view'\) === 'visual'/);
+  assert.match(page, /aria-controls="forza-workspace-catalog-drawer"/);
+  assert.match(page, /aria-expanded=\{isCatalogSearchOpen\}/);
+  assert.match(provider, /Studio isOpen standalone fullScreen/);
+});
+
 test('VISION history keeps only product metadata and registered public catalogue images', () => {
   const modal = read('src/components/search/AiVisualPartSearchModal.tsx');
   const entry = read('src/components/search/VisionEntryPage.tsx');
