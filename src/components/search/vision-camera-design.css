@@ -847,3 +847,39 @@
   .fv-kiki-optical-toolbar__title strong {font-size: 11px;}
   .fv-kiki-optical-toolbar__buttons button {min-height: 40px; padding: 7px 10px;}
 }
+
+/* KIKI catalogue: compact no-match state with the real production request form. */
+.fv-kiki-empty-state {min-width:0; border:1px solid #dfe3e6; border-radius:18px; background:#fff; overflow:visible;}
+.fv-kiki-empty-state__message {display:flex; align-items:flex-start; gap:12px; padding:20px 18px; background:#f5f6f6; border-radius:17px 17px 0 0;}
+.fv-kiki-empty-state__message > svg {flex:0 0 auto;}
+.fv-kiki-empty-state__message strong {display:block; font-size:13px; font-weight:900; color:#2b313a;}
+.fv-kiki-empty-state__message p {font-size:11px; line-height:1.9; color:#74757c; margin:7px 0 0;}
+.fv-kiki-empty-state__details {padding:0 18px; font-size:11px; line-height:1.9; color:#74757c;}
+.fv-kiki-empty-state__details summary {padding:12px 0; cursor:pointer; color:#55565a; font-weight:700;}
+.fv-kiki-empty-state__details p {margin:7px 0 10px;}
+.fv-kiki-empty-state__rail {
+  position:sticky; bottom:0; z-index:8;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:11px 13px calc(11px + env(safe-area-inset-bottom));
+  border-top:1px solid #dfe3e6; background:rgba(255,255,255,.98);
+  box-shadow:0 -8px 20px -13px rgba(43,49,58,.16);
+}
+.fv-kiki-empty-state__rail-copy {min-width:0; display:grid; gap:4px;}
+.fv-kiki-empty-state__rail-copy strong {font-size:11px; font-weight:850; color:#2b313a;}
+.fv-kiki-empty-state__rail-copy span {font-size:10px; color:#74757c;}
+.fv-kiki-empty-state__buttons {display:flex; align-items:center; gap:6px; flex:0 0 auto;}
+.fv-kiki-empty-state__buttons :is(button,a) {
+  min-height:37px; display:inline-flex; align-items:center; justify-content:center;
+  gap:6px; padding:7px 11px; border-radius:11px;
+  font-size:11px; font-weight:800; white-space:nowrap; cursor:pointer;
+}
+.fv-kiki-empty-state__primary {background:#e06518; border:1px solid #e06518; color:#fff;}
+.fv-kiki-empty-state__primary:hover {background:#c95210;}
+.fv-kiki-empty-state__primary:disabled {opacity:.5;cursor:not-allowed;}
+.fv-kiki-empty-state__secondary {background:#fff; border:1px solid #dfe3e6; color:#2b313a;}
+.fv-kiki-empty-state__whatsapp {background:#f0f8f2; border:1px solid #cde6d7; color:#187647;}
+@media (max-width:760px) {
+ .fv-kiki-empty-state__rail {flex-direction:column;align-items:stretch;gap:10px;}
+ .fv-kiki-empty-state__buttons {display:grid;grid-template-columns:minmax(0,1fr) auto auto;}
+ .fv-kiki-empty-state__buttons :is(button,a) {min-height:43px;padding:8px 10px;}
+}
