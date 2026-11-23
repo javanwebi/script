@@ -792,3 +792,137 @@
   .fv-catalog-sheet__results { padding-inline: 0; }
   .fv-catalog-sheet__analysis-details > summary { flex-wrap: wrap; }
 }
+
+/* Source-faithful KIKI optical controls, fitted to the production crop viewer. */
+.fv-kiki-optical-toolbar {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 13px 14px;
+  border-bottom: 1px solid #dfe3e6;
+  background: #f5f6f6;
+}
+.fv-kiki-optical-toolbar__title {display: grid; gap: 3px; min-width: 0;}
+.fv-kiki-optical-toolbar__title span {
+  font-size: 9px;
+  letter-spacing: .1em;
+  color: #bf5718;
+  font-weight: 900;
+  direction: ltr;
+  text-align: right;
+}
+.fv-kiki-optical-toolbar__title strong {
+  color: #2b313a;
+  font-size: 12px;
+  font-weight: 850;
+}
+.fv-kiki-optical-toolbar__buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fv-kiki-optical-toolbar__buttons button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  min-height: 38px;
+  padding: 7px 11px;
+  color: #fff;
+  background: #2b313a;
+  border: 1px solid #2b313a;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.fv-kiki-optical-toolbar__buttons button:hover {background: #e06518; border-color: #e06518;}
+.fv-kiki-optical-toolbar__buttons button:focus-visible {outline: 3px solid rgba(224,101,24,.35); outline-offset: 2px;}
+@media (max-width: 580px) {
+  .fv-kiki-optical-toolbar {padding: 11px; gap: 8px;}
+  .fv-kiki-optical-toolbar__title strong {font-size: 11px;}
+  .fv-kiki-optical-toolbar__buttons button {min-height: 40px; padding: 7px 10px;}
+}
+
+/* KIKI catalogue: compact no-match state with the real production request form. */
+.fv-kiki-empty-state {min-width:0; border:1px solid #dfe3e6; border-radius:18px; background:#fff; overflow:visible;}
+.fv-kiki-empty-state__message {display:flex; align-items:flex-start; gap:12px; padding:20px 18px; background:#f5f6f6; border-radius:17px 17px 0 0;}
+.fv-kiki-empty-state__message > svg {flex:0 0 auto;}
+.fv-kiki-empty-state__message strong {display:block; font-size:13px; font-weight:900; color:#2b313a;}
+.fv-kiki-empty-state__message p {font-size:11px; line-height:1.9; color:#74757c; margin:7px 0 0;}
+.fv-kiki-empty-state__details {padding:0 18px; font-size:11px; line-height:1.9; color:#74757c;}
+.fv-kiki-empty-state__details summary {padding:12px 0; cursor:pointer; color:#55565a; font-weight:700;}
+.fv-kiki-empty-state__details p {margin:7px 0 10px;}
+.fv-kiki-empty-state__rail {
+  position:sticky; bottom:0; z-index:8;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:11px 13px calc(11px + env(safe-area-inset-bottom));
+  border-top:1px solid #dfe3e6; background:rgba(255,255,255,.98);
+  box-shadow:0 -8px 20px -13px rgba(43,49,58,.16);
+}
+.fv-kiki-empty-state__rail-copy {min-width:0; display:grid; gap:4px;}
+.fv-kiki-empty-state__rail-copy strong {font-size:11px; font-weight:850; color:#2b313a;}
+.fv-kiki-empty-state__rail-copy span {font-size:10px; color:#74757c;}
+.fv-kiki-empty-state__buttons {display:flex; align-items:center; gap:6px; flex:0 0 auto;}
+.fv-kiki-empty-state__buttons :is(button,a) {
+  min-height:37px; display:inline-flex; align-items:center; justify-content:center;
+  gap:6px; padding:7px 11px; border-radius:11px;
+  font-size:11px; font-weight:800; white-space:nowrap; cursor:pointer;
+}
+.fv-kiki-empty-state__primary {background:#e06518; border:1px solid #e06518; color:#fff;}
+.fv-kiki-empty-state__primary:hover {background:#c95210;}
+.fv-kiki-empty-state__primary:disabled {opacity:.5;cursor:not-allowed;}
+.fv-kiki-empty-state__secondary {background:#fff; border:1px solid #dfe3e6; color:#2b313a;}
+.fv-kiki-empty-state__whatsapp {background:#f0f8f2; border:1px solid #cde6d7; color:#187647;}
+@media (max-width:760px) {
+ .fv-kiki-empty-state__rail {flex-direction:column;align-items:stretch;gap:10px;}
+ .fv-kiki-empty-state__buttons {display:grid;grid-template-columns:minmax(0,1fr) auto auto;}
+ .fv-kiki-empty-state__buttons :is(button,a) {min-height:43px;padding:8px 10px;}
+}
+
+/* In the original KIKI layout the catalogue heading belongs to the left
+   scrolling sheet, while the photo lens starts at the same vertical edge. */
+.sp-vision-result-panel .fv-catalog-sheet__results > .fv-catalog-sheet__header {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  flex: 0 0 auto;
+  margin: 0;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid #dfe3e6;
+  border-radius: 0;
+  box-shadow: none;
+}
+.sp-vision-result-panel .fv-catalog-sheet__layout {
+  align-items: stretch;
+  min-height: min(82dvh, 830px);
+}
+.sp-vision-result-panel .fv-catalog-sheet__lens {
+  top: 0;
+}
+.sp-vision-result-panel .fv-catalog-sheet__results {
+  padding: 0 0 20px;
+}
+.sp-vision-result-panel .fv-catalog-sheet__results > :not(.fv-catalog-sheet__header) {
+  margin-inline: 12px !important;
+}
+@media (max-width:900px) {
+  .sp-vision-result-panel .fv-catalog-sheet__layout { min-height: 0; }
+  .sp-vision-result-panel .fv-catalog-sheet__results > .fv-catalog-sheet__header {
+    position: sticky;
+    top: 0;
+    z-index: 22;
+    border-top: 1px solid #dfe3e6;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -8px 24px rgba(43,49,58,.07);
+  }
+  .sp-vision-result-panel[data-sheet-expanded="true"] .fv-catalog-sheet__results > .fv-catalog-sheet__header {
+    border-radius: 0;
+    box-shadow: 0 9px 22px rgba(43,49,58,.08);
+  }
+}

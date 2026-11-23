@@ -50,10 +50,16 @@ const {chromium}=require('playwright');
    if(!mobile){
     const dragBox=await frame.boundingBox();await page.mouse.move(dragBox.x+dragBox.width*0.12,dragBox.y+dragBox.height*0.2);await page.mouse.down();await page.mouse.move(dragBox.x+dragBox.width*0.32,dragBox.y+dragBox.height*0.7,{steps:8});await page.mouse.up();
     r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.width-0.2)<0.01,JSON.stringify(r));assert.ok(Math.abs(r.height-0.5)<0.01,JSON.stringify(r));
-    await page.getByRole('group').press('ArrowRight');assert.ok((await page.evaluate(()=>window.lastRegion)).x>r.x);
+    await page.getByRole('group',{name:'انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت'}).press('ArrowRight');assert.ok((await page.evaluate(()=>window.lastRegion)).x>r.x);
     await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
     assert.equal(await page.evaluate(()=>window.__searchCount),1);
    }
+   // Original KIKI quick selector must choose a real second region, not run a search.
+   const rail=page.getByTestId('vision-region-candidates');
+   await rail.getByRole('button',{name:'قطعه ۲'}).click();
+   const second=await page.evaluate(()=>window.lastRegion);
+   assert.ok(Math.abs(second.x-0.15)<0.01 && Math.abs(second.y-0.3)<0.01,JSON.stringify(second));
+   assert.equal(await page.evaluate(()=>window.__searchCount),1,'candidate change must not auto-search');
    await page.getByRole('button',{name:'جست‌وجوی کل تصویر'}).click();assert.equal(await page.evaluate(()=>window.lastRegion),null);
    assert.deepEqual(errors,[]);await context.close();console.log(mobile?'TOUCH_SELECTION_OK':'POINTER_DRAG_KEYBOARD_OK');
   }
@@ -100,6 +106,18 @@ const {chromium}=require('playwright');
   await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).click();
   await page.getByTestId('analysis-approved-crop').waitFor();
   await page.getByTestId('kiki-vision-results-shell').waitFor();
+  const hierarchy=await page.evaluate(() => {
+    const sheet=document.querySelector('.fv-catalog-sheet__results');
+    const header=document.querySelector('[data-testid="forza-vision-catalog-sheet-header"]');
+    const lens=document.querySelector('.fv-catalog-sheet__lens');
+    const body=document.querySelector('[data-testid="forza-vision-two-panel-layout"]');
+    if(!sheet||!header||!lens||!body)return null;
+    const a=lens.getBoundingClientRect(),b=sheet.getBoundingClientRect();
+    return {headerInsideResults:sheet.contains(header),lensRight:a.left>b.left,columnsVisible:a.width>100&&b.width>100};
+  });
+  assert.ok(hierarchy&&hierarchy.headerInsideResults&&hierarchy.lensRight&&hierarchy.columnsVisible,JSON.stringify(hierarchy));
+  await page.getByTestId('forza-vision-optical-toolbar').waitFor();
+  await page.getByTestId('vision-kiki-no-match').waitFor();
   await page.screenshot({
    path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-desktop.png'),
    fullPage:true,
@@ -127,6 +145,10 @@ const {chromium}=require('playwright');
   await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
   assert.equal(queries.length,3);assert.match(queries[2].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);assert.equal(queries[2].region,undefined);assert.equal(queries[2].fullImage,true);assert.equal(uploads,0);
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);
+  await page.getByRole('button',{name:'نمایش همه نتایج'}).click();
+  assert.equal(await page.getByTestId('kiki-vision-results-shell').getAttribute('data-sheet-expanded'),'true');
+  await page.getByRole('button',{name:'نمایش تصویر قطعه'}).click();
+  assert.equal(await page.getByTestId('kiki-vision-results-shell').getAttribute('data-sheet-expanded'),'false');
   await page.screenshot({
    path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-mobile.png'),
    fullPage:true,

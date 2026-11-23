@@ -154,9 +154,14 @@ async function testVisionEntryResponsive(browser) {
         }));
         assert.equal(scrollState.overflowY, "auto");
         assert.ok(scrollState.scrollHeight > scrollState.clientHeight, "Mobile VISION content must remain reachable in the modal scroll region");
-        const footer = entry.locator("footer").last();
-        await footer.scrollIntoViewIfNeeded();
-        assert.ok(await footer.isVisible(), "Bottom of the mobile VISION page must be reachable by scrolling");
+        // The reference KIKI entrance ends with its main panel, not a footer.
+        // Verify that the real bottom-most content remains reachable in the modal.
+        const bottom = entry.locator("main").last();
+        await bottom.evaluate(el => el.scrollIntoView({block: "end"}));
+        const reached = await scrollRegion.evaluate(el =>
+          el.scrollTop + el.clientHeight >= el.scrollHeight - 4,
+        );
+        assert.ok(reached, "Bottom of the mobile VISION page must be reachable by scrolling");
         await page.screenshot({
           path: dir + "/sanat-forza-vision-entry-390-bottom.png",
           fullPage: false,

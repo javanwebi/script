@@ -63,3 +63,62 @@ test('new presentation remains isolated from FORZA voice and catalog data', () =
   assert.ok(service.includes('const interval = polls++ === 0 ? 450 : polls === 2 ? 850 : 1200;'));
   assert.ok(!styles.includes('body * {'));
 });
+
+test('VISION entry uses original KIKI portal layout while retaining real image handlers', () => {
+  const entry = source('src/components/search/VisionEntryPage.tsx');
+  assert.ok(entry.includes('data-testid="forza-vision-entry"'));
+  assert.ok(entry.includes('data-testid="forza-vision-upload-panel"'));
+  assert.ok(entry.includes('تشخیص خودکار کانتور و کد فنی'));
+  assert.ok(entry.includes('قطعه را با یک عکس بشناسید و نمونه مشابه را پیدا کنید'));
+  assert.ok(entry.includes('Photographic Optical Showcase'));
+  assert.ok(entry.includes('/images/company/ai-search-mobile.webp'));
+  assert.ok(entry.includes('onClick={onCamera}'));
+  assert.ok(entry.includes('onClick={onUpload}'));
+  assert.ok(entry.includes('onDropFile?.(f)'));
+  assert.ok(entry.includes('disabled={isUploading}'));
+  assert.ok(entry.includes('onRecentClick?.(item)'));
+  assert.ok(!entry.includes('handleFile(f)'));
+  assert.ok(!entry.includes('/src/assets/'));
+});
+
+test('real multi-part lens exposes KIKI quick-select buttons without auto-running analysis', () => {
+  const picker = source('src/components/search/ImageRegionSelector.tsx');
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const optical = source('src/components/search/vision-camera-design.css');
+  const review = source('src/components/search/image-region-review.css');
+  const styles = source('src/components/search/industrial-scan.css');
+  assert.ok(picker.includes('data-testid="vision-region-candidates"'));
+  assert.ok(picker.includes('candidates.length > 1'));
+  assert.ok(picker.includes('onClick={() => { setDraft(undefined); onChange(region); }}'));
+  assert.ok(picker.includes('aria-pressed={sameRegion(selected, region)}'));
+  assert.ok(modal.includes('data-testid="forza-vision-optical-toolbar"'));
+  assert.ok(modal.includes('setMobileResultsExpanded(false); resetForm();'));
+  assert.ok(modal.includes('resetForm(); setCameraFlowActive(true); void startCamera();'));
+  assert.ok(optical.includes('.fv-kiki-optical-toolbar'));
+  assert.ok(review.includes('Source-parity optical review'));
+  assert.ok(styles.includes('.fv-region-candidates__item.is-active'));
+});
+
+test('no-match catalogue view uses real custom-request actions and truthful privacy language', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const style = source('src/components/search/vision-camera-design.css');
+  assert.ok(modal.includes('data-testid="vision-kiki-no-match"'));
+  assert.ok(modal.includes('onClick={() => void openCustomManufacturingRequest()}'));
+  assert.ok(modal.includes('href="tel:03535254703"'));
+  assert.ok(modal.includes('https://wa.me/989903427027'));
+  assert.ok(modal.includes('محتوای لازم برای تحلیل به API شناسایی ارسال می‌شود'));
+  assert.ok(!modal.includes('tel:02166700000'));
+  assert.ok(!modal.includes('wa.me/989120000000'));
+  assert.ok(style.includes('.fv-kiki-empty-state__rail'));
+});
+
+test('KIKI results header stays within the independently scrollable catalogue pane', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const style = source('src/components/search/vision-camera-design.css');
+  const layout = modal.indexOf('className="fv-catalog-sheet__layout"');
+  const panel = modal.indexOf('className="fv-catalog-sheet__results"', layout);
+  const header = modal.indexOf('className="fv-catalog-sheet__header"', layout);
+  assert.ok(layout > 0 && panel > layout && header > panel);
+  assert.ok(style.includes('.fv-catalog-sheet__results > .fv-catalog-sheet__header'));
+  assert.ok(style.includes('.sp-vision-result-panel[data-sheet-expanded="true"]'));
+});

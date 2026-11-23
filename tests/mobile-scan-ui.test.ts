@@ -211,11 +211,11 @@ test("standalone identification route uses the new entry design and existing cam
   assert.match(modal, /onUpload=\{\(\) => fileInputRef\.current\?\.click\(\)\}/);
   assert.match(entry, /data-testid="forza-vision-entry"/);
   assert.match(entry, /data-testid="forza-vision-upload-panel"/);
-  assert.match(entry, /LOCAL LENS · CATALOG MATCH/);
+  assert.match(entry, /تشخیص خودکار کانتور و کد فنی/);
   assert.match(entry, /onDropFile\?: \(file: File\) => void/);
   assert.match(entry, /onCamera/);
   assert.match(entry, /onUpload/);
-  assert.match(entry, /تصاویر واقعی کاتالوگ اطلس/);
+  assert.match(entry, /قطعه را با یک عکس بشناسید و نمونه مشابه را پیدا کنید/);
   assert.doesNotMatch(entry, /02166700000|989120000000|DEFAULT_RECENT_SEARCHES/);
 });
 
@@ -242,7 +242,7 @@ test("workspace vision entry, image review and results use the KIKI presentation
   assert.match(modal, /ImageRegionSelector/);
   assert.match(modal, /clientAiSegmentation/);
   assert.match(entry, /قطعه را با یک عکس بشناسید/);
-  assert.match(entry, /LOCAL LENS · CATALOG MATCH/);
+  assert.match(entry, /تشخیص خودکار کانتور و کد فنی/);
   assert.match(styles, /sp-vision-result-panel:has\(> \.sanat-region-picker\)/);
   assert.match(styles, /kiki-vision-review-shell__content/);
 });
