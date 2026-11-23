@@ -232,6 +232,11 @@ test("workspace vision entry, image review and results use the KIKI presentation
   const entry = source("src/components/search/VisionEntryPage.tsx");
   const styles = source("src/components/search/vision-camera-design.css");
   assert.match(modal, /data-testid="kiki-vision-review-shell"/);
+  assert.match(modal, /data-testid="kiki-vision-results-shell"/);
+  assert.match(modal, /بازگشت به میزکار از نتایج شناسایی/);
+  assert.doesNotMatch(modal, /sp-vision-journey/);
+  assert.match(entry, /شروع اسکن با دوربین/);
+  assert.match(entry, /انتخاب تصویر از دستگاه/);
   assert.match(modal, /onConfirm=\{confirmRegionAndAnalyze\}/);
   assert.match(modal, /data-testid="kiki-vision-image-evidence"/);
   assert.match(modal, /ImageRegionSelector/);
