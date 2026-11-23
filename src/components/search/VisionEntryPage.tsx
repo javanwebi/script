@@ -31,7 +31,7 @@ export const VisionEntryPage: React.FC<VisionEntryPageProps> = ({
             <div className="mx-auto flex h-16 sm:h-18 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
               <div className="flex items-center gap-3">
                 <img
-                  src="/assets/aistudio/logo-forza_9b7fcf6e.png"
+                  src="/images/brand/logo-forza.webp"
                   alt="FORZA"
                   className="h-9 sm:h-11 w-auto object-contain"
                 />
