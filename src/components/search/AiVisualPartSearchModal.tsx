@@ -708,7 +708,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           const intersectionHeight = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
           const intersectionArea = intersectionWidth * intersectionHeight;
           const smallerArea = Math.max(0.0001, Math.min(a.width * a.height, b.width * b.height));
-          // Use the local foreground matte to send a tight crop; retain the existing fallback on failure.
           if (intersectionArea / smallerArea >= 0.35) {
             imageBase64 = localSegmentation.result.whiteBgDataUrl;
             analysisMimeType = 'image/jpeg';
