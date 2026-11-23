@@ -219,6 +219,8 @@ test("confirmed image region is cropped with the local U2-NetP alpha matte befor
   assert.match(modal, /imageBase64 = cutout\.modelInputUrl \|\| localSegmentation\.result\.whiteBgDataUrl/);
   assert.match(crop, /context\.drawImage\(source, sx, sy, sw, sh, 0, 0, outW, outH\)/);
   assert.match(crop, /if \(rotation !== 0\)/);
+  assert.match(crop, /polygon\.length >= 3/);
+  assert.match(crop, /Math\.min\(sourceWidth - sx, Math\.ceil\(rw \* sourceWidth\)\)/);
   assert.match(crop, /alphaMask\[y0 \* width \+ x0\]/);
   assert.match(crop, /output\.toDataURL\('image\/jpeg', 0\.91\)/);
 });
