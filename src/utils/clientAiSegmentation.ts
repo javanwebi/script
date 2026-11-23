@@ -56,11 +56,13 @@ export function getOnnxSegmentationSession(): Promise<ort.InferenceSession> {
   return sessionPromise!;
 }
 
-export async function preloadClientAiSegmentation(): Promise<void> {
+export async function preloadClientAiSegmentation(): Promise<boolean> {
   try {
     await withTimeout(getOnnxSegmentationSession(), INFERENCE_TIMEOUT_MS);
+    return true;
   } catch {
     // Segmentation is an enhancement; the existing server/manual region flow remains available.
+    return false;
   }
 }
 
