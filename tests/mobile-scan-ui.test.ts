@@ -179,7 +179,7 @@ test("identification hides mobile dock with React state, scoped class and CSS fa
   assert.match(provider, /document\.body\.classList\.remove\("sanat-identification-open"\)/);
   assert.match(css, /body\.sanat-identification-open \.storefront \.store-bottom-nav/);
   assert.match(css, /\.storefront\.no-mobile-dock \.store-ai-quick-actions/);
-  assert.match(source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{standalone \|\| fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing"\}/);
+  assert.match(source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{standalone \|\| fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing" \|\| currentStep === 1 \|\| currentStep === "results"\}/);
 });
 
 test("reference-design scanner has actual gallery, reversible lens and flash controls, a round shutter and scan-line", () => {
@@ -206,13 +206,16 @@ test("standalone identification route uses the new entry design and existing cam
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const entry = source("src/components/search/VisionEntryPage.tsx");
   assert.match(provider, /<Studio isOpen standalone fullScreen/);
-  assert.match(modal, /standalone && !initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera/);
+  assert.match(modal, /!initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera/);
   assert.match(modal, /setCameraFlowActive\(true\); void startCamera\(\)/);
   assert.match(modal, /onUpload=\{\(\) => fileInputRef\.current\?\.click\(\)\}/);
   assert.match(entry, /data-testid="forza-vision-entry"/);
+  assert.match(entry, /data-testid="forza-vision-upload-panel"/);
+  assert.match(entry, /LOCAL LENS · CATALOG MATCH/);
+  assert.match(entry, /onDropFile\?: \(file: File\) => void/);
   assert.match(entry, /onCamera/);
   assert.match(entry, /onUpload/);
-  assert.match(entry, /مقایسه با کاتالوگ واقعی/);
+  assert.match(entry, /تصاویر واقعی کاتالوگ اطلس/);
   assert.doesNotMatch(entry, /02166700000|989120000000|DEFAULT_RECENT_SEARCHES/);
 });
 
@@ -221,4 +224,25 @@ test("visual identification preserves the existing production image input path",
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   assert.match(modal, /imageBase64 = localSegmentation\.result\.whiteBgDataUrl/);
   assert.doesNotMatch(modal, /renderSegmentedVisionCutout|extractAlphaMaskContours|selectAlphaMaskContour/);
+});
+
+
+test("workspace vision entry, image review and results use the KIKI presentation without replacing the current recognition pipeline", () => {
+  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  const entry = source("src/components/search/VisionEntryPage.tsx");
+  const styles = source("src/components/search/vision-camera-design.css");
+  assert.match(modal, /data-testid="kiki-vision-review-shell"/);
+  assert.match(modal, /data-testid="kiki-vision-results-shell"/);
+  assert.match(modal, /بازگشت به میزکار از نتایج شناسایی/);
+  assert.doesNotMatch(modal, /sp-vision-journey/);
+  assert.match(entry, /شروع اسکن با دوربین/);
+  assert.match(entry, /انتخاب تصویر از دستگاه/);
+  assert.match(modal, /onConfirm=\{confirmRegionAndAnalyze\}/);
+  assert.match(modal, /data-testid="kiki-vision-image-evidence"/);
+  assert.match(modal, /ImageRegionSelector/);
+  assert.match(modal, /clientAiSegmentation/);
+  assert.match(entry, /قطعه را با یک عکس بشناسید/);
+  assert.match(entry, /LOCAL LENS · CATALOG MATCH/);
+  assert.match(styles, /sp-vision-result-panel:has\(> \.sanat-region-picker\)/);
+  assert.match(styles, /kiki-vision-review-shell__content/);
 });

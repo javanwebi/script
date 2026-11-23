@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import {
+  AlertCircle,
   ArrowRight,
   Camera,
-  CheckCircle2,
   Focus,
-  Loader2,
-  ScanSearch,
-  ShieldCheck,
+  Image as GalleryImage,
+  Search,
+  Sparkles,
   UploadCloud,
 } from 'lucide-react';
 import {
@@ -15,61 +16,65 @@ import {
   ChainCouplingIcon,
   PulleyIcon,
 } from '../forza/ForzaWorkspaceIcons';
-import { IMAGES } from '../../assets/images';
+import { formatVisionRecentTime, type VisionRecentSearchItem } from './visionRecentHistory';
 
 interface VisionEntryPageProps {
   onCamera: () => void;
   onUpload: () => void;
   onClose: () => void;
+  onDropFile?: (file: File) => void;
   errorMessage?: string;
   isUploading?: boolean;
+  recentSearches?: VisionRecentSearchItem[];
+  onRecentClick?: (item: VisionRecentSearchItem) => void;
 }
 
 /**
- * Presentation-only entry screen for the standalone FORZA VISION route.
- * Camera, upload, analysis, privacy and catalogue behaviour remain owned by
- * AiVisualPartSearchModal; this component only invokes the existing handlers.
+ * KIKI-aligned FORZA VISION entry presentation.
+ * All image handling, device-only storage, camera capture and matching remain
+ * owned by AiVisualPartSearchModal through the callbacks passed into this view.
  */
 export const VisionEntryPage: React.FC<VisionEntryPageProps> = ({
   onCamera,
   onUpload,
   onClose,
+  onDropFile,
   errorMessage = '',
   isUploading = false,
+  recentSearches = [],
+  onRecentClick,
 }) => {
-  const industrialImage = IMAGES.authIndustrialHero || IMAGES.refineryDuskWide;
-  const bearingImage = IMAGES.products.bearingNsk || IMAGES.products.bearing;
+  const [isDragOver, setIsDragOver] = useState(false);
 
   return (
     <main
       dir="rtl"
       data-testid="forza-vision-entry"
-      className="min-h-[100dvh] w-full bg-[#F6F7F6] text-[#2B313A]"
+      className="min-h-[100dvh] w-full bg-white text-[#2B313A]"
     >
-      <header className="border-b border-[#E5E7E8] bg-white">
-        <div className="mx-auto flex min-h-[68px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      <header className="shrink-0 border-b border-[#DFE3E6] bg-white">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:h-[72px] sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <img
-              src="/images/brand/forza-emblem.webp"
-              alt=""
-              aria-hidden="true"
-              className="h-10 w-10 shrink-0 object-contain"
+              src="/images/brand/logo-forza.webp"
+              alt="FORZA"
+              className="h-9 sm:h-11 w-auto shrink-0 object-contain"
             />
-            <span className="h-8 w-px bg-[#E5E7E8]" aria-hidden="true" />
+            <span className="h-7 w-px bg-[#DFE3E6]" aria-hidden="true" />
             <div className="min-w-0">
-              <span className="block text-[11px] font-black tracking-[0.16em] text-[#E06518]">
+              <span className="block whitespace-nowrap text-xs font-black tracking-[0.14em] text-[#2B313A] sm:text-sm">
                 FORZA VISION
               </span>
-              <span className="mt-0.5 block truncate text-xs font-semibold text-[#55565A] sm:text-sm">
-                آزمایشگاه شناسایی تصویری قطعات صنعتی
-              </span>
+              <p className="hidden whitespace-nowrap text-[11px] text-[#74757C] sm:block">
+                سامانه بینایی ماشین و تطبیق قطعات صنعتی
+              </p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-[#DFE3E6] bg-white px-3 text-xs font-bold text-[#55565A] transition-colors hover:border-[#E06518] hover:text-[#E06518] sm:px-4"
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#DFE3E6] bg-[#F5F6F6] px-3 text-xs font-bold text-[#2B313A] transition-colors hover:border-[#E06518] hover:text-[#E06518] sm:px-4"
             aria-label="بازگشت از شناسایی تصویری"
           >
             <ArrowRight size={16} aria-hidden="true" />
@@ -78,175 +83,258 @@ export const VisionEntryPage: React.FC<VisionEntryPageProps> = ({
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-12 lg:gap-5">
-          <section className="flex min-w-0 flex-col justify-between rounded-3xl border border-[#E3E6E7] bg-white p-5 shadow-[0_12px_36px_-24px_rgba(33,43,54,0.28)] sm:p-7 lg:col-span-7 lg:p-9">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#F2D6C4] bg-[#FFF6F0] px-3 py-1.5 text-[10px] font-extrabold tracking-[0.12em] text-[#A94E19] sm:text-[11px]">
-                <ScanSearch size={14} aria-hidden="true" />
-                INDUSTRIAL PART IDENTIFICATION
+      <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7 lg:py-8">
+        {errorMessage && (
+          <div
+            role="alert"
+            className="mb-5 flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-bold text-rose-700"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        <motion.div
+          initial={{ opacity: 0, y: -14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-12 lg:gap-7"
+        >
+          <section
+            data-testid="forza-vision-upload-panel"
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDragOver(true);
+            }}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setIsDragOver(false);
+              }
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setIsDragOver(false);
+              const file = event.dataTransfer.files?.[0];
+              if (file) onDropFile?.(file);
+            }}
+            className={
+              'relative flex min-w-0 flex-col justify-between overflow-hidden rounded-3xl border p-5 transition-colors sm:p-8 lg:col-span-7 ' +
+              (isDragOver ? 'border-[#E06518] bg-[#FFF4EC]' : 'border-[#DFE3E6] bg-[#F5F6F6]')
+            }
+          >
+            <div
+              className="pointer-events-none absolute inset-0 opacity-40"
+              aria-hidden="true"
+              style={{
+                backgroundImage:
+                  'linear-gradient(#dfe3e6 1px, transparent 1px), linear-gradient(90deg, #dfe3e6 1px, transparent 1px)',
+                backgroundSize: '40px 40px',
+                maskImage: 'linear-gradient(135deg, #000, transparent 58%)',
+              }}
+            />
+
+            <div className="relative">
+              <div className="mb-3 inline-flex items-center gap-2 text-xs font-bold text-[#E06518]">
+                <Focus size={17} aria-hidden="true" />
+                <span>تشخیص ناحیه قطعه و کد فنی</span>
               </div>
 
-              <h1 className="mt-5 max-w-2xl text-[25px] font-black leading-[1.55] tracking-tight text-[#252D36] sm:text-3xl lg:text-[38px] lg:leading-[1.45]">
-                قطعه صنعتی را با <span className="text-[#E06518]">یک تصویر</span> پیدا کنید
+              <h1 className="text-xl font-black leading-snug text-[#2B313A] sm:text-3xl lg:text-[34px]">
+                قطعه را با یک عکس بشناسید و نمونه مشابه را پیدا کنید
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-[#68727C] sm:text-[15px]">
-                از قطعه عکس بگیرید یا تصویر واقعی آن را بارگذاری کنید. ناحیه موردنظر را بازبینی کنید
-                تا سامانه آن را با اطلاعات و تصاویر کاتالوگ صنعت پیش مقایسه کند.
+              <p className="mt-2.5 text-xs leading-relaxed text-[#55565A] sm:text-sm">
+                تصویر را اینجا رها کنید یا مستقیماً عکس بگیرید؛ ناحیه قطعه انتخاب می‌شود و با تصاویر واقعی کاتالوگ اطلس مقایسه خواهد شد.
               </p>
 
-              {errorMessage && (
-                <div
-                  role="alert"
-                  className="mt-5 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs font-semibold leading-6 text-rose-700"
-                >
-                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-rose-500" aria-hidden="true" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:items-center">
                 <button
                   type="button"
                   onClick={onCamera}
                   disabled={isUploading}
-                  className="inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl bg-[#E06518] px-5 text-sm font-extrabold text-white shadow-[0_8px_20px_-10px_rgba(224,101,24,0.7)] transition-colors hover:bg-[#C95210] disabled:cursor-not-allowed disabled:opacity-55"
+                  className="inline-flex h-12 items-center justify-center gap-2.5 whitespace-nowrap rounded-2xl bg-[#E06518] px-6 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#C95210] disabled:cursor-not-allowed disabled:opacity-55"
                 >
-                  {isUploading ? <Loader2 size={19} className="animate-spin" /> : <Camera size={19} />}
+                  <Camera className="h-5 w-5" aria-hidden="true" />
                   <span>شروع اسکن با دوربین</span>
                 </button>
                 <button
                   type="button"
                   onClick={onUpload}
                   disabled={isUploading}
-                  className="inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl border border-[#DDE2E4] bg-[#F8F9F8] px-5 text-sm font-bold text-[#35404A] transition-colors hover:border-[#E06518] hover:bg-[#FFF7F1] hover:text-[#A94E19] disabled:cursor-not-allowed disabled:opacity-55"
+                  className="inline-flex h-12 items-center justify-center gap-2.5 whitespace-nowrap rounded-2xl border border-[#DFE3E6] bg-white px-6 text-sm font-bold text-[#2B313A] transition-colors hover:border-[#2B313A] disabled:cursor-not-allowed disabled:opacity-55"
                 >
-                  <UploadCloud size={19} aria-hidden="true" />
+                  <GalleryImage className="h-5 w-5 text-[#E06518]" aria-hidden="true" />
                   <span>انتخاب تصویر از دستگاه</span>
                 </button>
               </div>
-            </div>
 
-            <div className="mt-7 grid grid-cols-1 gap-2 border-t border-[#EEF0F0] pt-5 sm:grid-cols-3">
-              <div className="flex items-center gap-2.5 rounded-xl bg-[#F8F9F8] px-3 py-3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-[#E06518]">
-                  <Focus size={17} aria-hidden="true" />
-                </span>
-                <span className="text-[11px] font-bold leading-5 text-[#4B5660]">انتخاب دقیق ناحیه قطعه</span>
-              </div>
-              <div className="flex items-center gap-2.5 rounded-xl bg-[#F8F9F8] px-3 py-3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-[#E06518]">
-                  <ShieldCheck size={17} aria-hidden="true" />
-                </span>
-                <span className="text-[11px] font-bold leading-5 text-[#4B5660]">مقایسه با کاتالوگ واقعی</span>
-              </div>
-              <div className="flex items-center gap-2.5 rounded-xl bg-[#F8F9F8] px-3 py-3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-[#E06518]">
-                  <CheckCircle2 size={17} aria-hidden="true" />
-                </span>
-                <span className="text-[11px] font-bold leading-5 text-[#4B5660]">بازبینی نتیجه پیش از ادامه</span>
-              </div>
-            </div>
-          </section>
-
-          <section className="relative flex min-h-[300px] min-w-0 flex-col justify-between overflow-hidden rounded-3xl bg-[#202C37] p-5 text-white sm:min-h-[350px] sm:p-7 lg:col-span-5 lg:min-h-[440px]">
-            {industrialImage && (
-              <img
-                src={industrialImage}
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 h-full w-full object-cover opacity-35"
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#17212B] via-[#202C37]/65 to-[#202C37]/35" aria-hidden="true" />
-            <div className="relative z-10 flex items-center justify-between gap-3">
-              <span className="rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[10px] font-bold tracking-[0.14em] text-white/85">
-                FORZA / VISION SYSTEM
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-white/75">
-                <span className="h-2 w-2 rounded-full bg-[#F28A3B]" />
-                آماده دریافت تصویر
-              </span>
-            </div>
-
-            <div className="relative z-10 mx-auto my-5 flex w-full max-w-[260px] flex-1 items-center justify-center">
-              <div className="absolute inset-5 rounded-[28px] border border-[#F28A3B]/35" aria-hidden="true" />
-              <span className="absolute left-3 top-3 h-8 w-8 rounded-tl-xl border-l-2 border-t-2 border-[#F28A3B]" aria-hidden="true" />
-              <span className="absolute right-3 top-3 h-8 w-8 rounded-tr-xl border-r-2 border-t-2 border-[#F28A3B]" aria-hidden="true" />
-              <span className="absolute bottom-3 left-3 h-8 w-8 rounded-bl-xl border-b-2 border-l-2 border-[#F28A3B]" aria-hidden="true" />
-              <span className="absolute bottom-3 right-3 h-8 w-8 rounded-br-xl border-b-2 border-r-2 border-[#F28A3B]" aria-hidden="true" />
-              {bearingImage && (
-                <img
-                  src={bearingImage}
-                  alt="نمونه تصویری یک قطعه صنعتی"
-                  className="relative z-10 max-h-[220px] w-[72%] object-contain drop-shadow-[0_16px_28px_rgba(0,0,0,0.42)]"
-                />
-              )}
-              <span className="absolute bottom-5 right-0 rounded-lg border border-white/15 bg-[#18232D]/90 px-2.5 py-1.5 font-mono text-[10px] text-[#FFC18F]">
-                OBJECT / DETECT
-              </span>
-            </div>
-
-            <div className="relative z-10 border-t border-white/15 pt-4">
-              <h2 className="text-base font-extrabold sm:text-lg">از تصویر تا قطعه منطبق</h2>
-              <p className="mt-1.5 text-xs leading-6 text-white/70">
-                تصویر، ناحیه انتخاب‌شده و نتیجه تطبیق در یک جریان مشخص بررسی می‌شوند؛
-                نتیجه‌های پیشنهادی برای بررسی فنی و مقایسه نمایش داده می‌شوند.
+              <p className="mt-3 flex items-center gap-1.5 text-[11px] text-[#74757C] sm:text-xs">
+                <UploadCloud className="h-4 w-4 shrink-0 text-[#E06518]" aria-hidden="true" />
+                <span>JPG، PNG و WebP تا ۱۰ مگابایت · امکان کشیدن و رها کردن تصویر</span>
               </p>
-              <div className="mt-4 grid grid-cols-4 gap-2 text-center">
-                <div className="flex flex-col items-center gap-1.5 text-white/85">
-                  <BeltIcon size={21} className="text-[#F3A46C]" />
-                  <span className="text-[10px] font-bold">تسمه</span>
+
+              {isDragOver && (
+                <div className="mt-4 rounded-2xl border border-[#E06518] bg-white/85 px-4 py-3 text-center text-xs font-bold text-[#C95210]">
+                  تصویر را رها کنید تا برای شناسایی آماده شود
                 </div>
-                <div className="flex flex-col items-center gap-1.5 text-white/85">
-                  <PulleyIcon size={21} className="text-[#F3A46C]" />
-                  <span className="text-[10px] font-bold">پولی</span>
+              )}
+            </div>
+
+            <div className="relative mt-7 divide-y divide-[#DFE3E6] border-t border-[#DFE3E6] pt-2">
+              <div className="flex items-start gap-2.5 py-2.5">
+                <Focus className="mt-0.5 h-4 w-4 shrink-0 text-[#E06518]" aria-hidden="true" />
+                <span className="text-xs font-bold leading-relaxed text-[#2B313A]">
+                  برای تسمه‌ها: از روبه‌رو و نزدیکِ برند و نوشته‌های واقعی روی بدنه عکس بگیرید
+                </span>
+              </div>
+              <div className="flex items-start gap-2.5 py-2.5">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#E06518]" aria-hidden="true" />
+                <span className="text-xs leading-relaxed text-[#55565A]">
+                  انتخاب ناحیه قطعه با لمس یا کشیدن کادر؛ بدون تغییر تصویر اصلی
+                </span>
+              </div>
+              <div className="flex items-start gap-2.5 py-2.5">
+                <Search className="mt-0.5 h-4 w-4 shrink-0 text-[#E06518]" aria-hidden="true" />
+                <span className="text-xs leading-relaxed text-[#55565A]">
+                  نمایش گزینه‌های مشابه از کاتالوگ و بررسی کد و مشخصات پیش از سفارش
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section className="relative flex min-h-[300px] min-w-0 flex-col justify-between gap-4 overflow-hidden rounded-3xl border border-[#DFE3E6] bg-[#2B313A] p-5 text-white sm:min-h-[390px] sm:p-7 lg:col-span-5">
+            <img
+              src="/images/company/ai-search-mobile.webp"
+              alt="جستجوی تصویری قطعات صنعتی فورزا"
+              referrerPolicy="no-referrer"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#181C22]/95 via-[#181C22]/45 to-[#181C22]/20" aria-hidden="true" />
+
+            <div className="relative z-10 flex items-center justify-between gap-3 text-[11px] font-mono text-white/85">
+              <span className="rounded-full bg-[#181C22]/75 px-2.5 py-1.5 backdrop-blur-sm">
+                LOCAL LENS · CATALOG MATCH
+              </span>
+              <span className="h-2 w-2 shrink-0 rounded-full bg-[#E06518]" aria-label="سامانه آماده است" />
+            </div>
+
+            <div className="relative z-10 mt-auto text-white">
+              <h2 className="text-sm font-extrabold sm:text-base">
+                شناسایی قطعه و تطبیق با کاتالوگ واقعی
+              </h2>
+              <p className="mt-1 text-xs leading-6 text-slate-200">
+                تصویر مشتری، ناحیه انتخاب‌شده و شواهد کاتالوگ در یک جریان مشخص بررسی می‌شوند.
+              </p>
+
+              <div className="mt-5 grid grid-cols-4 gap-2 rounded-2xl border border-white/15 bg-[#18232D]/70 p-2.5 text-center backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-1 py-1">
+                  <BeltIcon size={18} className="text-[#F3A46C]" />
+                  <span className="text-[11px] font-bold">تسمه</span>
                 </div>
-                <div className="flex flex-col items-center gap-1.5 text-white/85">
-                  <BearingIcon size={21} className="text-[#F3A46C]" />
-                  <span className="text-[10px] font-bold">بلبرینگ</span>
+                <div className="flex flex-col items-center gap-1 py-1">
+                  <PulleyIcon size={18} className="text-[#F3A46C]" />
+                  <span className="text-[11px] font-bold">پولی</span>
                 </div>
-                <div className="flex flex-col items-center gap-1.5 text-white/85">
-                  <ChainCouplingIcon size={21} className="text-[#F3A46C]" />
-                  <span className="text-[10px] font-bold">کوپلینگ</span>
+                <div className="flex flex-col items-center gap-1 py-1">
+                  <BearingIcon size={18} className="text-[#F3A46C]" />
+                  <span className="text-[11px] font-bold">بلبرینگ</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 py-1">
+                  <ChainCouplingIcon size={18} className="text-[#F3A46C]" />
+                  <span className="text-[11px] font-bold">کوپلینگ</span>
                 </div>
               </div>
             </div>
           </section>
-        </div>
+        </motion.div>
 
-        <section className="mt-5 rounded-3xl border border-[#E3E6E7] bg-white p-5 sm:p-6">
+        <section className="mt-6 rounded-3xl border border-[#DFE3E6] bg-white p-4 sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
               <span className="text-[10px] font-extrabold tracking-[0.14em] text-[#E06518]">HOW IT WORKS</span>
-              <h2 className="mt-1 text-base font-extrabold text-[#2B313A] sm:text-lg">فرآیند شناسایی در سه مرحله</h2>
+              <h2 className="mt-1 text-base font-extrabold text-[#2B313A] sm:text-lg">
+                فرآیند شناسایی در سه مرحله
+              </h2>
             </div>
-            <span className="text-[11px] font-semibold text-[#7A838A]">بدون ورود دستی کد فنی در شروع کار</span>
+            <span className="text-[11px] font-semibold text-[#74757C]">
+              نتیجه نهایی پیش از سفارش قابل بازبینی است
+            </span>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="flex items-start gap-3 rounded-2xl bg-[#F7F8F7] p-3.5">
+            <div className="flex items-start gap-3 rounded-2xl bg-[#F5F6F6] p-3.5">
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#FFF0E6] text-sm font-black text-[#B45117]">۱</span>
               <div>
                 <h3 className="text-xs font-extrabold text-[#35404A]">ثبت تصویر</h3>
-                <p className="mt-1 text-[11px] leading-5 text-[#77818A]">با دوربین یا از طریق فایل تصویری دستگاه.</p>
+                <p className="mt-1 text-[11px] leading-5 text-[#74757C]">با دوربین یا از طریق فایل تصویری دستگاه.</p>
               </div>
             </div>
-            <div className="flex items-start gap-3 rounded-2xl bg-[#F7F8F7] p-3.5">
+            <div className="flex items-start gap-3 rounded-2xl bg-[#F5F6F6] p-3.5">
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#FFF0E6] text-sm font-black text-[#B45117]">۲</span>
               <div>
                 <h3 className="text-xs font-extrabold text-[#35404A]">بازبینی ناحیه</h3>
-                <p className="mt-1 text-[11px] leading-5 text-[#77818A]">بخش موردنظر را تأیید یا اصلاح کنید.</p>
+                <p className="mt-1 text-[11px] leading-5 text-[#74757C]">بخش موردنظر را تأیید یا اصلاح کنید.</p>
               </div>
             </div>
-            <div className="flex items-start gap-3 rounded-2xl bg-[#F7F8F7] p-3.5">
+            <div className="flex items-start gap-3 rounded-2xl bg-[#F5F6F6] p-3.5">
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#FFF0E6] text-sm font-black text-[#B45117]">۳</span>
               <div>
                 <h3 className="text-xs font-extrabold text-[#35404A]">تطبیق کاتالوگ</h3>
-                <p className="mt-1 text-[11px] leading-5 text-[#77818A]">گزینه‌های منطبق برای بررسی فنی نمایش داده می‌شوند.</p>
+                <p className="mt-1 text-[11px] leading-5 text-[#74757C]">گزینه‌های معتبر برای بررسی فنی نمایش داده می‌شوند.</p>
               </div>
             </div>
           </div>
         </section>
+
+        {recentSearches.length > 0 && (
+          <section
+            className="mt-6 rounded-3xl border border-[#DFE3E6] bg-white p-4 sm:p-6"
+            aria-label="تاریخچه شناسایی تصویری"
+            data-testid="forza-vision-recent-history"
+          >
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <span className="text-[10px] font-extrabold tracking-[0.14em] text-[#E06518]">RECENT IDENTIFICATIONS</span>
+                <h2 className="mt-1 text-base font-extrabold text-[#2B313A] sm:text-lg">آخرین شناسایی‌های شما</h2>
+                <p className="mt-1 text-[11px] leading-5 text-[#74757C]">
+                  تاریخچه فقط کد و مشخصات محصول و تصویر عمومی کاتالوگ را نگه می‌دارد؛ تصویر مشتری در این فهرست ذخیره نمی‌شود.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+              {recentSearches.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onRecentClick?.(item)}
+                  disabled={!onRecentClick}
+                  aria-label={`مشاهده محصول ${item.title} با کد ${item.code}`}
+                  className="flex min-w-0 items-center gap-3 rounded-2xl border border-[#DFE3E6] bg-[#FAFBFB] p-3 text-right transition-colors hover:border-[#E06518] hover:bg-[#FFF8F3] disabled:cursor-default"
+                >
+                  <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-[#DFE3E6] bg-white">
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-contain p-1"
+                      />
+                    ) : (
+                      <GalleryImage className="h-5 w-5 text-[#A6ADB3]" aria-hidden="true" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <strong className="block truncate text-xs font-extrabold text-[#2B313A]">{item.title}</strong>
+                    <span className="mt-1 block truncate font-mono text-[10px] text-[#E06518]" dir="ltr">{item.code}</span>
+                    <span className="mt-1 block truncate text-[10px] text-[#74757C]">
+                      {item.subtitle || item.partHint || 'نتیجه کاتالوگ'} · {formatVisionRecentTime(item.createdAt)}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         <footer className="py-5 text-center text-[10px] font-medium text-[#8A9298]">
           صنعت پیش · شناسایی تصویری قطعات صنعتی با FORZA
