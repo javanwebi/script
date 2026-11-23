@@ -65,11 +65,19 @@ test('vision to FORZA passes selected real code to text and CRM but no photo', (
   assert.match(analysis, /if \(currentUser && !activeImageEventId\)/);
 });
 
-test('image wizard closing cancels all stale updates and frees local preview URLs', () => {
+test('ZIP image wizard cancels stale contour and AI work and frees local previews', () => {
   const wizard = read('src/components/search/AiVisualPartSearchModal.tsx');
-  assert.match(wizard, /analysisSequenceRef\.current\+\+;\s*imagePreparationSequenceRef\.current\+\+;/);
-  assert.match(wizard, /URL\.revokeObjectURL\(latestImageUrlRef\.current\)/);
+  const contours = read('src/utils/smartPartContour.ts');
+
+  assert.match(wizard, /pipelineSequenceRef\\.current\\+\\+/);
+  assert.match(wizard, /analyzeAbortRef\\.current\\?\\.abort\\(\\)/);
+  assert.match(wizard, /detectAbortRef\\.current\\?\\.abort\\(\\)/);
+  assert.match(wizard, /URL\\.revokeObjectURL\\(latestImageUrlRef\\.current\\)/);
+  assert.match(wizard, /segmentPartAtTapPoint/);
   assert.match(wizard, /buildVisionConsultationPrompt/);
-  assert.match(wizard, /productCode: match\.code/);
-  assert.match(wizard, /navigate\('\/ai-consult\?' \+ params\.toString\(\)\)/);
+  assert.match(wizard, /productCode: code/);
+  assert.match(wizard, /navigate\\('\\/ai-consult\\?' \\+ params\\.toString\\(\\)\\)/);
+  assert.match(wizard, /selectCustomerImageProduct\\(imageEventId, code\\)/);
+  assert.match(wizard, /recordVisionRecentSearch/);
+  assert.match(contours, /export async function segmentPartAtTapPoint/);
 });
