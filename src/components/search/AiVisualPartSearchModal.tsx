@@ -1092,7 +1092,20 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             </span>
           </header>
           <div className="kiki-vision-review-shell__content">
-
+                <ImageRegionReview
+                  image={selectedImage || ''}
+                  status={regionDetectionState}
+                  selectedRegion={queryRegion}
+                  candidateRegions={candidateRegions}
+                  message={[regionDetectionMessage, localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
+                  analysisError={errorMessage}
+                  busy={isUploadingImage || !temporaryImageDataUrl}
+                  onRegionChange={handleRegionSelection}
+                  onConfirm={confirmRegionAndAnalyze}
+                  onRetryPreparation={retryRegionPreparation}
+                  onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
+                  onChangeImage={() => fileInputRef.current?.click()}
+                />
           </div>
         </main>
       ) : currentStep === 1 ? (
@@ -1382,20 +1395,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   </div>
                 </div>
               ) : (
-                <ImageRegionReview
-                  image={selectedImage || ''}
-                  status={regionDetectionState}
-                  selectedRegion={queryRegion}
-                  candidateRegions={candidateRegions}
-                  message={[regionDetectionMessage, localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
-                  analysisError={errorMessage}
-                  busy={isUploadingImage || !temporaryImageDataUrl}
-                  onRegionChange={handleRegionSelection}
-                  onConfirm={confirmRegionAndAnalyze}
-                  onRetryPreparation={retryRegionPreparation}
-                  onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
-                  onChangeImage={() => fileInputRef.current?.click()}
-                />
+
               )}
               {!selectedImage && !isUsingCamera && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
