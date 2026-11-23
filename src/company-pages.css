@@ -622,14 +622,14 @@
   .company-process-grid article { min-height: 180px; padding: 14px; }
   .company-service-media { height: 180px; }
   .home-about-preview { grid-template-columns: 1fr; width: calc(100% - 24px); margin: 32px auto; padding: 14px; border-radius: 20px; gap: 20px; }
-    .home-about-preview__visual, .home-about-preview__copy { grid-column: auto; grid-row: auto; height: auto; }
-    .home-about-preview__visual { min-height: 250px; padding: 0; border-radius: 16px; }
-    .home-about-preview__atlas { font-size: 10px; padding: 7px 10px; }
-    .home-about-preview__copy { padding: 0 4px 6px; height: auto; }
-    .home-about-preview__copy h2 { font-size: clamp(23px, 6.8vw, 31px); }
-    .home-about-preview__copy p { font-size: 13px; line-height: 2; }
-    .home-about-preview__actions { display: grid; grid-template-columns: 1fr; width: 100%; gap: 10px; }
-    .home-about-preview__primary, .home-about-preview__secondary { width: 100%; min-height: 46px; justify-content: center; text-align: center; }
+  .home-about-preview__visual, .home-about-preview__copy { grid-column: auto; grid-row: auto; height: auto; }
+  .home-about-preview__visual { min-height: 250px; padding: 0; border-radius: 16px; }
+  .home-about-preview__atlas { font-size: 10px; padding: 7px 10px; }
+  .home-about-preview__copy { padding: 0 4px 6px; height: auto; }
+  .home-about-preview__copy h2 { font-size: clamp(23px, 6.8vw, 31px); }
+  .home-about-preview__copy p { font-size: 13px; line-height: 2; }
+  .home-about-preview__actions { display: grid; grid-template-columns: 1fr; width: 100%; gap: 10px; }
+  .home-about-preview__primary, .home-about-preview__secondary { width: 100%; min-height: 46px; justify-content: center; text-align: center; }
 }
 @media (max-width: 420px) {
   .company-brand-pair { gap: 8px; padding: 7px 9px; font-size: 10px; }
