@@ -457,7 +457,17 @@
     grid-template-columns: minmax(0,1fr);
   }
   .kiki-vision-review-shell .sp-region-review .sanat-region-picker__side {
-    display: none; /* crop remains interactive on the photo; visual duplication removed */
+    display: grid;
+    grid-template-columns: minmax(105px, 160px) minmax(0,1fr);
+    gap: 8px 12px;
+    align-items: center;
+    margin-top: 10px;
+    padding: 10px;
+  }
+  .kiki-vision-review-shell .sp-region-review .sanat-region-picker__crop {
+    grid-row: 1 / span 3;
+    min-height: 84px;
+    max-height: 118px;
   }
 }
 .fv-catalog-sheet__header {
