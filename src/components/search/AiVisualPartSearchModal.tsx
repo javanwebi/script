@@ -1949,7 +1949,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }}
-                className="space-y-5 sp-vision-result-panel"
+                className="space-y-5 sp-vision-result-panel" data-testid="kiki-vision-results-shell"
               >
                 {localRegionEnabled && selectedImage && <ImageRegionSelector
                   src={selectedImage}
@@ -1972,7 +1972,18 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     <h3>نتایج بررسی تصویری قطعه</h3>
                     <p>تصاویر را بزرگ کنید، تفاوت‌ها را بررسی کنید و پیش از سفارش، کد و ابعاد را تأیید کنید.</p>
                   </div>
-                  <span className="sp-vision-result-intro__status"><ShieldCheck size={16} /> نیازمند تأیید فنی</span>
+                  <div className="sp-vision-result-intro__actions">
+                    <span className="sp-vision-result-intro__status"><ShieldCheck size={16} /> نیازمند تأیید فنی</span>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="kiki-vision-review-shell__back"
+                      aria-label="بازگشت به میزکار از نتایج شناسایی"
+                    >
+                      <ArrowRight size={16} aria-hidden="true" />
+                      <span>بازگشت به میزکار</span>
+                    </button>
+                  </div>
                 </div>
                 {/* Fallback / AI-error notices */}
                 {!analysisResult.isAiGenerated &&
