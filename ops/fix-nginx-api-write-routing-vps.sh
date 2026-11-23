@@ -116,7 +116,12 @@ for index,filename in enumerate((https,http)):
     if found:
         if len(found)!=1 or source.count(found[0])!=1:
             raise SystemExit(("DUPLICATE_OR_MIXED_API_ROUTE_MARKERS",filename,found))
-        start=source.index(found[0])
+        marker_offset=source.index(found[0])
+        # Preserve root indentation exactly: remove all whitespace before the
+        # marker on its own line, rather than joining it to the next root line.
+        start=source.rfind("\n",0,marker_offset)+1
+        if source[start:marker_offset].strip():
+            raise SystemExit(("API_ROUTE_MARKER_NOT_LINE_ANCHORED",filename))
         root=list(root_pattern.finditer(source))
         if start>=root[0].start():
             raise SystemExit(("API_ROUTE_AFTER_SPA_FALLBACK",filename))
