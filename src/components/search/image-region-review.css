@@ -125,3 +125,134 @@
   .sp-region-review__spin,.sp-region-review__scanner-line {animation:none}
   .sp-region-review__actions button {transition:none}
 }
+
+/* Source-parity optical review: KIKI's light, photographic stage replaces the
+   earlier dark scanner chrome. Region selection and review actions stay live. */
+.kiki-vision-review-shell .sp-region-review {
+  border-color: #dfe3e6;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 16px 42px -32px rgba(43,49,58,.22);
+}
+.kiki-vision-review-shell .sp-region-review__header {
+  background: #fff;
+  color: #2b313a;
+  border-bottom: 1px solid #dfe3e6;
+  padding: 17px 20px;
+}
+.kiki-vision-review-shell .sp-region-review__brand-icon {
+  color: #e06518;
+  background: #fff3e9;
+  border: 1px solid #f3d3bb;
+}
+.kiki-vision-review-shell .sp-region-review__eyebrow { color: #bf5718; }
+.kiki-vision-review-shell .sp-region-review__header h2 { color: #2b313a; }
+.kiki-vision-review-shell .sp-region-review__header p { color: #74757c; }
+.kiki-vision-review-shell .sp-region-review__status {
+  background: #fff4ec;
+  border-color: #f3d1b9;
+  color: #a94e19;
+}
+.kiki-vision-review-shell .sp-region-review__status.is-ready {
+  color: #276445;
+  background: #f0f8f2;
+  border-color: #cde6d7;
+}
+.kiki-vision-review-shell .sp-region-review__scanner {
+  background: #f5f6f6;
+  padding: 14px;
+}
+.kiki-vision-review-shell .sp-region-review__scanner-stage {
+  background: #eff1f2;
+  border-color: #dfe3e6;
+}
+.kiki-vision-review-shell .sp-region-review__scanner-stage img {
+  filter: none;
+  padding: 12px;
+}
+.kiki-vision-review-shell .sp-region-review__scanner-grid {
+  background-image: linear-gradient(rgba(43,49,58,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(43,49,58,.035) 1px,transparent 1px);
+}
+.kiki-vision-review-shell .sp-region-review__instruction {
+  background: #fafbfb;
+  border-color: #dfe3e6;
+}
+.kiki-vision-review-shell .sp-region-review > .sanat-region-picker {
+  padding: 14px;
+  background: #f5f6f6;
+  border-color: #dfe3e6;
+}
+.kiki-vision-review-shell .sp-region-review .sanat-region-picker__layout {
+  grid-template-columns: minmax(0, 5fr) minmax(175px, 2fr);
+  align-items: stretch;
+  gap: 14px;
+}
+.kiki-vision-review-shell .sp-region-review .sanat-region-picker__canvas {
+  min-height: clamp(310px, 48dvh, 600px);
+  background: #eff1f2;
+  border: 1px solid #dfe3e6;
+  border-radius: 18px;
+}
+.kiki-vision-review-shell .sp-region-review .sanat-region-picker__frame,
+.kiki-vision-review-shell .sp-region-review .sanat-region-picker__frame > img {
+  max-height: min(66dvh, 610px);
+}
+.kiki-vision-review-shell .sp-region-review .sanat-region-picker__side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #dfe3e6;
+  border-radius: 17px;
+  padding: 17px;
+}
+.kiki-vision-review-shell .sp-region-review .sanat-region-picker__crop {
+  min-height: 140px;
+  max-height: 230px;
+  border-radius: 12px;
+}
+.kiki-vision-review-shell .sp-region-review__confirm {
+  background: #e06518;
+  border-color: #e06518;
+  box-shadow: none;
+}
+.kiki-vision-review-shell .sp-region-review__confirm:hover:not(:disabled) {
+  background: #c95210;
+}
+@media (max-width: 900px) {
+  .kiki-vision-review-shell .sp-region-review .sanat-region-picker__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .kiki-vision-review-shell .sp-region-review .sanat-region-picker__side {
+    display: grid;
+    grid-template-columns: minmax(92px, 132px) minmax(0, 1fr);
+    gap: 8px 10px;
+    padding: 11px;
+  }
+  .kiki-vision-review-shell .sp-region-review .sanat-region-picker__side-title {
+    grid-column: 1 / -1;
+  }
+  .kiki-vision-review-shell .sp-region-review .sanat-region-picker__crop {
+    grid-row: span 2;
+    min-height: 96px;
+    max-height: 128px;
+  }
+  .kiki-vision-review-shell .sp-region-review .sanat-region-picker__canvas {
+    min-height: 245px;
+  }
+}
+@media (max-width: 580px) {
+  .kiki-vision-review-shell .sp-region-review__header {
+    padding: 13px;
+    align-items: flex-start;
+  }
+  .kiki-vision-review-shell .sp-region-review > .sanat-region-picker {
+    padding: 9px;
+  }
+  .kiki-vision-review-shell .sp-region-review .sanat-region-picker__frame,
+  .kiki-vision-review-shell .sp-region-review .sanat-region-picker__frame > img {
+    max-height: 48dvh;
+  }
+}
