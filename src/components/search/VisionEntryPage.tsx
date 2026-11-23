@@ -149,7 +149,7 @@ export const VisionEntryPage: React.FC<VisionEntryPageProps> = ({
                   className="inline-flex h-12 items-center justify-center gap-2.5 whitespace-nowrap rounded-2xl bg-[#E06518] px-6 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#C95210] disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   <Camera className="h-5 w-5" aria-hidden="true" />
-                  <span>گرفتن عکس با دوربین</span>
+                  <span>شروع اسکن با دوربین</span>
                 </button>
                 <button
                   type="button"
@@ -158,7 +158,7 @@ export const VisionEntryPage: React.FC<VisionEntryPageProps> = ({
                   className="inline-flex h-12 items-center justify-center gap-2.5 whitespace-nowrap rounded-2xl border border-[#DFE3E6] bg-white px-6 text-sm font-bold text-[#2B313A] transition-colors hover:border-[#2B313A] disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   <GalleryImage className="h-5 w-5 text-[#E06518]" aria-hidden="true" />
-                  <span>انتخاب تصویر از گالری</span>
+                  <span>انتخاب تصویر از دستگاه</span>
                 </button>
               </div>
 
