@@ -2,6 +2,7 @@ import {LocalModelResults} from './LocalModelResults';
 import {CatalogResultImage} from './CatalogResultImage';
 import {apiUrl} from '../../config/apiConfig';
 import { getForegroundRegion, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
+import { renderSegmentedVisionCutout } from '../../utils/cropVisionImage';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
@@ -709,7 +710,18 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           const intersectionArea = intersectionWidth * intersectionHeight;
           const smallerArea = Math.max(0.0001, Math.min(a.width * a.height, b.width * b.height));
           if (intersectionArea / smallerArea >= 0.35) {
-            imageBase64 = localSegmentation.result.whiteBgDataUrl;
+            const cutout = await renderSegmentedVisionCutout(
+              imageBase64,
+              requestRegion,
+              0,
+              undefined,
+              {
+                width: localSegmentation.result.width,
+                height: localSegmentation.result.height,
+                alphaMask: localSegmentation.result.alphaMask,
+              },
+            ).catch(() => ({}));
+            imageBase64 = cutout.modelInputUrl || localSegmentation.result.whiteBgDataUrl;
             analysisMimeType = 'image/jpeg';
           }
         }
