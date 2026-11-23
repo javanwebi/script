@@ -1978,10 +1978,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       type="button"
                       onClick={onClose}
                       className="kiki-vision-review-shell__back"
-                      aria-label="بازگشت به میزکار از نتایج شناسایی"
+                      aria-label={standalone ? "بازگشت به سایت از نتایج شناسایی" : "بازگشت به میزکار از نتایج شناسایی"}
                     >
                       <ArrowRight size={16} aria-hidden="true" />
-                      <span>بازگشت به میزکار</span>
+                      <span>{standalone ? "بازگشت به سایت" : "بازگشت به میزکار"}</span>
                     </button>
                   </div>
                 </div>
