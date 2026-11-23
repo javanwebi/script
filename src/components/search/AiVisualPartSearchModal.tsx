@@ -2039,6 +2039,20 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </header>
                 <div className="fv-catalog-sheet__layout" data-testid="forza-vision-two-panel-layout">
                   <aside className="fv-catalog-sheet__lens" aria-label="تصویر و ناحیه انتخاب‌شده قطعه">
+                    <div className="fv-kiki-optical-toolbar" data-testid="forza-vision-optical-toolbar">
+                      <div className="fv-kiki-optical-toolbar__title">
+                        <span>FORZA VISION · OPTICAL LENS</span>
+                        <strong>تصویر واقعی و ناحیه انتخاب‌شده</strong>
+                      </div>
+                      <div className="fv-kiki-optical-toolbar__buttons">
+                        <button type="button" onClick={() => { resetForm(); setCameraFlowActive(true); void startCamera(); }} aria-label="گرفتن تصویر جدید با دوربین">
+                          <Camera size={15} aria-hidden="true" /><span>دوربین</span>
+                        </button>
+                        <button type="button" onClick={() => { setMobileResultsExpanded(false); resetForm(); }} aria-label="انتخاب عکس جدید">
+                          <RotateCcw size={15} aria-hidden="true" /><span>عکس جدید</span>
+                        </button>
+                      </div>
+                    </div>
                 {localRegionEnabled && selectedImage && <ImageRegionSelector
                   src={selectedImage}
                   value={queryRegion}
