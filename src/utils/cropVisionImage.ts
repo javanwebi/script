@@ -111,26 +111,36 @@ export async function renderSegmentedVisionCutout(
     const naturalWidth = img.naturalWidth || 800;
     const naturalHeight = img.naturalHeight || 800;
     const rotation = ((rotationDeg % 360) + 360) % 360;
-    const rotated = document.createElement('canvas');
-    const swapped = rotation === 90 || rotation === 270;
-    rotated.width = swapped ? naturalHeight : naturalWidth;
-    rotated.height = swapped ? naturalWidth : naturalHeight;
-    const rotatedContext = rotated.getContext('2d');
-    if (!rotatedContext) return { previewUrl: sourceUrl, modelInputUrl: sourceUrl };
-    rotatedContext.save();
-    rotatedContext.translate(rotated.width / 2, rotated.height / 2);
-    rotatedContext.rotate((rotation * Math.PI) / 180);
-    rotatedContext.drawImage(img, -naturalWidth / 2, -naturalHeight / 2, naturalWidth, naturalHeight);
-    rotatedContext.restore();
+    // Avoid allocating a second full-resolution canvas on the normal (unrotated)
+    // mobile path. A rotated source is created only when the caller requests it.
+    let source: CanvasImageSource = img;
+    let sourceWidth = naturalWidth;
+    let sourceHeight = naturalHeight;
+    if (rotation !== 0) {
+      const rotated = document.createElement('canvas');
+      const swapped = rotation === 90 || rotation === 270;
+      rotated.width = swapped ? naturalHeight : naturalWidth;
+      rotated.height = swapped ? naturalWidth : naturalHeight;
+      const rotatedContext = rotated.getContext('2d');
+      if (!rotatedContext) return { previewUrl: sourceUrl, modelInputUrl: sourceUrl };
+      rotatedContext.save();
+      rotatedContext.translate(rotated.width / 2, rotated.height / 2);
+      rotatedContext.rotate((rotation * Math.PI) / 180);
+      rotatedContext.drawImage(img, -naturalWidth / 2, -naturalHeight / 2, naturalWidth, naturalHeight);
+      rotatedContext.restore();
+      source = rotated;
+      sourceWidth = rotated.width;
+      sourceHeight = rotated.height;
+    }
 
     const rx = region ? Math.max(0, Math.min(1, region.x)) : 0;
     const ry = region ? Math.max(0, Math.min(1, region.y)) : 0;
     const rw = region ? Math.max(0.05, Math.min(1 - rx, region.width)) : 1;
     const rh = region ? Math.max(0.05, Math.min(1 - ry, region.height)) : 1;
-    const sx = Math.round(rx * rotated.width);
-    const sy = Math.round(ry * rotated.height);
-    const sw = Math.max(1, Math.round(rw * rotated.width));
-    const sh = Math.max(1, Math.round(rh * rotated.height));
+    const sx = Math.round(rx * sourceWidth);
+    const sy = Math.round(ry * sourceHeight);
+    const sw = Math.max(1, Math.round(rw * sourceWidth));
+    const sh = Math.max(1, Math.round(rh * sourceHeight));
     const scale = Math.min(1, 560 / Math.max(sw, sh));
     const outW = Math.max(1, Math.round(sw * scale));
     const outH = Math.max(1, Math.round(sh * scale));
@@ -141,7 +151,7 @@ export async function renderSegmentedVisionCutout(
     if (!context) return { previewUrl: sourceUrl, modelInputUrl: sourceUrl };
     context.fillStyle = '#fff';
     context.fillRect(0, 0, outW, outH);
-    context.drawImage(rotated, sx, sy, sw, sh, 0, 0, outW, outH);
+    context.drawImage(source, sx, sy, sw, sh, 0, 0, outW, outH);
 
     const alpha = alphaData ? buildAlphaMaskBuffer(alphaData, rx, ry, rw, rh, outW, outH) : null;
     const contour = polygon?.length && polygon.length >= 6
