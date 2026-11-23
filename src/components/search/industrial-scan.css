@@ -1616,3 +1616,51 @@
   .fv-indeterminate-bar::after,
   .fv-lens-bracket--locking { animation: none; }
 }
+
+/* KIKI multi-object optical selector — candidate buttons use real detected boxes. */
+.fv-region-candidates {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  max-width: 100%;
+  padding: 11px 2px;
+  margin-top: 10px;
+  border-top: 1px solid #dfe3e6;
+  direction: rtl;
+}
+.fv-region-candidates__heading {
+  flex: 0 0 auto;
+  color: #74757c;
+  font-size: 11px;
+  font-weight: 750;
+}
+.fv-region-candidates__item {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid #dfe3e6;
+  background: #fff;
+  color: #55565a;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.fv-region-candidates__item:hover,
+.fv-region-candidates__item:focus-visible {
+  border-color: #e06518;
+  outline-offset: 2px;
+}
+.fv-region-candidates__item.is-active {
+  color: #fff;
+  background: #e06518;
+  border-color: #e06518;
+}
+@media (max-width: 580px) {
+  .fv-region-candidates { padding-inline: 7px; }
+  .fv-region-candidates__item { min-height: 40px; }
+}
