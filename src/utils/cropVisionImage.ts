@@ -25,7 +25,7 @@ function buildPolygonMaskBuffer(
   outW: number,
   outH: number,
 ): Float32Array | null {
-  if (!Array.isArray(polygon) || polygon.length < 6) return null;
+  if (!Array.isArray(polygon) || polygon.length < 3) return null;
   const canvas = document.createElement('canvas');
   canvas.width = outW;
   canvas.height = outH;
@@ -135,12 +135,12 @@ export async function renderSegmentedVisionCutout(
 
     const rx = region ? Math.max(0, Math.min(1, region.x)) : 0;
     const ry = region ? Math.max(0, Math.min(1, region.y)) : 0;
-    const rw = region ? Math.max(0.05, Math.min(1 - rx, region.width)) : 1;
-    const rh = region ? Math.max(0.05, Math.min(1 - ry, region.height)) : 1;
-    const sx = Math.round(rx * sourceWidth);
-    const sy = Math.round(ry * sourceHeight);
-    const sw = Math.max(1, Math.round(rw * sourceWidth));
-    const sh = Math.max(1, Math.round(rh * sourceHeight));
+    const rw = region ? Math.max(0.001, Math.min(1 - rx, region.width)) : 1;
+    const rh = region ? Math.max(0.001, Math.min(1 - ry, region.height)) : 1;
+    const sx = Math.min(sourceWidth - 1, Math.max(0, Math.floor(rx * sourceWidth)));
+    const sy = Math.min(sourceHeight - 1, Math.max(0, Math.floor(ry * sourceHeight)));
+    const sw = Math.max(1, Math.min(sourceWidth - sx, Math.ceil(rw * sourceWidth)));
+    const sh = Math.max(1, Math.min(sourceHeight - sy, Math.ceil(rh * sourceHeight)));
     const scale = Math.min(1, 560 / Math.max(sw, sh));
     const outW = Math.max(1, Math.round(sw * scale));
     const outH = Math.max(1, Math.round(sh * scale));
@@ -154,7 +154,7 @@ export async function renderSegmentedVisionCutout(
     context.drawImage(source, sx, sy, sw, sh, 0, 0, outW, outH);
 
     const alpha = alphaData ? buildAlphaMaskBuffer(alphaData, rx, ry, rw, rh, outW, outH) : null;
-    const contour = polygon?.length && polygon.length >= 6
+    const contour = polygon?.length && polygon.length >= 3
       ? buildPolygonMaskBuffer(polygon, rx, ry, rw, rh, outW, outH)
       : null;
     let finalMask: Float32Array | null = null;
