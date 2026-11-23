@@ -219,6 +219,6 @@ test("standalone identification route uses the new entry design and existing cam
 
 test("visual identification preserves the existing production image input path", () => {
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
-  assert.match(modal, /imageBase64 = localSegmentation\\.result\\.whiteBgDataUrl/);
+  assert.match(modal, /imageBase64 = localSegmentation\.result\.whiteBgDataUrl/);
   assert.doesNotMatch(modal, /renderSegmentedVisionCutout|extractAlphaMaskContours|selectAlphaMaskContour/);
 });
