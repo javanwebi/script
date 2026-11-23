@@ -88,21 +88,30 @@ test('missing image does not claim an unrelated catalog photo', () => {
   assert.doesNotMatch(html,/بزرگ‌نمایی تصویر/);
 });
 
-test('both recognition result paths share full-resolution zoomable photography and technical safeguards', () => {
+test('ZIP visual recognition uses contour-derived crops and real catalogue photography', () => {
   const wizard = read('src/components/search/AiVisualPartSearchModal.tsx');
+  const contours = read('src/utils/smartPartContour.ts');
+  const history = read('src/components/search/visionRecentHistory.ts');
+  const crop = read('src/utils/cropVisionImage.ts');
   const modelResults = read('src/components/search/LocalModelResults.tsx');
   const css = read('src/components/search/industrial-scan.css');
-  assert.match(wizard,/data-testid="vision-journey"/);
-  assert.match(wizard,/sp-vision-result-intro/);
-  assert.match(wizard,/sp-vision-match-photo/);
-  assert.match(wizard,/sources=\{\[match\.image,/);
-  assert.match(wizard,/sources=\{\[photo\.image\]\}/);
-  assert.match(wizard,/نیازمند تأیید فنی/);
-  assert.match(wizard,/حداکثر حجم ۱۰ مگابایت/);
-  assert.doesNotMatch(wizard,/resolveMatchImage/);
-  assert.match(modelResults,/CatalogResultImage/);
-  assert.match(modelResults,/familyReference=\{item\.imageScope === 'family'\}/);
-  assert.match(css,/\.sp-catalog-lightbox/);
-  assert.match(css,/\.sp-vision-match-grid/);
-  assert.match(css,/max-width: 760px/);
+
+  assert.match(wizard, /analyzeImageAutoContour/);
+  assert.match(wizard, /refineAutoContoursWithAiMask/);
+  assert.match(wizard, /segmentPartAtTapPoint/);
+  assert.match(wizard, /renderSegmentedVisionCutout/);
+  assert.match(wizard, /inferVisualDescriptor/);
+  assert.match(wizard, /recordVisionRecentSearch/);
+  assert.match(wizard, /sources=\\{\\[item\\.image, product\\?\\.image\\]\\}/);
+  assert.match(wizard, /familyReference=\\{false\\}/);
+  assert.match(wizard, /MAX_MANUFACTURING_IMAGE_BYTES = 8 \\* 1024 \\* 1024/);
+  assert.match(contours, /export async function refineAutoContoursWithAiMask/);
+  assert.match(contours, /export async function segmentPartAtTapPoint/);
+  assert.match(history, /export function recordVisionRecentSearch/);
+  assert.match(crop, /export async function renderSegmentedVisionCutout/);
+  assert.match(modelResults, /CatalogResultImage/);
+  assert.match(modelResults, /familyReference=\\{item\\.imageScope === 'family'\\}/);
+  assert.match(css, /\\.fv-workbench/);
+  assert.match(css, /\\.fv-camera-stage/);
+  assert.match(css, /\\.fv-lens-bracket/);
 });
