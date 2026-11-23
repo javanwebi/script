@@ -1998,6 +1998,39 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 data-sheet-expanded={mobileResultsExpanded}
               >
                 <span data-testid="vision-journey" className="sr-only" aria-hidden="true" />
+                <div className="fv-catalog-sheet__layout" data-testid="forza-vision-two-panel-layout">
+                  <aside className="fv-catalog-sheet__lens" aria-label="تصویر و ناحیه انتخاب‌شده قطعه">
+                    <div className="fv-kiki-optical-toolbar" data-testid="forza-vision-optical-toolbar">
+                      <div className="fv-kiki-optical-toolbar__title">
+                        <span>FORZA VISION · OPTICAL LENS</span>
+                        <strong>تصویر واقعی و ناحیه انتخاب‌شده</strong>
+                      </div>
+                      <div className="fv-kiki-optical-toolbar__buttons">
+                        <button type="button" onClick={() => { resetForm(); setCameraFlowActive(true); void startCamera(); }} aria-label="گرفتن تصویر جدید با دوربین">
+                          <Camera size={15} aria-hidden="true" /><span>دوربین</span>
+                        </button>
+                        <button type="button" onClick={() => { setMobileResultsExpanded(false); resetForm(); }} aria-label="انتخاب عکس جدید">
+                          <RotateCcw size={15} aria-hidden="true" /><span>عکس جدید</span>
+                        </button>
+                      </div>
+                    </div>
+                {localRegionEnabled && selectedImage && <ImageRegionSelector
+                  src={selectedImage}
+                  value={queryRegion}
+                  candidateRegions={candidateRegions}
+                  onChange={searchRegion}
+                  onSearch={() => { if(queryRegion)void handleAnalyze('quick', queryRegion); }}
+                  onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
+                />}
+                {!localRegionEnabled && selectedImage && (
+                  <div className="kiki-vision-image-evidence" data-testid="kiki-vision-image-evidence">
+                    <span className="kiki-vision-image-evidence__label">تصویر مبنای شناسایی</span>
+                    <img src={selectedImage} alt="تصویر واقعی قطعه انتخاب‌شده برای تطبیق با کاتالوگ" />
+                    <p>تصویر اصلی برای مقایسه نگهداری شده است؛ نتیجه‌های مشابه به‌تنهایی تأیید فنی محسوب نمی‌شوند.</p>
+                  </div>
+                )}
+                  </aside>
+                  <section className="fv-catalog-sheet__results" id="forza-vision-catalog-results" aria-label="نتایج واقعی شناسایی و تطبیق قطعه">
                 <header
                   className="fv-catalog-sheet__header"
                   data-testid="forza-vision-catalog-sheet-header"
@@ -2037,39 +2070,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     </button>
                   </div>
                 </header>
-                <div className="fv-catalog-sheet__layout" data-testid="forza-vision-two-panel-layout">
-                  <aside className="fv-catalog-sheet__lens" aria-label="تصویر و ناحیه انتخاب‌شده قطعه">
-                    <div className="fv-kiki-optical-toolbar" data-testid="forza-vision-optical-toolbar">
-                      <div className="fv-kiki-optical-toolbar__title">
-                        <span>FORZA VISION · OPTICAL LENS</span>
-                        <strong>تصویر واقعی و ناحیه انتخاب‌شده</strong>
-                      </div>
-                      <div className="fv-kiki-optical-toolbar__buttons">
-                        <button type="button" onClick={() => { resetForm(); setCameraFlowActive(true); void startCamera(); }} aria-label="گرفتن تصویر جدید با دوربین">
-                          <Camera size={15} aria-hidden="true" /><span>دوربین</span>
-                        </button>
-                        <button type="button" onClick={() => { setMobileResultsExpanded(false); resetForm(); }} aria-label="انتخاب عکس جدید">
-                          <RotateCcw size={15} aria-hidden="true" /><span>عکس جدید</span>
-                        </button>
-                      </div>
-                    </div>
-                {localRegionEnabled && selectedImage && <ImageRegionSelector
-                  src={selectedImage}
-                  value={queryRegion}
-                  candidateRegions={candidateRegions}
-                  onChange={searchRegion}
-                  onSearch={() => { if(queryRegion)void handleAnalyze('quick', queryRegion); }}
-                  onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
-                />}
-                {!localRegionEnabled && selectedImage && (
-                  <div className="kiki-vision-image-evidence" data-testid="kiki-vision-image-evidence">
-                    <span className="kiki-vision-image-evidence__label">تصویر مبنای شناسایی</span>
-                    <img src={selectedImage} alt="تصویر واقعی قطعه انتخاب‌شده برای تطبیق با کاتالوگ" />
-                    <p>تصویر اصلی برای مقایسه نگهداری شده است؛ نتیجه‌های مشابه به‌تنهایی تأیید فنی محسوب نمی‌شوند.</p>
-                  </div>
-                )}
-                  </aside>
-                  <section className="fv-catalog-sheet__results" id="forza-vision-catalog-results" aria-label="نتایج واقعی شناسایی و تطبیق قطعه">
                     <div className="sp-vision-result-intro">
                   <div>
                     <span>FORZA VISION · CATALOGUE EVIDENCE</span>
