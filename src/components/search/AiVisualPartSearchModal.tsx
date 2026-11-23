@@ -888,7 +888,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     <>
     <Modal
       dialogLabel="شناسایی تصویری قطعه"
-      fullScreen={standalone || fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing" || currentStep === 1}
+      fullScreen={standalone || fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing" || currentStep === 1 || currentStep === "results"}
       closeLabel={standalone ? "بازگشت" : fullScreen || cameraFlowActive ? (initialCamera ? "بازگشت به سایت" : "بازگشت به میزکار") : "بستن"}
       isOpen={isOpen}
       onClose={() => {
@@ -896,7 +896,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         onClose();
       }}
       title={
-        currentStep === 1 || currentStep === "analyzing"
+        currentStep === 1 || currentStep === "analyzing" || currentStep === "results"
           ? undefined
           : "شناسایی هوشمند قطعه و تسمه با هوش مصنوعی"
       }
@@ -907,7 +907,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             ? "2xl"
             : "lg"
       }
-      noPadding={currentStep === 1 || currentStep === "analyzing"}
+      noPadding={currentStep === 1 || currentStep === "analyzing" || currentStep === "results"}
     >
       <div className="sanat-visual-search-shell fv-workbench" dir="rtl">
       <input
