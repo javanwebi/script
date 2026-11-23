@@ -310,3 +310,22 @@
     justify-content: space-between;
   }
 }
+
+
+.sp-vision-result-intro__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .sp-vision-result-intro__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .sp-vision-result-intro__actions .kiki-vision-review-shell__back {
+    min-height: 36px;
+    padding-inline: 9px;
+  }
+}
