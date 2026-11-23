@@ -4,6 +4,7 @@ import {MemberAccess,memberPath} from '../components/storefront/MemberAccess';
 import {useAuth} from '../context/AuthContext';
 import React, { lazy, Suspense, useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   Sparkles,
   ChevronLeft,
@@ -40,8 +41,12 @@ import {
   ChevronRight,
   ExternalLink,
   Loader2,
+  ArrowUpLeft,
+  ArrowRight,
+  ChevronDown,
 } from 'lucide-react';
 import { apiUrl } from '../config/apiConfig';
+import { goBackOrFallback } from '../utils/navigateBackOrFallback';
 import { consumeForzaTextStream } from '../utils/forzaStreamClient';
 import { buildVisionConsultationPrompt } from '../utils/visionConsultationPrompt';
 import { toPersianDigits, formatPrice } from '../utils/formatters';
@@ -53,6 +58,7 @@ import {
   DinCalculatorIcon,
   VisualScannerIcon,
   LiveVoiceIcon,
+  DeepEngineeringIcon,
   BeltIcon,
   PulleyIcon,
   BearingIcon,
@@ -240,6 +246,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [isDeeperResearchActive, setIsDeeperResearchActive] = useState(false);
   const [isVisualSearchModalOpen, setIsVisualSearchModalOpen] = useState(false);
+  const [isComposerToolsOpen, setIsComposerToolsOpen] = useState(false);
+  const [showEntrySplash, setShowEntrySplash] = useState(() => !identificationOnly);
 
   // Settings State
   const [selectedIndustry, setSelectedIndustry] = useState(()=>entryParams.get('industry')||'general');
@@ -297,7 +305,30 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerToolsRef = useRef<HTMLDivElement>(null);
   const productContextAddedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!showEntrySplash) return;
+    const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const timer = window.setTimeout(() => setShowEntrySplash(false), prefersReduced ? 120 : 950);
+    return () => window.clearTimeout(timer);
+  }, [showEntrySplash]);
+
+  useEffect(() => {
+    if (!isComposerToolsOpen) return;
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (composerToolsRef.current && !composerToolsRef.current.contains(event.target as Node)) {
+        setIsComposerToolsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [isComposerToolsOpen]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -911,6 +942,21 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleFeedback = (id: string, vote: 'up' | 'down') => {
+    setFeedbackState(prev => ({ ...prev, [id]: vote }));
+  };
+
+  const handleNavigateLink = (link: string) => navigate(link);
+  const handleGoBack = () => goBackOrFallback(navigate, '/');
+
+  const openCatalogFinder = () => {
+    setIsMobileDrawerOpen(false);
+    setIsComposerToolsOpen(false);
+    setActiveWorkspaceTab('chat');
+    setIsCatalogSearchOpen(true);
+    window.setTimeout(() => document.getElementById('forza-workspace-product-search')?.focus(), 70);
+  };
+
   const handleCopyChatLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setShowShareToast(true);
@@ -963,355 +1009,542 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     s => now - s.timestamp >= 2 * oneDay && s.messages.length > 0
   );
 
-  // Render Sidebar
+  // KIKI reference design: presentation-only workspace shell and composer.
+  const activeIndustryLabel =
+    INDUSTRY_DOMAINS.find(d => d.id === selectedIndustry)?.label || 'عمومی و خطوط انتقال قدرت';
+
+  // Reusable Minimal ChatGPT-Style Composer Box (Website Palette + Single "+" Tools Menu)
+  const renderComposerBox = (isEmptyCenterStage = false) => (
+    <div className="w-full max-w-[740px] mx-auto">
+      {selectedConsultProducts.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {selectedConsultProducts.map(product => (
+            <span
+              key={product.code}
+              className="inline-flex max-w-[260px] items-center gap-1.5 rounded-xl border border-[#F8D3B8] bg-[#FFF4EC] px-2.5 py-1 text-[11px] font-bold text-[#C95210]"
+              title={product.name}
+            >
+              {product.image && (
+                <img
+                  src={product.image}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                  className="h-5 w-5 shrink-0 rounded-md bg-white object-contain"
+                />
+              )}
+              <span className="min-w-0 truncate">{product.name}</span>
+              <span dir="ltr" className="shrink-0 font-mono tabular-nums text-[10px]">
+                {product.code}
+              </span>
+              <button
+                type="button"
+                aria-label={`حذف ${product.code} از فهرست مشاوره`}
+                onClick={() =>
+                  setSelectedConsultProducts(current =>
+                    current.filter(item => item.code !== product.code)
+                  )
+                }
+                className="w-5 h-5 rounded-md flex items-center justify-center hover:bg-white/80 text-[#C95210] cursor-pointer shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div
+        className={`relative w-full bg-[#FFFFFF] rounded-[24px] border border-[#DFE3E6] transition-all duration-150 focus-within:border-[#E06518]/75 ${
+          isEmptyCenterStage
+            ? 'shadow-[0_10px_34px_-12px_rgba(43,49,58,0.1)] p-2.5 sm:p-3.5'
+            : 'shadow-[0_4px_22px_-8px_rgba(43,49,58,0.1)] p-2 sm:p-3'
+        }`}
+      >
+        <textarea
+          ref={textareaRef}
+          value={inputQuery}
+          onChange={e => setInputQuery(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+          rows={1}
+          placeholder="سوال فنی خود را درباره تسمه، پولی، یاتاقان یا کد قطعه بپرسید..."
+          className="w-full bg-transparent text-[13.5px] sm:text-[14.5px] text-[#2B313A] placeholder-[#74757C] resize-none focus:outline-none min-h-[42px] max-h-36 px-2.5 py-1.5 leading-relaxed"
+        />
+
+        <div className="flex items-center justify-between gap-2 pt-1.5 mt-0.5">
+          {/* Start side: Single calm "+" tools trigger + optional active research tag */}
+          <div className="relative flex items-center gap-1.5" ref={composerToolsRef}>
+            <button
+              type="button"
+              onClick={() => setIsComposerToolsOpen(open => !open)}
+              aria-expanded={isComposerToolsOpen}
+              aria-haspopup="menu"
+              aria-label="ابزارهای مهندسی و کاتالوگ"
+              title="ابزارهای مهندسی و کاتالوگ"
+              className={`w-9 h-9 sm:w-9 sm:h-9 rounded-full border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                isComposerToolsOpen
+                  ? 'bg-[#2B313A] border-[#2B313A] text-white'
+                  : 'bg-[#F5F6F6] border-[#DFE3E6] hover:border-[#E06518] hover:text-[#E06518] text-[#55565A]'
+              }`}
+            >
+              <Plus className={`w-4 h-4 transition-transform duration-150 ${isComposerToolsOpen ? 'rotate-45' : ''}`} />
+            </button>
+
+            {isDeeperResearchActive && (
+              <button
+                type="button"
+                onClick={() => setIsDeeperResearchActive(false)}
+                className="min-h-[32px] px-2.5 rounded-full bg-[#FFF4EC] border border-[#F8D3B8] text-[#C95210] text-[11px] font-bold flex items-center gap-1.5 hover:bg-[#FFE9D6] transition-colors cursor-pointer whitespace-nowrap"
+                title="غیرفعال کردن تحلیل عمیق"
+              >
+                <DeepEngineeringIcon size={14} />
+                <span>تحلیل عمیق</span>
+                <X className="w-3 h-3" />
+              </button>
+            )}
+
+            <AnimatePresence>
+              {isComposerToolsOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                  transition={{ duration: 0.14 }}
+                  role="menu"
+                  aria-label="ابزارهای میزکار FORZA"
+                  className="absolute bottom-full right-0 mb-2.5 w-60 rounded-2xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-[0_18px_42px_-12px_rgba(43,49,58,0.18)] p-1.5 z-40"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={openCatalogFinder}
+                    className="w-full min-h-[40px] px-3 rounded-xl hover:bg-[#F5F6F6] text-[#2B313A] text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer text-right"
+                  >
+                    <CatalogFinderIcon size={16} className="text-[#E06518] shrink-0" />
+                    <span>افزودن محصول از کاتالوگ</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsDeeperResearchActive(v => !v);
+                      setIsComposerToolsOpen(false);
+                    }}
+                    className="w-full min-h-[40px] px-3 rounded-xl hover:bg-[#F5F6F6] text-[#2B313A] text-xs font-semibold flex items-center justify-between gap-2 transition-colors cursor-pointer text-right"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <DeepEngineeringIcon size={16} className="text-[#55565A] shrink-0" />
+                      <span>تحلیل عمیق استانداردها</span>
+                    </span>
+                    {isDeeperResearchActive && <Check className="w-3.5 h-3.5 text-[#E06518] shrink-0" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsComposerToolsOpen(false);
+                      navigate('/identify-part?from=workspace');
+                    }}
+                    className="w-full min-h-[40px] px-3 rounded-xl hover:bg-[#F5F6F6] text-[#2B313A] text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer text-right"
+                  >
+                    <VisualScannerIcon size={16} className="text-[#55565A] shrink-0" />
+                    <span>شناسایی تصویری قطعه</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsComposerToolsOpen(false);
+                      setShowCalculatorModal(true);
+                    }}
+                    className="w-full min-h-[40px] px-3 rounded-xl hover:bg-[#F5F6F6] text-[#2B313A] text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer text-right"
+                  >
+                    <DinCalculatorIcon size={16} className="text-[#55565A] shrink-0" />
+                    <span>محاسبه‌گر تسمه DIN 2215</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* End side: Only Live Voice + Send / Stop */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => navigate('/ai-forza')}
+              title="مکالمه صوتی زنده با FORZA"
+              aria-label="مکالمه صوتی زنده با FORZA"
+              className="w-9 h-9 rounded-full border border-[#DFE3E6] bg-[#F5F6F6] hover:bg-[#FFF4EC] hover:border-[#F8D3B8] hover:text-[#E06518] text-[#55565A] flex items-center justify-center transition-colors cursor-pointer shrink-0"
+            >
+              <LiveVoiceIcon size={16} />
+            </button>
+
+            {loading ? (
+              <button
+                type="button"
+                onClick={cancelActiveConsultation}
+                className="w-9 h-9 rounded-full bg-[#2B313A] hover:bg-[#E06518] text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                title="توقف پاسخ"
+                aria-label="توقف پاسخ"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleSend()}
+                disabled={!inputQuery.trim()}
+                className="w-9 h-9 rounded-full bg-[#E06518] hover:bg-[#C95210] disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] text-white flex items-center justify-center transition-all cursor-pointer active:scale-95 shrink-0"
+                title="ارسال پرسش"
+                aria-label="ارسال پرسش"
+              >
+                <SendArrowIcon size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render Website-Toned ChatGPT-Style Sidebar
   const renderSidebarContent = () => (
     <div className="h-full flex flex-col justify-between select-none bg-[#F5F6F6] border-l border-[#DFE3E6]">
       <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Sidebar Header */}
-        <div className="p-3.5 sm:p-4 border-b border-[#DFE3E6] bg-[#FFFFFF] flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#F5F6F6] border border-[#DFE3E6] flex items-center justify-center shrink-0">
-              <CognivoGeometricLogo className="w-5 h-5 text-[#E06518]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-black text-sm tracking-tight text-[#2B313A]">
-                  میزکار FORZA
-                </span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              </div>
-              <span className="block text-[10px] text-[#74757C] font-medium">
-                مشاور هوشمند خطوط تولید صنعت پیش
-              </span>
-            </div>
+        {/* Sidebar Top Rail with Uploaded FORZA Logo */}
+        <div className="h-14 px-3 flex items-center justify-between shrink-0 border-b border-[#DFE3E6]/70">
+          <div className="flex items-center gap-2">
+            <img
+              src="/assets/aistudio/logo-forza_9b7fcf6e.png"
+              alt="FORZA"
+              className="h-8 sm:h-9 w-auto object-contain"
+            />
           </div>
+
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => createNewSession()}
+              title="گفتگوی جدید"
+              aria-label="گفتگوی جدید"
+              className="min-w-[38px] min-h-[38px] rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#E5E7EB]/60 flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <NewComposeIcon size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSidebarOpen(false);
+                setIsMobileDrawerOpen(false);
+              }}
+              title="بستن نوار کناری"
+              aria-label="بستن نوار کناری"
+              className="min-w-[38px] min-h-[38px] rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#E5E7EB]/60 flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <SidebarToggleIcon size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Clean Unboxed Workspace Navigation */}
+        <nav className="px-2.5 py-2 space-y-0.5" aria-label="ابزارهای میزکار FORZA">
+          <button
+            type="button"
+            onClick={() => createNewSession()}
+            className="w-full min-h-[40px] px-2.5 rounded-xl hover:bg-[#EAECEF] text-[#2B313A] text-[13px] font-bold flex items-center gap-2.5 transition-colors cursor-pointer"
+          >
+            <span className="w-6 h-6 rounded-lg bg-[#FFFFFF] border border-[#DFE3E6] flex items-center justify-center shrink-0">
+              <CognivoGeometricLogo className="w-3.5 h-3.5" />
+            </span>
+            <span className="truncate">مشاوره جدید FORZA</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={openCatalogFinder}
+            className="w-full min-h-[38px] px-2.5 rounded-xl hover:bg-[#EAECEF] text-[#55565A] hover:text-[#2B313A] text-[13px] font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
+          >
+            <CatalogFinderIcon size={17} className="text-[#74757C] shrink-0 mx-0.5" />
+            <span className="truncate">جستجوی کاتالوگ اطلس</span>
+          </button>
 
           <button
             type="button"
             onClick={() => {
-              setIsSidebarOpen(false);
               setIsMobileDrawerOpen(false);
+              navigate('/identify-part?from=workspace');
             }}
-            title="بستن منو"
-            className="p-1.5 rounded-lg text-[#55565A] hover:text-[#2B313A] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
+            className="w-full min-h-[38px] px-2.5 rounded-xl hover:bg-[#EAECEF] text-[#55565A] hover:text-[#2B313A] text-[13px] font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
           >
-            <SidebarToggleIcon size={16} />
+            <VisualScannerIcon size={17} className="text-[#74757C] shrink-0 mx-0.5" />
+            <span className="truncate">شناسایی تصویری قطعه</span>
           </button>
-        </div>
 
-        {/* Action Controls */}
-        <div className="p-3 space-y-2">
-          {/* New Chat Button */}
           <button
             type="button"
-            onClick={() => createNewSession()}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-[#E06518] hover:bg-[#C95210] active:scale-98 text-white font-bold text-xs flex items-center justify-between shadow-xs transition-all cursor-pointer"
+            onClick={() => {
+              setIsMobileDrawerOpen(false);
+              setShowCalculatorModal(true);
+            }}
+            className="w-full min-h-[38px] px-2.5 rounded-xl hover:bg-[#EAECEF] text-[#55565A] hover:text-[#2B313A] text-[13px] font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
           >
-            <div className="flex items-center gap-2">
-              <NewComposeIcon size={16} />
-              <span>گفتگوی جدید</span>
-            </div>
-            <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-white font-mono text-[10px]">
-              + New
-            </span>
+            <DinCalculatorIcon size={17} className="text-[#74757C] shrink-0 mx-0.5" />
+            <span className="truncate">محاسبه‌گر DIN 2215</span>
           </button>
 
-          {/* Quick Search in History */}
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-[#74757C] absolute right-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={sessionSearchQuery}
-              onChange={e => setSessionSearchQuery(e.target.value)}
-              placeholder="جستجو در گفتگوها..."
-              className="w-full h-8 pr-8 pl-3 bg-[#FFFFFF] border border-[#DFE3E6] rounded-xl text-xs text-[#2B313A] placeholder-[#777A7D] focus:outline-none focus:border-[#E06518]"
-            />
-          </div>
-
-          {/* Live Call to AI FORZA */}
           <button
             type="button"
             onClick={() => {
               setIsMobileDrawerOpen(false);
               navigate('/ai-forza');
             }}
-            className="w-full py-2 px-3 rounded-xl bg-[#FFFFFF] border border-[#DFE3E6] hover:border-[#E06518] hover:text-[#E06518] flex items-center justify-between text-right transition-all cursor-pointer shadow-2xs group"
+            className="w-full min-h-[38px] px-2.5 rounded-xl hover:bg-[#EAECEF] text-[#55565A] hover:text-[#2B313A] text-[13px] font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
           >
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                <LiveVoiceIcon size={16} className="w-3.5 h-3.5 animate-pulse" />
-              </div>
-              <div className="text-right">
-                <div className="text-xs font-bold text-[#2B313A] group-hover:text-[#E06518]">
-                  تماس زنده چهره‌به‌چهره
-                </div>
-                <div className="text-[10px] text-[#74757C]">مکالمه بلادرنگ صوتی FORZA</div>
-              </div>
-            </div>
-            <ChevronLeft className="w-4 h-4 text-[#74757C] group-hover:text-[#E06518] group-hover:-translate-x-0.5 transition-transform" />
+            <LiveVoiceIcon size={17} className="text-[#E06518] shrink-0 mx-0.5" />
+            <span className="truncate">تماس صوتی زنده</span>
           </button>
+        </nav>
+
+        {/* History Search */}
+        <div className="px-3 py-2 border-t border-[#DFE3E6]/80">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-[#74757C] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={sessionSearchQuery}
+              onChange={e => setSessionSearchQuery(e.target.value)}
+              placeholder="جستجو در گفتگوها..."
+              className="w-full h-8.5 pr-8 pl-7 bg-[#FFFFFF] border border-[#DFE3E6] focus:border-[#E06518] rounded-xl text-xs text-[#2B313A] placeholder-[#74757C] focus:outline-none transition-colors"
+            />
+            {sessionSearchQuery && (
+              <button
+                type="button"
+                onClick={() => setSessionSearchQuery('')}
+                aria-label="پاک کردن جستجو"
+                className="absolute left-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md flex items-center justify-center text-[#74757C] hover:text-[#2B313A] cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Sessions List */}
-        <div className="flex-1 overflow-y-auto px-2 space-y-4 text-right">
-          {/* Today */}
+        {/* Chronological Sessions List */}
+        <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-4 text-right">
           {todaySessions.length > 0 && (
             <div>
-              <div className="px-3 py-1 text-[11px] font-bold text-[#74757C]">امروز</div>
-              <div className="space-y-1">
-                {todaySessions.map(session => (
-                  <div
-                    key={session.id}
-                    onClick={() => switchSession(session.id)}
-                    className={`group px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between cursor-pointer transition-all ${
-                      activeSessionId === session.id && activeWorkspaceTab === 'chat'
-                        ? 'bg-[#FFFFFF] text-[#E06518] font-bold shadow-2xs border border-[#DFE3E6]'
-                        : 'text-[#55565A] hover:bg-[#DEE2E5]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-70" />
-                      <span className="truncate">{session.title}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={e => deleteSession(session.id, e)}
-                      title="حذف گفتگو"
-                      className="opacity-0 group-hover:opacity-100 p-1 text-[#74757C] hover:text-rose-600 transition-opacity"
+              <div className="px-2.5 py-1 text-[11px] font-semibold text-[#74757C]">امروز</div>
+              <div className="space-y-0.5">
+                {todaySessions.map(session => {
+                  const isActive = activeSessionId === session.id && activeWorkspaceTab === 'chat';
+                  return (
+                    <div
+                      key={session.id}
+                      onClick={() => switchSession(session.id)}
+                      className={`group min-h-[38px] px-2.5 py-1.5 rounded-xl text-[13px] flex items-center justify-between gap-2 cursor-pointer transition-colors ${
+                        isActive
+                          ? 'bg-[#FFFFFF] border border-[#DFE3E6] text-[#2B313A] font-bold shadow-2xs'
+                          : 'text-[#55565A] font-normal hover:bg-[#EAECEF]/70 hover:text-[#2B313A]'
+                      }`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                      <span className="truncate flex-1">{session.title}</span>
+                      <button
+                        type="button"
+                        onClick={e => deleteSession(session.id, e)}
+                        title="حذف گفتگو"
+                        aria-label={`حذف ${session.title}`}
+                        className="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg opacity-70 lg:opacity-0 lg:group-hover:opacity-100 text-[#74757C] hover:text-rose-600 transition-all shrink-0 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Yesterday */}
           {yesterdaySessions.length > 0 && (
             <div>
-              <div className="px-3 py-1 text-[11px] font-bold text-[#74757C]">دیروز</div>
-              <div className="space-y-1">
-                {yesterdaySessions.map(session => (
-                  <div
-                    key={session.id}
-                    onClick={() => switchSession(session.id)}
-                    className={`group px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between cursor-pointer transition-all ${
-                      activeSessionId === session.id && activeWorkspaceTab === 'chat'
-                        ? 'bg-[#FFFFFF] text-[#E06518] font-bold shadow-2xs border border-[#DFE3E6]'
-                        : 'text-[#55565A] hover:bg-[#DEE2E5]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-70" />
-                      <span className="truncate">{session.title}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={e => deleteSession(session.id, e)}
-                      title="حذف گفتگو"
-                      className="opacity-0 group-hover:opacity-100 p-1 text-[#74757C] hover:text-rose-600 transition-opacity"
+              <div className="px-2.5 py-1 text-[11px] font-semibold text-[#74757C]">دیروز</div>
+              <div className="space-y-0.5">
+                {yesterdaySessions.map(session => {
+                  const isActive = activeSessionId === session.id && activeWorkspaceTab === 'chat';
+                  return (
+                    <div
+                      key={session.id}
+                      onClick={() => switchSession(session.id)}
+                      className={`group min-h-[38px] px-2.5 py-1.5 rounded-xl text-[13px] flex items-center justify-between gap-2 cursor-pointer transition-colors ${
+                        isActive
+                          ? 'bg-[#FFFFFF] border border-[#DFE3E6] text-[#2B313A] font-bold shadow-2xs'
+                          : 'text-[#55565A] font-normal hover:bg-[#EAECEF]/70 hover:text-[#2B313A]'
+                      }`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                      <span className="truncate flex-1">{session.title}</span>
+                      <button
+                        type="button"
+                        onClick={e => deleteSession(session.id, e)}
+                        title="حذف گفتگو"
+                        aria-label={`حذف ${session.title}`}
+                        className="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg opacity-70 lg:opacity-0 lg:group-hover:opacity-100 text-[#74757C] hover:text-rose-600 transition-all shrink-0 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Older */}
           {olderSessions.length > 0 && (
             <div>
-              <div className="px-3 py-1 text-[11px] font-bold text-[#74757C]">روزهای گذشته</div>
-              <div className="space-y-1">
-                {olderSessions.map(session => (
-                  <div
-                    key={session.id}
-                    onClick={() => switchSession(session.id)}
-                    className={`group px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between cursor-pointer transition-all ${
-                      activeSessionId === session.id && activeWorkspaceTab === 'chat'
-                        ? 'bg-[#FFFFFF] text-[#E06518] font-bold shadow-2xs border border-[#DFE3E6]'
-                        : 'text-[#55565A] hover:bg-[#DEE2E5]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-70" />
-                      <span className="truncate">{session.title}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={e => deleteSession(session.id, e)}
-                      title="حذف گفتگو"
-                      className="opacity-0 group-hover:opacity-100 p-1 text-[#74757C] hover:text-rose-600 transition-opacity"
+              <div className="px-2.5 py-1 text-[11px] font-semibold text-[#74757C]">۷ روز گذشته</div>
+              <div className="space-y-0.5">
+                {olderSessions.map(session => {
+                  const isActive = activeSessionId === session.id && activeWorkspaceTab === 'chat';
+                  return (
+                    <div
+                      key={session.id}
+                      onClick={() => switchSession(session.id)}
+                      className={`group min-h-[38px] px-2.5 py-1.5 rounded-xl text-[13px] flex items-center justify-between gap-2 cursor-pointer transition-colors ${
+                        isActive
+                          ? 'bg-[#FFFFFF] border border-[#DFE3E6] text-[#2B313A] font-bold shadow-2xs'
+                          : 'text-[#55565A] font-normal hover:bg-[#EAECEF]/70 hover:text-[#2B313A]'
+                      }`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                      <span className="truncate flex-1">{session.title}</span>
+                      <button
+                        type="button"
+                        onClick={e => deleteSession(session.id, e)}
+                        title="حذف گفتگو"
+                        aria-label={`حذف ${session.title}`}
+                        className="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg opacity-70 lg:opacity-0 lg:group-hover:opacity-100 text-[#74757C] hover:text-rose-600 transition-all shrink-0 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
           {sessions.every(s => s.messages.length === 0) && (
-            <div className="p-4 text-center text-xs text-[#74757C] leading-relaxed">
-              هنوز گفتگویی ذخیره نشده است. با ارسال اولین پیام، تاریخچه به صورت خودکار ایجاد می‌شود.
+            <div className="px-3 py-6 text-center text-xs text-[#74757C] leading-relaxed">
+              تاریخچه گفتگوهای شما اینجا نمایش داده می‌شود.
             </div>
           )}
         </div>
       </div>
 
-      {/* Settings & Profile Bar at Bottom */}
-      <div className="p-3 border-t border-[#DFE3E6] bg-[#FFFFFF] space-y-2 shrink-0">
+      {/* Website-Aligned Bottom Account / Store Bar */}
+      <div className="p-2.5 border-t border-[#DFE3E6] space-y-1 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <button
           type="button"
           onClick={() => {
             setIsMobileDrawerOpen(false);
             setShowSettingsModal(true);
           }}
-          className="w-full py-2 px-2.5 rounded-xl bg-[#F5F6F6] border border-[#DFE3E6] text-[#55565A] hover:text-[#2B313A] hover:border-[#E06518] flex items-center justify-between text-xs font-bold transition-all cursor-pointer"
+          className="w-full min-h-[42px] px-2.5 rounded-xl hover:bg-[#EAECEF] text-[#2B313A] flex items-center justify-between gap-2 text-xs font-semibold transition-colors cursor-pointer"
         >
-          <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4 text-[#55565A]" />
-            <span>تنظیمات میزکار FORZA</span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-7 h-7 rounded-full bg-[#FFF4EC] border border-[#F8D3B8] text-[#E06518] flex items-center justify-center shrink-0">
+              <Factory className="w-3.5 h-3.5" />
+            </span>
+            <span className="truncate">{activeIndustryLabel}</span>
           </div>
-          <span className="text-[10px] text-[#74757C]">مدیریت</span>
+          <SlidersHorizontal className="w-3.5 h-3.5 text-[#74757C] shrink-0" />
         </button>
 
-        <div className="flex items-center justify-between p-2 rounded-xl bg-[#F5F6F6] border border-[#DFE3E6]">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#E06518]/10 text-[#E06518] flex items-center justify-center font-black text-xs">
-              <Factory className="w-4 h-4" />
-            </div>
-            <div className="text-right leading-tight">
-              <div className="font-bold text-xs text-[#2B313A]">
-                {INDUSTRY_DOMAINS.find(d => d.id === selectedIndustry)?.label || 'صنایع عمومی'}
-              </div>
-              <span className="text-[10px] text-[#74757C]">میزکار صنعتی فعال</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            title="بازگشت به فروشگاه"
-            className="p-1 text-[#74757C] hover:text-[#E06518]"
-          >
-            <Home className="w-4 h-4" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="w-full min-h-[38px] px-2.5 rounded-xl text-[#55565A] hover:text-[#E06518] hover:bg-[#EAECEF] flex items-center justify-between text-xs font-medium transition-colors cursor-pointer"
+        >
+          <span className="flex items-center gap-2.5">
+            <Home className="w-3.5 h-3.5 shrink-0 mx-1.5" />
+            <span>فروشگاه صنعت پیش</span>
+          </span>
+          <ArrowUpLeft className="w-3.5 h-3.5 opacity-70" />
+        </button>
       </div>
     </div>
   );
 
-  // Shared composer keeps the exact same live send, catalog, camera and calculator handlers
-  // in both the empty-state hero and the active conversation footer.
-  const renderComposerBox = () => (
-    <>
-      {selectedConsultProducts.length > 0 && (
-        <div className="mx-auto mb-2 flex max-w-[740px] flex-wrap gap-1.5">
-          {selectedConsultProducts.map(product => (
-            <span
-              key={product.code}
-              className="inline-flex max-w-[240px] items-center gap-1.5 rounded-xl border border-orange-100 bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#A64B14]"
-              title={product.name}
-            >
-              {product.image && (
-                <img src={product.image} alt="" loading="lazy" decoding="async" className="h-7 w-7 shrink-0 rounded-md bg-white object-contain" />
-              )}
-              <span className="min-w-0 truncate">{product.name}</span>
-              <span dir="ltr" className="shrink-0">{product.code}</span>
-              <button
-                type="button"
-                aria-label={"حذف " + product.code + " از فهرست مشاوره"}
-                onClick={() => setSelectedConsultProducts(current => current.filter(item => item.code !== product.code))}
-                className="rounded-md px-1 text-[#A64B14] hover:bg-orange-100"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="max-w-[740px] mx-auto w-full bg-[#F5F6F6] rounded-2xl border border-[#DFE3E6] p-2 focus-within:border-[#E06518] focus-within:bg-[#FFFFFF] transition-all">
-        <div className="flex items-end gap-2">
-          <textarea
-            ref={textareaRef}
-            value={inputQuery}
-            onChange={e => setInputQuery(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            rows={1}
-            placeholder="پرسش فنی درباره تسمه، پولی، یاتاقان، زنجیر..."
-            className="flex-1 bg-transparent text-xs sm:text-sm text-[#2B313A] placeholder-[#777A7D] resize-none focus:outline-none min-h-[38px] max-h-28 py-1.5 px-1 leading-relaxed"
-          />
-          <div className="flex items-center gap-1 shrink-0 pb-0.5">
-            <button
-              type="button"
-              onClick={() => setIsDeeperResearchActive(!isDeeperResearchActive)}
-              className={isDeeperResearchActive
-                ? "p-2 rounded-xl text-xs font-bold transition-all cursor-pointer bg-[#E06518] text-white shadow-xs"
-                : "p-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5]"}
-              title="تحلیل عمیق فنی استاندارد"
-              aria-pressed={isDeeperResearchActive}
-            >
-              <Sparkles className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsCatalogSearchOpen(open => !open)}
-              aria-expanded={isCatalogSearchOpen}
-              aria-controls="forza-workspace-catalog-drawer"
-              className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
-              title="افزودن محصول به مشاوره"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/identify-part?from=workspace')}
-              className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
-              title="شناسایی قطعه با دوربین"
-            >
-              <Camera className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowCalculatorModal(true)}
-              className="p-2 rounded-xl text-[#74757C] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
-              title="محاسبه‌گر تسمه DIN 2215"
-            >
-              <DinCalculatorIcon size={18} className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSend()}
-              disabled={!inputQuery.trim() || loading}
-              className="w-9 h-9 rounded-xl bg-[#E06518] hover:bg-[#C95210] disabled:bg-[#CBD2D8] text-white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
-              title="ارسال"
-            >
-              <SendArrowIcon size={18} className="w-4 h-4 -rotate-45" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-
   return (
     <div
-      className="h-[100dvh] max-h-[100dvh] w-full flex flex-col bg-[#FFFFFF] text-[#2B313A] overflow-hidden select-none"
+      className="h-[100dvh] max-h-[100dvh] w-full flex flex-col bg-[#FFFFFF] text-[#2B313A] overflow-hidden select-none relative"
       dir="rtl"
     >
-      {/* Top Hairline Orange Accent Line */}
-      <div className="h-[2px] w-full bg-gradient-to-r from-[#CBD2D8] via-[#E06518] to-[#CBD2D8] opacity-90 shrink-0" />
+      {/* Top-to-Bottom FORZA Logo Entry Transition Curtain */}
+      <AnimatePresence>
+        {showEntrySplash && (
+          <motion.div
+            key="forza-entry-curtain"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: 24, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } }}
+            onClick={() => setShowEntrySplash(false)}
+            className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-[#FFFFFF] cursor-pointer select-none px-6"
+            aria-label="ورود به میزکار هوشمند FORZA"
+          >
+            {/* Architectural drafting grid consistent with website hero */}
+            <div
+              className="pointer-events-none absolute inset-0 opacity-45"
+              style={{
+                backgroundImage:
+                  'linear-gradient(#dfe3e6 1px, transparent 1px), linear-gradient(90deg, #dfe3e6 1px, transparent 1px)',
+                backgroundSize: '44px 44px',
+                maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
+              }}
+            />
+
+            <motion.div
+              initial={{ y: -56, opacity: 0, clipPath: 'inset(0 0 100% 0)' }}
+              animate={{ y: 0, opacity: 1, clipPath: 'inset(0 0 0% 0)' }}
+              transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
+              className="relative flex flex-col items-center"
+            >
+              <img
+                src="/assets/aistudio/logo-forza_9b7fcf6e.png"
+                alt="لوگوی FORZA"
+                className="w-64 sm:w-80 md:w-[360px] h-auto object-contain drop-shadow-[0_12px_32px_rgba(224,101,24,0.18)]"
+              />
+
+              <motion.div
+                initial={{ scaleX: 0, opacity: 0 }}
+                animate={{ scaleX: 1, opacity: 1 }}
+                transition={{ delay: 0.25, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-5 h-[2.5px] w-36 rounded-full bg-gradient-to-r from-transparent via-[#E06518] to-transparent origin-center"
+              />
+
+              <motion.p
+                initial={{ y: -12, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.32, duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-3 text-xs sm:text-sm font-bold text-[#55565A] tracking-tight"
+              >
+                میزکار مهندسی صنعت پیش · کاتالوگ اطلس و SWR
+              </motion.p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 flex overflow-hidden relative">
-        {/* 1. DESKTOP SIDEBAR */}
-        <aside hidden={identificationOnly}
+        {/* 1. DESKTOP SIDEBAR (Website Toned #F5F6F6 Rail) */}
+        <aside
+          hidden={identificationOnly}
           className={`${
             !identificationOnly && isSidebarOpen ? 'w-[260px]' : 'w-0 hidden'
           } transition-all duration-200 ease-out hidden lg:flex flex-col shrink-0 overflow-hidden z-20`}
@@ -1319,11 +1552,11 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           {renderSidebarContent()}
         </aside>
 
-        {/* 2. MOBILE SLIDE-OVER DRAWER (RTL Natural Sheet) */}
+        {/* 2. MOBILE & TABLET SLIDE-OVER DRAWER */}
         {!identificationOnly && isMobileDrawerOpen && (
           <div className="fixed inset-0 z-50 lg:hidden flex justify-start">
             <div
-              className="fixed inset-0 bg-[#2B313A]/50 backdrop-blur-xs transition-opacity"
+              className="fixed inset-0 bg-[#2B313A]/45 backdrop-blur-[2px] transition-opacity"
               onClick={() => setIsMobileDrawerOpen(false)}
             />
             <div className="relative w-76 max-w-[85vw] h-full shadow-2xl flex flex-col z-50 bg-[#F5F6F6] animate-in slide-in-from-right duration-200">
@@ -1332,184 +1565,191 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           </div>
         )}
 
-        {/* 3. MAIN WORKSPACE CONTAINER */}
+        {/* 3. MAIN WORKSPACE CANVAS */}
         <main className="flex-1 flex flex-col bg-[#FFFFFF] overflow-hidden min-w-0">
-          {/* Top Header Bar */}
-          {identificationOnly ? <header className="h-14 px-4 border-b border-[#DFE3E6] flex items-center justify-between bg-white shrink-0"><strong>شناسایی هوشمند قطعه</strong><button type="button" onClick={() => navigate('/ai-consult')} className="px-4 py-2 rounded-xl border border-[#DFE3E6] text-sm">بازگشت به میزکار</button></header> : <header className="h-[52px] sm:h-14 px-2.5 sm:px-5 border-b border-[#DFE3E6] flex items-center justify-between shrink-0 bg-[#FFFFFF] z-20 shadow-2xs">
-            <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
-              {/* Mobile Drawer Button */}
+          {/* Minimalist Website-Aligned Top Header */}
+          {identificationOnly ? (
+            <header className="h-14 px-4 sm:px-6 border-b border-[#DFE3E6] flex items-center justify-between bg-[#FFFFFF] shrink-0">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/assets/aistudio/logo-forza_9b7fcf6e.png"
+                  alt="FORZA"
+                  className="h-8 sm:h-9 w-auto object-contain"
+                />
+                <strong className="text-sm font-bold text-[#2B313A]">شناسایی هوشمند قطعه</strong>
+              </div>
               <button
                 type="button"
-                onClick={() => setIsMobileDrawerOpen(true)}
-                className="lg:hidden p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F5F6F6] transition-colors cursor-pointer border border-[#DFE3E6] bg-[#FFFFFF] shadow-2xs"
-                title="تاریخچه گفتگوها و سوابق"
+                onClick={handleGoBack}
+                className="min-h-[38px] px-4 py-1.5 rounded-full border border-[#DFE3E6] hover:border-[#E06518] hover:text-[#E06518] text-xs font-semibold text-[#2B313A] transition-colors cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5"
               >
-                <SidebarToggleIcon size={18} className="text-[#2B313A]" />
+                <ArrowRight className="w-3.5 h-3.5" />
+                <span>بازگشت</span>
               </button>
-
-              {/* Desktop Toggle Button */}
-              {!isSidebarOpen && (
+            </header>
+          ) : (
+            <header className="h-[52px] sm:h-14 px-2.5 sm:px-5 border-b border-[#DFE3E6]/75 flex items-center justify-between gap-2 shrink-0 bg-[#FFFFFF] z-20">
+              {/* Zone 1: Sidebar Controls & Brand Model Selector */}
+              <div className="flex items-center gap-1 min-w-0">
                 <button
                   type="button"
-                  onClick={() => setIsSidebarOpen(true)}
-                  title="نمایش منو"
-                  className="hidden lg:flex p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F5F6F6] transition-colors cursor-pointer"
+                  onClick={() => setIsMobileDrawerOpen(true)}
+                  className="lg:hidden min-w-[44px] min-h-[44px] rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F3F4F6] transition-colors cursor-pointer flex items-center justify-center shrink-0"
+                  title="منو و تاریخچه"
+                  aria-label="باز کردن نوار کناری"
                 >
-                  <SidebarToggleIcon size={16} />
+                  <SidebarToggleIcon size={20} />
                 </button>
-              )}
 
-              {/* Brand & Workspace Title */}
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-200/80 flex items-center justify-center shrink-0 shadow-2xs">
-                  <CognivoGeometricLogo className="w-5 h-5 text-[#E06518]" />
-                </div>
-                <div className="hidden sm:block text-right">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-black text-sm text-[#2B313A] tracking-tight">
-                      میزکار هوشمند FORZA
-                    </span>
-                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      میزکار یکپارچه
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-[#74757C] block -mt-0.5">
-                    مشاوره تخصصی و شناسایی قطعات خطوط تولید
+                {!isSidebarOpen && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarOpen(true)}
+                      title="نمایش نوار کناری"
+                      aria-label="نمایش نوار کناری"
+                      className="hidden lg:flex min-w-[38px] min-h-[38px] rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F3F4F6] items-center justify-center transition-colors cursor-pointer shrink-0"
+                    >
+                      <SidebarToggleIcon size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => createNewSession()}
+                      title="گفتگوی جدید"
+                      aria-label="گفتگوی جدید"
+                      className="hidden lg:flex min-w-[38px] min-h-[38px] rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F3F4F6] items-center justify-center transition-colors cursor-pointer shrink-0"
+                    >
+                      <NewComposeIcon size={18} />
+                    </button>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsModal(true)}
+                  className="min-h-[38px] px-2 sm:px-2.5 rounded-xl hover:bg-[#F3F4F6] flex items-center gap-1.5 transition-colors cursor-pointer min-w-0"
+                  title="تنظیمات مدل و حوزه صنعتی"
+                >
+                  <span className="font-extrabold text-[13.5px] sm:text-[15px] text-[#2B313A] tracking-tight whitespace-nowrap truncate">
+                    FORZA مهندسی
                   </span>
-                </div>
-                <div className="sm:hidden flex items-center gap-1.5">
-                  <span className="font-black text-xs text-[#2B313A]">
-                    میزکار FORZA
+                  <span className="hidden sm:inline text-xs font-semibold text-[#E06518] font-mono">
+                    {calculationStandard === 'din' ? 'DIN 2215' : 'سریع'}
                   </span>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-[#74757C] shrink-0" />
+                </button>
               </div>
 
-              {/* Desktop Workspace Segmented Controller */}
-              <div className="hidden md:flex items-center gap-1 p-1 bg-[#F5F6F6] rounded-xl border border-[#DFE3E6] mr-2">
+              {/* Zone 2: Segmented Mode Switcher (Tablet sm+ & Desktop) */}
+              <div className="hidden sm:flex items-center gap-1 p-1 bg-[#F3F4F6] border border-[#DFE3E6]/70 rounded-full shrink-0">
                 <button
                   type="button"
-                  onClick={() => identificationOnly ? navigate('/ai-consult') : setActiveWorkspaceTab('chat')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  onClick={() => (identificationOnly ? navigate('/ai-consult') : setActiveWorkspaceTab('chat'))}
+                  className={`min-h-[30px] px-3.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                     activeWorkspaceTab === 'chat'
-                      ? 'bg-[#FFFFFF] text-[#E06518] shadow-2xs border border-[#DFE3E6]'
+                      ? 'bg-[#FFFFFF] text-[#2B313A] shadow-2xs'
                       : 'text-[#55565A] hover:text-[#2B313A]'
                   }`}
                 >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span>گفتگوی مهندسی</span>
+                  <span>مشاوره</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => navigate('/identify-part?from=workspace')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`min-h-[30px] px-3.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                     activeWorkspaceTab === 'visual_studio'
-                      ? 'bg-[#FFFFFF] text-[#E06518] shadow-2xs border border-[#DFE3E6]'
+                      ? 'bg-[#FFFFFF] text-[#2B313A] shadow-2xs'
                       : 'text-[#55565A] hover:text-[#2B313A]'
                   }`}
                 >
-                  <VisualScannerIcon size={16} className="w-3.5 h-3.5 text-[#E06518]" />
-                  <span>استودیوی شناسایی قطعه</span>
+                  <VisualScannerIcon size={14} className="text-[#E06518] shrink-0" />
+                  <span>شناسایی تصویری</span>
                 </button>
               </div>
-            </div>
 
-            {/* Quick Actions (Call, Calculator, Share, Shop) */}
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {/* Live Voice Call Button */}
-              <button
-                type="button"
-                onClick={() => navigate('/ai-forza')}
-                className="px-2 sm:px-3 py-1.5 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
-                title="مکالمه زنده و چهره‌به‌چهره با هوش مصنوعی FORZA"
-              >
-                <LiveVoiceIcon size={16} className="w-3.5 h-3.5 animate-pulse" />
-                <span className="hidden xs:inline">تماس زنده</span>
-              </button>
+              {/* Zone 3: Minimal Header Actions */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isCatalogSearchOpen) {
+                      setIsCatalogSearchOpen(false);
+                    } else {
+                      openCatalogFinder();
+                    }
+                  }}
+                  title="جستجو در کاتالوگ اطلس"
+                  aria-label="جستجو در کاتالوگ اطلس"
+                  className={`min-w-[40px] min-h-[40px] rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                    isCatalogSearchOpen
+                      ? 'bg-[#FFF4EC] text-[#E06518] border border-[#F8D3B8]'
+                      : 'text-[#55565A] hover:text-[#2B313A] hover:bg-[#F3F4F6]'
+                  }`}
+                >
+                  <Search className="w-4 h-4" />
+                </button>
 
-              {/* Belt Calculator Trigger */}
-              <button
-                type="button"
-                onClick={() => setShowCalculatorModal(true)}
-                title="فرمول محاسبه طول تسمه (DIN 2215)"
-                className="p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F5F6F6] transition-colors cursor-pointer border border-[#DFE3E6] bg-[#FFFFFF] shadow-2xs"
-              >
-                <DinCalculatorIcon size={18} className="w-4 h-4 text-[#E06518]" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => createNewSession()}
+                  title="گفتگوی جدید"
+                  aria-label="گفتگوی جدید"
+                  className="lg:hidden min-w-[40px] min-h-[40px] rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F3F4F6] flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <NewComposeIcon size={18} />
+                </button>
 
-              {/* Share */}
-              <button
-                type="button"
-                onClick={handleCopyChatLink}
-                title="اشتراک‌گذاری میزکار"
-                className="hidden sm:flex p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F5F6F6] transition-colors cursor-pointer border border-[#DFE3E6] bg-[#FFFFFF]"
-              >
-                <Share2 className="w-4 h-4" />
-              </button>
+                <button
+                  type="button"
+                  onClick={handleCopyChatLink}
+                  title="اشتراک‌گذاری"
+                  aria-label="اشتراک‌گذاری"
+                  className="hidden md:flex min-w-[38px] min-h-[38px] rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F3F4F6] transition-colors cursor-pointer items-center justify-center"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
 
-              {/* Settings */}
-              <button
-                type="button"
-                onClick={() => setShowSettingsModal(true)}
-                title="تنظیمات میزکار"
-                className="p-2 rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F5F6F6] transition-colors cursor-pointer border border-[#DFE3E6] bg-[#FFFFFF] shadow-2xs"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsModal(true)}
+                  title="تنظیمات"
+                  aria-label="تنظیمات"
+                  className="hidden md:flex min-w-[38px] min-h-[38px] rounded-xl text-[#55565A] hover:text-[#2B313A] hover:bg-[#F3F4F6] transition-colors cursor-pointer items-center justify-center"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
 
-              {/* Back to Store */}
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                title="بازگشت به پرتال صنعت پیش"
-                className="p-2 rounded-xl text-[#55565A] hover:text-[#E06518] hover:bg-[#F5F6F6] transition-colors cursor-pointer border border-[#DFE3E6] bg-[#FFFFFF] shadow-2xs"
-              >
-                <Home className="w-4 h-4" />
-              </button>
-            </div>
-          </header>}
+                {/* Mobile: Back button to previous page instead of Live Call */}
+                <button
+                  type="button"
+                  onClick={handleGoBack}
+                  className="flex md:hidden min-h-[38px] px-3 rounded-full border border-[#DFE3E6] bg-[#F5F6F6] hover:border-[#E06518] hover:text-[#E06518] text-[#2B313A] text-xs font-bold items-center gap-1 transition-colors cursor-pointer whitespace-nowrap"
+                  title="بازگشت به صفحه قبلی"
+                  aria-label="بازگشت به صفحه قبلی"
+                >
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>بازگشت</span>
+                </button>
 
-          {/* Mobile Dedicated Segmented Tabs Bar (Sticky right below top header) */}
-          <div hidden={identificationOnly} className="md:hidden bg-[#FFFFFF] border-b border-[#DFE3E6] px-3 py-1.5 shrink-0 z-10 shadow-2xs">
-            <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#F5F6F6] rounded-xl border border-[#DFE3E6]">
-              <button
-                type="button"
-                onClick={() => identificationOnly ? navigate('/ai-consult') : setActiveWorkspaceTab('chat')}
-                className={`py-2 px-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeWorkspaceTab === 'chat'
-                    ? 'bg-[#FFFFFF] text-[#E06518] shadow-xs border border-[#DFE3E6]'
-                    : 'text-[#55565A] hover:text-[#2B313A]'
-                }`}
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>گفتگوی مهندسی</span>
-                {messages.length > 0 && (
-                  <span className="w-4.5 h-4.5 rounded-full bg-orange-100 text-[#E06518] text-[10px] font-mono font-bold flex items-center justify-center mr-0.5">
-                    {messages.length}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/identify-part?from=workspace')}
-                className={`py-2 px-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeWorkspaceTab === 'visual_studio'
-                    ? 'bg-[#FFFFFF] text-[#E06518] shadow-xs border border-[#DFE3E6]'
-                    : 'text-[#55565A] hover:text-[#2B313A]'
-                }`}
-              >
-                <VisualScannerIcon size={16} className="w-4 h-4 text-[#E06518]" />
-                <span>استودیو شناسایی قطعه</span>
-              </button>
-            </div>
-          </div>
+                {/* Desktop & Tablet: Live Voice Call */}
+                <button
+                  type="button"
+                  onClick={() => navigate('/ai-forza')}
+                  className="hidden md:flex min-h-[36px] px-3 rounded-full bg-[#2B313A] hover:bg-[#E06518] text-white text-xs font-semibold items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                  title="تماس زنده صوتی با FORZA"
+                >
+                  <LiveVoiceIcon size={14} />
+                  <span>تماس زنده</span>
+                </button>
+              </div>
+            </header>
+          )}
 
           {/* Share Toast */}
           {showShareToast && (
-            <div className="absolute top-16 left-1/2 -translate-x-1/2 px-4 py-2 bg-[#2B313A] text-white text-xs font-bold rounded-full shadow-xl flex items-center gap-2 z-40 animate-in fade-in">
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
-              <span>لینک صفحه با موفقیت کپی شد!</span>
+            <div className="fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 bg-[#2B313A] text-white text-xs font-semibold rounded-full shadow-xl flex items-center gap-2 z-50">
+              <Check className="w-4 h-4 text-[#E06518] shrink-0" />
+              <span>لینک میزکار کپی شد</span>
             </div>
           )}
 
@@ -1517,105 +1757,101 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           {/* TAB 1: VISUAL PART IDENTIFICATION STUDIO                         */}
           {/* ================================================================= */}
           {identificationOnly || activeWorkspaceTab === 'visual_studio' ? (
-            <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-4xl mx-auto w-full pb-20 md:pb-8">
-              {/* Studio Header Banner */}
-              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 sm:space-y-5 max-w-4xl mx-auto w-full pb-20 md:pb-8">
+              {/* Studio Header */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#F9F9F9] border border-black/[0.08] flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="px-2 py-0.5 rounded-full bg-orange-100 text-[#E06518] text-[10px] sm:text-[11px] font-black">
-                      سامانه بینایی ماشین هوش مصنوعی
-                    </span>
-                    <span className="text-[11px] text-[#74757C]">تطبیق با کاتالوگ صنعتی اطلس</span>
+                  <div className="text-[11px] font-bold text-[#E06518] mb-1">
+                    سامانه بینایی ماشین FORZA · تطبیق با کاتالوگ اطلس
                   </div>
-                  <h2 className="text-base sm:text-lg font-black text-[#2B313A]">
-                    استودیوی شناسایی و تطبیق تصویری قطعات FORZA
+                  <h2 className="text-base sm:text-lg font-black text-[#0D0D0D]">
+                    استودیوی شناسایی و تطبیق تصویری قطعات
                   </h2>
-                  <p className="text-xs text-[#55565A] mt-1 leading-relaxed">
-                    با انتخاب دسته‌بندی و ارسال تصویر از طریق دوربین، هوش مصنوعی پروفیل، گام دندانه و مشخصات قطعه را بررسی می‌کند.
+                  <p className="text-xs text-[#5D5D67] mt-1 leading-relaxed">
+                    با انتخاب دسته‌بندی و ارسال تصویر، پروفیل، گام دندانه و کدهای فنی قطعه بررسی می‌شود.
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => identificationOnly ? navigate('/ai-consult') : setActiveWorkspaceTab('chat')}
-                  className="px-3 py-1.5 rounded-xl border border-[#DFE3E6] hover:border-[#E06518] text-[#55565A] hover:text-[#E06518] text-xs font-bold bg-[#FFFFFF] flex items-center gap-1.5 cursor-pointer shrink-0"
+                  onClick={() => (identificationOnly ? navigate('/ai-consult') : setActiveWorkspaceTab('chat'))}
+                  className="min-h-[40px] px-4 py-2 rounded-full border border-black/[0.1] hover:border-[#E06518] text-[#0D0D0D] hover:text-[#E06518] text-xs font-semibold bg-[#FFFFFF] flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap transition-colors"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
-                  <span>انتقال به گفتگوی مهندسی</span>
+                  <span>بازگشت به گفتگوی مهندسی</span>
                 </button>
               </div>
 
               {/* STEP 1: CATEGORY SELECTION */}
-              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-sm space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-[#E06518] text-white text-xs font-black flex items-center justify-center shrink-0">
-                      ۱
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#FFFFFF] border border-black/[0.08] space-y-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-mono tabular-nums text-xs font-black text-[#E06518]">
+                      ۰۱.
                     </span>
-                    <h3 className="font-black text-xs sm:text-sm text-[#2B313A]">
+                    <h3 className="font-bold text-xs sm:text-sm text-[#0D0D0D]">
                       انتخاب دسته‌بندی قطعه صنعتی
                     </h3>
                   </div>
-                  <span className="text-[11px] text-[#74757C] hidden sm:inline">
+                  <span className="text-[11px] text-[#8E8EA0] hidden sm:inline">
                     {PART_CATEGORIES.find(c => c.id === selectedPartCategory)?.recommendedParams}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {PART_CATEGORIES.map(category => {
                     const CategoryIcon = category.icon;
+                    const isSelected = selectedPartCategory === category.id;
                     return (
-                    <button
-                      key={category.id}
-                      type="button"
-                      onClick={() => setSelectedPartCategory(category.id)}
-                      className={`p-3 rounded-xl sm:rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
-                        selectedPartCategory === category.id
-                          ? 'border-[#E06518] bg-orange-50/50 shadow-xs ring-1 ring-orange-500/20'
-                          : 'border-[#DFE3E6] bg-[#FFFFFF] hover:bg-[#F5F6F6]'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-1.5">
-                        <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                            selectedPartCategory === category.id
-                              ? 'bg-[#E06518] text-white'
-                              : 'bg-[#F5F6F6] text-[#55565A]'
-                          }`}
-                        >
-                          <CategoryIcon size={17} className="w-4 h-4" />
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() => setSelectedPartCategory(category.id)}
+                        className={`p-3.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between min-h-[88px] ${
+                          isSelected
+                            ? 'border-[#E06518] bg-[#FFF4EC]/55'
+                            : 'border-black/[0.08] bg-[#FFFFFF] hover:bg-[#F9F9F9]'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                              isSelected
+                                ? 'bg-[#E06518] text-white'
+                                : 'bg-[#F4F4F4] text-[#4B5563]'
+                            }`}
+                          >
+                            <CategoryIcon size={17} />
+                          </div>
+                          {isSelected && <Check className="w-4 h-4 text-[#E06518]" />}
                         </div>
-                        {selectedPartCategory === category.id && (
-                          <Check className="w-3.5 h-3.5 text-[#E06518]" />
-                        )}
-                      </div>
 
-                      <div>
-                        <h4
-                          className={`font-black text-xs ${
-                            selectedPartCategory === category.id ? 'text-[#E06518]' : 'text-[#2B313A]'
-                          }`}
-                        >
-                          {category.title}
-                        </h4>
-                        <p className="text-[10px] text-[#74757C] mt-0.5 line-clamp-1">
-                          {category.subtitle}
-                        </p>
-                      </div>
-                    </button>
+                        <div>
+                          <h4
+                            className={`font-bold text-xs ${
+                              isSelected ? 'text-[#C95210]' : 'text-[#0D0D0D]'
+                            }`}
+                          >
+                            {category.title}
+                          </h4>
+                          <p className="text-[10px] text-[#8E8EA0] mt-0.5 line-clamp-1">
+                            {category.subtitle}
+                          </p>
+                        </div>
+                      </button>
                     );
                   })}
                 </div>
               </div>
 
               {/* STEP 2: CAMERA CAPTURE OR FILE UPLOAD */}
-              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-sm space-y-4">
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#FFFFFF] border border-black/[0.08] space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-[#E06518] text-white text-xs font-black flex items-center justify-center shrink-0">
-                      ۲
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-mono tabular-nums text-xs font-black text-[#E06518]">
+                      ۰۲.
                     </span>
-                    <h3 className="font-black text-xs sm:text-sm text-[#2B313A]">
+                    <h3 className="font-bold text-xs sm:text-sm text-[#0D0D0D]">
                       ثبت تصویر قطعه (دوربین زنده یا بارگذاری فایل)
                     </h3>
                   </div>
@@ -1627,7 +1863,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         setCapturedImage(null);
                         setAnalysisResult(null);
                       }}
-                      className="text-xs text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer"
+                      className="text-xs text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>حذف و ثبت مجدد</span>
@@ -1635,9 +1871,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                   )}
                 </div>
 
-                {/* Viewport or Preview */}
                 {!capturedImage ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3.5">
                     {isCameraActive ? (
                       <div className="relative rounded-2xl overflow-hidden bg-black aspect-video max-h-80 mx-auto border-2 border-[#E06518]">
                         <video
@@ -1646,7 +1881,6 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           playsInline
                           className="w-full h-full object-cover"
                         />
-                        {/* Camera Scanline overlay */}
                         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                           <div className="w-48 h-48 border border-white/60 rounded-xl relative">
                             <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#E06518]" />
@@ -1656,12 +1890,11 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           </div>
                         </div>
 
-                        {/* Camera controls */}
                         <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-3">
                           <button
                             type="button"
                             onClick={toggleCameraFacing}
-                            className="p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80"
+                            className="p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80 cursor-pointer"
                             title="تغییر دوربین"
                           >
                             <SwitchCamera className="w-4 h-4" />
@@ -1669,7 +1902,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           <button
                             type="button"
                             onClick={capturePhoto}
-                            className="w-12 h-12 rounded-full bg-[#E06518] text-white flex items-center justify-center shadow-lg border-2 border-white active:scale-95"
+                            className="w-12 h-12 rounded-full bg-[#E06518] text-white flex items-center justify-center shadow-lg border-2 border-white active:scale-95 cursor-pointer"
                             title="ثبت تصویر"
                           >
                             <Camera className="w-5 h-5" />
@@ -1677,7 +1910,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           <button
                             type="button"
                             onClick={stopCamera}
-                            className="p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80"
+                            className="p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80 cursor-pointer"
                             title="انصراف"
                           >
                             <X className="w-4 h-4" />
@@ -1689,15 +1922,15 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         <button
                           type="button"
                           onClick={() => startCamera()}
-                          className="p-6 rounded-2xl border-2 border-dashed border-[#DFE3E6] hover:border-[#E06518] hover:bg-orange-50/20 flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
+                          className="p-6 rounded-xl border border-dashed border-black/[0.15] hover:border-[#E06518] hover:bg-[#FFF9F5] flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
                         >
-                          <div className="w-12 h-12 rounded-full bg-orange-100 text-[#E06518] flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                            <Camera className="w-6 h-6" />
+                          <div className="w-11 h-11 rounded-full bg-[#FFF4EC] text-[#E06518] flex items-center justify-center mb-2.5 group-hover:scale-105 transition-transform">
+                            <Camera className="w-5 h-5" />
                           </div>
-                          <span className="font-bold text-xs sm:text-sm text-[#2B313A]">
+                          <span className="font-bold text-xs sm:text-sm text-[#0D0D0D]">
                             فعال‌سازی دوربین زنده
                           </span>
-                          <span className="text-[11px] text-[#74757C] mt-0.5">
+                          <span className="text-[11px] text-[#8E8EA0] mt-0.5">
                             تصویربرداری مستقیم از قطعه یا خط تولید
                           </span>
                         </button>
@@ -1705,15 +1938,15 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="p-6 rounded-2xl border-2 border-dashed border-[#DFE3E6] hover:border-[#E06518] hover:bg-orange-50/20 flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
+                          className="p-6 rounded-xl border border-dashed border-black/[0.15] hover:border-[#E06518] hover:bg-[#FFF9F5] flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
                         >
-                          <div className="w-12 h-12 rounded-full bg-[#DEE2E5] text-[#55565A] flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                            <Upload className="w-6 h-6" />
+                          <div className="w-11 h-11 rounded-full bg-[#F4F4F4] text-[#4B5563] flex items-center justify-center mb-2.5 group-hover:scale-105 transition-transform">
+                            <Upload className="w-5 h-5" />
                           </div>
-                          <span className="font-bold text-xs sm:text-sm text-[#2B313A]">
+                          <span className="font-bold text-xs sm:text-sm text-[#0D0D0D]">
                             بارگذاری تصویر از گالری
                           </span>
-                          <span className="text-[11px] text-[#74757C] mt-0.5">
+                          <span className="text-[11px] text-[#8E8EA0] mt-0.5">
                             فرمت‌های JPG، PNG، WEBP
                           </span>
                         </button>
@@ -1733,9 +1966,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       </div>
                     )}
 
-                    {/* Industrial Preset Samples Carousel */}
-                    <div className="pt-2">
-                      <div className="text-[11px] font-bold text-[#74757C] mb-2">
+                    <div className="pt-1">
+                      <div className="text-[11px] font-semibold text-[#8E8EA0] mb-2">
                         یا انتخاب سریع از نمونه‌های صنعتی آماده:
                       </div>
                       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -1744,18 +1976,19 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                             key={sample.id}
                             type="button"
                             onClick={() => handleSelectPresetSample(sample)}
-                            className="px-2.5 py-1.5 rounded-xl border border-[#DFE3E6] bg-[#FFFFFF] hover:border-[#E06518] text-right shrink-0 flex items-center gap-2 cursor-pointer shadow-2xs"
+                            className="px-2.5 py-1.5 rounded-xl border border-black/[0.08] bg-[#FFFFFF] hover:border-[#E06518] text-right shrink-0 flex items-center gap-2 cursor-pointer transition-colors"
                           >
                             <img
                               src={sample.imageUrl}
                               alt={sample.title}
-                              className="w-8 h-8 rounded-lg object-contain bg-[#F5F6F6]"
+                              referrerPolicy="no-referrer"
+                              className="w-8 h-8 rounded-lg object-contain bg-[#F9F9F9]"
                             />
                             <div className="text-right">
-                              <div className="text-[11px] font-bold text-[#2B313A] truncate max-w-[120px]">
+                              <div className="text-[11px] font-bold text-[#0D0D0D] truncate max-w-[120px]">
                                 {sample.title}
                               </div>
-                              <div className="text-[9px] text-[#74757C]">{sample.subtitle}</div>
+                              <div className="text-[10px] text-[#8E8EA0]">{sample.subtitle}</div>
                             </div>
                           </button>
                         ))}
@@ -1763,73 +1996,73 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                     </div>
                   </div>
                 ) : (
-                  /* Captured image preview & run button */
                   <div className="space-y-4">
-                    <div className="relative rounded-2xl overflow-hidden bg-[#F5F6F6] border border-[#DFE3E6] max-h-72 flex items-center justify-center p-2">
+                    <div className="relative rounded-xl overflow-hidden bg-[#F9F9F9] border border-black/[0.08] max-h-72 flex items-center justify-center p-2">
                       <img
                         src={capturedImage}
                         alt="تصویر ثبت‌شده"
-                        className="max-h-64 object-contain rounded-xl"
+                        referrerPolicy="no-referrer"
+                        className="max-h-64 object-contain rounded-lg"
                       />
                     </div>
 
-                    {/* Optional Dimensions Inputs */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
                       <div>
-                        <label className="text-[11px] text-[#55565A] block mb-1">
-                          طول / عرض (mm):
+                        <label className="text-[11px] text-[#5D5D67] font-semibold block mb-1">
+                          طول / عرض (mm)
                         </label>
                         <input
                           type="number"
                           value={dimensionLength}
                           onChange={e => setDimensionLength(e.target.value)}
                           placeholder="مثلاً ۱۲۰۰"
-                          className="w-full h-8 px-2.5 bg-[#F5F6F6] border border-[#DFE3E6] rounded-lg text-center"
+                          className="w-full h-9 px-2.5 bg-[#F9F9F9] border border-black/[0.1] rounded-lg text-center font-mono tabular-nums focus:bg-white focus:border-[#E06518] focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="text-[11px] text-[#55565A] block mb-1">
-                          گام دندانه (mm):
+                        <label className="text-[11px] text-[#5D5D67] font-semibold block mb-1">
+                          گام دندانه (mm)
                         </label>
                         <input
                           type="number"
                           value={dimensionPitch}
                           onChange={e => setDimensionPitch(e.target.value)}
                           placeholder="مثلاً ۸"
-                          className="w-full h-8 px-2.5 bg-[#F5F6F6] border border-[#DFE3E6] rounded-lg text-center"
+                          className="w-full h-9 px-2.5 bg-[#F9F9F9] border border-black/[0.1] rounded-lg text-center font-mono tabular-nums focus:bg-white focus:border-[#E06518] focus:outline-none"
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[11px] text-[#55565A] block mb-1">
-                          کد یا مارکینگ حک‌شده:
+                        <label className="text-[11px] text-[#5D5D67] font-semibold block mb-1">
+                          کد یا مارکینگ حک‌شده
                         </label>
                         <input
                           type="text"
                           value={partMarking}
                           onChange={e => setPartMarking(e.target.value)}
                           placeholder="مثلاً FORZA 8M 1200 یا NSK 6205"
-                          className="w-full h-8 px-2.5 bg-[#F5F6F6] border border-[#DFE3E6] rounded-lg text-right"
+                          className="w-full h-9 px-2.5 bg-[#F9F9F9] border border-black/[0.1] rounded-lg text-right focus:bg-white focus:border-[#E06518] focus:outline-none"
                         />
                       </div>
                     </div>
 
-                    {/* Run Analysis Button */}
                     <button
                       type="button"
                       onClick={runAiPartAnalysis}
                       disabled={isAnalyzing}
-                      className="w-full py-3 rounded-xl bg-[#E06518] hover:bg-[#C95210] active:scale-98 disabled:bg-[#CBD2D8] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
+                      className="w-full min-h-[46px] py-3 rounded-full bg-[#0D0D0D] hover:bg-[#E06518] active:scale-[0.99] disabled:bg-[#CBD2D8] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
                     >
                       {isSavingCapturedImage ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> ذخیره روی دستگاه...</>
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> ذخیره روی دستگاه...
+                        </>
                       ) : isAnalyzing ? (
                         <>
-                          <Sparkles className="w-4 h-4 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" />
                           <span>سامانه در حال استخراج و تحلیل فنی قطعه...</span>
                         </>
                       ) : (
                         <>
-                          <VisualScannerIcon size={16} className="w-4 h-4" />
+                          <VisualScannerIcon size={17} />
                           <span>شروع تحلیل هوشمند و تطبیق با کاتالوگ اطلس</span>
                         </>
                       )}
@@ -1838,106 +2071,103 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 )}
               </div>
 
-              {/* STEP 3: ANALYSIS RESULTS */}
               {analysisError && (
-                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
                   {analysisError}
                 </div>
               )}
 
               {analysisResult && (
-                <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-sm space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-[#DFE3E6]">
+                <div className="p-4 sm:p-5 rounded-2xl bg-[#FFFFFF] border border-black/[0.08] space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-black/[0.06]">
                     <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-emerald-500 text-white text-xs font-black flex items-center justify-center">
+                      <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">
                         <Check className="w-3.5 h-3.5" />
                       </span>
-                      <h3 className="font-black text-sm text-[#2B313A]">
+                      <h3 className="font-bold text-sm text-[#0D0D0D]">
                         نتیجه تحلیل بینایی ماشین FORZA
                       </h3>
                     </div>
-                    <span className="text-xs font-bold text-[#E06518] bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-200">
+                    <span className="text-xs font-bold text-[#C95210] font-mono tabular-nums">
                       دقت تطبیق: {analysisResult.summary.confidence}%
                     </span>
                   </div>
 
-                  {/* Summary Box */}
-                  <div className="p-3.5 rounded-xl bg-[#F5F6F6] border border-[#DFE3E6] text-xs space-y-2">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="p-3.5 rounded-xl bg-[#F9F9F9] border border-black/[0.06] text-xs">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div>
-                        <span className="text-[#74757C] block text-[10px]">نوع قطعه:</span>
-                        <strong className="text-[#2B313A]">
+                        <span className="text-[#8E8EA0] block text-[10px]">نوع قطعه</span>
+                        <strong className="text-[#0D0D0D]">
                           {analysisResult.summary.detectedPartType}
                         </strong>
                       </div>
                       <div>
-                        <span className="text-[#74757C] block text-[10px]">پروفیل استاندارد:</span>
-                        <strong className="text-[#2B313A]">
+                        <span className="text-[#8E8EA0] block text-[10px]">پروفیل استاندارد</span>
+                        <strong className="text-[#0D0D0D] font-mono">
                           {analysisResult.summary.detectedProfile}
                         </strong>
                       </div>
                       <div>
-                        <span className="text-[#74757C] block text-[10px]">خانواده قطعه:</span>
-                        <strong className="text-[#2B313A]">
+                        <span className="text-[#8E8EA0] block text-[10px]">خانواده قطعه</span>
+                        <strong className="text-[#0D0D0D]">
                           {analysisResult.summary.partFamilyFarsi || 'قطعات انتقال قدرت'}
                         </strong>
                       </div>
                       <div>
-                        <span className="text-[#74757C] block text-[10px]">متریال:</span>
-                        <strong className="text-[#2B313A]">
+                        <span className="text-[#8E8EA0] block text-[10px]">متریال</span>
+                        <strong className="text-[#0D0D0D]">
                           {analysisResult.summary.material || 'فولاد / لاستیک صنعتی'}
                         </strong>
                       </div>
                     </div>
                   </div>
 
-                  {/* Matched Products */}
                   <div>
-                    <h4 className="font-black text-xs sm:text-sm text-[#2B313A] mb-3">
-                      قطعات منطبق و معادل در کاتالوگ اطلس:
+                    <h4 className="font-bold text-xs sm:text-sm text-[#0D0D0D] mb-3">
+                      قطعات منطبق و معادل در کاتالوگ اطلس
                     </h4>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {analysisResult.matchedProducts.map(item => (
                         <div
                           key={item.code}
-                          className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#FFFFFF] border border-[#DFE3E6] hover:border-[#E06518] shadow-2xs flex flex-col justify-between space-y-3"
+                          className="p-3.5 rounded-xl bg-[#FFFFFF] border border-black/[0.08] hover:border-[#E06518] flex flex-col justify-between space-y-3 transition-colors"
                         >
                           <div className="flex items-start gap-3">
-                            <div className="w-16 h-16 rounded-xl bg-[#F5F6F6] border border-[#DFE3E6] p-1.5 flex items-center justify-center shrink-0">
+                            <div className="w-15 h-15 rounded-xl bg-[#F9F9F9] border border-black/[0.06] p-1.5 flex items-center justify-center shrink-0">
                               <img
                                 src={item.image || (item.catalogProduct ? item.catalogProduct.image : '')}
                                 alt={item.name}
+                                referrerPolicy="no-referrer"
                                 className="w-full h-full object-contain"
                               />
                             </div>
 
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <span className="px-1.5 py-0.5 rounded bg-orange-100 text-[#E06518] font-bold text-[10px]">
-                                  {item.brand}
-                                </span>
-                                <span className="font-mono text-[10px] text-[#74757C]">
+                              <div className="flex items-center gap-1.5 text-[11px] mb-0.5">
+                                <span className="text-[#E06518] font-bold">{item.brand}</span>
+                                <span aria-hidden="true" className="text-[#CBD2D8]">·</span>
+                                <span className="font-mono tabular-nums text-[#8E8EA0]">
                                   {item.code}
                                 </span>
                               </div>
-                              <h5 className="font-black text-xs text-[#2B313A] line-clamp-1">
+                              <h5 className="font-bold text-xs text-[#0D0D0D] line-clamp-1">
                                 {item.name}
                               </h5>
-                              <p className="text-[11px] text-[#55565A] mt-1 line-clamp-2">
+                              <p className="text-[11px] text-[#5D5D67] mt-1 line-clamp-2">
                                 {item.matchReason}
                               </p>
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between pt-2 border-t border-[#DEE2E5]">
+                          <div className="flex items-center justify-between pt-2.5 border-t border-black/[0.06]">
                             <div className="text-xs">
                               {item.catalogProduct ? (
-                                <span className="font-black text-[#2B313A]">
+                                <span className="font-semibold text-[#0D0D0D]">
                                   قیمت و موجودی در پنل
                                 </span>
                               ) : (
-                                <span className="text-[#74757C] text-[11px]">استعلام قیمت</span>
+                                <span className="text-[#8E8EA0] text-[11px]">استعلام قیمت</span>
                               )}
                             </div>
 
@@ -1946,31 +2176,20 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if(currentUser)navigate(memberPath(currentUser,item.code));else openAuthModal(memberPath(null,item.code),"register");
-                                    return;
-                                    setAddedCartCode(item.code);
-                                    setTimeout(() => setAddedCartCode(null), 2000);
+                                    if (currentUser) navigate(memberPath(currentUser, item.code));
+                                    else openAuthModal(memberPath(null, item.code), 'register');
                                   }}
-                                  className="px-2.5 py-1.5 rounded-lg bg-[#E06518] hover:bg-[#C95210] text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                  className="px-3 py-1.5 rounded-full bg-[#E06518] hover:bg-[#C95210] text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
                                 >
-                                  {false ? (
-                                    <>
-                                      <Check className="w-3 h-3" />
-                                      <span>افزوده شد</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ShoppingCart className="w-3 h-3" />
-                                      <span>خرید</span>
-                                    </>
-                                  )}
+                                  <ShoppingCart className="w-3 h-3" />
+                                  <span>خرید</span>
                                 </button>
                               )}
 
                               <button
                                 type="button"
                                 onClick={() => transferAnalysisToChat(item)}
-                                className="px-2.5 py-1.5 rounded-lg bg-[#DEE2E5] hover:bg-[#CBD2D8] text-[#2B313A] text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                className="px-3 py-1.5 rounded-full bg-[#F4F4F4] hover:bg-[#E5E5E5] text-[#0D0D0D] text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                               >
                                 <MessageSquare className="w-3 h-3" />
                                 <span>چت مهندسی</span>
@@ -1986,34 +2205,58 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             </div>
           ) : (
             /* ================================================================= */
-            /* TAB 2: ENGINEERING CHAT WORKSPACE                                 */
+            /* TAB 2: WEBSITE-TONED CHATGPT ENGINEERING WORKBENCH                */
             /* ================================================================= */
-            <div className="flex-1 overflow-hidden flex flex-col justify-between relative">
-              {/* Approved ZIP: collapsible catalog drawer keeps the engineering conversation spacious. */}
-                              <section
-                  id="forza-workspace-catalog-drawer"
-                  className="relative z-30 shrink-0 border-b border-[#DFE3E6] bg-[#FAFBFB] px-3 sm:px-6 py-2.5"
-                  hidden={!isCatalogSearchOpen}
-                  aria-hidden={!isCatalogSearchOpen}
-                  aria-label="جستجوی کاتالوگ محصولات"
-                >
-                  <WorkspaceCatalog
-                    onSelect={family => { setIsCatalogSearchOpen(false); startCatalogFamilyConsultation(family); }}
-                    onAddToConsultation={startCatalogConsultation}
-                    onClose={() => setIsCatalogSearchOpen(false)}
-                  />
-                </section>
+            <div className="flex-1 overflow-hidden flex flex-col justify-between relative bg-[#FFFFFF]">
+              {/* Collapsible Catalog Search Drawer (keeps chat area uncluttered) */}
+              <AnimatePresence>
+                {isCatalogSearchOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="relative z-30 shrink-0 border-b border-[#DFE3E6] bg-[#FAFBFB] overflow-visible"
+                  >
+                    <div className="px-3 sm:px-6 py-2.5">
+                      <WorkspaceCatalog
+                        onSelect={family => {
+                          setIsCatalogSearchOpen(false);
+                          startCatalogFamilyConsultation(family);
+                        }}
+                        onAddToConsultation={product => {
+                          setIsCatalogSearchOpen(false);
+                          startCatalogConsultation(product);
+                        }}
+                        onClose={() => setIsCatalogSearchOpen(false)}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {messages.length === 0 ? (
+                /* EMPTY STATE:
+                   - Mobile (<640px): Top-down compact brand greeting + starter cards, Composer pinned ergonomically at bottom
+                   - Tablet/Desktop (sm+): Centered focal canvas with FORZA logo cascade, headline, centered composer, and 2x2 starter cards */
                 <div className="flex-1 flex flex-col overflow-y-auto px-3 sm:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                   <div className="hidden sm:block sm:flex-1" />
-                  <div className="w-full max-w-[740px] mx-auto flex flex-col flex-1 sm:flex-initial">
+
+                  <motion.div
+                    initial={{ opacity: 0, y: -14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                    className="w-full max-w-[740px] mx-auto flex flex-col flex-1 sm:flex-initial"
+                  >
+                    {/* Greeting & Website-Aligned Brand Emblem */}
                     <div className="order-1 text-center pt-5 sm:pt-0 pb-4 sm:pb-6">
-                      <img
-                        src="/images/brand/logo-forza.webp"
+                      <motion.img
+                        initial={{ y: -18, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ duration: 0.45, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+                        src="/assets/aistudio/logo-forza_9b7fcf6e.png"
                         alt="FORZA"
                         className="h-9 sm:h-11 w-auto mx-auto mb-3 object-contain"
-                        loading="eager"
-                        decoding="async"
                       />
                       <h1 className="text-[19px] sm:text-[26px] font-extrabold text-[#2B313A] tracking-tight text-balance">
                         امروز روی چه قطعه‌ای کار می‌کنیم؟
@@ -2026,7 +2269,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         >
                           <span>حوزه فعال:</span>
                           <strong className="text-[#2B313A] font-semibold">
-                            {INDUSTRY_DOMAINS.find(d => d.id === selectedIndustry)?.label || 'صنایع عمومی'}
+                            {activeIndustryLabel}
                           </strong>
                         </button>
                         <span aria-hidden="true">·</span>
@@ -2034,6 +2277,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       </div>
                     </div>
 
+                    {/* Starter Engineering Cards (Compact grid on Mobile, crisp 2x2 below Composer on Desktop) */}
                     <div className="order-2 sm:order-3 pt-1 sm:pt-5 pb-4 sm:pb-0 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 text-right">
                       {PROMPT_SUGGESTIONS.map((item, idx) => {
                         const Icon = item.icon;
@@ -2044,7 +2288,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                             onClick={() => handleSend(item.query)}
                             className="min-h-[56px] sm:min-h-[64px] px-3.5 py-2.5 sm:py-3 rounded-2xl bg-[#FFFFFF] border border-[#DFE3E6] hover:bg-[#FAFBFB] hover:border-[#E06518]/65 text-right transition-all duration-150 cursor-pointer group flex items-center gap-3"
                           >
-                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#F5F6F6] group-hover:bg-[#FFF4EC] text-[#55565A] group-hover:text-[#E06518] flex items-center justify-center shrink-0 transition-colors">
+                            <div className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-xl bg-[#F5F6F6] group-hover:bg-[#FFF4EC] text-[#55565A] group-hover:text-[#E06518] flex items-center justify-center shrink-0 transition-colors">
                               <Icon size={17} />
                             </div>
                             <div className="min-w-0 flex-1">
@@ -2060,16 +2304,19 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       })}
                     </div>
 
+                    {/* Uncluttered Composer (Bottom Thumb-Zone on Mobile, Centered Hero Focal Anchor on Tablet/Desktop) */}
                     <div className="order-3 sm:order-2 mt-auto sm:mt-0 sticky bottom-0 sm:static pt-2 bg-[#FFFFFF]">
-                      {renderComposerBox()}
+                      {renderComposerBox(true)}
                       <p className="hidden sm:block text-center text-[11px] text-[#74757C] mt-2.5">
                         مشخصات فنی بر اساس کاتالوگ صنعت پیش و بازرگانی تسمه اطلس استخراج می‌شود.
                       </p>
                     </div>
-                  </div>
+                  </motion.div>
+
                   <div className="hidden sm:block sm:flex-1" />
                 </div>
               ) : (
+                /* ACTIVE CONVERSATION STREAM + UNCLUTTERED COMPOSER */
                 <>
                   <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6">
                     <div className="space-y-3 sm:space-y-4 max-w-[740px] mx-auto w-full">
@@ -2080,10 +2327,11 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           isCopied={copiedId === m.id}
                           feedback={feedbackState[m.id]}
                           onCopy={copyToClipboard}
-                          onFeedback={(id, vote) => setFeedbackState(prev => ({ ...prev, [id]: vote }))}
-                          onNavigateLink={link => navigate(link)}
+                          onFeedback={handleFeedback}
+                          onNavigateLink={handleNavigateLink}
                         />
                       ))}
+
                       {loading && (
                         <div className="flex items-start gap-2.5 sm:gap-4 py-2">
                           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#FFFFFF] border border-[#DFE3E6] flex items-center justify-center shrink-0">
@@ -2098,8 +2346,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       <div ref={messagesEndRef} />
                     </div>
                   </div>
+
                   <div className="px-3 sm:px-6 pt-1 bg-[#FFFFFF] shrink-0 z-20 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-                    {renderComposerBox()}
+                    {renderComposerBox(false)}
                     <p className="hidden sm:block text-center text-[11px] text-[#74757C] mt-2">
                       مشخصات فنی بر اساس کاتالوگ صنعت پیش و بازرگانی تسمه اطلس استخراج می‌شود.
                     </p>
@@ -2111,7 +2360,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         </main>
       </div>
 
-      {/* Refined, reusable FORZA workspace modals from the approved ZIP design */}
+      {/* Extracted Modals */}
       <DinCalculatorModal
         isOpen={showCalculatorModal}
         onClose={() => setShowCalculatorModal(false)}
@@ -2143,10 +2392,14 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       />
 
       {/* Visual Part Search Wizard Modal */}
-      {isVisualSearchModalOpen && <Suspense fallback={<div role="status">در حال آماده‌سازی شناسایی تصویر…</div>}><AiVisualPartSearchModal
-        isOpen={isVisualSearchModalOpen}
-        onClose={() => setIsVisualSearchModalOpen(false)}
-      /></Suspense>}
+      {isVisualSearchModalOpen && (
+        <Suspense fallback={<div role="status">در حال آماده‌سازی شناسایی تصویر…</div>}>
+          <AiVisualPartSearchModal
+            isOpen={isVisualSearchModalOpen}
+            onClose={() => setIsVisualSearchModalOpen(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
