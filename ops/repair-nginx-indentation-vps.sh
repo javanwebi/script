@@ -4,6 +4,8 @@
 set -Eeuo pipefail
 umask 077
 test "$(id -u)" = 0 || { echo "RUN_AS_ROOT_REQUIRED" >&2; exit 1; }
+exec 9>/run/lock/sanatpish-main-release.lock
+flock -w 15 9 || { echo "RELEASE_LOCK_BUSY" >&2; exit 1; }
 CONF=/etc/nginx/conf.d/sanatpish-domain-http.conf
 test -f "$CONF" && test "$(readlink -f "$CONF")" = "$CONF"
 nginx -t
@@ -82,7 +84,10 @@ fd,temp_path=tempfile.mkstemp(prefix=".sanatpish-indent-repair-",dir=str(p.paren
 try:
     meta=p.stat()
     os.fchmod(fd,stat.S_IMODE(meta.st_mode))
-    os.fchown(fd,meta.st_uid,meta.st_gid)
+    if os.geteuid()==0:
+        os.fchown(fd,meta.st_uid,meta.st_gid)
+    else:
+        assert meta.st_uid==os.geteuid(), "OWNER_CHANGED_WITHOUT_PRIVILEGES"
     with os.fdopen(fd,"wb") as stream:
         stream.write(result.encode("utf-8"))
         stream.flush()
