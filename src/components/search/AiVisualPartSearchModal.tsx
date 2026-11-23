@@ -923,24 +923,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           event.currentTarget.value = "";
         }}
       />
-      {!cameraFlowActive && currentStep === 1 && !selectedImage && (
-        <nav className="sp-vision-journey" aria-label="مراحل شناسایی قطعه" data-testid="vision-journey">
-          {[
-            { label: 'تصویر قطعه', detail: 'دوربین یا گالری' },
-            { label: 'ناحیه قطعه', detail: 'برش انتخابی' },
-            { label: 'جست‌وجوی کاتالوگ', detail: 'مقایسه واقعی' },
-            { label: 'نتیجه و مشاوره', detail: 'بررسی فنی' },
-          ].map((step, index) => {
-            const activeIndex = 0; // Intro rail is displayed only before a photo is selected.
-            return (
-              <div key={step.label} className={['sp-vision-journey__step', index === activeIndex ? 'is-current' : '', index < activeIndex ? 'is-complete' : ''].filter(Boolean).join(' ')} aria-current={index === activeIndex ? 'step' : undefined}>
-                <span className="sp-vision-journey__number">{index < activeIndex ? '✓' : index + 1}</span>
-                <span><strong>{step.label}</strong><small>{step.detail}</small></span>
-              </div>
-            );
-          })}
-        </nav>
-      )}
       {cameraFlowActive ? (
         <section className="sanat-camera-experience sanat-camera-reference" dir="rtl"
           data-testid="full-screen-camera-experience" aria-label="دوربین تمام صفحه شناسایی قطعه">
