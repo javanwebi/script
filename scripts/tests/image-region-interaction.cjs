@@ -106,6 +106,18 @@ const {chromium}=require('playwright');
   await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).click();
   await page.getByTestId('analysis-approved-crop').waitFor();
   await page.getByTestId('kiki-vision-results-shell').waitFor();
+  const hierarchy=await page.evaluate(() => {
+    const sheet=document.querySelector('.fv-catalog-sheet__results');
+    const header=document.querySelector('[data-testid="forza-vision-catalog-sheet-header"]');
+    const lens=document.querySelector('.fv-catalog-sheet__lens');
+    const body=document.querySelector('[data-testid="forza-vision-two-panel-layout"]');
+    if(!sheet||!header||!lens||!body)return null;
+    const a=lens.getBoundingClientRect(),b=sheet.getBoundingClientRect();
+    return {headerInsideResults:sheet.contains(header),lensRight:a.left>b.left,columnsVisible:a.width>100&&b.width>100};
+  });
+  assert.ok(hierarchy&&hierarchy.headerInsideResults&&hierarchy.lensRight&&hierarchy.columnsVisible,JSON.stringify(hierarchy));
+  await page.getByTestId('forza-vision-optical-toolbar').waitFor();
+  await page.getByTestId('vision-kiki-no-match').waitFor();
   await page.screenshot({
    path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-desktop.png'),
    fullPage:true,
@@ -133,6 +145,10 @@ const {chromium}=require('playwright');
   await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
   assert.equal(queries.length,3);assert.match(queries[2].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);assert.equal(queries[2].region,undefined);assert.equal(queries[2].fullImage,true);assert.equal(uploads,0);
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);
+  await page.getByRole('button',{name:'نمایش همه نتایج'}).click();
+  assert.equal(await page.getByTestId('kiki-vision-results-shell').getAttribute('data-sheet-expanded'),'true');
+  await page.getByRole('button',{name:'نمایش تصویر قطعه'}).click();
+  assert.equal(await page.getByTestId('kiki-vision-results-shell').getAttribute('data-sheet-expanded'),'false');
   await page.screenshot({
    path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-mobile.png'),
    fullPage:true,
