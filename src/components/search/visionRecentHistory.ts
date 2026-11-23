@@ -73,7 +73,14 @@ export function loadVisionRecentSearches(): VisionRecentSearchItem[] {
     storage.removeItem(LEGACY_STORAGE_KEY);
     const raw = storage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      storage.removeItem(STORAGE_KEY);
+      return [];
+    }
     if (!Array.isArray(parsed)) {
       storage.removeItem(STORAGE_KEY);
       return [];
@@ -85,7 +92,11 @@ export function loadVisionRecentSearches(): VisionRecentSearchItem[] {
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, MAX_ITEMS);
 
-    storage.setItem(STORAGE_KEY, JSON.stringify(items));
+    try {
+      storage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch {
+      // A full or disabled browser store must not hide valid in-memory history.
+    }
     return items;
   } catch {
     return [];
@@ -104,13 +115,15 @@ export function recordVisionRecentSearch(entry: {
   if (!code || !title) return loadVisionRecentSearches();
 
   const createdAt = Date.now();
+  const imageUrl = safeCatalogImage(entry.imageUrl);
+  const partHint = cleanText(entry.partHint, 100);
   const item: VisionRecentSearchItem = {
     id: `${createdAt}-${code}`,
     code,
     title,
     subtitle: cleanText(entry.subtitle, 180),
-    ...(cleanText(entry.partHint, 100) ? { partHint: cleanText(entry.partHint, 100) } : {}),
-    ...(safeCatalogImage(entry.imageUrl) ? { imageUrl: safeCatalogImage(entry.imageUrl) } : {}),
+    ...(partHint ? { partHint } : {}),
+    ...(imageUrl ? { imageUrl } : {}),
     createdAt,
   };
 
