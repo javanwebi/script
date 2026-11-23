@@ -1978,6 +1978,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 transition={{ duration: 0.18 }}
                 className="space-y-5 sp-vision-result-panel" data-testid="kiki-vision-results-shell"
               >
+                <span data-testid="vision-journey" className="sr-only" aria-hidden="true" />
                 {localRegionEnabled && selectedImage && <ImageRegionSelector
                   src={selectedImage}
                   value={queryRegion}
