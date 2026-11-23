@@ -81,6 +81,8 @@ test('KIKI workspace exposes the composer tools popup and keeps catalog callback
   assert.match(page, /const openCatalogFinder = \(\) =>/);
   assert.match(page, /setIsCatalogSearchOpen\(true\)/);
   assert.match(page, /<WorkspaceCatalog/);
+  assert.match(page, /aria-controls="forza-workspace-catalog-drawer"/);
+  assert.match(page, /id="forza-workspace-catalog-drawer"/);
   assert.match(page, /onSelect=\{family =>/);
   assert.match(page, /startCatalogFamilyConsultation\(family\)/);
   assert.match(page, /onAddToConsultation=\{product =>/);
