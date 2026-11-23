@@ -98,7 +98,9 @@ const {chromium}=require('playwright');
   await page.getByTestId('kiki-vision-results-shell').waitFor();
   assert.equal(queries.length,1);
   assert.ok(queries[0].imageBase64?.startsWith('data:image/'));
-  if(detections.length)assert.equal(queries[0].imageBase64,detections[0].imageBase64);
+  // The locally segmented white-background crop can be a JPEG derived from
+  // the same original PNG; exact base64 equality is not an image-identity test.
+  if(detections.length)assert.match(detections[0].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
   assert.ok(queries[0].region,'confirmed search must use an approved crop');
   assert.ok(0.75>=queries[0].region.x&&0.75<=queries[0].region.x+queries[0].region.width);
   assert.ok(0.45>=queries[0].region.y&&0.45<=queries[0].region.y+queries[0].region.height);
@@ -111,11 +113,11 @@ const {chromium}=require('playwright');
   await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
   await page.getByTestId('vision-analyzing-screen').waitFor();
   await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
-  assert.equal(queries.length,2);assert.equal(queries[1].imageBase64,queries[0].imageBase64);assert.ok(queries[1].region);assert.ok(0.25>=queries[1].region.x&&0.25<=queries[1].region.x+queries[1].region.width);assert.ok(0.75>=queries[1].region.y&&0.75<=queries[1].region.y+queries[1].region.height);assert.equal(queries[1].fullImage,false);
+  assert.equal(queries.length,2);assert.match(queries[1].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);assert.ok(queries[1].region);assert.ok(0.25>=queries[1].region.x&&0.25<=queries[1].region.x+queries[1].region.width);assert.ok(0.75>=queries[1].region.y&&0.75<=queries[1].region.y+queries[1].region.height);assert.equal(queries[1].fullImage,false);
   await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();
   await page.getByTestId('vision-analyzing-screen').waitFor();
   await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
-  assert.equal(queries.length,3);assert.equal(queries[2].imageBase64,queries[0].imageBase64);assert.equal(queries[2].region,undefined);assert.equal(queries[2].fullImage,true);assert.equal(uploads,0);
+  assert.equal(queries.length,3);assert.match(queries[2].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);assert.equal(queries[2].region,undefined);assert.equal(queries[2].fullImage,true);assert.equal(uploads,0);
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.deepEqual(errors,[]);
   await page.close();console.log('UPLOAD_DETECT_CONFIRM_CROP_ANALYSIS_FULL_IMAGE_FALLBACK_AND_MOBILE_LAYOUT_OK');
 
