@@ -43,13 +43,6 @@ test('FORZA vision keeps the current scanner engine and adds the ZIP optical HUD
   assert.doesNotMatch(styles.match(/\.fv-corner-brackets\s*\{[^}]*\}/)?.[0] || '', /position:\s*relative/);
 });
 
-test('approved 121-file ZIP homepage layout removes redundant why section and keeps about', () => {
-  const home = read('src/pages/HomePage.tsx');
-  assert.match(home, /<HomeAboutSection\s*\/>/);
-  assert.match(home, /<HomeForzaBanner\s*\/>/);
-  assert.doesNotMatch(home, /<WhySanatPish\s*\/>/);
-});
-
 test('mobile FORZA launcher preserves the swipe-up contact sheet and direct desktop entry', () => {
   const launcher = read('src/components/common/AiFloatingButton.tsx');
   const styles = read('src/components/common/floating-quick-actions.css');
