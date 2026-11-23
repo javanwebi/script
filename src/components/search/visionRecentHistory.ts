@@ -36,7 +36,7 @@ function safeCatalogImage(value: unknown): string | undefined {
   // so require the resolver's output to be an official catalogue-volume path.
   const resolved = getCatalogDisplayImageCandidates([value])[0];
   if (!resolved) return undefined;
-  const officialCatalogPath = /^\\/storage\\/products\\/(?:catalog\\/e\\([1-9]\\d{0,3}\\)\\.png|legacy-jpg\\/images\\/e\\([1-9]\\d{0,3}\\)\\.jpg)$/i;
+  const officialCatalogPath = /^\/storage\/products\/(?:catalog\/e\([1-9]\d{0,3}\)\.png|legacy-jpg\/images\/e\([1-9]\d{0,3}\)\.jpg)$/i;
   return officialCatalogPath.test(resolved) ? resolved : undefined;
 }
 
