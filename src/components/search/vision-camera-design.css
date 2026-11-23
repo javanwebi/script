@@ -112,3 +112,222 @@
   .fv-lens-bracket { transition: none; }
   .fv-scan-laser, .fv-lens-bracket--locking { animation: none; }
 }
+
+
+/* KIKI-aligned FORZA VISION image review and evidence layout.
+   This layer only changes presentation; the current local-lens and catalogue pipeline remains authoritative. */
+.kiki-vision-review-shell {
+  min-height: 100dvh;
+  width: 100%;
+  background: #f5f6f6;
+  color: #2b313a;
+  padding: clamp(16px, 3vw, 30px);
+}
+.kiki-vision-review-shell__header {
+  width: min(100%, 1180px);
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #dfe3e6;
+  padding: 0 0 16px;
+}
+.kiki-vision-review-shell__header > div > span {
+  color: #e06518;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+.kiki-vision-review-shell__header h1 {
+  margin: 6px 0 0;
+  color: #2b313a;
+  font-size: clamp(18px, 2vw, 25px);
+  font-weight: 900;
+  line-height: 1.5;
+}
+.kiki-vision-review-shell__header p {
+  margin: 5px 0 0;
+  color: #74757c;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.kiki-vision-review-shell__status {
+  flex: 0 0 auto;
+  border: 1px solid #f3d1b9;
+  border-radius: 999px;
+  background: #fff4ec;
+  color: #a94e19;
+  padding: 7px 11px;
+  font-size: 10px;
+  font-weight: 800;
+}
+.kiki-vision-review-shell__content {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+}
+.kiki-vision-review-shell .sp-region-review {
+  border: 1px solid #dfe3e6;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 16px 42px -30px rgba(43,49,58,.28);
+  padding: clamp(14px, 2.4vw, 24px);
+}
+.kiki-vision-review-shell .sp-region-review__header {
+  border-bottom-color: #e8ebec;
+}
+.kiki-vision-review-shell .sanat-region-picker {
+  border-color: #e3e6e7;
+  border-radius: 20px;
+  background: #f8f9f8;
+}
+.kiki-vision-review-shell .sp-region-review__actions {
+  border-top-color: #e8ebec;
+}
+.kiki-vision-review-shell .sp-region-review__confirm {
+  background: #e06518;
+}
+.kiki-vision-review-shell .sp-region-review__confirm:hover {
+  background: #c95210;
+}
+
+.kiki-vision-image-evidence {
+  min-width: 0;
+  align-self: start;
+  position: sticky;
+  top: 16px;
+  overflow: hidden;
+  border: 1px solid #dfe3e6;
+  border-radius: 22px;
+  background: #fff;
+  padding: 12px;
+  box-shadow: 0 14px 36px -28px rgba(43,49,58,.32);
+}
+.kiki-vision-image-evidence__label {
+  display: block;
+  margin: 0 0 10px;
+  color: #a94e19;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.kiki-vision-image-evidence img {
+  display: block;
+  width: 100%;
+  max-height: min(58vh, 560px);
+  object-fit: contain;
+  border-radius: 14px;
+  background: #f5f6f6;
+}
+.kiki-vision-image-evidence p {
+  margin: 10px 2px 0;
+  color: #74757c;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.sp-vision-result-panel:has(> .sanat-region-picker),
+.sp-vision-result-panel:has(> .kiki-vision-image-evidence) {
+  display: grid;
+  grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+  align-items: start;
+  column-gap: 20px;
+  row-gap: 16px;
+}
+.sp-vision-result-panel:has(> .sanat-region-picker) > *,
+.sp-vision-result-panel:has(> .kiki-vision-image-evidence) > * {
+  margin-top: 0 !important;
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
+}
+.sp-vision-result-panel:has(> .sanat-region-picker) > .sanat-region-picker,
+.sp-vision-result-panel:has(> .kiki-vision-image-evidence) > .kiki-vision-image-evidence {
+  grid-column: 1;
+  grid-row: 1 / span 30;
+  position: sticky;
+  top: 16px;
+}
+.sp-vision-result-panel:has(> .sanat-region-picker) > :not(.sanat-region-picker),
+.sp-vision-result-panel:has(> .kiki-vision-image-evidence) > :not(.kiki-vision-image-evidence) {
+  grid-column: 2;
+  min-width: 0;
+}
+@media (max-width: 860px) {
+  .kiki-vision-review-shell__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .sp-vision-result-panel:has(> .sanat-region-picker),
+  .sp-vision-result-panel:has(> .kiki-vision-image-evidence) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sp-vision-result-panel:has(> .sanat-region-picker) > .sanat-region-picker,
+  .sp-vision-result-panel:has(> .kiki-vision-image-evidence) > .kiki-vision-image-evidence,
+  .sp-vision-result-panel:has(> .sanat-region-picker) > :not(.sanat-region-picker),
+  .sp-vision-result-panel:has(> .kiki-vision-image-evidence) > :not(.kiki-vision-image-evidence) {
+    grid-column: 1;
+    grid-row: auto;
+    position: relative;
+    top: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kiki-vision-review-shell *,
+  .kiki-vision-image-evidence * {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
+
+
+.kiki-vision-review-shell__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.kiki-vision-review-shell__back {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #dfe3e6;
+  border-radius: 12px;
+  background: #fff;
+  padding: 0 12px;
+  color: #2b313a;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+.kiki-vision-review-shell__back:hover {
+  border-color: #e06518;
+  color: #c95210;
+  background: #fffaf6;
+}
+@media (max-width: 860px) {
+  .kiki-vision-review-shell__header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+
+.sp-vision-result-intro__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .sp-vision-result-intro__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .sp-vision-result-intro__actions .kiki-vision-review-shell__back {
+    min-height: 36px;
+    padding-inline: 9px;
+  }
+}
