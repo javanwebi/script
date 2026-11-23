@@ -1087,9 +1087,20 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
               <h1>قطعه را در تصویر مشخص و تأیید کنید</h1>
               <p>کادر انتخاب‌شده مبنای جست‌وجو است؛ تصویر اصلی بدون تغییر در حافظه خصوصی دستگاه باقی می‌ماند.</p>
             </div>
-            <span className="kiki-vision-review-shell__status">
-              {regionDetectionState === 'detecting' || regionDetectionState === 'uploading' ? 'در حال آماده‌سازی' : queryRegion ? 'ناحیه انتخاب شد' : 'نیازمند انتخاب ناحیه'}
-            </span>
+            <div className="kiki-vision-review-shell__header-actions">
+              <span className="kiki-vision-review-shell__status">
+                {regionDetectionState === 'detecting' || regionDetectionState === 'uploading' ? 'در حال آماده‌سازی' : queryRegion ? 'ناحیه انتخاب شد' : 'نیازمند انتخاب ناحیه'}
+              </span>
+              <button
+                type="button"
+                onClick={() => { stopCamera(); onClose(); }}
+                className="kiki-vision-review-shell__back"
+                aria-label="بازگشت از شناسایی تصویر"
+              >
+                <ArrowRight size={16} aria-hidden="true" />
+                <span>بازگشت</span>
+              </button>
+            </div>
           </header>
           <div className="kiki-vision-review-shell__content">
                 <ImageRegionReview
