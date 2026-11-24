@@ -119,16 +119,17 @@
 .kiki-region-review__progress {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 9px;
-  min-height: 42px;
-  margin: 14px 18px 0;
-  border: 1px solid #f1d8c6;
-  border-radius: 12px;
-  color: #a94e19;
-  background: #fff8f2;
-  font-size: 11px;
-  font-weight: 800;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 26px;
+  margin: 9px 20px 0;
+  color: #74757c;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 750;
+}
+.kiki-region-review__progress svg {
+  color: #e06518;
 }
 .kiki-region-review__progress svg {
   animation: kiki-region-review-spin 1s linear infinite;
@@ -449,9 +450,9 @@
     padding: 9px;
   }
   .kiki-region-review__progress {
-    margin: 10px 10px 0;
-    min-height: 38px;
-    font-size: 10px;
+    margin: 7px 10px 0;
+    min-height: 24px;
+    font-size: 9px;
   }
   .kiki-region-review__notice,
   .kiki-region-review__error {
