@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createServer, type AddressInfo } from 'node:http';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { once } from 'node:events';
 import { WebSocket, type WebSocket as WebSocketClient } from 'ws';
 import { setupForzaLiveGateway } from '../server/ai/forzaLiveGateway.ts';
@@ -27,7 +28,7 @@ type MessageWaiter = {
   predicate: (message: any) => boolean;
   resolve: (message: any) => void;
   reject: (error: Error) => void;
-  timer: NodeJS.Timeout;
+  timer: ReturnType<typeof setTimeout>;
 };
 const messageState = new WeakMap<WebSocketClient, { messages: any[]; waiters: MessageWaiter[] }>();
 
