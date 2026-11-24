@@ -64,7 +64,9 @@ function wav(seconds=0.2){
    serverSttConfigured:true,serverSttProvider:'diba',serverSttReady:true
   }}));
   await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({json:{
-   voice:'piper-nima-gyro-medium',incrementalSpeech:true
+   textProvider:'avalai',textProviderRequested:'avalai',
+   textProviderConfigured:true,textModel:'glm-5.3-flash',
+   voice:'piper-nima-gyro-medium',incrementalSpeech:true,ready:true
   }}));
   await page.route('**/forza-greeting-bootstrap.wav',route=>route.fulfill({
    status:200,contentType:'audio/wav',body:wav()
