@@ -2009,6 +2009,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
           className="flex min-h-[100dvh] lg:h-[100dvh] flex-col bg-[#FFFFFF] text-[#2B313A] lg:overflow-hidden"
           aria-label="لنز هوشمند و محصولات مشابه"
           data-testid="kiki-vision-results-shell"
+          data-testid="vision-journey"
           data-vision-journey="true"
         >
           <div className="flex flex-1 flex-col lg:grid lg:grid-cols-12 lg:h-full lg:overflow-hidden">
@@ -2179,7 +2180,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
               {/* Sticky Summary Header */}
               <div data-testid="forza-vision-catalog-sheet-header" className="sticky top-0 z-20 border-b border-[#DFE3E6] bg-[#FFFFFF]/95 px-4 py-3 backdrop-blur sm:px-6">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="sp-vision-result-intro flex items-center gap-3 min-w-0">
                     <div className="h-13 w-13 sm:h-14 sm:w-14 shrink-0 overflow-hidden rounded-xl border border-[#DFE3E6] bg-[#F5F6F6] p-1">
                       <img
                         src={croppedPreviewUrl || selectedImage}
@@ -2200,6 +2201,9 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                                 ? ` · ${analysisResult.summary.partFamilyFarsi}`
                                 : ''
                             }`}
+                      </p>
+                      <p className="mt-1 text-[10px] leading-5 text-[#74757C]">
+                        تطبیق تصویری پیشنهادی است؛ کد فنی، ابعاد و سازگاری قطعه باید پیش از سفارش تأیید شوند.
                       </p>
                     </div>
                   </div>
