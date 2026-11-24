@@ -2009,7 +2009,6 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
           className="flex min-h-[100dvh] lg:h-[100dvh] flex-col bg-[#FFFFFF] text-[#2B313A] lg:overflow-hidden"
           aria-label="لنز هوشمند و محصولات مشابه"
           data-testid="kiki-vision-results-shell"
-          data-testid="vision-journey"
           data-vision-journey="true"
         >
           <div className="flex flex-1 flex-col lg:grid lg:grid-cols-12 lg:h-full lg:overflow-hidden">
