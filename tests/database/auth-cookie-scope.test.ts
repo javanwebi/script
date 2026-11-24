@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildAuthCookieHeaders} from '../../server/db/supabaseAuth';
+import {buildAuthCookieHeaders,buildRefreshCookieMigrationHeaders} from '../../server/db/supabaseAuth';
 
 test('Supabase refresh cookie is scoped to API routes and expires the legacy portal-only cookie',()=>{
  const cookies=buildAuthCookieHeaders({
@@ -13,6 +13,13 @@ test('Supabase refresh cookie is scoped to API routes and expires the legacy por
  assert.match(cookies[0],/^sp_access=test-access-token; Path=\/; HttpOnly; SameSite=Lax; Max-Age=3600; Secure$/);
  assert.match(cookies[1],/^sp_refresh=test-refresh-token; Path=\/api; HttpOnly; SameSite=Lax; Max-Age=2592000; Secure$/);
  assert.match(cookies[2],/^sp_refresh=; Path=\/api\/portal; HttpOnly; SameSite=Lax; Max-Age=0; Secure$/);
+});
+
+test('legacy sessions migrate their refresh token to the shared API path',()=>{
+ const [current,legacy]=buildRefreshCookieMigrationHeaders('legacy-refresh-token',true);
+
+ assert.match(current,/^sp_refresh=legacy-refresh-token; Path=\\/api;.*Max-Age=2592000; Secure$/);
+ assert.match(legacy,/^sp_refresh=; Path=\\/api\\/portal;.*Max-Age=0; Secure$/);
 });
 
 test('logout expires both current and legacy refresh-cookie paths',()=>{
