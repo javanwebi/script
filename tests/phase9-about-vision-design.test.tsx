@@ -105,5 +105,5 @@ test('KIKI recognition results use full-resolution catalogue photography and exp
   assert.match(css,/\.sp-catalog-lightbox/);
   assert.match(css,/\.sanat-visual-results__grid/);
   assert.match(css,/100dvh/);
-  assert.match(css,/env\(safe-area-inset-bottom\)/);
+  assert.match(wizard,/env\(safe-area-inset-bottom\)/);
 });
