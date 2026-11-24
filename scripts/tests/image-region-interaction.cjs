@@ -105,9 +105,9 @@ const {chromium}=require('playwright');
   assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);
 
   const hierarchy=await page.evaluate(()=>{
-    const sheet=document.querySelector('.fv-catalog-sheet__results');
+    const sheet=document.querySelector('[data-testid="forza-vision-catalog-results"]');
     const header=document.querySelector('[data-testid="forza-vision-catalog-sheet-header"]');
-    const lens=document.querySelector('.fv-catalog-sheet__lens');
+    const lens=document.querySelector('[data-testid="forza-vision-photo-lens"]');
     const body=document.querySelector('[data-testid="forza-vision-two-panel-layout"]');
     if(!sheet||!header||!lens||!body)return null;
     const a=lens.getBoundingClientRect(),b=sheet.getBoundingClientRect();
