@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, CheckCircle2, ImagePlus, LoaderCircle, RefreshCw, Search, Target } from 'lucide-react';
+import { AlertCircle, ImagePlus, LoaderCircle, RefreshCw, Target } from 'lucide-react';
 import { ImageRegionSelector } from './ImageRegionSelector';
 import type { ImageRegion } from '../../utils/imageRegion';
 import './image-region-review.css';
@@ -16,14 +16,15 @@ interface Props {
   busy?: boolean;
   onRegionChange: (region: ImageRegion | undefined) => void;
   onConfirm: () => void;
+  onFullImageSearch: () => void;
   onRetryPreparation: () => void;
   onRetryAnalysis: () => void;
   onChangeImage: () => void;
 }
 
 /**
- * KIKI-aligned image review. The production selector and confirmation callback
- * remain unchanged; this component owns presentation only.
+ * KIKI-aligned image review. The production selector and analysis callbacks
+ * remain authoritative; this component changes presentation only.
  */
 export function ImageRegionReview({
   image,
@@ -35,19 +36,21 @@ export function ImageRegionReview({
   busy,
   onRegionChange,
   onConfirm,
+  onFullImageSearch,
   onRetryPreparation,
   onRetryAnalysis,
   onChangeImage,
 }: Props) {
   const preparing = status === 'uploading' || status === 'detecting';
+  const disabled = preparing || Boolean(busy);
   const detected = Boolean(selectedRegion);
 
   return (
     <section
-      className={'kiki-region-review' + (preparing ? ' is-preparing' : '')}
+      className={'kiki-region-review' + (preparing ? ' is-preparing' : '') + (busy ? ' is-busy' : '')}
       dir="rtl"
       aria-label="انتخاب قطعه از تصویر"
-      aria-busy={preparing}
+      aria-busy={preparing || Boolean(busy)}
       data-testid="image-region-review"
     >
       <div className="kiki-region-review__intro">
@@ -58,11 +61,20 @@ export function ImageRegionReview({
             روی قطعه موردنظر بزنید یا کادر نارنجی را تنظیم کنید؛ فقط همان ناحیه برای جست‌وجو استفاده می‌شود.
           </p>
         </div>
+        <button
+          type="button"
+          className="kiki-region-review__change-top"
+          onClick={onChangeImage}
+          disabled={disabled}
+        >
+          <ImagePlus size={16} aria-hidden="true" />
+          <span>تصویر جدید</span>
+        </button>
       </div>
 
       {preparing && (
         <div className="kiki-region-review__progress" role="status" aria-live="polite">
-          <LoaderCircle size={16} aria-hidden="true" />
+          <LoaderCircle size={15} aria-hidden="true" />
           <span>
             {status === 'uploading'
               ? 'تصویر در حال بارگذاری است'
@@ -77,6 +89,8 @@ export function ImageRegionReview({
           value={selectedRegion}
           candidateRegions={candidateRegions}
           onChange={onRegionChange}
+          onSearch={onConfirm}
+          onFullImageSearch={onFullImageSearch}
         />
       </div>
 
@@ -89,7 +103,7 @@ export function ImageRegionReview({
               {message || 'ناحیه قطعه را روی تصویر مشخص کنید؛ تصویر اصلی شما محفوظ می‌ماند.'}
             </span>
           </div>
-          <button type="button" onClick={onRetryPreparation}>
+          <button type="button" onClick={onRetryPreparation} disabled={disabled}>
             تلاش مجدد
           </button>
         </div>
@@ -118,28 +132,6 @@ export function ImageRegionReview({
           </button>
         </div>
       )}
-
-      <footer className="kiki-region-review__actions">
-        <button
-          type="button"
-          className="kiki-region-review__secondary"
-          onClick={onChangeImage}
-          disabled={preparing}
-        >
-          <ImagePlus size={16} aria-hidden="true" />
-          <span>انتخاب تصویر دیگر</span>
-        </button>
-        <button
-          type="button"
-          className="kiki-region-review__primary"
-          onClick={onConfirm}
-          disabled={preparing || busy}
-        >
-          <Search size={17} aria-hidden="true" />
-          <span>{detected ? 'جستجوی این قطعه در کاتالوگ' : 'جستجوی تصویر در کاتالوگ'}</span>
-          <CheckCircle2 size={16} aria-hidden="true" />
-        </button>
-      </footer>
     </section>
   );
 }
