@@ -35,7 +35,7 @@ test("the process map keeps accessible stage selection and updates the existing 
   assert.match(map, /aria-selected=\{selected\}/);
   assert.match(map, /aria-controls="ipt-stage-panel"/);
   assert.match(map, /id=\{"ipt-stage-tab-" \+ index\}/);
-  assert.match(page, /aria-labelledby=\{"ipt-stage-tab-" \+ activeStageIndex\}/);
+  assert.match(page, /aria-labelledby=\{"ipt-stage-tab-" \+ Math\.min\(activeStageIndex, stages\.length - 1\)\}/);
   assert.match(map, /data-stage-title=\{stage\.title\}/);
   assert.match(map, /نمای شماتیک مسیر فرایند؛ نه نقشه اجرایی کارخانه/);
 });
@@ -77,7 +77,7 @@ test("station ranking prioritizes stage evidence, keeps industry fallback and ex
   });
   const industryFallback = catalogProduct("CAT-BELT-02", "تسمه صنعتی");
   const inactive = catalogProduct("CAT-OLD-03", "تسمه نسوز", { active: false });
-  const unrelated = catalogProduct("CAT-OTHER-04", "دستکش ایمنی");
+  const unrelated = catalogProduct("CAT-OTHER-04", "دستکش ایمنی", { featured: true, hasCatalogueImage: true });
   const ranked = rankIndustryStageProducts(
     [industryFallback, inactive, unrelated, contextual],
     ceramic,

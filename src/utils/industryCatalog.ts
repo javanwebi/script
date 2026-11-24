@@ -51,8 +51,10 @@ function productRelevance(product: Product, terms: readonly string[]): number {
     else if (tags.includes(term)) score += 6;
     else if (details.includes(term)) score += 2;
   }
-  if (product.featured) score += 1;
-  if (product.hasCatalogueImage) score += 1;
+  // Quality signals may break ties, but must never turn an unrelated item
+  // into a match for an industry or production station.
+  if (score > 0 && product.featured) score += 1;
+  if (score > 0 && product.hasCatalogueImage) score += 1;
   return score;
 }
 
