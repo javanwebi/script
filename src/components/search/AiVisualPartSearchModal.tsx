@@ -1094,7 +1094,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           onCamera={() => { setCameraReview(false); setCameraFlowActive(true); void startCamera(); }}
           onClose={() => { stopCamera(); onClose(); }}
           onManufacture={() => { void openCustomManufacturingRequest(); }}
-        ) : (
+        />
+      ) : (
         <div className={currentStep === "analyzing" ? "sp-vision-analysis-container" : "p-5 sm:p-6 text-right space-y-5"}>
           {/* TOP STEPPER (Only visible during steps 2 & 3) */}
           {typeof currentStep === "number" && (
