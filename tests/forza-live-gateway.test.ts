@@ -200,3 +200,31 @@ test('FORZA Live gateway reports missing server credentials without exposing a p
     await app.close();
   }
 });
+
+test('FORZA Live gateway rate-limits repeated demo sessions from one source IP', async () => {
+  const fakeSession = { sendRealtimeInput() {}, close() {} };
+  const fakeClient: any = {
+    live: { async connect() { return fakeSession; } },
+  };
+  const app = await startServer({
+    getApiKey: () => 'test-only-key',
+    createClient: () => fakeClient,
+    maxSessionsPerHourPerIp: 1,
+  });
+  let first: WebSocketClient | undefined;
+  const second = new WebSocket(app.url, { headers: { Origin: app.origin } });
+  try {
+    first = await openClient(app.url, app.origin);
+    await waitForMessage(first, message => message.type === 'connected');
+    first.close();
+    await once(first, 'close');
+
+    const [request, response] = await once(second, 'unexpected-response');
+    assert.ok(request);
+    assert.equal((response as any).statusCode, 429);
+  } finally {
+    first?.terminate();
+    second.terminate();
+    await app.close();
+  }
+});
