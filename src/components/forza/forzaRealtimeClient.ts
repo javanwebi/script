@@ -7,7 +7,7 @@ import {
   appendLiveTranscript,
 } from '../../utils/forzaRealtimeAudio';
 
-export type ForzaVoicePhase = 'connecting' | 'native' | 'legacy' | 'unavailable';
+export type ForzaVoicePhase = 'connecting' | 'native' | 'unavailable';
 export type ForzaVoiceStatus = 'listening' | 'thinking' | 'speaking';
 
 export interface ForzaRealtimeCallbacks {
@@ -90,7 +90,7 @@ export class ForzaRealtimeClient {
       const ws = new WebSocket(address.href);
       this.socket = ws;
       this.lastPongAt = Date.now();
-      this.connectTimeout = window.setTimeout(() => this.fallback('اتصال زنده FORZA به‌موقع برقرار نشد.', false), 20000);
+      this.connectTimeout = window.setTimeout(() => this.fallback('اتصال زنده FORZA به‌موقع برقرار نشد.'), 20000);
 
       ws.onmessage = (event: MessageEvent) => {
         if (this.disposed) return;
@@ -99,13 +99,13 @@ export class ForzaRealtimeClient {
         this.acceptMessage(message);
       };
       ws.onerror = () => {
-        if (!this.disposed) this.fallback('اتصال صوت زنده با اختلال مواجه شد.', false);
+        if (!this.disposed) this.fallback('اتصال صوت زنده با اختلال مواجه شد.');
       };
       ws.onclose = () => {
-        if (!this.disposed) this.fallback('ارتباط تماس زنده قطع شد. برای ادامه، دوباره مکالمه را شروع کنید.', false);
+        if (!this.disposed) this.fallback('ارتباط تماس زنده قطع شد. برای ادامه، دوباره مکالمه را شروع کنید.');
       };
     } catch (e: any) {
-      this.fallback(e?.message || 'مرورگر نتوانست تماس زنده را آغاز کند.', false);
+      this.fallback(e?.message || 'مرورگر نتوانست تماس زنده را آغاز کند.');
     }
   }
 
@@ -120,7 +120,7 @@ export class ForzaRealtimeClient {
         this.heartbeat = window.setInterval(() => {
           if (this.disposed) return;
           if (Date.now() - this.lastPongAt > 45000) {
-            this.fallback('ارتباط صوتی پاسخ نمی‌دهد. برای ادامه، دوباره مکالمه را شروع کنید.', false);
+            this.fallback('ارتباط صوتی پاسخ نمی‌دهد. برای ادامه، دوباره مکالمه را شروع کنید.');
             return;
           }
           this.send({ type: 'ping' });
@@ -135,16 +135,10 @@ export class ForzaRealtimeClient {
         this.lastPongAt = Date.now();
         return;
       case 'fallback_required':
-        // An intentionally configured HTTP Worker is NOT a connection error.
-        // Switch to its compatible turn-based path without the red error banner.
-        if (message.reasonCode === 'worker_configured') {
-          this.switchToLegacy();
-          return;
-        }
-        this.fallback(message.reason || message.error || 'حالت صوت زنده در دسترس نیست.', false);
+        this.fallback(message.reason || message.error || 'حالت صوت زنده در دسترس نیست.');
         return;
       case 'session_closed':
-        this.fallback(message.reason || 'نشست صوتی پایان یافته است.', false);
+        this.fallback(message.reason || 'نشست صوتی پایان یافته است.');
         return;
       case 'user_transcript':
         if (message.text) {
@@ -369,17 +363,11 @@ export class ForzaRealtimeClient {
     return true;
   }
 
-  private switchToLegacy() {
-    if (this.disposed) return;
-    this.stop();
-    this.callback.onMode('legacy');
-  }
-
-  private fallback(reason: string, allowLegacy = false) {
+  private fallback(reason: string) {
     if (this.disposed) return;
     this.stop();
     this.callback.onError(reason);
-    this.callback.onMode(allowLegacy ? 'legacy' : 'unavailable');
+    this.callback.onMode('unavailable');
   }
 
   stop() {
