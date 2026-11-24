@@ -146,6 +146,7 @@ export function IndustryTemplatePage() {
     setActiveStageIndex(0);
     setSelectedIntentId("supply");
     setShowRecommendations(false);
+    setRequestOpen(false);
     setTechnicalQuery("");
     setProblemQuery("");
     setEquipment("");

@@ -29,6 +29,8 @@ test("all six industries have distinct process-map art directions", () => {
 
 test("the process map keeps accessible stage selection and updates the existing detail panel", () => {
   assert.match(page, /<IndustryProcessMap/);
+  assert.match(page, /setRequestOpen\(false\);[\s\S]*?\}, \[slug\]\)/,
+    "industry navigation must close an open custom-part request modal");
   assert.doesNotMatch(page, /ipt-production-visual/);
   assert.match(map, /role="tablist"/);
   assert.match(map, /role="tab"/);
