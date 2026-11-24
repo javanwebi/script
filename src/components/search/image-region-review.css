@@ -254,7 +254,7 @@
   font-size: 10px;
   font-weight: 850;
 }
-.kiki-region-review.is-preparing .sanat-region-picker__frame,
+.kiki-region-review.is-preparing .sanat-region-picker {\n  pointer-events: none;\n  opacity: .68;\n}\n.kiki-region-review.is-preparing .sanat-region-picker__frame,
 .kiki-region-review.is-preparing .sanat-region-picker__side {
   pointer-events: none;
 }
