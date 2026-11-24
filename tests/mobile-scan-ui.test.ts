@@ -254,5 +254,5 @@ test("workspace vision entry, image review and results use the KIKI presentation
   assert.match(entry, /قطعه را با یک عکس بشناسید/);
   assert.match(entry, /تشخیص خودکار کانتور و کد فنی/);
   assert.match(styles, /sp-vision-result-panel:has\(> \.sanat-region-picker\)/);
-  assert.match(styles, /kiki-vision-review-shell__content/);
+  assert.match(reviewStyles, /kiki-vision-review-shell__content/);
 });
