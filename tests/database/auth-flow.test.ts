@@ -11,7 +11,7 @@ test('refresh cookie covers portal and sibling admin API routes with secure cook
  const cleared=buildRefreshCookie('',0,true);
  assert.match(cleared,/Max-Age=0; Secure$/);
  const legacyClear=buildLegacyRefreshCookieClear(true);
- assert.match(legacyClear,/^sp_refresh=; Path=\\/api\\/portal;/);
+ assert.match(legacyClear,/^sp_refresh=; Path=\/api\/portal;/);
  assert.match(legacyClear,/HttpOnly; SameSite=Lax; Max-Age=0; Secure$/);
 });
 
