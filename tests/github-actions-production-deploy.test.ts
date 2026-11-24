@@ -66,7 +66,8 @@ test("existing main CI runs deployment-gate shell syntax and regression tests be
   assert.match(ci, /bash -n ops\/sanatpish-github-deploy-gate\.sh/);
   assert.match(ci, /bash -n ops\/install-github-actions-deploy-user-vps\.sh/);
   assert.match(ci, /tests\/github-actions-production-deploy\.test\.ts/);
-  assert.match(source, /branches: \[main, fix\/source-ui-postgres-data-boundary-20261022\]/);
+  assert.match(source, /pull_request:\s*\n\s*branches: \[main\]/);
+  assert.match(source, /push:\s*\n\s*branches:\s*\n\s*-\s*main/);
   assert.match(vps, /branches: \[main, feature\/textile-industry-page\]/);
   assert.doesNotMatch(vps, /push:\s*\n\s*branches:[^\n]*\n\s*paths:/);
 });

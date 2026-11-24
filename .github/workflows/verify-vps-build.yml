@@ -106,17 +106,6 @@ on:
       - ".github/workflows/verify-source-db.yml"
   push:
     branches: [main, feature/textile-industry-page]
-    paths:
-      - "src/**"
-      - "server.ts"
-      - "server/auth/**"
-      - "api/sms.ts"
-      - "tests/supabase-sms-hook.test.ts"
-      - "tests/mobile-scan-ui.test.ts"
-      - "vite.config.ts"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/verify-vps-build.yml"
   workflow_dispatch:
 permissions:
   contents: read
