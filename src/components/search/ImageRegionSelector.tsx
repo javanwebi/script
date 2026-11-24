@@ -16,9 +16,10 @@ interface Props {
  onChange:(region:ImageRegion|undefined)=>void;
  onSearch?:()=>void;
  onFullImageSearch?:()=>void;
+ disabled?:boolean;
 }
 
-export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSearch,onFullImageSearch}:Props){
+export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSearch,onFullImageSearch,disabled=false}:Props){
  const start=useRef<{x:number;y:number;clientX:number;clientY:number}|null>(null);
  const [draft,setDraft]=useState<ImageRegion>();
  const [aspect,setAspect]=useState(1);
@@ -31,6 +32,7 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
  };
  const finish=(event:PointerEvent<HTMLDivElement>)=>{
   if(!start.current)return;
+  if(disabled){start.current=null;setDraft(undefined);return;}
   const p=point(event),s=start.current;
   start.current=null;
   const moved=Math.hypot(event.clientX-s.clientX,event.clientY-s.clientY);
@@ -48,7 +50,7 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
   setDraft(undefined);
  };
  const keyboardBase=value || candidates[0] || {x:0.35,y:0.3,width:0.3,height:0.3};
- return <section className="sanat-region-picker" aria-label="انتخاب قطعه در تصویر" data-testid="image-region-selector" dir="rtl">
+ return <section className="sanat-region-picker" aria-label="انتخاب قطعه در تصویر" aria-disabled={disabled || undefined} data-testid="image-region-selector" dir="rtl">
   <header className="sanat-region-picker__header">
    <div className="sanat-region-picker__heading">
     <span className="sanat-region-picker__icon" aria-hidden="true">⌖</span>
@@ -58,16 +60,16 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
   </header>
   <div className="sanat-region-picker__layout">
    <div className="sanat-region-picker__canvas">
-    <div role="group" aria-label="انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت" tabIndex={0}
+    <div role="group" aria-label="انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت" aria-disabled={disabled || undefined} tabIndex={disabled?-1:0}
      className="sanat-region-picker__frame" dir="ltr"
      onPointerDown={event=>{
-      if(event.button!==0||!event.isPrimary)return;
+      if(disabled||event.button!==0||!event.isPrimary)return;
       start.current={...point(event),clientX:event.clientX,clientY:event.clientY};
       event.currentTarget.setPointerCapture(event.pointerId);
       setDraft(undefined);
      }}
      onPointerMove={event=>{
-      if(!start.current)return;
+      if(disabled||!start.current)return;
       const p=point(event),s=start.current;
       setDraft({x:Math.min(s.x,p.x),y:Math.min(s.y,p.y),width:Math.abs(p.x-s.x),height:Math.abs(p.y-s.y)});
      }}
@@ -75,6 +77,7 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
      onPointerCancel={()=>{start.current=null;setDraft(undefined);}}
      onLostPointerCapture={()=>{start.current=null;setDraft(undefined);}}
      onKeyDown={event=>{
+      if(disabled)return;
       if(event.key==='Escape'){onChange(undefined);return;}
       if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
       event.preventDefault();
@@ -119,8 +122,8 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
     {selected?<div className="sanat-region-picker__crop" style={{aspectRatio:aspect*selected.width/selected.height,backgroundImage:'url('+JSON.stringify(src)+')',backgroundSize:(100/selected.width)+'% '+(100/selected.height)+'%',backgroundPosition:(selected.width<1?100*selected.x/(1-selected.width):0)+'% '+(selected.height<1?100*selected.y/(1-selected.height):0)+'%'}}/>:
      <div className="sanat-region-picker__empty">هنوز برشی انتخاب نشده؛ روی قطعه بزنید یا کادر بکشید.</div>}
     <p>{selected?'برش انتخاب‌شده را بررسی کنید؛ جست‌وجو فقط پس از زدن دکمه انجام می‌شود.':'با لمس قطعه، برش اولیه ساخته می‌شود و می‌توانید آن را اصلاح کنید.'}</p>
-    {onSearch&&<button type="button" className="sanat-region-picker__search" onClick={onSearch} disabled={!value}>جست‌وجوی این قطعه</button>}
-    <button type="button" className="sanat-region-picker__full-image" onClick={()=>onFullImageSearch ? onFullImageSearch() : onChange(undefined)}>جست‌وجوی کل تصویر</button>
+    {onSearch&&<button type="button" className="sanat-region-picker__search" onClick={onSearch} disabled={disabled || !value}>جست‌وجوی این قطعه</button>}
+    <button type="button" className="sanat-region-picker__full-image" onClick={()=>onFullImageSearch ? onFullImageSearch() : onChange(undefined)} disabled={disabled}>جست‌وجوی کل تصویر</button>
    </aside>
   </div>
   {candidates.length > 1 && (
@@ -131,6 +134,7 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
       key={index}
       type="button"
       aria-pressed={sameRegion(selected, region)}
+      disabled={disabled}
       className={`fv-region-candidates__item ${sameRegion(selected, region) ? 'is-active' : ''}`}
       onClick={() => { setDraft(undefined); onChange(region); }}
      >
