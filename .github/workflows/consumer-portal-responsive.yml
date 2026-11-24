@@ -58,11 +58,13 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - name: Install pinned browser vision runtime
+      - name: Install pinned FORZA browser vision runtime
+        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
+      - name: Stage verified local vision model and WASM
         run: |
-          npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
           mkdir -p public/forza-runtime/ort
           cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/
+          node scripts/prepare-vision-assets.mjs
       - name: TypeScript check
         run: npm run lint
       - name: Official website and FORZA logo placement tests
