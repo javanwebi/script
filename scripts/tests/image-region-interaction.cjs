@@ -83,30 +83,28 @@ const {chromium}=require('playwright');
    await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
   });
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/modal.html`);
+  const firstQueryRequest=page.waitForRequest(request=>new URL(request.url()).pathname==='/api/ai/analyze-part',{timeout:30000});
   await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
-  await page.getByTestId('image-region-review').waitFor();
-  await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).waitFor();
-  await page.screenshot({
-   path:path.join(os.tmpdir(),'sanat-forza-vision-entry-review-desktop.png'),
-   fullPage:true,
-  });
-  // A warm local U²-NetP model may find the crop without a server detect call.
-  // Wait for crop readiness rather than assuming a mandatory network roundtrip.
-  await page.waitForFunction(() => {
-   const confirm=document.querySelector('.sp-region-review__confirm');
-   return confirm && !confirm.disabled;
-  },null,{timeout:30000});
-  assert.equal(uploads,0);
-  assert.ok(detections.length<=1,'no duplicate server-detection request');
+  await page.getByTestId('kiki-vision-results-shell').waitFor({timeout:30000});
+  await firstQueryRequest;
+  await page.getByTestId('vision-analysis-progress-overlay').waitFor({state:'visible',timeout:30000});
+  await page.getByTestId('vision-analysis-progress-overlay').waitFor({state:'detached',timeout:30000});
+  await page.getByTestId('vision-kiki-no-match').waitFor({timeout:30000});
+  await page.getByTestId('forza-vision-optical-toolbar').waitFor();
+  await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-desktop.png'),fullPage:true});
+  assert.equal(uploads,0,'the original image must remain in the browser vault');
+  assert.ok(detections.length<=1,'local-first detection must not duplicate server region detection');
   if(detections.length)assert.ok(typeof detections[0].imageBase64==='string'&&detections[0].imageBase64.startsWith('data:image/'));
-  assert.equal(queries.length,0);
-  const modalFrame=page.locator('.sanat-region-picker__frame');const bounds=await modalFrame.boundingBox();
-  await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
-  await page.waitForTimeout(350);assert.equal(queries.length,0);
-  await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).click();
-  await page.getByTestId('analysis-approved-crop').waitFor();
-  await page.getByTestId('kiki-vision-results-shell').waitFor();
-  const hierarchy=await page.evaluate(() => {
+  assert.equal(queries.length,1);
+  assert.ok(queries[0].imageBase64?.startsWith('data:image/'));
+  assert.ok(queries[0].region,'initial part matching must use a normalized region');
+  assert.ok(queries[0].region.x>=0&&queries[0].region.y>=0&&queries[0].region.x+queries[0].region.width<=1&&queries[0].region.y+queries[0].region.height<=1);
+  if(queries[0].detectionId)assert.equal(queries[0].detectionId,'test-detection-id');
+  assert.equal(queries[0].fullImage,false);
+  assert.equal(queries[0].includeNearest,false);
+  assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);
+
+  const hierarchy=await page.evaluate(()=>{
     const sheet=document.querySelector('.fv-catalog-sheet__results');
     const header=document.querySelector('[data-testid="forza-vision-catalog-sheet-header"]');
     const lens=document.querySelector('.fv-catalog-sheet__lens');
@@ -116,44 +114,51 @@ const {chromium}=require('playwright');
     return {headerInsideResults:sheet.contains(header),lensRight:a.left>b.left,columnsVisible:a.width>100&&b.width>100};
   });
   assert.ok(hierarchy&&hierarchy.headerInsideResults&&hierarchy.lensRight&&hierarchy.columnsVisible,JSON.stringify(hierarchy));
-  await page.getByTestId('forza-vision-optical-toolbar').waitFor();
-  await page.getByTestId('vision-kiki-no-match').waitFor();
-  await page.screenshot({
-   path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-desktop.png'),
-   fullPage:true,
-  });
-  assert.equal(queries.length,1);
-  assert.ok(queries[0].imageBase64?.startsWith('data:image/'));
-  // The locally segmented white-background crop can be a JPEG derived from
-  // the same original PNG; exact base64 equality is not an image-identity test.
-  if(detections.length)assert.match(detections[0].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
-  assert.ok(queries[0].region,'confirmed search must use an approved crop');
-  assert.ok(0.75>=queries[0].region.x&&0.75<=queries[0].region.x+queries[0].region.width);
-  assert.ok(0.45>=queries[0].region.y&&0.45<=queries[0].region.y+queries[0].region.height);
-  if(queries[0].detectionId)assert.equal(queries[0].detectionId,'test-detection-id');
-  assert.equal(queries[0].fullImage,false);assert.equal(queries[0].includeNearest,false);
-  assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);assert.equal(uploads,0);
-  const resultFrame=page.locator('.sanat-region-picker__frame').last();const resultBounds=await resultFrame.boundingBox();
-  await page.mouse.click(resultBounds.x+resultBounds.width*0.25,resultBounds.y+resultBounds.height*0.75);
-  await page.waitForTimeout(80);assert.equal(queries.length,1);
-  await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
-  await page.getByTestId('vision-analyzing-screen').waitFor();
-  await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
-  assert.equal(queries.length,2);assert.match(queries[1].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);assert.ok(queries[1].region);assert.ok(0.25>=queries[1].region.x&&0.25<=queries[1].region.x+queries[1].region.width);assert.ok(0.75>=queries[1].region.y&&0.75<=queries[1].region.y+queries[1].region.height);assert.equal(queries[1].fullImage,false);
+
+  const candidate=page.getByRole('button',{name:'قطعه ۲',exact:true});
+  const secondQueryRequest=page.waitForRequest(request=>new URL(request.url()).pathname==='/api/ai/analyze-part',{timeout:30000});
+  if(await candidate.count()){
+    await candidate.click();
+  }else{
+    const lens=page.getByRole('button',{name:'برای انتخاب هر قطعه در تصویر روی آن ضربه بزنید'});
+    const bounds=await lens.boundingBox();
+    assert.ok(bounds,'KIKI optical lens must remain interactive');
+    await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
+  }
+  await secondQueryRequest;
+  await page.getByTestId('vision-analysis-progress-overlay').waitFor({state:'visible',timeout:30000});
+  await page.getByTestId('vision-analysis-progress-overlay').waitFor({state:'detached',timeout:30000});
+  await page.getByTestId('vision-kiki-no-match').waitFor({timeout:30000});
+  assert.equal(queries.length,2);
+  assert.match(queries[1].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
+  assert.ok(queries[1].region);
+  assert.ok(0.75>=queries[1].region.x&&0.75<=queries[1].region.x+queries[1].region.width);
+  assert.ok(0.45>=queries[1].region.y&&0.45<=queries[1].region.y+queries[1].region.height);
+  assert.equal(queries[1].fullImage,false);
+
+  const fullImageRequest=page.waitForRequest(request=>new URL(request.url()).pathname==='/api/ai/analyze-part',{timeout:30000});
   await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();
-  await page.getByTestId('vision-analyzing-screen').waitFor();
-  await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
-  assert.equal(queries.length,3);assert.match(queries[2].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);assert.equal(queries[2].region,undefined);assert.equal(queries[2].fullImage,true);assert.equal(uploads,0);
-  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);
-  await page.getByRole('button',{name:'نمایش همه نتایج'}).click();
-  assert.equal(await page.getByTestId('kiki-vision-results-shell').getAttribute('data-sheet-expanded'),'true');
-  await page.getByRole('button',{name:'نمایش تصویر قطعه'}).click();
-  assert.equal(await page.getByTestId('kiki-vision-results-shell').getAttribute('data-sheet-expanded'),'false');
-  await page.screenshot({
-   path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-mobile.png'),
-   fullPage:true,
-  });assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.deepEqual(errors,[]);
-  await page.close();console.log('UPLOAD_DETECT_CONFIRM_CROP_ANALYSIS_FULL_IMAGE_FALLBACK_AND_MOBILE_LAYOUT_OK');
+  await fullImageRequest;
+  await page.getByTestId('vision-analysis-progress-overlay').waitFor({state:'visible',timeout:30000});
+  await page.getByTestId('vision-analysis-progress-overlay').waitFor({state:'detached',timeout:30000});
+  assert.equal(queries.length,3);
+  assert.match(queries[2].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
+  assert.equal(queries[2].region,undefined);
+  assert.equal(queries[2].fullImage,true);
+  assert.equal(uploads,0);
+
+  await page.setViewportSize({width:390,height:844});
+  await page.waitForTimeout(120);
+  const sheet=page.locator('[data-sheet-expanded]');
+  await page.getByTestId('forza-vision-catalog-sheet-header').getByRole('button',{name:'همه نتایج'}).click();
+  assert.equal(await sheet.getAttribute('data-sheet-expanded'),'true');
+  await page.getByTestId('forza-vision-catalog-sheet-header').getByRole('button',{name:'مشاهده تصویر'}).click();
+  assert.equal(await sheet.getAttribute('data-sheet-expanded'),'false');
+  await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-mobile.png'),fullPage:true});
+  assert.equal(await page.locator('.fv-workbench').count(),1);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+  assert.deepEqual(errors,[]);
+  await page.close();console.log('KIKI_UPLOAD_LOCAL_IMAGE_REGION_TAP_FULL_IMAGE_SEARCH_AND_MOBILE_LAYOUT_OK');
 
  }finally{await browser?.close();await server?.close();await fs.rm(fixture,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
