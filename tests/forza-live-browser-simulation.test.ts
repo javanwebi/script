@@ -121,8 +121,11 @@ test('mocked live browser session streams microphone PCM and handles live playba
 
     ws.receive({type:'audio_chunk',responseId:'reply-2',data:sound,mimeType:'audio/pcm;rate=24000'});
     assert.equal(playback.length,2);
+    client.setMicMuted(false);
+    micWorklet.port.onmessage({data:new Float32Array(2048).fill(0.25)});
+    micWorklet.port.onmessage({data:new Float32Array(2048).fill(0.25)});
+    assert.equal(playback[1].stopped,true,'Near-field speech stops queued AI audio locally');
     ws.receive({type:'interrupted',responseId:'reply-2'});
-    assert.equal(playback[1].stopped,true,'User interruption stops buffered AI playback');
     assert.equal(statuses.at(-1),'listening');
     assert.deepEqual(errors,[]);
   } finally {
