@@ -45,6 +45,8 @@ export class ForzaRealtimeClient {
   private userTranscript = '';
   private turnCompleted = false;
   private lastLevelAt = 0;
+  private micSpeechFrames = 0;
+  private lastLocalBargeInAt = 0;
   private lastPongAt = 0;
   private heartbeat: number | null = null;
   private connectTimeout: number | null = null;
@@ -171,7 +173,9 @@ export class ForzaRealtimeClient {
         const interruptedId = String(message.responseId || '');
         if (interruptedId && this.ignoredResponseIds.has(interruptedId)) return;
         if (interruptedId) this.ignoreResponse(interruptedId);
-        this.callback.onInterrupted?.(interruptedId, this.userTranscript, this.aiTranscript);
+        if (!this.turnCompleted) {
+          this.callback.onInterrupted?.(interruptedId, this.userTranscript, this.aiTranscript);
+        }
         this.userTranscript = '';
         this.aiTranscript = '';
         this.stopPlayback();
@@ -183,7 +187,12 @@ export class ForzaRealtimeClient {
         this.turnCompleted = true;
         this.callback.onTurnComplete?.(this.userTranscript, this.aiTranscript);
         this.userTranscript = '';
-        if (this.sources.size === 0) this.callback.onStatus('listening');
+        if (this.sources.size === 0) {
+          this.callback.onStatus('listening');
+          this.responseId = '';
+          this.aiTranscript = '';
+          this.turnCompleted = false;
+        }
         return;
       default:
         return;
@@ -225,6 +234,9 @@ export class ForzaRealtimeClient {
       try { source.disconnect(); } catch {}
       if (this.playbackGeneration === generation && this.turnCompleted && this.sources.size === 0) {
         this.callback.onStatus('listening');
+        this.responseId = '';
+        this.aiTranscript = '';
+        this.turnCompleted = false;
       }
     };
     source.start(begin);
@@ -245,19 +257,44 @@ export class ForzaRealtimeClient {
   private handleMic(input: Float32Array) {
     if (this.disposed || !input.length) return;
     const now = Date.now();
+    let sum = 0;
+    for (const value of input) sum += value * value;
+    const rms = Math.sqrt(sum / input.length);
     if (now - this.lastLevelAt > 120) {
-      let sum = 0;
-      for (const value of input) sum += value * value;
-      const rms = Math.sqrt(sum / input.length);
       this.callback.onLevel(this.muted ? 0 : Math.min(1, rms * 9));
       this.lastLevelAt = now;
     }
+    this.detectLocalBargeIn(rms, now);
     if (this.muted) return;
     const pcm = this.resampler?.convert(input);
     if (!pcm?.length) return;
     const ws = this.socket;
     if (!ws || !mayQueueMicrophoneFrame(ws.readyState, ws.bufferedAmount)) return;
     ws.send(JSON.stringify({ type: 'realtime_audio', audio: encodePcm16Base64(pcm) }));
+  }
+
+  private detectLocalBargeIn(rms: number, now: number) {
+    if (this.muted || this.sources.size === 0 || now - this.lastLocalBargeInAt < 500) {
+      if (rms < 0.04) this.micSpeechFrames = 0;
+      return;
+    }
+    // Two consecutive near-field frames (~85 ms at the current worklet size)
+    // stop queued audio even if the model has already completed generation.
+    if (rms >= 0.065) this.micSpeechFrames += 1;
+    else this.micSpeechFrames = 0;
+    if (this.micSpeechFrames < 2) return;
+
+    const interruptedId = this.responseId;
+    if (interruptedId) this.ignoreResponse(interruptedId);
+    if (!this.turnCompleted) {
+      this.callback.onInterrupted?.(interruptedId, this.userTranscript, this.aiTranscript);
+      this.userTranscript = '';
+      this.aiTranscript = '';
+    }
+    this.stopPlayback();
+    this.callback.onStatus('listening');
+    this.lastLocalBargeInAt = now;
+    this.micSpeechFrames = 0;
   }
 
   private async startMic() {
@@ -304,7 +341,9 @@ export class ForzaRealtimeClient {
     if (this.responseId) {
       const previousResponseId = this.responseId;
       this.ignoreResponse(previousResponseId);
-      this.callback.onInterrupted?.(previousResponseId, this.userTranscript, this.aiTranscript);
+      if (!this.turnCompleted) {
+        this.callback.onInterrupted?.(previousResponseId, this.userTranscript, this.aiTranscript);
+      }
     }
     this.stopPlayback();
     this.aiTranscript = '';
