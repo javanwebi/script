@@ -275,3 +275,27 @@ test('FORZA Live gateway enforces the global hourly session budget across differ
     await app.close();
   }
 });
+
+test('FORZA Live gateway limits text prompts per customer session', async () => {
+  const fakeSession = { sendRealtimeInput() {}, sendClientContent() {}, close() {} };
+  const fakeClient: any = {
+    live: { async connect() { return fakeSession; } },
+  };
+  const app = await startServer({
+    getApiKey: () => 'test-only-key',
+    createClient: () => fakeClient,
+  });
+  let client: WebSocketClient | undefined;
+  try {
+    client = await openClient(app.url, app.origin);
+    await waitForMessage(client, message => message.type === 'connected');
+    for (let index = 0; index < 31; index += 1) {
+      client.send(JSON.stringify({ type: 'text', text: `پیام آزمایشی ${index}` }));
+    }
+    const limited = await waitForMessage(client, message => message.type === 'fallback_required');
+    assert.equal(limited.reasonCode, 'rate_limited');
+  } finally {
+    client?.terminate();
+    await app.close();
+  }
+});
