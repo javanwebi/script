@@ -789,6 +789,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
   };
 
+  const confirmFullImageAndAnalyze = () => {
+    if (!temporaryImageDataUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
+    setQueryRegion(undefined);
+    setFullImageSelected(true);
+    setErrorMessage('');
+    void handleAnalyze('quick', null);
+  };
+
   const goToStep2 = () => {
     if(selectedImage && !analysisResult?.requiredMeasurements){confirmRegionAndAnalyze();return;}
     setErrorMessage("");
@@ -1120,6 +1128,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   busy={isUploadingImage || !temporaryImageDataUrl}
                   onRegionChange={handleRegionSelection}
                   onConfirm={confirmRegionAndAnalyze}
+                  onFullImageSearch={confirmFullImageAndAnalyze}
                   onRetryPreparation={retryRegionPreparation}
                   onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
                   onChangeImage={() => fileInputRef.current?.click()}
