@@ -89,10 +89,8 @@ export const AiForzaLiveExperience: React.FC<AiForzaLiveExperienceProps> = ({ on
       // interrupted partial answer before displaying the next response.
       if (!text && aiTextRef.current.trim()) {
         const partial = aiTextRef.current.trim();
-        setMessages(previous => [
-          ...previous,
-          { id: ++messageIdRef.current, role: 'assistant', text: partial },
-        ]);
+        const id = ++messageIdRef.current;
+        setMessages(previous => [...previous, { id, role: 'assistant', text: partial }]);
       }
       aiTextRef.current = text;
       setLiveAiText(text);
