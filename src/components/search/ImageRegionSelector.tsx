@@ -193,7 +193,7 @@ export function ImageRegionSelector({
        key={handle}
        type="button"
        className={'sanat-region-picker__handle is-'+handle}
-       aria-label={handle==='nw'?'تغییر گوشه بالا راست':handle==='ne'?'تغییر گوشه بالا چپ':handle==='sw'?'تغییر گوشه پایین راست':'تغییر گوشه پایین چپ'}
+       aria-label={handle==='nw'?'تغییر گوشه بالا چپ':handle==='ne'?'تغییر گوشه بالا راست':handle==='sw'?'تغییر گوشه پایین چپ':'تغییر گوشه پایین راست'}
        onPointerDown={event=>beginResize(event,handle)}
        onClick={event=>event.preventDefault()}
       />)}
