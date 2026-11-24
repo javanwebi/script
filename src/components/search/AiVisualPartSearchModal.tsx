@@ -27,7 +27,6 @@ import {
   Sliders,
   Layers,
   ChevronLeft,
-  ChevronRight,
   ChevronDown,
   ChevronUp,
   X,
@@ -44,16 +43,12 @@ import {
   Scan,
   Target,
   Cpu,
-  Activity,
-  ExternalLink,
-  Search,
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import {
   aiVisualSearchService,
   AiPartAnalysisResult,
   AiAnalysisStage,
-  INDUSTRIAL_PRESET_SAMPLES,
   IndustrialPresetSample,
 } from "../../services/aiVisualSearchService";
 import { toPersianDigits, formatPrice } from "../../utils/formatters";
