@@ -270,7 +270,7 @@ export class ForzaRealtimeClient {
 
   private detectLocalBargeIn(rms: number, now: number) {
     if (this.muted || this.sources.size === 0 || now - this.lastLocalBargeInAt < 500) {
-      if (rms < 0.04) this.micSpeechFrames = 0;
+      this.micSpeechFrames = 0;
       return;
     }
     // Two consecutive near-field frames (~85 ms at the current worklet size)
