@@ -116,7 +116,7 @@ export class ForzaRealtimeClient {
         this.heartbeat = window.setInterval(() => {
           if (this.disposed) return;
           if (Date.now() - this.lastPongAt > 45000) {
-            this.fallback('ارتباط صوتی پاسخ نمی‌دهد؛ حالت جایگزین فعال شد.');
+            this.fallback('ارتباط صوتی پاسخ نمی‌دهد. برای ادامه، دوباره مکالمه را شروع کنید.', false);
             return;
           }
           this.send({ type: 'ping' });
