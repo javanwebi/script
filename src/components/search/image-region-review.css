@@ -85,7 +85,7 @@
 .kiki-region-review__intro {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   padding: 18px 20px;
   border-bottom: 1px solid #e9ecee;
@@ -229,13 +229,17 @@
   line-height: 1.85;
 }
 .kiki-region-review .sanat-region-picker__full-image { display: none; }
-.kiki-region-review .sanat-region-picker__search,
+.kiki-region-review .sanat-region-picker__search {
   min-height: 36px;
   border-radius: 10px;
   font-size: 10px;
   font-weight: 850;
 }
-.kiki-region-review.is-preparing .sanat-region-picker {\n  pointer-events: none;\n  opacity: .68;\n}\n.kiki-region-review.is-preparing .sanat-region-picker__frame,
+.kiki-region-review.is-preparing .sanat-region-picker {
+  pointer-events: none;
+  opacity: .68;
+}
+.kiki-region-review.is-preparing .sanat-region-picker__frame,
 .kiki-region-review.is-preparing .sanat-region-picker__side {
   pointer-events: none;
 }
