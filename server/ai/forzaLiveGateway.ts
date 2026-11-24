@@ -424,7 +424,6 @@ export function setupForzaLiveGateway(
           activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
         },
         speechConfig: {
-          languageCode: 'fa',
           voiceConfig: {
             prebuiltVoiceConfig: { voiceName: voice },
           },
