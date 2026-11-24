@@ -188,6 +188,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
   onClose,
   initialCamera = false,
   standalone = false,
+  fullScreen = false,
   onAnalysisResult,
 }) => {
   const navigate = useNavigate();
@@ -1530,6 +1531,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     <div
       className={shellPositionClass}
       dir="rtl"
+      data-fullscreen={standalone || fullScreen || initialCamera ? 'true' : 'false'}
       role={standalone ? 'main' : 'dialog'}
       aria-modal={standalone ? undefined : 'true'}
       aria-label="جستجوی تصویری قطعات صنعتی FORZA VISION"
