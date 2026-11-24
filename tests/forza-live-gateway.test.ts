@@ -194,10 +194,12 @@ test('FORZA Live gateway rejects cross-origin and malformed-origin WebSocket upg
   }
 });
 
-test('FORZA Live gateway fails closed unless explicitly enabled', async () => {
+test('FORZA Live gateway fails closed by default when the server opt-in is missing', async () => {
+  const previous = process.env.FORZA_LIVE_ENABLED;
+  delete process.env.FORZA_LIVE_ENABLED;
   let providerCreated = false;
   const app = await startServer({
-    enabled: false,
+    enabled: undefined,
     getApiKey: () => 'test-only-key',
     createClient: () => { providerCreated = true; throw new Error('must not run'); },
   });
@@ -210,6 +212,8 @@ test('FORZA Live gateway fails closed unless explicitly enabled', async () => {
   } finally {
     client?.terminate();
     await app.close();
+    if (previous === undefined) delete process.env.FORZA_LIVE_ENABLED;
+    else process.env.FORZA_LIVE_ENABLED = previous;
   }
 });
 
