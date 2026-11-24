@@ -17,7 +17,7 @@ The customer browser connects to the same-origin `/api/live` WebSocket. The Expr
 
 Set `FORZA_LIVE_API_KEY` for a dedicated Live project, or leave it blank to reuse the existing server-side `ai-forza`, `AI_FORZA_API_KEY`, or `GEMINI_API_KEY` key. Do not use a `VITE_` variable and do not commit the key.
 
-Optional settings:
+Optional settings. Public calls remain disabled unless the server environment explicitly sets `FORZA_LIVE_ENABLED=true`:
 
 | Variable | Default | Purpose |
 |---|---:|---|
