@@ -65,8 +65,8 @@ export function ImageRegionReview({
           <LoaderCircle size={16} aria-hidden="true" />
           <span>
             {status === 'uploading'
-              ? 'تصویر در حال آماده‌سازی است'
-              : 'در حال شناسایی قطعه در تصویر'}
+              ? 'تصویر در حال بارگذاری است'
+              : 'بررسی تصویر برای انتخاب قطعه'}
           </span>
         </div>
       )}
