@@ -48,6 +48,7 @@ const SYSTEM_INSTRUCTION = `
 هیچ قیمت، موجودی، برند، استاندارد یا مشخصه فنی را حدس نزنید و به‌عنوان واقعیت اعلام نکنید.
 اگر اطلاعات زنده کاتالوگ یا موجودی در دسترس نیست، صریح بگویید که برای تأیید نهایی باید اطلاعات فروش بررسی شود.
 اگر پاسخ را نمی‌دانید، شفاف بگویید و مسیر بررسی دقیق‌تر را پیشنهاد کنید.
+در ابتدای نشست، یک خوش‌آمدگویی کوتاه بگویید، خودتان را فورزا معرفی کنید و سپس برای صحبت مشتری مکث کنید.
 حرف مشتری را قطع نکنید؛ اگر وسط پاسخ شما صحبت کرد، فوراً پاسخ صوتی را متوقف کنید و به صحبت او گوش دهید.
 از ادعای انجام سفارش، ثبت درخواست یا بررسی موجودی بدون ابزار واقعی خودداری کنید.
 `.trim();
@@ -418,7 +419,7 @@ export function setupForzaLiveGateway(
             content?.inputTranscription?.text;
           const inputInterim = providerMessage?.interimInputTranscription?.text ??
             content?.interimInputTranscription?.text;
-          const userText = typeof inputInterim === 'string' ? inputInterim : inputFinal;
+          const userText = typeof inputFinal === 'string' && inputFinal.length > 0 ? inputFinal : inputInterim;
 
           if (typeof userText === 'string' && userText) {
             send({
@@ -489,13 +490,22 @@ export function setupForzaLiveGateway(
       sessionTimer = setTimeout(() => {
         finishSession('زمان مجاز این گفت‌وگوی آزمایشی به پایان رسید. برای ادامه، مکالمه تازه‌ای شروع کنید.');
       }, maxSessionMs);
-      send({
+      const connected = send({
         type: 'connected',
         model,
         sampleRate: 24000,
         inputSampleRate: 16000,
         maxSessionMs,
       });
+      if (!connected || isClosed) return;
+      try {
+        session.sendRealtimeInput({
+          text: 'مکالمه تازه آغاز شده است. به فارسی یک خوش‌آمدگویی کوتاه بگو، خودت را فورزا معرفی کن و مشتری را دعوت کن سؤالش را مطرح کند. سپس منتظر صحبت او بمان.',
+        });
+      } catch {
+        fail('provider_send_failed', 'شروع مکالمه زنده با مشکل روبه‌رو شد.');
+        return;
+      }
       console.info(`[FORZA_LIVE] connected call=${callId.slice(0, 8)} model=${model} active=${activeTotal}`);
     }).catch(() => {
       if (connectTimer) clearTimeout(connectTimer);
