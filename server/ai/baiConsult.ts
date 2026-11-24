@@ -43,7 +43,7 @@ export function configuredBaiModel(env: NodeJS.ProcessEnv, voice: boolean): stri
 
 
 export function configuredXkiroModel(env: NodeJS.ProcessEnv, voice: boolean): string | null {
-  const provider = String((voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
+  const provider = String((voice ? env.FORZA_VOICE_PROVIDER || env.FORZA_DESK_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
   if (provider !== 'xkiro' || !env.XKIRO_API_KEY?.trim()) return null;
   // VPS probes show qwen/qwen-plus-2025-07-28:free timing out while
   // qwen/qwen3.5-flash:free completed successfully. Keep both FORZA surfaces
