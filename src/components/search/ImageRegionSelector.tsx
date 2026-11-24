@@ -25,6 +25,8 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
  const [tapFeedback,setTapFeedback]=useState<{x:number;y:number;key:number}|null>(null);
  const candidates=candidateRegions.filter(validImageRegion);
  const selected=draft || value;
+ // Keep the side preview geometry stable during a drag; live crop resizing can shift the pointer frame.
+ const previewRegion=draft ? value : selected;
  const point=(event:PointerEvent<HTMLDivElement>):ImagePoint=>{
   const box=event.currentTarget.getBoundingClientRect();
   return {x:Math.max(0,Math.min(1,(event.clientX-box.left)/box.width)),y:Math.max(0,Math.min(1,(event.clientY-box.top)/box.height))};
@@ -116,9 +118,9 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onSe
    </div>
    <aside className="sanat-region-picker__side">
     <div className="sanat-region-picker__side-title">پیش‌نمایش برش</div>
-    {selected?<div className="sanat-region-picker__crop" style={{aspectRatio:aspect*selected.width/selected.height,backgroundImage:'url('+JSON.stringify(src)+')',backgroundSize:(100/selected.width)+'% '+(100/selected.height)+'%',backgroundPosition:(selected.width<1?100*selected.x/(1-selected.width):0)+'% '+(selected.height<1?100*selected.y/(1-selected.height):0)+'%'}}/>:
+    {previewRegion?<div className="sanat-region-picker__crop" style={{aspectRatio:aspect*previewRegion.width/previewRegion.height,backgroundImage:'url('+JSON.stringify(src)+')',backgroundSize:(100/previewRegion.width)+'% '+(100/previewRegion.height)+'%',backgroundPosition:(previewRegion.width<1?100*previewRegion.x/(1-previewRegion.width):0)+'% '+(previewRegion.height<1?100*previewRegion.y/(1-previewRegion.height):0)+'%'}}/>:
      <div className="sanat-region-picker__empty">هنوز برشی انتخاب نشده؛ روی قطعه بزنید یا کادر بکشید.</div>}
-    <p>{selected?'برش انتخاب‌شده را بررسی کنید؛ جست‌وجو فقط پس از زدن دکمه انجام می‌شود.':'با لمس قطعه، برش اولیه ساخته می‌شود و می‌توانید آن را اصلاح کنید.'}</p>
+    <p>{previewRegion?'برش انتخاب‌شده را بررسی کنید؛ جست‌وجو فقط پس از زدن دکمه انجام می‌شود.':'با لمس قطعه، برش اولیه ساخته می‌شود و می‌توانید آن را اصلاح کنید.'}</p>
     {onSearch&&<button type="button" className="sanat-region-picker__search" onClick={onSearch} disabled={!value}>جست‌وجوی این قطعه</button>}
     <button type="button" className="sanat-region-picker__full-image" onClick={()=>onFullImageSearch ? onFullImageSearch() : onChange(undefined)}>جست‌وجوی کل تصویر</button>
    </aside>

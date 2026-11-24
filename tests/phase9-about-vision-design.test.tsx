@@ -88,21 +88,22 @@ test('missing image does not claim an unrelated catalog photo', () => {
   assert.doesNotMatch(html,/بزرگ‌نمایی تصویر/);
 });
 
-test('both recognition result paths share full-resolution zoomable photography and technical safeguards', () => {
+test('KIKI recognition results use full-resolution catalogue photography and explicit technical safeguards', () => {
   const wizard = read('src/components/search/AiVisualPartSearchModal.tsx');
   const modelResults = read('src/components/search/LocalModelResults.tsx');
   const css = read('src/components/search/industrial-scan.css');
-  assert.match(wizard,/data-testid="vision-journey"/);
+  assert.match(wizard,/data-vision-journey="true"/);
   assert.match(wizard,/sp-vision-result-intro/);
   assert.match(wizard,/sp-vision-match-photo/);
-  assert.match(wizard,/sources=\{\[match\.image,/);
-  assert.match(wizard,/sources=\{\[photo\.image\]\}/);
+  assert.match(wizard,/sources=\{\[item\.image, product\?\.image\]\}/);
+  assert.match(modelResults,/sources=\{\[item\.image\]\}/);
   assert.match(wizard,/نیازمند تأیید فنی/);
-  assert.match(wizard,/حداکثر حجم ۱۰ مگابایت/);
+  assert.match(wizard,/تا ۱۰ مگابایت/);
   assert.doesNotMatch(wizard,/resolveMatchImage/);
   assert.match(modelResults,/CatalogResultImage/);
   assert.match(modelResults,/familyReference=\{item\.imageScope === 'family'\}/);
   assert.match(css,/\.sp-catalog-lightbox/);
-  assert.match(css,/\.sp-vision-match-grid/);
-  assert.match(css,/max-width: 760px/);
+  assert.match(css,/\.sanat-visual-results__grid/);
+  assert.match(css,/100dvh/);
+  assert.match(wizard,/env\(safe-area-inset-bottom\)/);
 });

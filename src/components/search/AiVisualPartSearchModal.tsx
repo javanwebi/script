@@ -1,93 +1,126 @@
-import {LocalModelResults} from './LocalModelResults';
-import {CatalogResultImage} from './CatalogResultImage';
-import { loadVisionRecentSearches, recordVisionRecentSearch, type VisionRecentSearchItem } from './visionRecentHistory';
-import {apiUrl} from '../../config/apiConfig';
-import { getForegroundRegion, preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
-import {ImageRegionSelector} from './ImageRegionSelector';
-import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
-import type {ImageRegion} from '../../utils/imageRegion';
-import { buildVisionConsultationPrompt } from '../../utils/visionConsultationPrompt';
-import {measurementError} from '../../utils/partMeasurements';
-import { memberPath } from "../storefront/MemberAccess";
-import React, { lazy, Suspense, useState, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { motion, AnimatePresence } from "motion/react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   Camera,
   Image as GalleryImage,
   SwitchCamera,
   UploadCloud,
-  Sparkles,
   ArrowRight,
-  ArrowLeft,
-  RefreshCw,
-  CheckCircle2,
   AlertCircle,
-  HelpCircle,
-  Ruler,
-  Sliders,
-  Layers,
   ChevronLeft,
-  ChevronRight,
   ChevronDown,
-  ChevronUp,
   X,
-  ShoppingCart,
   Zap,
-  Info,
-  Check,
   RotateCcw,
-  ShieldCheck,
-  Eye,
   Wrench,
   Phone,
   MessageCircle,
-  Scan,
-  Target,
-  Cpu,
-  Activity,
-  ExternalLink,
+  History,
+  HelpCircle,
+  Sun,
+  Focus,
+  ZoomIn,
   Search,
-} from "lucide-react";
-import { Modal } from "../ui/Modal";
+  Sparkles,
+  ArrowUpLeft,
+  Activity,
+} from 'lucide-react';
+import {
+  VisualScannerIcon,
+  BeltIcon,
+  PulleyIcon,
+  BearingIcon,
+  ChainCouplingIcon,
+} from '../forza/ForzaWorkspaceIcons';
+import { apiUrl } from '../../config/apiConfig';
+import { goBackOrFallback } from '../../utils/navigateBackOrFallback';
 import {
   aiVisualSearchService,
-  AiPartAnalysisResult,
-  AiAnalysisStage,
-  INDUSTRIAL_PRESET_SAMPLES,
-  IndustrialPresetSample,
-} from "../../services/aiVisualSearchService";
-import { toPersianDigits, formatPrice } from "../../utils/formatters";
-import { useCart } from "../../context/CartContext";
-import { useAuth } from "../../context/AuthContext";
-import { pricingCreditService } from "../../services/pricingCreditService";
-import { IMAGES } from "../../assets/images";
-import "./industrial-scan.css";
-import "./vision-camera-design.css";
-import { VisionEntryPage } from "./VisionEntryPage";
-import { VisionAnalysisProgress } from "./VisionAnalysisProgress";
-import { saveCustomerDeviceImage, getCustomerDeviceImage, getCustomerDeviceImageMetadata, adoptCustomerDeviceImage, customerImageBlobToDataUrl } from "../../services/customerImageVault";
-import { createCustomerImageIdentification, completeCustomerImageIdentification, selectCustomerImageProduct } from "../../services/customerIntelligenceService";
+  type AiAnalysisStage,
+  type AiPartAnalysisResult,
+} from '../../services/aiVisualSearchService';
+import {
+  adoptCustomerDeviceImage,
+  customerImageBlobToDataUrl,
+  getCustomerDeviceImage,
+  getCustomerDeviceImageMetadata,
+  saveCustomerDeviceImage,
+} from '../../services/customerImageVault';
+import {
+  completeCustomerImageIdentification,
+  createCustomerImageIdentification,
+  selectCustomerImageProduct,
+} from '../../services/customerIntelligenceService';
+import { pricingCreditService } from '../../services/pricingCreditService';
+import { useAuth } from '../../context/AuthContext';
+import { formatPrice, toPersianDigits } from '../../utils/formatters';
+import {
+  prepareFastVisionDetectionUrl,
+  renderSegmentedVisionCutout,
+  type SegmentedVisionCutout,
+} from '../../utils/cropVisionImage';
+import type { ImageRegion } from '../../utils/imageRegion';
+import { buildVisionConsultationPrompt } from '../../utils/visionConsultationPrompt';
+import {
+  analyzeImageAutoContour,
+  fuseDetectionCandidates,
+  isPointInsidePolygon,
+  refineAutoContoursWithAiMask,
+  refineContourInsideRegion,
+  segmentPartAtTapPoint,
+  type AlphaMaskData,
+  type ContourPoint,
+  type DetectedPartContour,
+} from '../../utils/smartPartContour';
+import { preloadClientAiSegmentation } from '../../utils/clientAiSegmentation';
+import { useOnnxPartSegmentation } from './PartIdentificationProvider';
+import { memberPath } from '../storefront/MemberAccess';
+import { CatalogResultImage } from './CatalogResultImage';
+import { LocalModelResults } from './LocalModelResults';
+import { VisionAnalysisProgress } from './VisionAnalysisProgress';
+import {
+  formatVisionRecentTime,
+  loadVisionRecentSearches,
+  recordVisionRecentSearch,
+  type VisionRecentSearchItem,
+} from './visionRecentHistory';
+import './industrial-scan.css';
+
+const CAMERA_TIPS_SEEN_KEY = 'forza_camera_tips_seen_v1';
 
 const LazyCustomPartRequestModal = lazy(() =>
-  import('../home/CustomPartRequestModal').then(module => ({
+  import('../home/CustomPartRequestModal').then((module) => ({
     default: module.CustomPartRequestModal,
   })),
 );
+
+const VISION_ANALYSIS_PHASES = [
+  { title: 'آماده‌سازی تصویر', tag: 'آماده‌سازی', detail: 'نسخه فشرده تصویر از حافظه محلی دستگاه آماده شده است.' },
+  { title: 'تحلیل ناحیه قطعه', tag: 'تحلیل ناحیه', detail: 'مرزها و ویژگی‌های قابل مشاهده قطعه بررسی می‌شوند.' },
+  { title: 'تطبیق با کاتالوگ', tag: 'تطبیق کاتالوگ', detail: 'نتایج واقعی کاتالوگ صنعت پیش در حال بررسی هستند.' },
+];
+
 const MAX_MANUFACTURING_IMAGE_BYTES = 8 * 1024 * 1024;
 
 async function createManufacturingImageFile(blob: Blob, originalName: string): Promise<File> {
   if (!blob.size || !blob.type.startsWith('image/')) {
     throw new Error('تصویر قطعه برای پیوست درخواست ساخت معتبر نیست.');
   }
-  const safeBase = (originalName || 'forza-part-image')
-    .split(/[\\/]/).pop()!.replace(/[.][^.]+$/, '').slice(0, 100) || 'forza-part-image';
+  const safeBase =
+    (originalName || 'forza-part-image')
+      .split(/[\\/]/)
+      .pop()!
+      .replace(/[.][^.]+$/, '')
+      .slice(0, 100) || 'forza-part-image';
   const mime = blob.type.split(';')[0].toLowerCase();
   const extension = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg';
-  if (blob.size <= MAX_MANUFACTURING_IMAGE_BYTES && ['image/jpeg', 'image/png', 'image/webp'].includes(mime)) {
+  if (
+    blob.size <= MAX_MANUFACTURING_IMAGE_BYTES &&
+    ['image/jpeg', 'image/png', 'image/webp'].includes(mime)
+  ) {
     return new File([blob], safeBase + extension, { type: mime, lastModified: Date.now() });
   }
-
   const bitmap = await createImageBitmap(blob);
   try {
     const encode = async (maxDimension: number, quality: number): Promise<Blob> => {
@@ -98,24 +131,29 @@ async function createManufacturingImageFile(blob: Blob, originalName: string): P
       const context = canvas.getContext('2d');
       if (!context) throw new Error('آماده‌سازی تصویر برای پیوست انجام نشد.');
       context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      return new Promise((resolve, reject) => canvas.toBlob(
-        result => result ? resolve(result) : reject(new Error('فشرده‌سازی تصویر ناموفق بود.')),
-        'image/webp',
-        quality,
-      ));
+      return new Promise((resolve, reject) =>
+        canvas.toBlob(
+          (result) => (result ? resolve(result) : reject(new Error('فشرده‌سازی تصویر ناموفق بود.'))),
+          'image/webp',
+          quality,
+        ),
+      );
     };
     let compressed = await encode(2400, 0.86);
     if (compressed.size > MAX_MANUFACTURING_IMAGE_BYTES) compressed = await encode(1800, 0.72);
     if (compressed.size > MAX_MANUFACTURING_IMAGE_BYTES) {
-      throw new Error('حجم تصویر برای ثبت درخواست ساخت زیاد است؛ لطفاً تصویر کم‌حجم‌تری انتخاب کنید.');
+      throw new Error('حجم تصویر برای ثبت درخواست ساخت زیاد است.');
     }
-    return new File([compressed], safeBase + '.webp', { type: 'image/webp', lastModified: Date.now() });
+    return new File([compressed], safeBase + '.webp', {
+      type: 'image/webp',
+      lastModified: Date.now(),
+    });
   } finally {
     bitmap.close();
   }
 }
 
-interface Props {
+export interface AiVisualPartSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   fullScreen?: boolean;
@@ -124,7 +162,8 @@ interface Props {
   onAnalysisResult?: (result: AiPartAnalysisResult, image: string) => void;
 }
 
-type WizardStep = 1 | 2 | 3 | "analyzing" | "results";
+type StudioScreen = 'entry' | 'camera' | 'review' | 'results';
+
 type ManufacturingRequestDraft = {
   file: File;
   partName: string;
@@ -134,2668 +173,2570 @@ type ManufacturingRequestDraft = {
   notes: string;
 };
 
-interface AnalysisPhase {
-  title: string;
-  en: string;
-  icon: React.ElementType;
-  tag: string;
-  detail: string;
+const CAMERA_ZOOM_PRESETS = [1, 1.5, 2, 3];
+
+type CameraScanMode = 'deep' | 'quick';
+
+interface QuickMotionDetection {
+  label: string;
+  motionPercent: number;
+  bbox: { x: number; y: number; w: number; h: number };
 }
 
-const ANALYSIS_PHASES: AnalysisPhase[] = [
-  {title:"آماده‌سازی برش تأییدشده",en:"APPROVED CROP",icon:Scan,tag:"برش قطعه",detail:"استفاده از همان ناحیه‌ای که مشتری تأیید کرده است"},
-  {title:"استخراج ویژگی‌های ظاهری",en:"VISIBLE FEATURES",icon:Ruler,tag:"ویژگی‌های ظاهری",detail:"بررسی شکل، نشانه‌ها و نوشته‌های قابل مشاهده"},
-  {title:"ساخت توصیف تصویری",en:"VISUAL EMBEDDING",icon:Cpu,tag:"تحلیل تصویر",detail:"استخراج بردار تصویری از موتور محلی"},
-  {title:"مقایسه با کاتالوگ واقعی",en:"CATALOGUE RETRIEVAL",icon:Layers,tag:"مقایسه کاتالوگ",detail:"مقایسه با تصاویر خانواده‌ها و مدل‌های ثبت‌شده"},
-  {title:"مرتب‌سازی گزینه‌های معتبر",en:"RESULT VALIDATION",icon:ShieldCheck,tag:"اعتبارسنجی نتایج",detail:"حذف پیشنهادهای ضعیف و نامرتبط"},
-];
-
-export const AiVisualPartSearchModal: React.FC<Props> = ({
+export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = ({
   isOpen,
   onClose,
-  fullScreen = false,
   initialCamera = false,
   standalone = false,
+  fullScreen = false,
   onAnalysisResult,
 }) => {
   const navigate = useNavigate();
-  const { addItem } = useCart();
-  const { currentUser, openAuthModal } = useAuth();
+  const { currentUser } = useAuth();
+  const { segmentPart: segmentWithOnnx } = useOnnxPartSegmentation();
 
-  // Wizard state: 1: Image, 2: Dimensions, 3: Application & Features, 'analyzing', 'results'
-  const [currentStep, setCurrentStep] = useState<WizardStep>(1);
+  const [screen, setScreen] = useState<StudioScreen>(initialCamera ? 'camera' : 'entry');
 
-  // Form states
+  // Image & automatic cutout state (zero manual corner dragging)
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [queryRegion,setQueryRegion]=useState<ImageRegion>();
-  const [candidateRegions,setCandidateRegions]=useState<ImageRegion[]>([]);
-  const [regionDetectionState,setRegionDetectionState]=useState<RegionPreparationState>('uploading');
-  const [regionDetectionMessage,setRegionDetectionMessage]=useState('');
-  const [regionDetectionId,setRegionDetectionId]=useState<string|null>(null);
-  const [fullImageSelected,setFullImageSelected]=useState(false);
-  const regionDetectionSequenceRef=useRef(0);
-  const localSegmentationRef=useRef<{source:string;result:ClientAiSegmentationResult;region:ImageRegion}|null>(null);
-  React.useEffect(() => {
-    if (isOpen) void preloadClientAiSegmentation();
-  }, [isOpen]);
-  const imagePreparationSequenceRef=useRef(0);
-  const analysisSequenceRef=useRef(0);
-  const analysisBusyRef=useRef(false);
-  const customRequestSequenceRef=useRef(0);
-  const [localRegionEnabled,setLocalRegionEnabled]=useState(false);
-  React.useEffect(()=>{
-    if(!isOpen)return;
-    const controller=new AbortController();
-    fetch(apiUrl('/api/ai/local-vision-status'),{signal:controller.signal,cache:'no-store'})
-      .then(r=>r.ok?r.json():null).then(data=>{if(!controller.signal.aborted)setLocalRegionEnabled(data?.enabled===true && ['local-lens-v2','local-lens-v3'].includes(data?.pipeline));})
-      .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
-    return ()=>controller.abort();
-  },[isOpen]);
-  React.useEffect(()=>{localSegmentationRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
-  React.useEffect(()=>{if(!isOpen){regionDetectionSequenceRef.current++;localSegmentationRef.current=null;analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
-  React.useEffect(() => {
-    if (!isOpen) {
-      customRequestSequenceRef.current++;
-      setCustomRequestOpen(false);
-      setCustomRequestDraft(null);
-      setIsPreparingCustomRequest(false);
-    }
-  }, [isOpen]);
+  const [selectedSampleHint, setSelectedSampleHint] = useState('');
+  const [selectedOriginalName, setSelectedOriginalName] = useState('');
+  const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string | null>(null);
+  const [queryRegion, setQueryRegion] = useState<ImageRegion>({
+    x: 0.16,
+    y: 0.16,
+    width: 0.68,
+    height: 0.68,
+  });
+  const [activePolygon, setActivePolygon] = useState<ContourPoint[] | null>(null);
+  const [detectedCandidates, setDetectedCandidates] = useState<DetectedPartContour[]>([]);
+  const [activeCandidateId, setActiveCandidateId] = useState<string>('auto-1');
+  const [isDetectingParts, setIsDetectingParts] = useState(false);
+  const [isAiSegmenting, setIsAiSegmenting] = useState(false);
+  const [isTracingContour, setIsTracingContour] = useState(false);
+  const [edgeLockFlash, setEdgeLockFlash] = useState<number | null>(null);
+  const [tapRipple, setTapRipple] = useState<{ x: number; y: number; key: number } | null>(null);
+  const [regionDetectionId, setRegionDetectionId] = useState<string | null>(null);
+
+  // Vault / upload state
   const [localImageId, setLocalImageId] = useState<string | null>(null);
   const [imageEventId, setImageEventId] = useState<string | null>(null);
-  // Request-scoped data URL only; original Blob remains in the device vault.
   const [temporaryImageDataUrl, setTemporaryImageDataUrl] = useState<string | null>(null);
-  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
-  const imageUploadSequenceRef = useRef(0);
-  const latestImageUrlRef = useRef<string | null>(null);
-  React.useEffect(() => { latestImageUrlRef.current = selectedImage; }, [selectedImage]);
-  // Closing the image wizard invalidates all outstanding work, even when the
-  // component unmounts immediately (provider modal and dedicated page).
-  React.useEffect(() => () => {
-    analysisSequenceRef.current++;
-    imagePreparationSequenceRef.current++;
-    imageUploadSequenceRef.current++;
-    regionDetectionSequenceRef.current++;
-    customRequestSequenceRef.current++;
-    analysisBusyRef.current = false;
-    if (latestImageUrlRef.current?.startsWith('blob:')) {
-      URL.revokeObjectURL(latestImageUrlRef.current);
-    }
-  }, []);
-  const [mimeType, setMimeType] = useState<string>("image/jpeg");
-  const [length, setLength] = useState<string>("");
+  const [mimeType, setMimeType] = useState('image/jpeg');
 
-  // Progress reflects completed image comparisons returned by the server.
-  const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [analysisPhaseIndex, setAnalysisPhaseIndex] = useState(0);
-  const [scanCounts,setScanCounts]=useState<{compared:number;total:number;stage:string}|null>(null);
-  const [width, setWidth] = useState<string>("");
-  const [pitch, setPitch] = useState<string>("");
-  const [application, setApplication] = useState<string>("");
-  const [features, setFeatures] = useState<string>("");
+  // Live catalog match state
+  const [isMatching, setIsMatching] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AiPartAnalysisResult | null>(null);
+  const [mobileSheetExpanded, setMobileSheetExpanded] = useState(false);
 
-  // Camera stream state
-  const [isUsingCamera, setIsUsingCamera] = useState<boolean>(false);
+  // Recent searches (localStorage)
+  const [recentSearches, setRecentSearches] = useState<VisionRecentSearchItem[]>(() =>
+    loadVisionRecentSearches(),
+  );
+  const [showAllHistory, setShowAllHistory] = useState(false);
+
+  // Camera state + Pinch Zoom + Quick Scan + First-Time Guide
+  const [showVisionSplash, setShowVisionSplash] = useState(() => !initialCamera);
+  const [scanMode, setScanMode] = useState<CameraScanMode>('deep');
+  const [quickDetection, setQuickDetection] = useState<QuickMotionDetection | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
-  const [cameraFlowActive, setCameraFlowActive] = useState<boolean>(initialCamera);
-  const [cameraReview, setCameraReview] = useState(false);
-  const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
+  const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
   const [canUseTorch, setCanUseTorch] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
-  const [showCameraHelp, setShowCameraHelp] = useState(false);
-  const cameraGalleryRef = useRef<HTMLInputElement | null>(null);
-  const cameraStreamRef = useRef<MediaStream | null>(null);
-  const cameraRequestRef = useRef(0);
-  React.useEffect(() => {
-    if (!isOpen) {
-      cameraRequestRef.current++;
-      cameraStreamRef.current?.getTracks().forEach(track => track.stop());
-      cameraStreamRef.current = null;
-    }
-    return () => {
-      cameraRequestRef.current++;
-      cameraStreamRef.current?.getTracks().forEach(track => track.stop());
-      cameraStreamRef.current = null;
-    };
-  }, [isOpen]);
-  React.useEffect(() => {
-    if (!isOpen) return;
-    document.body.classList.add("sanat-visual-search-open");
-    return () => document.body.classList.remove("sanat-visual-search-open");
-  }, [isOpen]);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [cameraNotice, setCameraNotice] = useState('');
+  const [cameraZoom, setCameraZoom] = useState(1);
+  const [cameraGuideOpen, setCameraGuideOpen] = useState(false);
+  const [cameraReviewImage, setCameraReviewImage] = useState<string | null>(null);
+  const [cameraReviewHint, setCameraReviewHint] = useState('');
 
-  const [measurements,setMeasurements]=useState<Record<string,string>>({});
-  // Analysis result & error
-  const [analysisResult, setAnalysisResult] =
-    useState<AiPartAnalysisResult | null>(null);
+  // Custom manufacturing request & general errors
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
   const [customRequestDraft, setCustomRequestDraft] = useState<ManufacturingRequestDraft | null>(null);
   const [customRequestOpen, setCustomRequestOpen] = useState(false);
   const [isPreparingCustomRequest, setIsPreparingCustomRequest] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string>("");
-  const [isDragOver, setIsDragOver] = useState<boolean>(false);
-  const [showSimilar, setShowSimilar] = useState<boolean>(true);
-  const [mobileResultsExpanded, setMobileResultsExpanded] = useState(false);
-  const resultsSwipeStartY = useRef<number | null>(null);
-  const [recentSearches, setRecentSearches] = useState<VisionRecentSearchItem[]>(() => loadVisionRecentSearches());
-  const visiblePhotoMatches=(analysisResult?.catalogImageMatches || []).filter(photo=>
-    !analysisResult?.modelSuggestions?.length || photo.bindings.length===0);
 
-  // Short part family for dynamic titles, e.g. «این چرخ‌دهنده‌ها را داریم».
-  // Different per product type (wheel / belt / pulley / bush / ...).
-  const partFamily =
-    (analysisResult?.summary?.partFamilyFarsi || "").trim() ||
-    (analysisResult?.summary?.detectedPartType || "")
-      .split(/[()/،,]/)[0]
-      .trim()
-      .split(/\s+/)[0] ||
-    "";
-  const partFamilyPlural = partFamily ? partFamily + "\u200cها" : "اقلام مشابه";
+  // Refs for cancellation & streams & pinch zoom
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraGalleryRef = useRef<HTMLInputElement | null>(null);
+  const cameraStageRef = useRef<HTMLDivElement | null>(null);
+  const lensBoxRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const cameraZoomRef = useRef(1);
+  const pinchStartDistRef = useRef<number | null>(null);
+  const pinchStartZoomRef = useRef<number>(1);
+  const hwZoomRangeRef = useRef<{ min: number; max: number } | null>(null);
 
-  // Two-stage flow: 'quick' = image-only instant ID, 'refined' = image + dims + application
-  const [pendingStage, setPendingStage] = useState<AiAnalysisStage>("refined");
-  const [lastStage, setLastStage] = useState<AiAnalysisStage>("refined");
+  const cameraRequestRef = useRef(0);
+  const pipelineSequenceRef = useRef(0);
+  const customRequestSequenceRef = useRef(0);
+  const analyzeAbortRef = useRef<AbortController | null>(null);
+  const detectAbortRef = useRef<AbortController | null>(null);
+  const userInteractedRef = useRef(false);
+  const aiAlphaDataRef = useRef<AlphaMaskData | null>(null);
+  const aiContoursRef = useRef<DetectedPartContour[]>([]);
+  const geminiPartsRef = useRef<DetectedPartContour[]>([]);
+  const latestRegionRef = useRef<ImageRegion>({ x: 0.16, y: 0.16, width: 0.68, height: 0.68 });
+  const latestPolygonRef = useRef<ContourPoint[] | null>(null);
+  const latestImageUrlRef = useRef<string | null>(null);
+  const mobileResultsAnchorRef = useRef<HTMLDivElement | null>(null);
+  const edgeLockTimerRef = useRef<number | null>(null);
+  const motionPrevLumaRef = useRef<Uint8Array | null>(null);
+  const motionCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Quick preset chips for applications and features
-  const APPLICATION_SUGGESTIONS = [
-    "کوره رولری پخت کاشی و سرامیک",
-    "خط لعاب‌کاری و چاپ دیجیتال",
-    "فن‌های مکنده و کمپرسور باد",
-    "ماشین‌آلات بسته‌بندی پرسرعت",
-    "پرس هیدرولیک و اکسترودر",
-    "نوار نقاله و خطوط انتقال مواد",
-  ];
+  useEffect(() => {
+    if (!showVisionSplash) return;
+    const prefersReduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const timer = window.setTimeout(() => setShowVisionSplash(false), prefersReduced ? 120 : 900);
+    return () => window.clearTimeout(timer);
+  }, [showVisionSplash]);
 
-  const FEATURE_SUGGESTIONS = [
-    "مقاوم به حرارت بالا (تا ۱۲۰۰ درجه)",
-    "ضدروغن، اسید و گریس صنعتی",
-    "روکش پارچه‌ای ضدسایش (بی‌صدا)",
-    "کورد استیل ضدزنگ و تقویت‌شده",
-    "بدون لغزش دندانه و انعطاف بالا",
-  ];
+  // Quick Scan highlights only motion measured from a real camera frame; it never invents a part category.
+  useEffect(() => {
+    if (!isOpen || screen !== 'camera' || scanMode !== 'quick') {
+      motionPrevLumaRef.current = null;
+      setQuickDetection(null);
+      return;
+    }
 
-  const uploadSelectedImage = async (source: string | Blob, originalName = "customer-image"): Promise<string> => {
-    const sequence = ++imageUploadSequenceRef.current;
-    setIsUploadingImage(true);
+    const W = 120;
+    const H = 90;
+    if (!motionCanvasRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      motionCanvasRef.current = canvas;
+    }
+
+    const tick = () => {
+      const canvas = motionCanvasRef.current;
+      const ctx = canvas?.getContext('2d', { willReadFrequently: true });
+      const video = videoRef.current;
+      if (!canvas || !ctx || !isCameraReady || !video || !video.videoWidth || !video.videoHeight) {
+        motionPrevLumaRef.current = null;
+        setQuickDetection(null);
+        return;
+      }
+
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const zoom = hwZoomRangeRef.current ? 1 : cameraZoomRef.current;
+      const cropW = Math.max(1, vw / zoom);
+      const cropH = Math.max(1, vh / zoom);
+      ctx.drawImage(video, (vw - cropW) / 2, (vh - cropH) / 2, cropW, cropH, 0, 0, W, H);
+
+      const pixels = ctx.getImageData(0, 0, W, H).data;
+      const luma = new Uint8Array(W * H);
+      for (let i = 0; i < W * H; i++) {
+        const offset = i * 4;
+        luma[i] = Math.round(pixels[offset] * 0.299 + pixels[offset + 1] * 0.587 + pixels[offset + 2] * 0.114);
+      }
+
+      const previous = motionPrevLumaRef.current;
+      motionPrevLumaRef.current = luma;
+      if (!previous) {
+        setQuickDetection(null);
+        return;
+      }
+
+      let motionPixels = 0;
+      let minX = W;
+      let maxX = -1;
+      let minY = H;
+      let maxY = -1;
+      for (let y = 2; y < H - 2; y++) {
+        for (let x = 2; x < W - 2; x++) {
+          const index = y * W + x;
+          if (Math.abs(luma[index] - previous[index]) <= 20) continue;
+          motionPixels++;
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
+      }
+
+      const significant = motionPixels > 18 && maxX > minX + 6 && maxY > minY + 6;
+      if (!significant) {
+        setQuickDetection(null);
+        return;
+      }
+
+      const x = Math.max(0, minX / W - 0.04);
+      const y = Math.max(0, minY / H - 0.04);
+      const width = Math.min(1 - x, Math.max(0.12, (maxX - minX) / W + 0.08));
+      const height = Math.min(1 - y, Math.max(0.12, (maxY - minY) / H + 0.08));
+      setQuickDetection({
+        label: 'ناحیه دارای حرکت',
+        motionPercent: Math.min(100, Math.round((motionPixels / (W * H)) * 420)),
+        bbox: { x, y, w: width, h: height },
+      });
+    };
+
+    tick();
+    const id = window.setInterval(tick, 220);
+    return () => window.clearInterval(id);
+  }, [isOpen, screen, scanMode, isCameraReady]);
+
+  const triggerEdgeLockAnimation = () => {
+    const key = Date.now();
+    setEdgeLockFlash(key);
+    if (edgeLockTimerRef.current) {
+      window.clearTimeout(edgeLockTimerRef.current);
+    }
+    edgeLockTimerRef.current = window.setTimeout(() => {
+      setEdgeLockFlash((cur) => (cur === key ? null : cur));
+    }, 1100);
+  };
+
+  useEffect(() => {
+    latestImageUrlRef.current = selectedImage;
+  }, [selectedImage]);
+
+  useEffect(() => () => {
+    const latest = latestImageUrlRef.current;
+    if (latest?.startsWith('blob:')) URL.revokeObjectURL(latest);
+  }, []);
+
+  useEffect(() => {
+    latestRegionRef.current = queryRegion;
+  }, [queryRegion]);
+
+  useEffect(() => {
+    latestPolygonRef.current = activePolygon;
+  }, [activePolygon]);
+
+  useEffect(() => {
+    cameraZoomRef.current = cameraZoom;
+  }, [cameraZoom]);
+
+  // Body scroll lock & Escape handler when in overlay mode
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.classList.add('sanat-visual-search-open');
+    const prevOverflow = !standalone ? document.body.style.overflow : '';
+    if (!standalone) document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !standalone && !customRequestOpen) {
+        stopCameraStream();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.classList.remove('sanat-visual-search-open');
+      if (!standalone) document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isOpen, standalone, customRequestOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      cameraRequestRef.current++;
+      stopCameraStream();
+      pipelineSequenceRef.current++;
+      customRequestSequenceRef.current++;
+      analyzeAbortRef.current?.abort();
+      analyzeAbortRef.current = null;
+      detectAbortRef.current?.abort();
+      detectAbortRef.current = null;
+      setCustomRequestOpen(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void preloadClientAiSegmentation();
+    const ctrl = new AbortController();
+    fetch(apiUrl('/api/ai/local-vision-status'), { signal: ctrl.signal, cache: 'no-store' }).catch(
+      () => undefined,
+    );
+    return () => ctrl.abort();
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      pipelineSequenceRef.current++;
+      customRequestSequenceRef.current++;
+      analyzeAbortRef.current?.abort();
+      detectAbortRef.current?.abort();
+      if (edgeLockTimerRef.current) {
+        window.clearTimeout(edgeLockTimerRef.current);
+      }
+      stopCameraStream();
+      if (latestImageUrlRef.current?.startsWith('blob:')) {
+        URL.revokeObjectURL(latestImageUrlRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !initialCamera) return;
+    void startCamera();
+  }, [isOpen, initialCamera]);
+
+  // Dedicated Pinch-to-Zoom ONLY on the camera viewfinder stage (stops browser page zoom!)
+  const applyCameraZoom = (nextZoomRaw: number) => {
+    const clamped = Math.max(1, Math.min(4, Number(nextZoomRaw.toFixed(2))));
+    cameraZoomRef.current = clamped;
+    setCameraZoom(clamped);
+
+    const track = cameraStreamRef.current?.getVideoTracks()[0];
+    const range = hwZoomRangeRef.current;
+    if (track && range && range.max > range.min) {
+      const targetHw = Math.max(
+        range.min,
+        Math.min(range.max, range.min + (clamped - 1) * ((range.max - range.min) / 3)),
+      );
+      void track
+        .applyConstraints({
+          advanced: [{ zoom: targetHw } as MediaTrackConstraintSet & { zoom: number }],
+        })
+        .catch(() => undefined);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen || screen !== 'camera') return;
+    const el = cameraStageRef.current;
+    if (!el) return;
+
+    const getTouchDistance = (t: TouchList) =>
+      Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        pinchStartDistRef.current = getTouchDistance(e.touches);
+        pinchStartZoomRef.current = cameraZoomRef.current;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchStartDistRef.current) {
+        e.preventDefault();
+        const dist = getTouchDistance(e.touches);
+        const ratio = dist / Math.max(10, pinchStartDistRef.current);
+        applyCameraZoom(pinchStartZoomRef.current * ratio);
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        pinchStartDistRef.current = null;
+      }
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = -e.deltaY * 0.004;
+      applyCameraZoom(cameraZoomRef.current + delta);
+    };
+
+    const blockBrowserGesture = (e: Event) => {
+      e.preventDefault();
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('wheel', onWheel, { passive: false });
+    document.addEventListener('gesturestart', blockBrowserGesture, { passive: false });
+    document.addEventListener('gesturechange', blockBrowserGesture, { passive: false });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('wheel', onWheel);
+      document.removeEventListener('gesturestart', blockBrowserGesture);
+      document.removeEventListener('gesturechange', blockBrowserGesture);
+    };
+  }, [isOpen, screen]);
+
+  if (!isOpen) return null;
+
+  function stopCameraStream() {
+    cameraRequestRef.current++;
+    cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
+    cameraStreamRef.current = null;
+    hwZoomRangeRef.current = null;
+    if (videoRef.current?.srcObject) {
+      const s = videoRef.current.srcObject as MediaStream;
+      s.getTracks().forEach((t) => t.stop());
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraReady(false);
+    setCanUseTorch(false);
+    setTorchEnabled(false);
+    setCameraZoom(1);
+    cameraZoomRef.current = 1;
+  }
+
+  const dismissCameraGuide = () => {
+    setCameraGuideOpen(false);
     try {
-      const blob = typeof source === "string"
-        ? await fetch(source, { credentials: "same-origin", cache: "no-store" }).then(response => {
-            if (!response.ok) throw new Error("خواندن تصویر انتخاب‌شده ناموفق بود.");
-            return response.blob();
-          })
-        : source;
-      const [saved, dataUrl] = await Promise.all([
-        saveCustomerDeviceImage(blob, currentUser?.id || "guest", originalName),
-        customerImageBlobToDataUrl(blob),
-      ]);
-      if (sequence === imageUploadSequenceRef.current) {
-        setLocalImageId(saved.id);
-        setMimeType(saved.mimeType);
-        setTemporaryImageDataUrl(dataUrl);
+      window.localStorage.setItem(CAMERA_TIPS_SEEN_KEY, '1');
+    } catch {
+      // ignore storage error
+    }
+  };
+
+  /**
+   * Fetches catalog matches for a specific tight cutout region + updates cropped thumbnail & history.
+   */
+  const runRegionVisualMatch = async (opts: {
+    imageSrc: string;
+    region: ImageRegion;
+    polygon?: ContourPoint[];
+    alphaData?: AlphaMaskData | null;
+    seq: number;
+    displayUrl: string;
+    sampleHint?: string;
+    originalName?: string;
+    mime?: string;
+    stage?: AiAnalysisStage;
+    savedLocalImageId?: string | null;
+    imageEventId?: string | null;
+    detectionId?: string | null;
+    fullImage?: boolean;
+  }) => {
+    analyzeAbortRef.current?.abort();
+    const analyzeController = new AbortController();
+    analyzeAbortRef.current = analyzeController;
+
+    setIsMatching(true);
+    setErrorMessage('');
+
+    try {
+      const effectiveLocalImageId = opts.savedLocalImageId || localImageId;
+      if (!effectiveLocalImageId) {
+        throw new Error('تصویر در حافظه داخلی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.');
       }
-      return dataUrl;
-    } catch (error: any) {
-      if (sequence === imageUploadSequenceRef.current) {
-        setLocalImageId(null);
-        setTemporaryImageDataUrl(null);
-        setErrorMessage(error?.message || "ذخیره تصویر در حافظه داخلی دستگاه انجام نشد.");
+      const localRecord = await getCustomerDeviceImage(effectiveLocalImageId);
+      if (analyzeController.signal.aborted || opts.seq !== pipelineSequenceRef.current) return;
+      if (!localRecord) {
+        throw new Error('تصویر اصلی در حافظه داخلی دستگاه پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.');
       }
-      throw error;
+      if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
+      if (analyzeController.signal.aborted || opts.seq !== pipelineSequenceRef.current) return;
+
+      const effectiveAlpha = opts.alphaData !== undefined ? opts.alphaData : null;
+      let previewCutoutUrl: string | undefined;
+      if (!opts.fullImage) {
+        const cutout = await renderSegmentedVisionCutout(
+          opts.imageSrc,
+          opts.region,
+          0,
+          opts.polygon,
+          effectiveAlpha,
+        ).catch((): SegmentedVisionCutout => ({}));
+        previewCutoutUrl = cutout.previewUrl || cutout.modelInputUrl;
+      }
+
+      if (analyzeController.signal.aborted || opts.seq !== pipelineSequenceRef.current) return;
+      if (previewCutoutUrl) setCroppedPreviewUrl(previewCutoutUrl);
+
+      let activeImageEventId: string | null =
+        opts.imageEventId !== undefined ? opts.imageEventId : imageEventId;
+      if (currentUser && !activeImageEventId) {
+        try {
+          const meta = await getCustomerDeviceImageMetadata(effectiveLocalImageId);
+          if (meta) {
+            const ev = await createCustomerImageIdentification({
+              deviceImageId: meta.id,
+              sha256: meta.sha256,
+              mimeType: meta.mimeType,
+              sizeBytes: meta.sizeBytes,
+              originalName: meta.originalName,
+            });
+            activeImageEventId = ev.id;
+            setImageEventId(ev.id);
+          }
+        } catch {
+          // optional event logging in UI-only mode
+        }
+      }
+
+      if (analyzeController.signal.aborted || opts.seq !== pipelineSequenceRef.current) return;
+      // Keep the original Blob in IndexedDB; send the request-scoped compressed full image and let the production API crop by normalized region.
+      const payloadImage = temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob);
+      const resolvedPayloadMime =
+        payloadImage.match(/^data:([^;]+);base64,/i)?.[1] || localRecord.mimeType || opts.mime || mimeType;
+      const croppedDataUrl = opts.fullImage ? payloadImage : previewCutoutUrl || opts.imageSrc;
+
+      const result = await aiVisualSearchService.analyzePartWithAi(
+        {
+          imageBase64: payloadImage.startsWith('data:') ? payloadImage : undefined,
+          imageUrl: payloadImage.startsWith('data:') ? undefined : payloadImage,
+          mimeType: resolvedPayloadMime,
+          stage: opts.stage || 'quick',
+          observationOnly: false,
+          region: opts.fullImage ? undefined : opts.region,
+          detectionId: opts.fullImage ? undefined : opts.detectionId || regionDetectionId || undefined,
+          fullImage: opts.fullImage === true,
+          includeNearest: false,
+        },
+        undefined,
+        analyzeController.signal,
+      );
+
+      if (analyzeController.signal.aborted || opts.seq !== pipelineSequenceRef.current) return;
+
+      if (activeImageEventId) {
+        void completeCustomerImageIdentification(activeImageEventId, {
+          status: result.matchedProducts?.length || result.similarCandidates?.length ? 'completed' : 'unmatched',
+          detectedPartType: result.summary?.detectedPartType,
+          summary: result.summary?.whatYouSee || result.summary?.visualAnalysis,
+          technicalAdvice: result.technicalAdvice,
+          matchedProductCodes: (result.matchedProducts || []).map((m) => m.code),
+          similarProductCodes: (result.similarCandidates || []).map((s) => s.code),
+          confidence: result.summary?.confidence,
+        }).catch(() => undefined);
+      }
+
+      const firstMatch = result.matchedProducts?.[0] || result.similarCandidates?.[0];
+      const photo = result.catalogImageMatches?.find((item) =>
+        firstMatch?.code && item.bindings?.some((binding) => binding.code === firstMatch.code)
+      ) || result.catalogImageMatches?.[0];
+      const historyCode = firstMatch?.code || photo?.bindings?.find((binding) => binding.verified && binding.code)?.code;
+      const historyTitle = firstMatch?.name || photo?.label;
+      if (historyCode && historyTitle) {
+        setRecentSearches(recordVisionRecentSearch({
+          code: historyCode,
+          title: historyTitle,
+          subtitle: firstMatch?.brand || '',
+          imageUrl: firstMatch?.image || photo?.image,
+          partHint: result.summary?.detectedPartType,
+        }));
+      }
+
+      setAnalysisResult(result);
+      if (result.matchedProducts?.length || result.similarCandidates?.length) {
+        onAnalysisResult?.(result, croppedDataUrl || payloadImage);
+      }
+    } catch (err: any) {
+      if (
+        err?.name === 'AbortError' ||
+        analyzeController.signal.aborted ||
+        opts.seq !== pipelineSequenceRef.current
+      ) {
+        return;
+      }
+      setErrorMessage(err?.message || 'تطبیق تصویر کامل نشد؛ لطفاً دوباره تلاش کنید.');
     } finally {
-      if (sequence === imageUploadSequenceRef.current) setIsUploadingImage(false);
+      if (analyzeAbortRef.current === analyzeController) {
+        analyzeAbortRef.current = null;
+      }
+      if (opts.seq === pipelineSequenceRef.current) {
+        setIsMatching(false);
+      }
     }
   };
 
-  const friendlyVisionError = (error: any) => {
-    if (error?.code === 'VISION_BUSY' || error?.status === 429) return 'موتور شناسایی در حال تأیید ناحیه دیگری است. چند لحظه دیگر دوباره تلاش کنید.';
-    if (error?.code === 'INDEX_NOT_READY') return 'کاتالوگ تصویری در حال آماده‌سازی است. تصویر شما محفوظ است؛ کمی بعد دوباره تلاش کنید.';
-    if (error?.code === 'VISION_DISABLED') return 'تشخیص خودکار روی این سرور فعال نیست؛ ناحیه قطعه را دستی انتخاب کنید.';
-    if (error?.code === 'CATALOG_UNAVAILABLE') return 'ارتباط با کاتالوگ برقرار نیست. تصویر شما محفوظ است؛ کمی بعد دوباره تلاش کنید.';
-    if (error?.code === 'INVALID_REGION') return 'کادر انتخاب‌شده معتبر نیست؛ لطفاً ناحیه را دوباره مشخص کنید.';
-    if (error?.status === 503) return 'ارتباط با موتور تحلیل موقتاً برقرار نشد. تصویر شما حذف نشده است؛ دوباره تلاش کنید یا ناحیه را دستی انتخاب کنید.';
-    if (error?.name === 'TypeError') return 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.';
-    return error?.message || 'تحلیل تصویر کامل نشد. دوباره تلاش کنید.';
+  const runFullImageVisualMatch = () => {
+    if (!selectedImage || !localImageId) return;
+    const seq = ++pipelineSequenceRef.current;
+    userInteractedRef.current = true;
+    analyzeAbortRef.current?.abort();
+    detectAbortRef.current?.abort();
+    setIsDetectingParts(false);
+    setIsAiSegmenting(false);
+    setIsTracingContour(false);
+    setErrorMessage('');
+    setDetectedCandidates([]);
+    setActiveCandidateId('');
+    setActivePolygon([]);
+    setCroppedPreviewUrl('');
+    setMobileSheetExpanded(false);
+    const fullRegion: ImageRegion = { x: 0, y: 0, width: 1, height: 1 };
+    setQueryRegion(fullRegion);
+    void runRegionVisualMatch({
+      imageSrc: temporaryImageDataUrl || selectedImage,
+      region: fullRegion,
+      polygon: [],
+      seq,
+      displayUrl: selectedImage,
+      sampleHint: '',
+      originalName: selectedOriginalName || '',
+      mime: mimeType,
+      savedLocalImageId: localImageId,
+      imageEventId,
+      fullImage: true,
+    });
   };
 
-  const detectUploadedImageRegions = async (imageUrl: string) => {
-    const sequence = ++regionDetectionSequenceRef.current;
-    setRegionDetectionState('detecting');
-    setRegionDetectionMessage('');
-    setRegionDetectionId(null);
-
-    let localSucceeded = false;
-    let serverCommitted = false;
-
-    // Local model and server fallback are both real; a warm model can return
-    // first without waiting for the server's detection round-trip.
-    const localDetection = segmentImageWithClientAi(imageUrl).then(segmented => {
-      if (sequence !== regionDetectionSequenceRef.current || serverCommitted || !segmented) return false;
-      const region = getForegroundRegion(segmented);
-      if (!region) return false;
-      localSucceeded = true;
-      localSegmentationRef.current = { source: imageUrl, result: segmented, region };
-      setRegionDetectionId(null);
-      setQueryRegion(region);
-      setCandidateRegions([region]);
-      setFullImageSelected(false);
-      setRegionDetectionState('ready');
-      setLocalRegionEnabled(true);
-      setRegionDetectionMessage('مدل محلی قطعه را پیدا کرد. اگر چند قطعه در تصویر است، کادر را روی قطعه موردنظر تنظیم کنید.');
-      return true;
-    }).catch(() => false);
-
-    const fastLocal = await Promise.race([
-      localDetection,
-      new Promise<boolean>(resolve => setTimeout(() => resolve(false), 180)),
-    ]);
-    if (fastLocal || localSucceeded || sequence !== regionDetectionSequenceRef.current) return;
+  /**
+   * Instant-First Multi-Part Detection + Background Gemini Refinement:
+   * Immediately isolates parts using local browser CV (~40ms), then runs
+   * Gemini Vision in background to enrich part family labels & catch subtle parts.
+   */
+  const enrichWithGeminiInBackground = async (
+    detectSrc: string,
+    fullSrc: string,
+    seq: number,
+    localCandidates: DetectedPartContour[],
+    displayUrl: string,
+  ) => {
+    detectAbortRef.current?.abort();
+    const detectController = new AbortController();
+    detectAbortRef.current = detectController;
 
     try {
-      const detection = await aiVisualSearchService.detectImageRegions(imageUrl);
-      if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
-      serverCommitted = Boolean(detection.queryRegion || detection.queryRegions?.length);
-      setRegionDetectionId(detection.detectionId);
-      setQueryRegion(detection.queryRegion);
-      setCandidateRegions(detection.queryRegions || []);
-      setFullImageSelected(!detection.queryRegion);
-      setRegionDetectionState('ready');
-      setLocalRegionEnabled(true);
-      if (!detection.queryRegion) setRegionDetectionMessage('کادر مطمئن پیدا نشد؛ قطعه را لمس کنید یا محدوده را دستی انتخاب کنید.');
-    } catch (error: any) {
-      if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
-      if (await localDetection || sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
-      serverCommitted = true;
-      setRegionDetectionId(null);
-      setQueryRegion(undefined);
-      setCandidateRegions([]);
-      setFullImageSelected(true);
-      setRegionDetectionState('fallback');
-      setLocalRegionEnabled(true);
-      setRegionDetectionMessage(friendlyVisionError(error));
+      const serverDetection = await aiVisualSearchService
+        .detectImageRegions(detectSrc, detectController.signal)
+        .catch(() => null);
+      if (detectController.signal.aborted || seq !== pipelineSequenceRef.current) return;
+      const serverParts = serverDetection?.detectedParts || [];
+      if (serverDetection?.detectionId) {
+        setRegionDetectionId(serverDetection.detectionId);
+      }
+      if (serverParts.length === 0) return;
+
+      const refinedServerParts = await Promise.all(
+        serverParts.map((part) =>
+          refineContourInsideRegion(fullSrc, part.region, part.center, 0, {
+            id: part.id,
+            label: part.label,
+            partFamily: part.partFamily,
+          }),
+        ),
+      );
+      if (detectController.signal.aborted || seq !== pipelineSequenceRef.current) return;
+
+      geminiPartsRef.current = refinedServerParts;
+      const merged = fuseDetectionCandidates(
+        aiContoursRef.current,
+        refinedServerParts,
+        localCandidates,
+      );
+      if (merged.length === 0) return;
+
+      setDetectedCandidates(merged);
+      // Keep the searched region stable. The user can select a newly refined candidate.
+
+    } catch {
+      // keep instant / client-AI contours silently
+    } finally {
+      if (detectAbortRef.current === detectController) {
+        detectAbortRef.current = null;
+      }
     }
   };
 
-  const uploadAndPrepareImage = async (source: string | Blob, originalName = "customer-image") => {
-    const sequence = ++imagePreparationSequenceRef.current;
+  /**
+   * Direct Entry into Lens + Similar Products ('results'):
+   * Runs lightweight client-side AI segmentation (`@imgly/background-removal` isnet_quint8)
+   * alongside instant local CV & Gemini Vision detection so part boundaries lock accurately
+   * and the background becomes uniformly pure white (#FFFFFF).
+   */
+  const launchDirectVisualResults = async (
+    displayUrl: string,
+    source: string | Blob,
+    opts?: {
+      originalName?: string;
+      sampleHint?: string;
+      mime?: string;
+    },
+  ) => {
+    const seq = ++pipelineSequenceRef.current;
+    userInteractedRef.current = false;
+    aiAlphaDataRef.current = null;
+    aiContoursRef.current = [];
+    geminiPartsRef.current = [];
+    analyzeAbortRef.current?.abort();
+    detectAbortRef.current?.abort();
+
+    if (selectedImage?.startsWith('blob:') && selectedImage !== displayUrl) {
+      URL.revokeObjectURL(selectedImage);
+    }
+    stopCameraStream();
+
     setErrorMessage('');
-    setRegionDetectionMessage('');
-    setRegionDetectionState('uploading');
+    latestImageUrlRef.current = displayUrl;
+    setSelectedImage(displayUrl);
+    setCroppedPreviewUrl(null);
+    setDetectedCandidates([]);
+    setActivePolygon(null);
+    setActiveCandidateId('auto-1');
+    setTapRipple(null);
+    setMobileSheetExpanded(false);
+    setLocalImageId(null);
+    setImageEventId(null);
+    setSelectedOriginalName(opts?.originalName || 'customer-image');
+    setSelectedSampleHint(opts?.sampleHint || '');
+    setMimeType(opts?.mime || 'image/jpeg');
+    setIsDetectingParts(true);
+    setIsAiSegmenting(true);
+    setIsTracingContour(false);
+    setEdgeLockFlash(null);
+    setIsMatching(true);
+    setScreen('results');
+
     try {
-      const imageUrl = await uploadSelectedImage(source, originalName);
-      if (sequence !== imagePreparationSequenceRef.current) return;
-      await detectUploadedImageRegions(imageUrl);
-    } catch (error: any) {
-      if (sequence !== imagePreparationSequenceRef.current) return;
-      setRegionDetectionState('fallback');
-      setFullImageSelected(true);
-      setRegionDetectionMessage(friendlyVisionError(error));
+      let resolvedUrl =
+        typeof source === 'string' && source.startsWith('data:') ? source : displayUrl;
+      let savedId: string | null = null;
+
+      try {
+        const blob =
+          typeof source === 'string'
+            ? await fetch(source, { credentials: 'same-origin', cache: 'no-store' }).then((r) => {
+                if (!r.ok) throw new Error('خواندن تصویر انجام نشد.');
+                return r.blob();
+              })
+            : source;
+        const saved = await saveCustomerDeviceImage(
+          blob,
+          currentUser?.id || 'guest',
+          opts?.originalName || 'customer-image',
+        );
+        if (seq !== pipelineSequenceRef.current) return;
+        savedId = saved.id;
+        setLocalImageId(saved.id);
+        setMimeType(saved.mimeType || blob.type || 'image/jpeg');
+        const localRecord = await getCustomerDeviceImage(saved.id);
+        if (seq !== pipelineSequenceRef.current) return;
+        if (!localRecord) throw new Error('تصویر پس از ذخیره‌سازی محلی قابل بازیابی نیست.');
+        resolvedUrl = await customerImageBlobToDataUrl(localRecord.blob);
+        if (seq !== pipelineSequenceRef.current) return;
+      } catch (error) {
+        if (seq !== pipelineSequenceRef.current) return;
+        setErrorMessage(error instanceof Error ? error.message : 'ذخیره امن تصویر روی دستگاه انجام نشد.');
+        throw error;
+      }
+
+      if (seq !== pipelineSequenceRef.current) return;
+      const fastDetectUrl = await prepareFastVisionDetectionUrl(resolvedUrl, 860);
+      if (seq !== pipelineSequenceRef.current) return;
+      setTemporaryImageDataUrl(fastDetectUrl);
+
+      // Phase 1: Instant client-side preview contour (~10ms) + kick off local onnxruntime-web segmentation
+      const instantCvPromise = analyzeImageAutoContour(fastDetectUrl, 0);
+      const aiSegPromise = segmentWithOnnx(fastDetectUrl);
+
+      const instantCv = await instantCvPromise;
+      if (seq !== pipelineSequenceRef.current) return;
+
+      setIsDetectingParts(false);
+      setIsTracingContour(false);
+      setDetectedCandidates(instantCv.candidates);
+      setActiveCandidateId(instantCv.primary.id);
+      setQueryRegion(instantCv.primary.region);
+      setActivePolygon(instantCv.primary.polygon);
+      if (instantCv.primary.edgeLocked) {
+        triggerEdgeLockAnimation();
+      }
+
+      // Phase 2: Run semantic Gemini detection & initial catalog matching in parallel with IS-Net
+      void enrichWithGeminiInBackground(
+        fastDetectUrl,
+        fastDetectUrl,
+        seq,
+        instantCv.candidates,
+        displayUrl,
+      );
+
+      // Phase 2b: Run IS-Net in background, then fuse safely via refineAutoContoursWithAiMask
+      // so arms/hands/glare NEVER overwrite a compact held industrial part.
+      void aiSegPromise
+        .then(async (aiSeg) => {
+          if (seq !== pipelineSequenceRef.current) return;
+          setIsAiSegmenting(false);
+          if (!aiSeg) return;
+
+          const alphaData: AlphaMaskData = {
+            width: aiSeg.width,
+            height: aiSeg.height,
+            alphaMask: aiSeg.alphaMask,
+          };
+          aiAlphaDataRef.current = alphaData;
+
+          const refined = await refineAutoContoursWithAiMask(fastDetectUrl, alphaData, 0);
+          if (seq !== pipelineSequenceRef.current) return;
+
+          if (refined.candidates.length === 0) return;
+          aiContoursRef.current = refined.candidates;
+
+          const fused = fuseDetectionCandidates(
+            refined.candidates,
+            geminiPartsRef.current,
+            instantCv.candidates,
+          );
+          if (fused.length === 0) return;
+
+          if (!userInteractedRef.current) setDetectedCandidates(fused);
+
+        })
+        .catch(() => {
+          if (seq === pipelineSequenceRef.current) setIsAiSegmenting(false);
+        });
+
+      await runRegionVisualMatch({
+        imageSrc: fastDetectUrl,
+        region: instantCv.primary.region,
+        polygon: instantCv.primary.polygon,
+        alphaData: null,
+        seq,
+        displayUrl,
+        sampleHint: instantCv.primary.label || opts?.sampleHint,
+        originalName: opts?.originalName,
+        mime: opts?.mime,
+        savedLocalImageId: savedId,
+        imageEventId: null,
+      });
+    } catch {
+      if (seq !== pipelineSequenceRef.current) return;
+      setIsDetectingParts(false);
+      setIsAiSegmenting(false);
+      setIsMatching(false);
     }
   };
 
-  const retryRegionPreparation = () => {
-    if (temporaryImageDataUrl) void detectUploadedImageRegions(temporaryImageDataUrl);
-    else if (selectedImage) void uploadAndPrepareImage(selectedImage, "camera-capture.jpg");
+  /**
+   * Computer-Vision Click-to-Trace Selection Handler:
+   * - Clicking any pixel on a physical part traces/selects the ENTIRE object via cached CV scene.
+   * - Clicking on empty background (no part present) leaves the current/default cutout untouched!
+   */
+  const handleImagePointSelect = async (normX: number, normY: number, dotCandidate?: DetectedPartContour) => {
+    const activeSrc = temporaryImageDataUrl || selectedImage;
+    const cutoutBaseSrc = temporaryImageDataUrl || selectedImage || activeSrc;
+    if (!activeSrc || !cutoutBaseSrc) return;
+
+    let nextContour: DetectedPartContour;
+    let seq: number;
+
+    if (dotCandidate) {
+      userInteractedRef.current = true;
+      seq = ++pipelineSequenceRef.current;
+      setTapRipple({ x: normX * 100, y: normY * 100, key: Date.now() });
+
+      if (dotCandidate.edgeLocked && dotCandidate.polygon.length >= 6) {
+        nextContour = dotCandidate;
+        setActiveCandidateId(dotCandidate.id);
+      } else {
+        setIsTracingContour(true);
+        const segmented = await segmentPartAtTapPoint(
+          activeSrc,
+          dotCandidate.center.x,
+          dotCandidate.center.y,
+          0,
+          {
+            id: dotCandidate.id,
+            label: dotCandidate.label,
+            partFamily: dotCandidate.partFamily,
+          },
+        );
+        if (seq !== pipelineSequenceRef.current) return;
+        setIsTracingContour(false);
+        nextContour = segmented || dotCandidate;
+        setActiveCandidateId(nextContour.id);
+        setDetectedCandidates((prev) =>
+          prev.map((p) => (p.id === dotCandidate.id ? nextContour : p)),
+        );
+      }
+    } else {
+      const activeCand = detectedCandidates.find((c) => c.id === activeCandidateId);
+      const activeRegion = activeCand?.region || queryRegion;
+      const activeArea = activeRegion.width * activeRegion.height;
+      const inActiveRect =
+        normX >= activeRegion.x &&
+        normX <= activeRegion.x + activeRegion.width &&
+        normY >= activeRegion.y &&
+        normY <= activeRegion.y + activeRegion.height;
+      const isInsideActive =
+        inActiveRect &&
+        (activeCand?.polygon && activeCand.polygon.length >= 6
+          ? isPointInsidePolygon(normX, normY, activeCand.polygon)
+          : true);
+
+      // Branch 1: Tapping inside an already-selected large whole assembly -> isolate distinct inner sub-part (e.g. center bearing)
+      if (isInsideActive && activeArea > 0.20) {
+        const innerCand = [...detectedCandidates]
+          .filter((c) => {
+            if (c.id === activeCandidateId) return false;
+            const cArea = c.region.width * c.region.height;
+            if (cArea >= activeArea * 0.62) return false;
+            const inRect =
+              normX >= c.region.x &&
+              normX <= c.region.x + c.region.width &&
+              normY >= c.region.y &&
+              normY <= c.region.y + c.region.height;
+            if (!inRect) return false;
+            return c.polygon.length >= 6 ? isPointInsidePolygon(normX, normY, c.polygon) : true;
+          })
+          .sort((a, b) => a.region.width * a.region.height - b.region.width * b.region.height)[0];
+
+        if (innerCand) {
+          userInteractedRef.current = true;
+          seq = ++pipelineSequenceRef.current;
+          setTapRipple({ x: normX * 100, y: normY * 100, key: Date.now() });
+          nextContour = innerCand;
+          setActiveCandidateId(innerCand.id);
+        } else {
+          const seqBefore = pipelineSequenceRef.current;
+          setIsTracingContour(true);
+          const innerSeg = await segmentPartAtTapPoint(activeSrc, normX, normY, 0, undefined, {
+            preferInnerAtTap: true,
+            outerBound: activeRegion,
+          });
+          if (seqBefore !== pipelineSequenceRef.current) return;
+          setIsTracingContour(false);
+          if (!innerSeg) {
+            return;
+          }
+
+          userInteractedRef.current = true;
+          seq = ++pipelineSequenceRef.current;
+          setTapRipple({ x: normX * 100, y: normY * 100, key: Date.now() });
+          nextContour = innerSeg;
+          setActiveCandidateId(nextContour.id);
+          setDetectedCandidates((prev) => {
+            const exists = prev.some((p) => p.id === nextContour.id);
+            if (exists) return prev.map((p) => (p.id === nextContour.id ? nextContour : p));
+            return prev.length ? [prev[0], nextContour, ...prev.slice(1)].slice(0, 6) : [nextContour];
+          });
+        }
+      } else {
+        // Branch 2: Tapping outside current selection (e.g. outer wheel rim while center bearing is active, or another part)
+        const matchingOtherCand = [...detectedCandidates]
+          .filter((c) => {
+            if (c.id === activeCandidateId) return false;
+            const inRect =
+              normX >= c.region.x &&
+              normX <= c.region.x + c.region.width &&
+              normY >= c.region.y &&
+              normY <= c.region.y + c.region.height;
+            if (!inRect) return false;
+            return c.polygon.length >= 6 ? isPointInsidePolygon(normX, normY, c.polygon) : true;
+          })
+          .sort((a, b) => {
+            // If current selection is an inner sub-part, prefer restoring the enclosing whole assembly;
+            // otherwise prefer the tightest distinct part under the cursor.
+            const aArea = a.region.width * a.region.height;
+            const bArea = b.region.width * b.region.height;
+            return activeArea < 0.35 ? bArea - aArea : aArea - bArea;
+          })[0];
+
+        if (matchingOtherCand) {
+          userInteractedRef.current = true;
+          seq = ++pipelineSequenceRef.current;
+          setTapRipple({ x: normX * 100, y: normY * 100, key: Date.now() });
+          nextContour = matchingOtherCand;
+          setActiveCandidateId(matchingOtherCand.id);
+        } else {
+          const seqBefore = pipelineSequenceRef.current;
+          setIsTracingContour(true);
+          const segmented = await segmentPartAtTapPoint(activeSrc, normX, normY, 0);
+          if (seqBefore !== pipelineSequenceRef.current) return;
+          setIsTracingContour(false);
+
+          // Clicked empty background without a real physical part: keep default/current cutout intact!
+          if (!segmented) {
+            return;
+          }
+
+          userInteractedRef.current = true;
+          seq = ++pipelineSequenceRef.current;
+          setTapRipple({ x: normX * 100, y: normY * 100, key: Date.now() });
+
+          const matchedExisting = detectedCandidates.find(
+            (p) =>
+              p.id === segmented.id ||
+              (Math.hypot(p.center.x - segmented.center.x, p.center.y - segmented.center.y) < 0.06 &&
+                Math.max(p.region.width * p.region.height, segmented.region.width * segmented.region.height) /
+                  Math.max(1e-5, Math.min(p.region.width * p.region.height, segmented.region.width * segmented.region.height)) <
+                  2.1),
+          );
+
+          nextContour = matchedExisting
+            ? {
+                ...segmented,
+                id: matchedExisting.id,
+                label: matchedExisting.label || segmented.label,
+                partFamily: matchedExisting.partFamily || segmented.partFamily,
+              }
+            : segmented;
+
+          setActiveCandidateId(nextContour.id);
+          setDetectedCandidates((prev) => {
+            const hasMatch = prev.some((p) => p.id === nextContour.id);
+            if (hasMatch) {
+              return prev.map((p) => (p.id === nextContour.id ? nextContour : p));
+            }
+            return prev.length ? [prev[0], nextContour, ...prev.slice(1)].slice(0, 6) : [nextContour];
+          });
+        }
+      }
+    }
+
+    const isSameSelectionReady =
+      nextContour.id === activeCandidateId &&
+      Boolean(analysisResult) &&
+      !errorMessage &&
+      !isMatching &&
+      Math.abs(nextContour.region.x - queryRegion.x) < 0.005 &&
+      Math.abs(nextContour.region.width - queryRegion.width) < 0.005;
+
+    setQueryRegion(nextContour.region);
+    setActivePolygon(nextContour.polygon);
+    triggerEdgeLockAnimation();
+
+    if (isSameSelectionReady) {
+      return;
+    }
+
+    const nextHint =
+      nextContour.label ||
+      (detectedCandidates.length > 1 && nextContour.id !== detectedCandidates[0]?.id ? '' : selectedSampleHint);
+
+    await runRegionVisualMatch({
+      imageSrc: cutoutBaseSrc,
+      region: nextContour.region,
+      polygon: nextContour.polygon,
+      alphaData: nextContour.fromAiMask ? aiAlphaDataRef.current : null,
+      seq,
+      displayUrl: selectedImage || cutoutBaseSrc,
+      sampleHint: nextHint,
+      originalName: '',
+    });
   };
 
-  const handleRegionSelection = (region: ImageRegion | undefined) => {
-    setQueryRegion(region);
-    setFullImageSelected(!region);
-    setErrorMessage('');
+  const handlePhotoSurfaceClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const box = lensBoxRef.current?.getBoundingClientRect();
+    if (!box || !box.width || !box.height) return;
+    const normX = Math.max(0.02, Math.min(0.98, (e.clientX - box.left) / box.width));
+    const normY = Math.max(0.02, Math.min(0.98, (e.clientY - box.top) / box.height));
+    void handleImagePointSelect(normX, normY);
   };
 
-  // Upload first, then ask the local vision engine only for a crop proposal.
-  // The full catalogue analysis is deliberately deferred until customer confirmation.
   const handleFile = (file: File) => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     const fileMime = (file.type || '').toLowerCase();
-    const supportedExtension = /\.(?:jpe?g|png|webp)$/i.test(file.name);
-    if ((fileMime ? !allowed.includes(fileMime) : !supportedExtension) || file.size > 10 * 1024 * 1024) {
+    const okExt = /\.(?:jpe?g|png|webp)$/i.test(file.name);
+    if ((fileMime ? !allowed.includes(fileMime) : !okExt) || file.size > 10 * 1024 * 1024) {
       setErrorMessage('لطفاً تصویر JPG، PNG یا WebP با حجم حداکثر ۱۰ مگابایت انتخاب کنید.');
       return;
     }
-    if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-    imageUploadSequenceRef.current++;
-    setLocalImageId(null);
-    setTemporaryImageDataUrl(null);
-    setImageEventId(null);
-    setErrorMessage('');
-    setAnalysisResult(null);
-    setMeasurements({});
-    setSelectedImage(URL.createObjectURL(file));
-    setMimeType(file.type || "image/jpeg");
-    setRegionDetectionState('uploading');
-    setFullImageSelected(false);
-    if (isUsingCamera) stopCamera();
-    void uploadAndPrepareImage(file, file.name);
+    const objectUrl = URL.createObjectURL(file);
+    void launchDirectVisualResults(objectUrl, file, {
+      originalName: file.name,
+      sampleHint: file.name,
+      mime: file.type || 'image/jpeg',
+    });
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
+  const handleRecentClick = (item: VisionRecentSearchItem) => {
+    if (!item.imageUrl) {
+      setErrorMessage('تصویر این جستجوی قبلی ذخیره نشده است؛ لطفاً تصویر قطعه را دوباره بارگذاری کنید.');
+      return;
     }
+    void launchDirectVisualResults(item.imageUrl, item.imageUrl, {
+      originalName: item.code || item.id,
+      sampleHint: `${item.title} ${item.partHint || ''} ${item.code || ''}`.trim(),
+      mime: 'image/png',
+    });
   };
 
-  // Preset sample loader
-  const loadPreset = (preset: IndustrialPresetSample) => {
-    if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-    setAnalysisResult(null);setMeasurements({});
-    setSelectedImage(preset.imageUrl);
-    setLocalImageId(null);
-    setTemporaryImageDataUrl(null);
-    setImageEventId(null);
-    setMimeType("image/jpeg");
-    setErrorMessage("");
-    setRegionDetectionState('uploading');
-    void uploadAndPrepareImage(preset.imageUrl);
-    setLength(preset.length ? preset.length.toString() : "");
-    setWidth(preset.width ? preset.width.toString() : "");
-    if (preset.pitch) setPitch(preset.pitch.toString());
-    else setPitch("");
-    setApplication(preset.application);
-    setFeatures(preset.features);
-    setErrorMessage("");
-    if (isUsingCamera) stopCamera();
-    // Presets follow the same observation and measurement flow as uploads.
-    setCurrentStep(1);
-  };
+  // Camera actions
+  const startCamera = async (facing: 'environment' | 'user' = cameraFacing) => {
+    const req = ++cameraRequestRef.current;
+    setScreen('camera');
+    setIsCameraReady(false);
+    setCameraNotice('');
+    setErrorMessage('');
+    setCameraZoom(1);
+    cameraZoomRef.current = 1;
 
-  // Camera start / stop / capture
-  const startCamera = async (facing: "environment" | "user" = cameraFacing) => {
-    const request = ++cameraRequestRef.current;
     try {
-      setIsUsingCamera(true);
-      setIsCameraReady(false);
-      setErrorMessage("");
-      if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera requires HTTPS');
+      const seen = window.localStorage.getItem(CAMERA_TIPS_SEEN_KEY);
+      if (!seen) setCameraGuideOpen(true);
+    } catch {
+      setCameraGuideOpen(true);
+    }
+
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('دوربین زنده در این مرورگر فعال نیست.');
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: facing,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
+        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
-      if (request !== cameraRequestRef.current) {
-        stream.getTracks().forEach(track => track.stop());
+      if (req !== cameraRequestRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
         return;
       }
       cameraStreamRef.current = stream;
       const track = stream.getVideoTracks()[0];
-      const capabilities = track?.getCapabilities?.() as (MediaTrackCapabilities & { torch?: boolean }) | undefined;
-      setCanUseTorch(Boolean(facing === "environment" && capabilities?.torch));
+      const cap = track?.getCapabilities?.() as
+        | (MediaTrackCapabilities & { torch?: boolean; zoom?: { min: number; max: number } })
+        | undefined;
+      setCanUseTorch(Boolean(facing === 'environment' && cap?.torch));
+      hwZoomRangeRef.current =
+        cap?.zoom && typeof cap.zoom.min === 'number' && typeof cap.zoom.max === 'number'
+          ? { min: cap.zoom.min, max: cap.zoom.max }
+          : null;
       setTorchEnabled(false);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         void videoRef.current.play().catch(() => undefined);
       }
     } catch {
-      setIsUsingCamera(false);
-      setErrorMessage(
-        "دسترسی به دوربین برقرار نشد. لطفاً از آپلود فایل یا تصاویر نمونه استفاده کنید.",
-      );
+      setIsCameraReady(false);
+      setCameraNotice('دوربین متصل نیست؛ می‌توانید تصویر قطعه را از گالری انتخاب کنید.');
     }
   };
 
-  const stopCamera = () => {
-    cameraRequestRef.current++;
-    cameraStreamRef.current?.getTracks().forEach(track => track.stop());
-    cameraStreamRef.current = null;
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setIsUsingCamera(false);
-    setIsCameraReady(false);
-    setCanUseTorch(false);
-    setTorchEnabled(false);
-  };
-
-  // Camera hardware actions are real, with disabled/unavailable states where unsupported.
   const switchCamera = () => {
-    const next = cameraFacing === "environment" ? "user" : "environment";
-    stopCamera();
+    const next = cameraFacing === 'environment' ? 'user' : 'environment';
+    stopCameraStream();
     setCameraFacing(next);
     void startCamera(next);
   };
+
   const toggleTorch = async () => {
     const track = cameraStreamRef.current?.getVideoTracks()[0];
     if (!canUseTorch || !track) return;
     try {
-      const torch = !torchEnabled;
+      const nextTorch = !torchEnabled;
       await track.applyConstraints({
-        advanced: [{ torch } as MediaTrackConstraintSet & { torch: boolean }],
+        advanced: [{ torch: nextTorch } as MediaTrackConstraintSet & { torch: boolean }],
       });
-      setTorchEnabled(torch);
+      setTorchEnabled(nextTorch);
     } catch {
-      setErrorMessage("فلش دوربین در این دستگاه قابل فعال‌سازی نیست.");
       setCanUseTorch(false);
     }
   };
-  const selectCameraGalleryImage = (file: File) => {
-    const fileMime = (file.type || '').toLowerCase();
-    const supportedExtension = /\.(?:jpe?g|png|webp)$/i.test(file.name);
-    if ((fileMime ? !['image/jpeg','image/jpg','image/png','image/webp'].includes(fileMime) : !supportedExtension) || file.size > 12 * 1024 * 1024) {
-      setErrorMessage("لطفاً تصویر JPG، PNG یا WebP کوچک‌تر از ۱۲ مگابایت انتخاب کنید.");
+
+  const captureCameraFrame = (quickCategoryHint?: string) => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!isCameraReady || !video || !canvas || !video.videoWidth || !video.videoHeight) {
+      setErrorMessage('دوربین هنوز تصویر واقعی و آماده‌ای برای ثبت ندارد. لطفاً کمی صبر کنید یا از گالری استفاده کنید.');
       return;
     }
-    const preparationSequence = ++imagePreparationSequenceRef.current;
-    imageUploadSequenceRef.current += 1;
-    setIsUploadingImage(false);
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (preparationSequence !== imagePreparationSequenceRef.current || typeof reader.result !== "string") return;
-      if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-        setAnalysisResult(null);
-      setMeasurements({});
-      setSelectedImage(reader.result);
-      setLocalImageId(null);
-    setTemporaryImageDataUrl(null);
-      setImageEventId(null);
-      setMimeType(file.type || (file.name.toLowerCase().endsWith('.png') ? 'image/png' : file.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg'));
-      setErrorMessage("");
-      void uploadSelectedImage(file, file.name);
-      setCameraReview(true);
-      stopCamera();
-    };
-    reader.onerror = () => setErrorMessage("خواندن عکس از گالری انجام نشد. لطفاً دوباره تلاش کنید.");
-    reader.readAsDataURL(file);
-  };
 
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (!isCameraReady || !video.videoWidth || !video.videoHeight) {
-        setErrorMessage('تصویر دوربین هنوز آماده نشده است. پس از نمایش تصویر دوباره تلاش کنید.');
-        return;
-      }
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        imagePreparationSequenceRef.current++;
-        if (selectedImage?.startsWith("blob:"))
-          URL.revokeObjectURL(selectedImage);
-        setAnalysisResult(null);setMeasurements({});
-        setSelectedImage(dataUrl);
-            setLocalImageId(null);
-    setTemporaryImageDataUrl(null);
-        setImageEventId(null);
-        setMimeType("image/jpeg");
-        setErrorMessage("");
-        if (cameraFlowActive) {
-          // Keep the captured frame in memory only until the customer confirms it.
-          setCameraReview(true);
-          stopCamera();
-          return;
-        }
-        setRegionDetectionState('uploading');
-        void uploadAndPrepareImage(dataUrl, "camera-capture.jpg");
-        stopCamera();
-      }
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    const digitalZoom = hwZoomRangeRef.current ? 1 : cameraZoomRef.current;
+    const cropWidth = Math.max(1, Math.round(videoWidth / digitalZoom));
+    const cropHeight = Math.max(1, Math.round(videoHeight / digitalZoom));
+    const sourceX = Math.round((videoWidth - cropWidth) / 2);
+    const sourceY = Math.round((videoHeight - cropHeight) / 2);
+
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      setErrorMessage('آماده‌سازی تصویر دوربین انجام نشد. دوباره تلاش کنید.');
+      return;
     }
+
+    context.drawImage(video, sourceX, sourceY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    if (!dataUrl.startsWith('data:image/jpeg;base64,')) {
+      setErrorMessage('ثبت تصویر دوربین ناموفق بود. دوباره تلاش کنید.');
+      return;
+    }
+
+    setCameraReviewImage(dataUrl);
+    setCameraReviewHint(quickCategoryHint || '');
+    setCameraGuideOpen(false);
+    setErrorMessage('');
+    stopCameraStream();
+    setScreen('review');
   };
 
-  // Use the existing secure camera and catalog search pipeline for dock launches.
-  React.useEffect(() => {
-    if (!isOpen || !initialCamera) return;
-    setCurrentStep(1);
-    setCameraFlowActive(true);
-    setCameraReview(false);
+  const retakeCameraPhoto = () => {
+    setCameraReviewImage(null);
+    setCameraReviewHint('');
+    setErrorMessage('');
+    setScreen('camera');
     void startCamera();
-  }, [isOpen, initialCamera]);
-
-  // Reset all
-  const resetForm = () => {
-    stopCamera();
-    imagePreparationSequenceRef.current++;
-    imageUploadSequenceRef.current += 1;
-    setIsUploadingImage(false);
-    if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-    setSelectedImage(null);
-    setLocalImageId(null);
-    setTemporaryImageDataUrl(null);
-    setImageEventId(null);
-    setLength("");
-    setWidth("");
-    setPitch("");
-    setApplication("");
-    setFeatures("");
-    setAnalysisResult(null);setMeasurements({});
-    regionDetectionSequenceRef.current++;
-    setRegionDetectionState('uploading');
-    setRegionDetectionMessage('');
-    setRegionDetectionId(null);
-    setFullImageSelected(false);
-    setErrorMessage("");
-    setPendingStage("refined");
-    setLastStage("refined");
-    setCurrentStep(1);
   };
 
-  // Navigation handlers
-  const goToStep3 = () => {
-    const issue=analysisResult?.requiredMeasurements && measurementError(analysisResult.requiredMeasurements,measurements);
-    if(issue){setErrorMessage(issue);return;}
-    if (!length && !width && !selectedImage) {
-      setErrorMessage(
-        "لطفاً طول و عرض تقریبی را وارد نمایید یا در مرحله قبل تصویر بارگذاری کنید.",
-      );
-      return;
+  const confirmCameraPhoto = () => {
+    if (!cameraReviewImage) return;
+    const image = cameraReviewImage;
+    const hint = cameraReviewHint;
+    setCameraReviewImage(null);
+    setCameraReviewHint('');
+    void launchDirectVisualResults(image, image, {
+      originalName: 'camera-capture.jpg',
+      sampleHint: hint,
+      mime: 'image/jpeg',
+    });
+  };
+
+  const handleCloseAction = () => {
+    stopCameraStream();
+    setCameraReviewImage(null);
+    setCameraReviewHint('');
+    customRequestSequenceRef.current++;
+    const latest = latestImageUrlRef.current;
+    if (latest?.startsWith('blob:')) URL.revokeObjectURL(latest);
+    latestImageUrlRef.current = null;
+    pipelineSequenceRef.current++;
+    analyzeAbortRef.current?.abort();
+    analyzeAbortRef.current = null;
+    detectAbortRef.current?.abort();
+    detectAbortRef.current = null;
+    if (standalone) {
+      goBackOrFallback(navigate, '/');
+    } else {
+      onClose();
     }
-    setErrorMessage("");
-    setCurrentStep(3);
   };
 
-  // Submit to AI (two-stage: quick = image only, refined = image + dims + application)
-  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?: ImageRegion | null, localImageIdOverride?: string) => {
-    if (analysisBusyRef.current) return;
-    if (!selectedImage && !length && !width) { setErrorMessage("لطفاً حداقل تصویر قطعه یا ابعاد (طول و عرض) را مشخص فرمایید."); return; }
-    if (stage === "quick" && !selectedImage) { setErrorMessage("برای شناسایی فوری، ابتدا تصویر قطعه را بارگذاری کنید."); return; }
-    if (isUploadingImage && !localImageIdOverride) { setErrorMessage("لطفاً صبر کنید تا ذخیره تصویر روی دستگاه کامل شود."); return; }
-    const effectiveLocalImageId = localImageIdOverride || localImageId;
-    if (stage === "refined" && analysisResult?.requiredMeasurements) {
-      const issue = measurementError(analysisResult.requiredMeasurements, measurements);
-      if (issue) { setErrorMessage(issue); setCurrentStep(2); return; }
-    }
-    const requestRegion = localRegionEnabled ? (regionOverride === null ? undefined : regionOverride || queryRegion) : undefined;
-    const requestFullImage = regionOverride === null || (!requestRegion && fullImageSelected);
-    analysisBusyRef.current = true;
-    const sequence = ++analysisSequenceRef.current;
-    setErrorMessage(""); setPendingStage(stage); setAnalysisProgress(0); setAnalysisPhaseIndex(0); setScanCounts(null); setCurrentStep("analyzing");
-    let activeImageEventId: string | null = imageEventId;
-    try {
-      let imageBase64: string | undefined;
-      let analysisMimeType = mimeType;
-      if (selectedImage) {
-        if (!effectiveLocalImageId) throw new Error("تصویر در حافظه داخلی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.");
-        const localRecord = await getCustomerDeviceImage(effectiveLocalImageId);
-        if (!localRecord) throw new Error("تصویر محلی پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.");
-        if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
-        imageBase64 = temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob);
-        const localSegmentation = localSegmentationRef.current;
-        if (localSegmentation && localSegmentation.source === temporaryImageDataUrl && requestRegion) {
-          const a = requestRegion;
-          const b = localSegmentation.region;
-          const intersectionWidth = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
-          const intersectionHeight = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-          const intersectionArea = intersectionWidth * intersectionHeight;
-          const smallerArea = Math.max(0.0001, Math.min(a.width * a.height, b.width * b.height));
-          if (intersectionArea / smallerArea >= 0.35) {
-            imageBase64 = localSegmentation.result.whiteBgDataUrl;
-            analysisMimeType = 'image/jpeg';
-          }
-        }
-        if (currentUser && !activeImageEventId) {
-          const metadata = await getCustomerDeviceImageMetadata(effectiveLocalImageId);
-          if (!metadata) throw new Error("اطلاعات تصویر محلی پیدا نشد.");
-          try {
-            const event = await createCustomerImageIdentification({ deviceImageId: metadata.id, sha256: metadata.sha256, mimeType: metadata.mimeType, sizeBytes: metadata.sizeBytes, originalName: metadata.originalName });
-            activeImageEventId = event.id; setImageEventId(event.id);
-          } catch (trackingError) { console.warn("[Customer image history] metadata sync unavailable", trackingError); }
-        }
-      }
-      const result = await aiVisualSearchService.analyzePartWithAi({
-        imageBase64, mimeType: analysisMimeType,
-        length: length ? parseFloat(length) : undefined, width: width ? parseFloat(width) : undefined, pitch: pitch ? parseFloat(pitch) : undefined,
-        application: application.trim() || undefined, features: features.trim() || undefined,
-        stage, observationOnly: false, region: requestRegion, detectionId: regionDetectionId || undefined, fullImage: requestFullImage, includeNearest: false,
-        measurements: stage === "refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
-      }, progress => {
-        if (sequence !== analysisSequenceRef.current) return;
-        setScanCounts(progress); setAnalysisProgress(progress.total ? Math.floor(progress.compared * 100 / progress.total) : 0);
-        setAnalysisPhaseIndex(progress.stage === "verifying" ? 4 : progress.stage === "scanning" ? 3 : progress.stage === "preparing" ? 0 : 1);
-      });
-      if (sequence !== analysisSequenceRef.current) return;
-      if (localRegionEnabled || result.localVisionMetrics) {
-        setLocalRegionEnabled(true); setQueryRegion(result.queryRegion || requestRegion);
-        if (!requestRegion) setCandidateRegions(result.queryRegions || []);
-        setFullImageSelected(requestFullImage); setRegionDetectionState("ready");
-      }
-      if (activeImageEventId) {
-        const matched = result.matchedProducts || [], similar = result.similarCandidates || [];
-        void completeCustomerImageIdentification(activeImageEventId, {
-          status: matched.length || similar.length ? "completed" : "unmatched", detectedPartType: result.summary?.detectedPartType,
-          summary: result.summary?.whatYouSee || result.summary?.visualAnalysis, technicalAdvice: result.technicalAdvice,
-          matchedProductCodes: matched.map(item => item.code), similarProductCodes: similar.map(item => item.code), confidence: result.summary?.confidence,
-        }).catch(error => console.warn("[Customer image history] result sync unavailable", error));
-      }
-      setAnalysisResult(result);
-      const primaryHistoryMatch = result.matchedProducts?.[0] || result.similarCandidates?.[0];
-      const photoHistoryMatch = result.catalogImageMatches?.find((photo) =>
-        Boolean(primaryHistoryMatch?.code && photo.bindings?.some((binding) => binding.code === primaryHistoryMatch.code)),
-      ) || result.catalogImageMatches?.[0];
-      const verifiedPhotoCode = photoHistoryMatch?.bindings?.find((binding) => binding.code && binding.verified)?.code;
-      const historyCode = primaryHistoryMatch?.code || verifiedPhotoCode;
-      const historyTitle = primaryHistoryMatch?.name || photoHistoryMatch?.label;
-      if (historyCode && historyTitle) {
-        const historySubtitle = [
-          primaryHistoryMatch?.brand,
-          primaryHistoryMatch?.visualVerdictFarsi || (primaryHistoryMatch ? 'نامزد کاتالوگ · نیازمند بررسی فنی' : 'تصویر ثبت‌شده در کاتالوگ'),
-        ].filter(Boolean).join(' · ');
-        setRecentSearches(recordVisionRecentSearch({
-          code: historyCode,
-          title: historyTitle,
-          subtitle: historySubtitle,
-          partHint: result.summary?.detectedPartType,
-          imageUrl: primaryHistoryMatch?.image || photoHistoryMatch?.image,
-        }));
-      }
-      if (!result.observationOnly && (result.matchedProducts?.length || result.similarCandidates?.length)) {
-        const conversationImage = temporaryImageDataUrl || selectedImage;
-        if (conversationImage) onAnalysisResult?.(result, conversationImage);
-      } setLastStage(result.stage || stage); setCurrentStep(result.observationOnly ? 2 : "results");
-    } catch (error: any) {
-      if (sequence !== analysisSequenceRef.current) return;
-      console.error(error);
-      if (activeImageEventId) void completeCustomerImageIdentification(activeImageEventId, { status: "failed" }).catch(() => undefined);
-      setErrorMessage(friendlyVisionError(error)); setCurrentStep(stage === "quick" ? 1 : 3);
-    } finally { if (sequence === analysisSequenceRef.current) analysisBusyRef.current = false; }
-  };
-
-  const confirmRegionAndAnalyze = () => {
-    if (!temporaryImageDataUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
-    setErrorMessage('');
-    void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
-  };
-
-  const goToStep2 = () => {
-    if(selectedImage && !analysisResult?.requiredMeasurements){confirmRegionAndAnalyze();return;}
-    setErrorMessage("");
-    setCurrentStep(2);
-  };
-
-  // Selecting another crop never starts an expensive search implicitly.
-  // The customer reviews the crop and explicitly presses "search this part".
-  const searchRegion=(region:ImageRegion|undefined)=>{
-    setQueryRegion(region);
-    setFullImageSelected(!region);
-    setErrorMessage('');
-  };
-
-  // The original stays in the customer's local vault during identification.
-  // It is read and attached to the manufacturing request only after an explicit click.
   const openCustomManufacturingRequest = async () => {
-    if (isPreparingCustomRequest) return;
-    const requestSequence = ++customRequestSequenceRef.current;
-    if (!selectedImage) {
-      setErrorMessage('تصویر قطعه برای ثبت درخواست ساخت پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.');
-      return;
-    }
+    if (isPreparingCustomRequest || !selectedImage) return;
+    const reqSeq = ++customRequestSequenceRef.current;
     setIsPreparingCustomRequest(true);
     setErrorMessage('');
     try {
       let imageBlob: Blob | null = null;
-      let originalName = 'forza-part-image';
+      let originalName = selectedOriginalName || 'forza-part-image';
       if (localImageId) {
-        const localRecord = await getCustomerDeviceImage(localImageId);
-        if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
-        if (localRecord) {
-          imageBlob = localRecord.blob;
-          originalName = localRecord.originalName || originalName;
+        const localRec = await getCustomerDeviceImage(localImageId).catch(() => null);
+        if (reqSeq !== customRequestSequenceRef.current || !isOpen) return;
+        if (localRec) {
+          imageBlob = localRec.blob;
+          originalName = localRec.originalName || originalName;
         }
       }
       if (!imageBlob) {
-        const response = await fetch(temporaryImageDataUrl || selectedImage);
-        if (!response.ok) throw new Error('خواندن تصویر ذخیره‌شده روی دستگاه ممکن نشد؛ لطفاً تصویر را دوباره انتخاب کنید.');
-        imageBlob = await response.blob();
+        const res = await fetch(croppedPreviewUrl || temporaryImageDataUrl || selectedImage);
+        if (!res.ok) throw new Error('خواندن تصویر انجام نشد.');
+        imageBlob = await res.blob();
       }
-      if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
+      if (reqSeq !== customRequestSequenceRef.current || !isOpen) return;
       const file = await createManufacturingImageFile(imageBlob, originalName);
-      if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
+      if (reqSeq !== customRequestSequenceRef.current || !isOpen) return;
       const summary = analysisResult?.summary;
       const detectedName = [summary?.partFamilyFarsi, summary?.detectedPartType]
-        .map(value => String(value || '').trim())
-        .find(value => value.length > 1 && !/جست‌وجوی تصویری کاتالوگ|قطعه نامشخص|نامشخص/i.test(value));
-      const visualSummary = String(summary?.visualAnalysis || summary?.whatYouSee || 'در کاتالوگ، تطابق تصویری کافی پیدا نشد.').trim();
+        .map((v) => String(v || '').trim())
+        .find((v) => v.length > 1 && !/قطعه نامشخص|نامشخص/i.test(v));
       const observedDimensions = (summary?.observedSpecifications || [])
-        .filter(spec => String(spec.value || '').trim())
-        .map(spec => String(spec.name || 'مشخصه') + ': ' + String(spec.value).trim())
+        .filter((spec) => String(spec.value || '').trim())
+        .map((spec) => `${spec.name || 'مشخصه'}: ${String(spec.value).trim()}`)
         .join('، ')
         .slice(0, 480);
       const unknownParameters = (summary?.unknownParameters || []).filter(Boolean);
       const regionNote = queryRegion
-        ? 'ناحیه انتخاب‌شده در تصویر: x=' + queryRegion.x.toFixed(4) + ', y=' + queryRegion.y.toFixed(4) +
-          ', width=' + queryRegion.width.toFixed(4) + ', height=' + queryRegion.height.toFixed(4) + ' (مختصات نسبی تصویر).'
+        ? `ناحیه انتخاب‌شده در تصویر: x=${queryRegion.x.toFixed(4)}, y=${queryRegion.y.toFixed(4)}, width=${queryRegion.width.toFixed(4)}, height=${queryRegion.height.toFixed(4)} (مختصات نسبی تصویر).`
         : 'درخواست بر اساس تصویر کامل ارسالی ثبت شده است.';
-      const notes = [
-        'درخواست ساخت و مهندسی معکوس از مسیر شناسایی تصویری FORZA ثبت شده است.',
-        'خلاصه بررسی تصویر: ' + visualSummary,
-        analysisResult?.technicalAdvice ? 'توصیه فنی اولیه: ' + analysisResult.technicalAdvice : '',
-        unknownParameters.length ? 'پارامترهای نیازمند اندازه‌گیری یا تأیید: ' + unknownParameters.join('، ') : '',
-        regionNote,
-      ].filter(Boolean).join('\n').slice(0, 2800);
-      if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
+      const visualSummary = String(summary?.visualAnalysis || summary?.whatYouSee || 'در کاتالوگ، تطابق تصویری کافی پیدا نشد.').trim();
+
       setCustomRequestDraft({
         file,
         partName: detectedName || 'قطعه صنعتی برای بررسی و ساخت سفارشی',
         partType: 'سایر قطعات مکانیکی خاص',
         dimensions: observedDimensions,
         alloyCondition: String(summary?.material || ''),
-        notes,
+        notes: [
+          'درخواست ساخت و مهندسی معکوس از جستجوی تصویری FORZA ثبت شده است.',
+          'خلاصه بررسی تصویر: ' + visualSummary,
+          analysisResult?.technicalAdvice ? 'توصیه فنی اولیه: ' + analysisResult.technicalAdvice : '',
+          unknownParameters.length ? 'پارامترهای نیازمند اندازه‌گیری یا تأیید: ' + unknownParameters.join('، ') : '',
+          regionNote,
+        ]
+          .filter(Boolean)
+          .join('\n')
+          .slice(0, 2800),
       });
       setCustomRequestOpen(true);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'آماده‌سازی تصویر برای درخواست ساخت ناموفق بود.');
+    } catch (error: any) {
+      setErrorMessage(error?.message || 'آماده‌سازی تصویر برای ثبت سفارش ساخت انجام نشد.');
     } finally {
-      if (requestSequence === customRequestSequenceRef.current) setIsPreparingCustomRequest(false);
+      if (reqSeq === customRequestSequenceRef.current) setIsPreparingCustomRequest(false);
     }
   };
 
-  const retakeCameraPhoto = () => {
-    imagePreparationSequenceRef.current++;
-    regionDetectionSequenceRef.current++;
-    imageUploadSequenceRef.current++;
-    setIsUploadingImage(false);
-    if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-    setSelectedImage(null);
-    setLocalImageId(null);
-    setTemporaryImageDataUrl(null);
-    setImageEventId(null);
-    setRegionDetectionId(null);
-    setQueryRegion(undefined);
-    setCandidateRegions([]);
-    setCameraReview(false);
-    setErrorMessage("");
-    void startCamera();
-  };
+  // UNIFIED Catalog Product Grid (NEVER splits exact matches vs similar)
+  const unifiedProducts = analysisResult
+    ? [
+        ...(analysisResult.matchedProducts || []),
+        ...(analysisResult.similarCandidates || []),
+      ].filter((item, idx, self) => idx === self.findIndex((t) => t.code === item.code))
+    : [];
 
-  const confirmCameraPhoto = async () => {
-    if (!selectedImage) {
-      setErrorMessage("ابتدا عکس قطعه را ثبت کنید.");
-      return;
+  const displayedRecentSearches = showAllHistory ? recentSearches : recentSearches.slice(0, 6);
+
+  const navigateConsult = (code: string, name: string, brand: string, isSimilar: boolean) => {
+    if (imageEventId) {
+      void selectCustomerImageProduct(imageEventId, code).catch(() => undefined);
     }
-    // Camera review is followed by the same crop-detection and customer-confirmation flow as gallery uploads.
-    setCameraReview(false);
-    setCameraFlowActive(false);
-    setRegionDetectionState('uploading');
-    void uploadAndPrepareImage(selectedImage);
+    const q = buildVisionConsultationPrompt({ code, name, brand, isSimilar }, analysisResult?.summary);
+    const params = new URLSearchParams({
+      productCode: code,
+      productName: name,
+      ...(q ? { q } : {}),
+    });
+    onClose();
+    navigate('/ai-consult?' + params.toString());
   };
 
-  // Calculate inquiry price for user
-  const getItemPrice = (
-    _catalogItem?: any,
-  ): ReturnType<typeof pricingCreditService.calculateInquiryPrice> => null;
+  const shellPositionClass = standalone
+    ? 'fv-workbench'
+    : 'fv-workbench fixed inset-0 z-[110] overflow-y-auto';
+
+  const digitalPreviewZoom = hwZoomRangeRef.current ? 1 : cameraZoom;
+
+  const renderUnifiedProductCard = (item: (typeof unifiedProducts)[number]) => {
+    const product = item.catalogProduct;
+    const resolvedPrice =
+      product && product.prices
+        ? pricingCreditService.calculateInquiryPrice(
+            product,
+            currentUser?.assignedPriceListId || undefined,
+          )?.calculatedPrice ||
+          product.prices.retail ||
+          0
+        : 0;
+
+    return (
+      <article
+        key={item.code}
+        className="group flex flex-col rounded-2xl border border-[#E7E8EC] bg-[#FFFFFF] p-2.5 transition-all duration-150 hover:border-[#E06518]/65 hover:shadow-[0_10px_28px_-14px_rgba(43,49,58,0.18)]"
+      >
+        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-[#F5F6F6] border border-[#E7E8EC]/60">
+          <CatalogResultImage
+            sources={[item.image, product?.image]}
+            alt={item.name}
+            familyReference={false}
+            hideZoomPill
+            cleanSurface
+            className="h-full w-full"
+          />
+        </div>
+
+        <div className="flex flex-1 flex-col gap-1 pt-2.5 px-1">
+          <h4 className="line-clamp-2 text-[12.5px] sm:text-[13px] font-bold leading-snug text-[#2B313A]">
+            {item.name}
+          </h4>
+
+          <div className="mt-1 flex items-center justify-between gap-2">
+            {resolvedPrice > 0 ? (
+              <span className="text-[13px] font-extrabold text-[#2B313A] tabular-nums">
+                {formatPrice(resolvedPrice)}
+              </span>
+            ) : (
+              <span className="text-[11px] font-semibold text-emerald-700">موجود در کاتالوگ</span>
+            )}
+          </div>
+
+          <div className="mt-auto flex items-center justify-between gap-2 pt-2 border-t border-[#F3F4F6] text-[11px] text-[#74757C]">
+            <span className="truncate">
+              {item.brand} · <span className="font-mono text-[#55565A]">{item.code}</span>
+            </span>
+
+            {product ? (
+              <Link
+                to={`/product/${product.code}`}
+                onClick={() => onClose()}
+                className="inline-flex items-center gap-0.5 shrink-0 font-bold text-[#E06518] hover:text-[#C95210] transition-colors whitespace-nowrap"
+              >
+                <span>مشاهده</span>
+                <ArrowUpLeft className="h-3 w-3" />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => navigateConsult(item.code, item.name, item.brand, true)}
+                className="inline-flex items-center gap-0.5 shrink-0 font-bold text-[#E06518] hover:text-[#C95210] transition-colors whitespace-nowrap cursor-pointer"
+              >
+                <span>مشاوره</span>
+                <ArrowUpLeft className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  };
 
   return (
-    <>
-    <Modal
-      dialogLabel="شناسایی تصویری قطعه"
-      fullScreen={standalone || fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing" || currentStep === 1 || currentStep === "results"}
-      closeLabel={standalone ? "بازگشت" : fullScreen || cameraFlowActive ? (initialCamera ? "بازگشت به سایت" : "بازگشت به میزکار") : "بستن"}
-      isOpen={isOpen}
-      onClose={() => {
-        stopCamera();
-        onClose();
-      }}
-      title={
-        currentStep === 1 || currentStep === "analyzing" || currentStep === "results"
-          ? undefined
-          : "شناسایی هوشمند قطعه و تسمه با هوش مصنوعی"
-      }
-      maxWidth={
-        currentStep === 1
-          ? "2xl"
-          : currentStep === "analyzing" || currentStep === "results"
-            ? "2xl"
-            : "lg"
-      }
-      noPadding={currentStep === 1 || currentStep === "analyzing" || currentStep === "results"}
+    <div
+      className={shellPositionClass}
+      dir="rtl"
+      data-fullscreen={standalone || fullScreen || initialCamera ? 'true' : 'false'}
+      role={standalone ? 'main' : 'dialog'}
+      aria-modal={standalone ? undefined : 'true'}
+      aria-label="جستجوی تصویری قطعات صنعتی FORZA VISION"
     >
-      <div className="sanat-visual-search-shell fv-workbench" dir="rtl">
+      {/* Hidden File Input */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
         className="sr-only"
         tabIndex={-1}
-        aria-label="انتخاب تصویر قطعه"
-        onChange={(event) => {
-          const image = event.currentTarget.files?.[0];
-          if (image) handleFile(image);
-          event.currentTarget.value = "";
+        aria-label="انتخاب تصویر قطعه از دستگاه"
+        onChange={(e) => {
+          const f = e.currentTarget.files?.[0];
+          if (f) handleFile(f);
+          e.currentTarget.value = '';
         }}
       />
-      {cameraFlowActive ? (
-        <section className="sanat-camera-experience sanat-camera-reference" dir="rtl"
-          data-testid="full-screen-camera-experience" aria-label="دوربین تمام صفحه شناسایی قطعه">
-          <header className="sanat-camera-experience__header">
+
+      {/* Top-to-Bottom FORZA Logo Entry Transition Curtain */}
+      <AnimatePresence>
+        {showVisionSplash && screen === 'entry' && (
+          <motion.div
+            key="forza-vision-entry-curtain"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: 24, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } }}
+            onClick={() => setShowVisionSplash(false)}
+            className="fixed inset-0 z-[130] flex flex-col items-center justify-center bg-[#FFFFFF] cursor-pointer select-none px-6"
+            aria-label="ورود به اسکنر هوشمند FORZA VISION"
+          >
+            <div
+              className="pointer-events-none absolute inset-0 opacity-45"
+              style={{
+                backgroundImage:
+                  'linear-gradient(#dfe3e6 1px, transparent 1px), linear-gradient(90deg, #dfe3e6 1px, transparent 1px)',
+                backgroundSize: '44px 44px',
+                maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
+              }}
+            />
+
+            <motion.div
+              initial={{ y: -56, opacity: 0, clipPath: 'inset(0 0 100% 0)' }}
+              animate={{ y: 0, opacity: 1, clipPath: 'inset(0 0 0% 0)' }}
+              transition={{ duration: 0.56, ease: [0.16, 1, 0.3, 1] }}
+              className="relative flex flex-col items-center"
+            >
+              <img
+                src="/assets/aistudio/logo-forza_9b7fcf6e.png"
+                alt="لوگوی FORZA"
+                className="w-64 sm:w-80 md:w-[360px] h-auto object-contain drop-shadow-[0_12px_32px_rgba(224,101,24,0.18)]"
+              />
+              <motion.div
+                initial={{ scaleX: 0, opacity: 0 }}
+                animate={{ scaleX: 1, opacity: 1 }}
+                transition={{ delay: 0.22, duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-5 h-[2.5px] w-36 rounded-full bg-gradient-to-r from-transparent via-[#E06518] to-transparent origin-center"
+              />
+              <motion.p
+                initial={{ y: -12, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.28, duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-3 text-xs sm:text-sm font-bold text-[#55565A] tracking-tight"
+              >
+                شناسایی هوشمند قطعات FORZA VISION · تطبیق کاتالوگ اطلس
+              </motion.p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ==================================================================== */}
+      {/* SCREEN: PRECISION OPTICAL CAMERA VIEWFINDER + GUIDE OVERLAY          */}
+      {/* ==================================================================== */}
+      {screen === 'camera' && (
+        <motion.section
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          className="fixed inset-0 z-[120] flex flex-col bg-[#0B0E13] text-white touch-none"
+          data-testid="full-screen-camera-experience"
+          aria-label="دوربین هوشمند شناسایی قطعه"
+        >
+          {/* Sleek Optical HUD Header */}
+          <header className="flex items-center justify-between gap-3 border-b border-white/10 bg-[#141820]/95 px-3 sm:px-6 h-14 backdrop-blur-md shrink-0">
             <button
               type="button"
-              onClick={() => void toggleTorch()}
-              disabled={cameraReview || !canUseTorch}
-              aria-label={torchEnabled ? "خاموش کردن فلش دوربین" : "روشن کردن فلش دوربین"}
-              aria-pressed={torchEnabled}
-              title={canUseTorch ? "فلش دوربین" : "فلش در این دستگاه در دسترس نیست"}
-              className={`sanat-camera-experience__torch ${torchEnabled ? "is-on" : ""}`}
+              onClick={() => {
+                stopCameraStream();
+                if (selectedImage) {
+                  setScreen('results');
+                } else if (initialCamera) {
+                  handleCloseAction();
+                } else {
+                  setScreen('entry');
+                }
+              }}
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white hover:bg-white/10 transition-colors whitespace-nowrap cursor-pointer"
             >
-              <Zap size={21} aria-hidden="true" />
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              <span>بازگشت</span>
             </button>
-            <div className="sanat-camera-experience__heading">
-              <h1>{cameraReview ? "بازبینی عکس قطعه" : "شناسایی قطعه با دوربین"}</h1>
+
+            <div className="flex items-center gap-2 min-w-0">
+              <img
+                src="/assets/aistudio/logo-forza_9b7fcf6e.png"
+                alt="FORZA"
+                className="h-6 sm:h-7 w-auto object-contain shrink-0"
+              />
+              <span className="h-2 w-2 rounded-full bg-[#E06518] shrink-0" />
+              <span className="text-xs sm:text-sm font-bold text-white whitespace-nowrap tabular-nums">
+                LENS · {toPersianDigits(cameraZoom)}×
+              </span>
             </div>
-            <div className="sanat-camera-experience__header-actions">
-              <button type="button" className="sanat-camera-experience__info"
-                onClick={() => setShowCameraHelp(value => !value)}
-                aria-expanded={showCameraHelp}
-                aria-label="راهنمای تصویربرداری از قطعه">
-                <Info size={20} aria-hidden="true" />
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setCameraGuideOpen((v) => !v)}
+                aria-label="راهنمای عکاسی"
+                aria-expanded={cameraGuideOpen}
+                className={`grid h-10 w-10 place-items-center rounded-xl border transition-colors cursor-pointer ${
+                  cameraGuideOpen
+                    ? 'border-[#E06518] bg-[#E06518] text-white'
+                    : 'border-white/15 bg-white/5 text-white hover:bg-white/10'
+                }`}
+              >
+                <HelpCircle className="h-4 w-4" />
               </button>
-              <button type="button" className="sanat-camera-experience__close"
-                onClick={() => { stopCamera(); onClose(); }} aria-label="بستن دوربین">
-                <X size={19} aria-hidden="true" />
+              <button
+                type="button"
+                onClick={() => void toggleTorch()}
+                disabled={!canUseTorch}
+                aria-label="فلش دوربین"
+                aria-pressed={torchEnabled}
+                className={`grid h-10 w-10 place-items-center rounded-xl border transition-colors cursor-pointer disabled:opacity-35 ${
+                  torchEnabled
+                    ? 'border-[#E06518] bg-[#E06518] text-white'
+                    : 'border-white/15 bg-white/5 text-white hover:bg-white/10'
+                }`}
+              >
+                <Zap className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleCloseAction}
+                aria-label="بستن"
+                className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/5 text-white hover:bg-white/10 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
               </button>
             </div>
           </header>
 
-          <div className={`sanat-camera-experience__stage fv-camera-stage ${cameraReview ? "is-review" : ""}`}>
-            {cameraReview && selectedImage ? (
-              <img src={selectedImage} alt="پیش‌نمایش عکس ثبت‌شده از قطعه"
-                className="sanat-camera-experience__preview"/>
-            ) : (
-              <video
-                ref={(node) => {
-                  videoRef.current = node;
-                  if (node && cameraStreamRef.current && node.srcObject !== cameraStreamRef.current) {
-                    node.srcObject = cameraStreamRef.current;
-                    void node.play().catch(() => undefined);
-                  }
-                }}
-                onLoadedMetadata={() => setIsCameraReady(true)}
-                aria-label="تصویر زنده دوربین برای اسکن قطعه"
-                className={`sanat-camera-experience__video ${cameraFacing === "user" ? "is-selfie" : ""}`}
-                autoPlay playsInline muted
-              />
+          {/* Camera-only Pinch Zoom Viewfinder Stage */}
+          <div
+            ref={cameraStageRef}
+            className="sanat-camera-experience__stage fv-camera-stage relative flex-1 flex items-center justify-center overflow-hidden bg-[#07090D] p-3 sm:p-6"
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              onCanPlay={() => setIsCameraReady(true)}
+              style={{
+                transform: `scale(${digitalPreviewZoom})`,
+                transformOrigin: 'center center',
+              }}
+              className={`h-full w-full max-w-4xl rounded-2xl object-cover transition-transform duration-75 ${
+                isCameraReady ? 'opacity-100' : 'hidden'
+              }`}
+            />
+
+            {!isCameraReady && (
+              <div className="relative flex h-full w-full max-w-4xl flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-white/12 bg-[#12161E] p-6 text-center">
+                <Camera className="h-12 w-12 text-white/45" aria-hidden="true" />
+                <p className="text-sm font-bold text-white">
+                  {cameraNotice || 'در حال آماده‌سازی دوربین…'}
+                </p>
+                <p className="max-w-sm text-xs leading-6 text-slate-300">
+                  تا زمانی که تصویر واقعی دوربین آماده نشده، امکان ثبت یا تحلیل تصویر وجود ندارد.
+                </p>
+              </div>
             )}
-            <span className="sanat-camera-experience__stage-shade" aria-hidden="true"/>
-            <div className="sanat-camera-experience__instruction">
-              <Target size={17} aria-hidden="true"/>
-              <span>{cameraReview ? "عکس ثبت شد؛ تصویر را تأیید کنید" : "قطعه مورد نظر را در قاب قرار دهید"}</span>
+
+            {/* Rule-of-Thirds Calibrated Grid Overlay */}
+            <div className="pointer-events-none absolute inset-0 mx-auto max-w-4xl opacity-15">
+              <div className="h-full w-full grid grid-cols-3 grid-rows-3">
+                <div className="border-l border-b border-white/50" />
+                <div className="border-l border-b border-white/50" />
+                <div className="border-b border-white/50" />
+                <div className="border-l border-b border-white/50" />
+                <div className="border-l border-b border-white/50" />
+                <div className="border-b border-white/50" />
+                <div className="border-l border-white/50" />
+                <div className="border-l border-white/50" />
+                <div />
+              </div>
             </div>
-            <span className="sanat-camera-experience__frame fv-corner-brackets" aria-hidden="true"/>
-            {!cameraReview && isCameraReady && <span className="sanat-camera-experience__scan-line fv-scan-laser" aria-hidden="true"/>}
-            <span className="sanat-camera-experience__live-tag" role="status" aria-live="polite">
-              {cameraReview ? "پیش‌نمایش تصویر" : isCameraReady ? "دوربین فعال" : "در حال آماده‌سازی دوربین…"}
-            </span>
-            {!cameraReview && !isCameraReady && !errorMessage && (
-              <span className="sanat-camera-experience__loading">در حال اتصال به دوربین دستگاه</span>
+
+            {/* Quick Scan vs Deep AI Mode Toggle Bar */}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-15 flex items-center gap-1 rounded-full border border-white/20 bg-[#141820]/90 p-1 backdrop-blur-md shadow-lg">
+              <button
+                type="button"
+                onClick={() => setScanMode('deep')}
+                aria-pressed={scanMode === 'deep'}
+                className={`min-h-[32px] px-3 sm:px-4 rounded-full text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+                  scanMode === 'deep'
+                    ? 'bg-[#E06518] text-white shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>هوش مصنوعی عمیق</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setScanMode('quick')}
+                aria-pressed={scanMode === 'quick'}
+                className={`min-h-[32px] px-3 sm:px-4 rounded-full text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+                  scanMode === 'quick'
+                    ? 'bg-[#E06518] text-white shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Activity className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>اسکن سریع</span>
+              </button>
+            </div>
+
+            {/* Real-Time Motion Tracking Bounding Box (When Quick Scan is Active) */}
+            {scanMode === 'quick' && quickDetection && (
+              <div className="pointer-events-none absolute inset-0 mx-auto max-w-4xl">
+                <div
+                  style={{
+                    left: `${quickDetection.bbox.x * 100}%`,
+                    top: `${quickDetection.bbox.y * 100}%`,
+                    width: `${quickDetection.bbox.w * 100}%`,
+                    height: `${quickDetection.bbox.h * 100}%`,
+                  }}
+                  className="absolute rounded-2xl border-2 border-[#E06518] bg-[#E06518]/10 transition-all duration-200 shadow-[0_0_24px_rgba(224,101,24,0.3)]"
+                >
+                  <div className="absolute -top-7 right-0 inline-flex items-center gap-1.5 rounded-full bg-[#E06518] px-2.5 py-0.5 text-[11px] font-bold text-white whitespace-nowrap shadow">
+                    <Activity className="h-3 w-3 animate-pulse" aria-hidden="true" />
+                    <span>{quickDetection.label}</span>
+                  </div>
+                </div>
+              </div>
             )}
-            {showCameraHelp && (
-              <aside className="sanat-camera-experience__help" aria-label="راهنمای ثبت عکس">
-                قطعه را کامل داخل چهار گوشه نارنجی قرار دهید. نور کافی، نوشته‌های خوانا و تصویر واضح باعث شناسایی دقیق‌تر می‌شود.
-              </aside>
-            )}
-            <canvas ref={canvasRef} className="hidden" aria-hidden="true"/>
+
+            {/* Precision Reticle Frame + Laser Sweep + Photography Tip */}
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-6 sm:p-8">
+              <div className="mb-4 max-w-sm rounded-full border border-white/20 bg-[#141820]/85 px-4 py-1.5 text-center text-[11px] font-semibold text-amber-200 backdrop-blur-md">
+                {scanMode === 'quick'
+                  ? 'اسکن سریع فعال است: ناحیه دارای حرکت برای بررسی مشخص می‌شود'
+                  : 'برای تسمه‌ها: مستقیم روبه‌روی برند و اطلاعات درج‌شده روی تسمه عکس بگیرید و بفرستید'}
+              </div>
+              <div className="fv-corner-brackets h-[min(64vw,290px)] w-[min(64vw,290px)] rounded-2xl overflow-hidden">
+                <div className="fv-scan-laser" />
+              </div>
+            </div>
+
+            {/* First-time Camera Photography Guide Overlay */}
+            <AnimatePresence>
+              {cameraGuideOpen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+                  role="dialog"
+                  aria-label="نکات عکاسی دقیق از قطعه"
+                >
+                  <motion.div
+                    initial={{ y: -18, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 12, opacity: 0 }}
+                    transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                    className="w-full max-w-md max-h-[86dvh] overflow-y-auto rounded-2xl border border-white/15 bg-[#181C24] p-5 text-white shadow-2xl"
+                  >
+                    <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/10">
+                      <div>
+                        <span className="text-[11px] font-bold text-[#FF8C42]">راهنمای عکاسی صنعتی FORZA</span>
+                        <h3 className="mt-1 text-base font-extrabold">
+                          نکات کلیدی برای تشخیص دقیق‌تر قطعه
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={dismissCameraGuide}
+                        aria-label="بستن راهنما"
+                        className="grid h-9 w-9 place-items-center rounded-xl bg-white/10 text-slate-200 hover:bg-white/20 cursor-pointer"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="mt-4 space-y-2.5">
+                      <div className="flex items-start gap-3 rounded-xl border border-[#E06518]/50 bg-[#E06518]/12 p-3">
+                        <Focus className="mt-0.5 h-4 w-4 shrink-0 text-[#FF8C42]" aria-hidden="true" />
+                        <div>
+                          <p className="text-xs font-bold text-white">برای تسمه‌ها: مستقیم روبه‌روی برند و کد تسمه</p>
+                          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-200">
+                            دوربین را مستقیم روبه‌روی برند و نوشته‌های روی تسمه بگیرید تا شماره فنی و پروفیل کامل خوانده شود.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                        <Sun className="mt-0.5 h-4 w-4 shrink-0 text-[#FF8C42]" aria-hidden="true" />
+                        <div>
+                          <p className="text-xs font-bold text-white">نور یکنواخت و زاویه عمود</p>
+                          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-300">
+                            دوربین را مستقیم بالای قطعه نگه دارید تا فرم دندانه‌ها و شیارها بدون سایه تند دیده شود.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                        <ZoomIn className="mt-0.5 h-4 w-4 shrink-0 text-[#FF8C42]" aria-hidden="true" />
+                        <div>
+                          <p className="text-xs font-bold text-white">بزرگ‌نمایی دو انگشتی (Pinch Zoom)</p>
+                          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-300">
+                            برای خواندن کدهای حک‌شده روی بلبرینگ یا پولی، دو انگشت را روی تصویر باز کنید یا از دکمه‌های ۱× تا ۳× استفاده کنید.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={dismissCameraGuide}
+                      className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#E06518] text-sm font-bold text-white hover:bg-[#C95210] transition-colors cursor-pointer"
+                    >
+                      متوجه شدم، شروع عکاسی
+                    </button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Live Quick Scan Category Lock Pill + Zoom Preset Bar */}
+            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
+              {scanMode === 'quick' && quickDetection && (
+                <button
+                  type="button"
+                  onClick={() => captureCameraFrame(quickDetection.label)}
+                  className="inline-flex items-center gap-2 rounded-full border border-[#E06518] bg-[#141820]/95 px-4 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-md hover:bg-[#E06518] transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <Activity className="h-3.5 w-3.5 text-[#FF8C42]" aria-hidden="true" />
+                  <span>بررسی ناحیه</span>
+                  <span className="text-[10px] opacity-80 tabular-nums">
+                    (تحرک {toPersianDigits(quickDetection.motionPercent)}٪)
+                  </span>
+                </button>
+              )}
+
+              <div className="flex items-center gap-1 rounded-full border border-white/15 bg-[#141820]/90 px-2 py-1 backdrop-blur-md">
+                {CAMERA_ZOOM_PRESETS.map((z) => {
+                  const active = Math.abs(cameraZoom - z) < 0.22;
+                  return (
+                    <button
+                      key={z}
+                      type="button"
+                      onClick={() => applyCameraZoom(z)}
+                      className={`min-h-[30px] rounded-full px-3 py-1 text-xs font-bold tabular-nums transition-colors cursor-pointer ${
+                        active
+                          ? 'bg-[#E06518] text-white'
+                          : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {toPersianDigits(z)}×
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          <footer className="sanat-camera-experience__footer">
-            {errorMessage && <div className="sanat-camera-experience__error" role="alert">{errorMessage}</div>}
+          {/* Tactile Hardware-Grade Shutter Footer */}
+          <footer className="border-t border-white/10 bg-[#141820] px-4 pt-3.5 pb-[max(1rem,env(safe-area-inset-bottom))] shrink-0">
+            <div className="mx-auto flex max-w-md items-center justify-between gap-6">
+              <button
+                type="button"
+                onClick={() => cameraGalleryRef.current?.click()}
+                aria-label="انتخاب عکس از گالری"
+                className="flex flex-col items-center gap-1 text-xs font-medium text-slate-300 hover:text-white cursor-pointer"
+              >
+                <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/15 bg-white/5 hover:bg-white/10 transition-colors">
+                  <GalleryImage className="h-5 w-5" />
+                </span>
+                <span>گالری</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => captureCameraFrame()}
+                disabled={!isCameraReady}
+                aria-label="ثبت تصویر قطعه"
+                className="group relative grid h-[74px] w-[74px] place-items-center rounded-full border-[3px] border-white p-1.5 transition-transform active:scale-95 cursor-pointer shadow-[0_0_24px_rgba(224,101,24,0.35)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span className="h-full w-full rounded-full bg-[#E06518] transition-colors group-hover:bg-[#f07428]" />
+              </button>
+
+              <button
+                type="button"
+                onClick={switchCamera}
+                aria-label="تغییر دوربین"
+                className="flex flex-col items-center gap-1 text-xs font-medium text-slate-300 hover:text-white cursor-pointer"
+              >
+                <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/15 bg-white/5 hover:bg-white/10 transition-colors">
+                  <SwitchCamera className="h-5 w-5" />
+                </span>
+                <span>چرخش</span>
+              </button>
+            </div>
             <input
               ref={cameraGalleryRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
               className="sr-only"
-              aria-label="انتخاب عکس قطعه از گالری"
-              onChange={event => {
-                const selected = event.currentTarget.files?.[0];
-                event.currentTarget.value = "";
-                if (selected) selectCameraGalleryImage(selected);
+              onChange={(e) => {
+                const f = e.currentTarget.files?.[0];
+                if (f) handleFile(f);
+                e.currentTarget.value = '';
               }}
             />
-            {cameraReview ? (
-              <div className="sanat-camera-experience__actions">
-                <button type="button" onClick={confirmCameraPhoto} className="sanat-camera-experience__confirm">
-                  <CheckCircle2 size={19} />
-                  <span>تأیید و جستجوی قطعه</span>
-                </button>
-                <button type="button" onClick={retakeCameraPhoto} className="sanat-camera-experience__retake">
-                  <RefreshCw size={18} />
-                  <span>عکس‌برداری مجدد</span>
-                </button>
-              </div>
-            ) : errorMessage && !isCameraReady ? (
-              <div className="sanat-camera-experience__actions">
-                <button type="button" onClick={() => void startCamera()} className="sanat-camera-experience__confirm">
-                  <RefreshCw size={18} /> تلاش دوباره برای دوربین
-                </button>
-                <button type="button" onClick={() => cameraGalleryRef.current?.click()} className="sanat-camera-experience__retake">
-                  <GalleryImage size={18}/> انتخاب از گالری
-                </button>
-              </div>
-            ) : (
-              <div className="sanat-camera-experience__live-actions">
-                <button type="button" className="sanat-camera-experience__side-action"
-                  onClick={() => cameraGalleryRef.current?.click()}
-                  aria-label="انتخاب عکس از گالری">
-                  <GalleryImage size={26} aria-hidden="true" />
-                </button>
-                <button type="button" onClick={capturePhoto} disabled={!isCameraReady}
-                  className="sanat-camera-experience__capture" aria-label="ثبت عکس قطعه">
-                  <span className="sanat-camera-experience__shutter" aria-hidden="true" />
-                  <span className="sr-only">ثبت عکس قطعه</span>
-                </button>
-                <button type="button" onClick={switchCamera} disabled={!isCameraReady}
-                  className="sanat-camera-experience__side-action" aria-label="تعویض دوربین جلو و پشت">
-                  <SwitchCamera size={27} aria-hidden="true" />
-                </button>
-              </div>
-            )}
-            <p className="sanat-camera-experience__footnote">
-              {cameraReview ? "در صورت واضح بودن عکس، تأیید کنید؛ یا دوباره عکس بگیرید." : "قاب نارنجی را روی تمام قطعه قرار دهید."}
-            </p>
           </footer>
-        </section>
-      ) : !initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera ? (
-        <VisionEntryPage
-          onCamera={() => { setCameraFlowActive(true); void startCamera(); }}
-          onUpload={() => fileInputRef.current?.click()}
-          onDropFile={handleFile}
-          recentSearches={recentSearches}
-          onRecentClick={(item) => {
-            navigate(`/product/${encodeURIComponent(item.code)}`);
-            onClose();
-          }}
-          onClose={() => { stopCamera(); onClose(); }}
-          errorMessage={errorMessage}
-          isUploading={isUploadingImage}
-        />
-      ) : currentStep === 1 && selectedImage ? (
-        <main className="kiki-vision-review-shell" dir="rtl" data-testid="kiki-vision-review-shell">
-          <header className="kiki-vision-review-shell__header">
-            <div>
-              <span>FORZA VISION · IMAGE REVIEW</span>
-              <h1>قطعه را در تصویر مشخص و تأیید کنید</h1>
-              <p>کادر انتخاب‌شده مبنای جست‌وجو است؛ تصویر اصلی بدون تغییر در حافظه خصوصی دستگاه باقی می‌ماند.</p>
-            </div>
-            <div className="kiki-vision-review-shell__header-actions">
-              <span className="kiki-vision-review-shell__status">
-                {regionDetectionState === 'detecting' || regionDetectionState === 'uploading' ? 'در حال آماده‌سازی' : queryRegion ? 'ناحیه انتخاب شد' : 'نیازمند انتخاب ناحیه'}
-              </span>
+          <canvas ref={canvasRef} className="sr-only" />
+        </motion.section>
+      )}
+
+      {screen === 'review' && cameraReviewImage && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.24 }}
+          className="fixed inset-0 z-[120] flex flex-col bg-[#0B0E13] text-white"
+          data-testid="kiki-vision-review-shell"
+          aria-label="بازبینی تصویر ثبت‌شده"
+        >
+          <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-[#141820] px-4">
+            <button type="button" onClick={retakeCameraPhoto} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-xs font-bold text-white">
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              بازگشت به دوربین
+            </button>
+            <span className="text-sm font-black">بازبینی تصویر</span>
+            <button type="button" onClick={handleCloseAction} aria-label="بستن" className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/5">
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </header>
+          <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4 sm:p-8">
+            <img
+              src={cameraReviewImage}
+              alt="تصویر واقعی ثبت‌شده از قطعه"
+              className="max-h-full max-w-full rounded-2xl border border-white/15 object-contain shadow-2xl"
+            />
+          </div>
+          <footer className="shrink-0 border-t border-white/10 bg-[#141820] px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="mx-auto flex max-w-xl flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={() => { stopCamera(); onClose(); }}
-                className="kiki-vision-review-shell__back"
-                aria-label="بازگشت از شناسایی تصویر"
+                onClick={retakeCameraPhoto}
+                className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 text-sm font-bold text-white hover:bg-white/10"
               >
-                <ArrowRight size={16} aria-hidden="true" />
-                <span>بازگشت</span>
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                عکس‌برداری مجدد
+              </button>
+              <button
+                type="button"
+                onClick={confirmCameraPhoto}
+                className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#E06518] px-5 text-sm font-black text-white hover:bg-[#C95210]"
+              >
+                <Search className="h-4 w-4" aria-hidden="true" />
+                تأیید و شناسایی قطعه
+              </button>
+            </div>
+          </footer>
+        </motion.section>
+      )}
+
+      {/* ==================================================================== */}
+      {/* SCREEN: INTERACTIVE LENS SPOTLIGHT + WEBSITE-STYLED CATALOG SHEET    */}
+      {/* ==================================================================== */}
+      {screen === 'results' && selectedImage && (
+        <motion.section
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="flex min-h-[100dvh] lg:h-[100dvh] flex-col bg-[#FFFFFF] text-[#2B313A] lg:overflow-hidden"
+          aria-label="لنز هوشمند و محصولات مشابه"
+          data-testid="kiki-vision-results-shell"
+          data-vision-journey="true"
+        >
+          <div data-testid="forza-vision-two-panel-layout" className="flex flex-1 flex-col lg:grid lg:grid-cols-12 lg:h-full lg:overflow-hidden">
+            {/* -------------------------------------------------------------- */}
+            {/* PHOTO & CONTOUR LENS STAGE (Mobile Top Split / Desktop Right)   */}
+            {/* -------------------------------------------------------------- */}
+            <div data-testid="forza-vision-photo-lens" className="relative flex shrink-0 flex-col bg-[#F5F6F6] lg:col-span-5 lg:h-full lg:border-l lg:border-[#DFE3E6]">
+              {/* Top Floating Controls */}
+              <div data-testid="forza-vision-optical-toolbar" className="pointer-events-none absolute top-0 left-0 right-0 z-30 flex items-center justify-between gap-2 px-3 sm:px-5 pt-3.5">
+                <button
+                  type="button"
+                  onClick={handleCloseAction}
+                  aria-label="بستن جستجوی تصویری"
+                  className="pointer-events-auto grid h-10 w-10 place-items-center rounded-full bg-[#2B313A]/85 text-white shadow-sm backdrop-blur-md transition-colors hover:bg-[#2B313A] cursor-pointer"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+
+                <div className="pointer-events-auto flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => void startCamera()}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-full bg-[#2B313A]/85 px-3.5 text-xs font-bold text-white shadow-sm backdrop-blur-md transition-colors hover:bg-[#E06518] whitespace-nowrap cursor-pointer"
+                  >
+                    <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>دوربین</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      stopCameraStream();
+                      setScreen('entry');
+                    }}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-full bg-[#2B313A]/85 px-3.5 text-xs font-bold text-white shadow-sm backdrop-blur-md transition-colors hover:bg-[#2B313A] whitespace-nowrap cursor-pointer"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>عکس جدید</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Interactive Optical Spotlight Stage */}
+              <div className="relative flex flex-1 h-[39dvh] min-h-[240px] max-h-[360px] lg:h-full lg:max-h-none items-center justify-center bg-[#F5F6F6] px-3 pt-14 pb-8 lg:p-6">
+                <div
+                  ref={lensBoxRef}
+                  onClick={handlePhotoSurfaceClick}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void handleImagePointSelect(0.5, 0.5);
+                  }}
+                  aria-label="برای انتخاب هر قطعه در تصویر روی آن ضربه بزنید"
+                  className="relative inline-block max-w-full max-h-full overflow-hidden rounded-2xl bg-[#FFFFFF] border border-[#DFE3E6] shadow-sm cursor-crosshair select-none"
+                >
+                  <img
+                    src={selectedImage}
+                    alt="تصویر قطعه ارسالی"
+                    className="block max-h-[29dvh] sm:max-h-[34dvh] lg:max-h-[72dvh] max-w-full w-auto h-auto object-contain select-none"
+                  />
+
+                  {/* Clean Rounded L-Corner Crop Frame & Dimmed Outside Mask */}
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      left: `${queryRegion.x * 100}%`,
+                      top: `${queryRegion.y * 100}%`,
+                      width: `${queryRegion.width * 100}%`,
+                      height: `${queryRegion.height * 100}%`,
+                    }}
+                    className={`fv-lens-bracket fv-lens-bracket--box-mask ${edgeLockFlash ? 'fv-lens-bracket--locking' : ''}`}
+                  >
+                    <span className="fv-lens-corner fv-lens-corner--tl" />
+                    <span className="fv-lens-corner fv-lens-corner--tr" />
+                    <span className="fv-lens-corner fv-lens-corner--bl" />
+                    <span className="fv-lens-corner fv-lens-corner--br" />
+                  </div>
+
+                  {/* Single Active Center Copper Indicator Dot */}
+                  {(() => {
+                    const activeCand = detectedCandidates.find((c) => c.id === activeCandidateId);
+                    const dotCenter = activeCand
+                      ? activeCand.center
+                      : {
+                          x: queryRegion.x + queryRegion.width / 2,
+                          y: queryRegion.y + queryRegion.height / 2,
+                        };
+                    return (
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          left: `${dotCenter.x * 100}%`,
+                          top: `${dotCenter.y * 100}%`,
+                        }}
+                        className="fv-object-dot fv-object-dot--active pointer-events-none z-20"
+                      />
+                    );
+                  })()}
+
+                  {/* Tactile Ripple Feedback */}
+                  {tapRipple && (
+                    <span
+                      key={tapRipple.key}
+                      className="fv-tap-ripple pointer-events-none absolute z-30"
+                      style={{ left: `${tapRipple.x}%`, top: `${tapRipple.y}%` }}
+                    />
+                  )}
+                </div>
+
+                {(isDetectingParts || isAiSegmenting || isTracingContour) && (
+                  <div className="pointer-events-none absolute bottom-7 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-full bg-[#2B313A]/90 px-3.5 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md shadow-sm">
+                    {isAiSegmenting
+                      ? 'در حال تشخیص و برش هوشمند قطعه...'
+                      : isDetectingParts
+                      ? 'در حال تشخیص خودکار قطعه...'
+                      : 'در حال ردیابی لبه دقیق قطعه...'}
+                  </div>
+                )}
+              </div>
+
+              {/* Multi-Part Quick Selector Bar (Shown cleanly on desktop when > 1 part found) */}
+              {detectedCandidates.length > 1 && (
+                <div className="hidden lg:flex items-center gap-2 border-t border-[#DFE3E6] bg-[#FFFFFF] px-4 py-2.5 overflow-x-auto scrollbar-none">
+                  <span className="text-[11px] font-bold text-[#74757C] shrink-0">بخش‌های تصویر:</span>
+                  {detectedCandidates.slice(0, 5).map((cand, idx) => {
+                    const active = cand.id === activeCandidateId;
+                    return (
+                      <button
+                        key={cand.id}
+                        type="button"
+                        onClick={() => void handleImagePointSelect(cand.center.x, cand.center.y, cand)}
+                        className={`min-h-[32px] px-3 rounded-full text-[11px] font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                          active
+                            ? 'bg-[#E06518] text-white'
+                            : 'bg-[#F5F6F6] border border-[#DFE3E6] text-[#55565A] hover:text-[#2B313A]'
+                        }`}
+                      >
+                        {cand.label || `قطعه ${toPersianDigits(idx + 1)}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* -------------------------------------------------------------- */}
+            {/* UNIFIED CATALOG RESULTS SHEET (Mobile Pull-Up / Desktop Left)   */}
+            {/* -------------------------------------------------------------- */}
+            <div
+              ref={mobileResultsAnchorRef}
+              data-testid="forza-vision-catalog-results"
+              data-sheet-expanded={mobileSheetExpanded}
+              aria-expanded={mobileSheetExpanded}
+              className={`flex flex-1 min-h-0 flex-col bg-[#FFFFFF] text-[#2B313A] lg:col-span-7 lg:h-full lg:overflow-y-auto transition-all ${
+                mobileSheetExpanded
+                  ? 'fixed inset-0 z-40 rounded-none mt-0 overflow-y-auto lg:static lg:inset-auto lg:z-auto'
+                  : 'relative z-20 -mt-5 rounded-t-[26px] border-t border-[#DFE3E6] shadow-[0_-12px_32px_rgba(43,49,58,0.08)] lg:mt-0 lg:rounded-none lg:border-t-0 lg:shadow-none'
+              }`}
+            >
+              {/* Mobile Pull Handle */}
+              <div className="flex justify-center pt-2.5 pb-1 lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setMobileSheetExpanded((v) => !v)}
+                  aria-label="تغییر ارتفاع لیست نتایج"
+                  className="h-1 w-10 rounded-full bg-[#CBD2D8] cursor-pointer"
+                />
+              </div>
+
+              {/* Sticky Summary Header */}
+              <div data-testid="forza-vision-catalog-sheet-header" className="sticky top-0 z-20 border-b border-[#DFE3E6] bg-[#FFFFFF]/95 px-4 py-3 backdrop-blur sm:px-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="sp-vision-result-intro flex items-center gap-3 min-w-0">
+                    <div className="h-13 w-13 sm:h-14 sm:w-14 shrink-0 overflow-hidden rounded-xl border border-[#DFE3E6] bg-[#F5F6F6] p-1">
+                      <img
+                        src={croppedPreviewUrl || selectedImage}
+                        alt="برش قطعه انتخاب‌شده"
+                        data-testid="sp-vision-match-photo"
+                        className="sp-vision-match-photo h-full w-full object-contain"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-sm sm:text-base font-extrabold text-[#2B313A]">
+                        محصولات مشابه کاتالوگ
+                      </h2>
+                      <p className="mt-0.5 text-xs text-[#74757C] tabular-nums truncate">
+                        {isMatching
+                          ? 'در حال تطبیق با کاتالوگ صنعت پیش...'
+                          : `${toPersianDigits(unifiedProducts.length)} محصول مشابه${
+                              analysisResult?.summary?.partFamilyFarsi
+                                ? ` · ${analysisResult.summary.partFamilyFarsi}`
+                                : ''
+                            }`}
+                      </p>
+                      <p className="mt-1 text-[10px] leading-5 text-[#74757C]">
+                        این تطبیق تصویری پیشنهادی و نیازمند تأیید فنی کد، ابعاد و سازگاری قطعه پیش از سفارش است.
+                      </p>
+                      <button
+                        type="button"
+                        data-testid="forza-vision-full-image-search"
+                        onClick={runFullImageVisualMatch}
+                        disabled={isMatching || !localImageId}
+                        className="mt-1 inline-flex items-center text-[11px] font-bold text-[#E06518] transition-colors hover:text-[#B94D0B] disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="جست‌وجوی کل تصویر"
+                      >
+                        جست‌وجوی کل تصویر
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileSheetExpanded((v) => {
+                          const next = !v;
+                          if (!next) {
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                          return next;
+                        });
+                      }}
+                      className="lg:hidden inline-flex h-9 items-center gap-1 rounded-full bg-[#2B313A] px-3.5 text-xs font-bold text-white transition-colors hover:bg-[#E06518] whitespace-nowrap cursor-pointer"
+                    >
+                      <span>{mobileSheetExpanded ? 'مشاهده تصویر' : 'همه نتایج'}</span>
+                      {mobileSheetExpanded ? (
+                        <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                      ) : (
+                        <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const first = unifiedProducts[0];
+                        if (first) {
+                          navigateConsult(first.code, first.name, first.brand, true);
+                        } else {
+                          onClose();
+                          navigate('/ai-consult');
+                        }
+                      }}
+                      className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-full bg-[#F5F6F6] border border-[#DFE3E6] px-3.5 text-xs font-bold text-[#2B313A] transition-colors hover:border-[#E06518] hover:text-[#E06518] whitespace-nowrap cursor-pointer"
+                    >
+                      <span>مشاوره FORZA</span>
+                      <ArrowUpLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+
+                {isMatching && (
+                  <div
+                    data-testid="vision-analyzing-screen"
+                    role="status"
+                    aria-live="polite"
+                    className="fv-indeterminate-bar mt-2.5 rounded-full"
+                  />
+                )}
+              </div>
+
+              {errorMessage && (
+                <div className="mx-4 mt-4 flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-semibold text-rose-700 sm:mx-6">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {/* Observed Visual Parameters Summary Strip (Zero Pill Clutter) */}
+              {analysisResult?.summary &&
+                (analysisResult.summary.detectedProfile || analysisResult.summary.material) && (
+                  <div className="mx-4 mt-4 sm:mx-6 rounded-2xl border border-[#DFE3E6] bg-[#F5F6F6] px-4 py-3 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                    {analysisResult.summary.detectedPartType && (
+                      <div>
+                        <span className="block text-[10px] text-[#74757C]">نوع قطعه</span>
+                        <strong className="text-[#2B313A] font-bold">
+                          {analysisResult.summary.detectedPartType}
+                        </strong>
+                      </div>
+                    )}
+                    {analysisResult.summary.detectedProfile && (
+                      <div>
+                        <span className="block text-[10px] text-[#74757C]">پروفیل / کد مشاهده‌شده</span>
+                        <strong className="text-[#E06518] font-mono font-bold" dir="ltr">
+                          {analysisResult.summary.detectedProfile}
+                        </strong>
+                      </div>
+                    )}
+                    {analysisResult.summary.material && (
+                      <div>
+                        <span className="block text-[10px] text-[#74757C]">جنس بدنه</span>
+                        <strong className="text-[#2B313A] font-bold">
+                          {analysisResult.summary.material}
+                        </strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              {/* UNIFIED Product Grid */}
+              <div className="flex-1 p-4 sm:p-6">
+                {unifiedProducts.length > 0 ? (
+                  <>
+                    <div data-testid="forza-vision-catalog-results" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
+                      {(mobileSheetExpanded ? unifiedProducts : unifiedProducts.slice(0, 12)).map(
+                        renderUnifiedProductCard,
+                      )}
+                    </div>
+
+                    {analysisResult?.summary?.partFamilyFarsi && (
+                      <div className="mt-6 flex justify-center">
+                        <Link
+                          to={`/products?search=${encodeURIComponent(analysisResult.summary.partFamilyFarsi)}`}
+                          onClick={() => onClose()}
+                          className="inline-flex h-10 items-center gap-1.5 rounded-full border border-[#DFE3E6] bg-[#F5F6F6] px-5 text-xs font-bold text-[#2B313A] transition-colors hover:border-[#E06518] hover:bg-[#E06518] hover:text-white whitespace-nowrap"
+                        >
+                          <span>مشاهده همه کالاهای مرتبط در کاتالوگ</span>
+                          <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Link>
+                      </div>
+                    )}
+                  </>
+                ) : analysisResult?.modelSuggestions?.length ? (
+                  <LocalModelResults
+                    items={analysisResult.modelSuggestions}
+                    onClose={() => onClose()}
+                  />
+                ) : isMatching ? (
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="animate-pulse rounded-2xl border border-[#E7E8EC] p-2.5">
+                        <div className="aspect-square w-full rounded-xl bg-[#F3F4F6]" />
+                        <div className="mt-3 h-3 w-3/4 rounded bg-[#F3F4F6]" />
+                        <div className="mt-2 h-3 w-1/2 rounded bg-[#F3F4F6]" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div data-testid="vision-kiki-no-match" className="rounded-2xl border border-[#DFE3E6] bg-[#F5F6F6] p-8 text-center">
+                    <p className="text-sm font-bold text-[#2B313A]">
+                      محصول مشابهی در کاتالوگ پیدا نشد
+                    </p>
+                    <p className="mt-1 text-xs text-[#74757C]">
+                      روی بخش دیگری از تصویر کلیک کنید یا درخواست ساخت سفارشی ثبت کنید.
+                    </p>
+                    <p className="mt-3 text-[11px] leading-6 text-[#74757C]">
+                      برای تحلیل، نسخه موقت تصویر به API شناسایی ارسال می‌شود؛ تصویر اصلی در حافظه محلی مرورگر نگهداری می‌شود و در CRM ذخیره نمی‌شود. تصویر فقط با ثبت نهایی فرم به درخواست ساخت پیوست می‌شود.
+                    </p>
+                  </div>
+                )}
+
+                {/* End of scrollable product list; bottom manufacturing bar is pinned below */}
+              </div>
+
+              {/* Sticky Bottom Custom Manufacturing Bar — Always visible while scrolling */}
+              <div className="sticky bottom-0 z-30 mt-auto border-t border-[#DFE3E6] bg-[#FFFFFF]/95 backdrop-blur-md px-3.5 py-2.5 sm:px-6 sm:py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-6px_rgba(43,49,58,0.1)]">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <div className="w-full min-w-0 sm:flex-1 text-xs">
+                    <p className="font-extrabold text-[11.5px] sm:text-xs leading-snug text-[#2B313A]">
+                      قطعه مورد نظر در نتایج نبود؟ ما آن را برای شما تولید می‌کنیم
+                    </p>
+                    <p className="mt-0.5 text-[10.5px] sm:text-[11px] leading-snug text-[#74757C] line-clamp-1 sm:line-clamp-none">
+                      مهندسی معکوس و ساخت سفارشی FORZA با ارسال همین تصویر به تیم مهندسی صنعت پیش
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-[1fr_auto_auto] w-full sm:w-auto sm:flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => void openCustomManufacturingRequest()}
+                      disabled={isPreparingCustomRequest}
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#E06518] px-3 sm:px-3.5 text-xs font-bold text-white hover:bg-[#C95210] transition-colors whitespace-nowrap cursor-pointer disabled:opacity-50"
+                    >
+                      <Wrench className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span>ثبت سفارش ساخت</span>
+                    </button>
+                    <a
+                      href="tel:03535254703"
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[#DFE3E6] bg-[#FFFFFF] px-2.5 sm:px-3 text-xs font-semibold text-[#2B313A] hover:border-[#2B313A] transition-colors whitespace-nowrap"
+                    >
+                      <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span>تماس</span>
+                    </a>
+                    <a
+                      href="https://wa.me/989903427027"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 sm:px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors whitespace-nowrap"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span>واتساپ</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.section>
+      )}
+
+      {/* ==================================================================== */}
+      {/* SCREEN: WEBSITE-ALIGNED ENTRY PORTAL (DESKTOP & MOBILE RESPONSIVE)   */}
+      {/* ==================================================================== */}
+      {screen === 'entry' && (
+        <div data-testid="forza-vision-entry" className="flex min-h-[100dvh] flex-col bg-[#FFFFFF] text-[#2B313A]">
+          {/* Clean Branded Header */}
+          <header className="border-b border-[#DFE3E6] bg-[#FFFFFF] shrink-0">
+            <div className="mx-auto flex h-16 sm:h-18 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/assets/aistudio/logo-forza_9b7fcf6e.png"
+                  alt="FORZA"
+                  className="h-9 sm:h-11 w-auto object-contain"
+                />
+                <span className="h-6 w-px bg-[#DFE3E6]" aria-hidden="true" />
+                <div>
+                  <span className="block text-xs sm:text-sm font-extrabold tracking-tight text-[#2B313A] whitespace-nowrap">
+                    FORZA VISION
+                  </span>
+                  <p className="hidden sm:block text-[11px] text-[#74757C] whitespace-nowrap">
+                    سامانه بینایی ماشین و تطبیق قطعات صنعتی
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCloseAction}
+                className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[#DFE3E6] bg-[#F5F6F6] px-4 text-xs font-bold text-[#2B313A] transition-colors hover:border-[#E06518] hover:text-[#E06518] whitespace-nowrap cursor-pointer"
+              >
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                <span>{standalone ? 'بازگشت' : 'بستن'}</span>
               </button>
             </div>
           </header>
-          <div className="kiki-vision-review-shell__content" data-testid="identification-wizard">
-                <ImageRegionReview
-                  image={selectedImage || ''}
-                  status={regionDetectionState}
-                  selectedRegion={queryRegion}
-                  candidateRegions={candidateRegions}
-                  message={[regionDetectionMessage, localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
-                  analysisError={errorMessage}
-                  busy={isUploadingImage || !temporaryImageDataUrl}
-                  onRegionChange={handleRegionSelection}
-                  onConfirm={confirmRegionAndAnalyze}
-                  onRetryPreparation={retryRegionPreparation}
-                  onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
-                  onChangeImage={() => fileInputRef.current?.click()}
-                />
-          </div>
-        </main>
-      ) : currentStep === 1 ? (
-        <div style={fullScreen ? { minHeight: "100dvh" } : undefined} dir="rtl" data-testid="identification-wizard" className="sp-vision-entry sanat-visual-search-wizard grid grid-cols-1 lg:grid-cols-12 min-h-[580px] lg:min-h-[630px] rounded-2xl md:rounded-3xl overflow-hidden bg-white text-right font-['Vazirmatn'] relative">
-          {/* Absolute Close Button for Step 1 */}
-          <button
-            type="button"
-            onClick={() => {
-              stopCamera();
-              onClose();
-            }}
-            className={`absolute top-4 left-4 z-30 ${fullScreen ? "px-3 h-9 gap-2 rounded-xl" : "w-8 h-8 rounded-full"} bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer shadow-xs`}
-            aria-label={fullScreen ? "بازگشت به میزکار" : "بستن"}
-          >
-            {fullScreen ? <><ArrowRight className="w-4 h-4" /><span className="text-xs font-bold">بازگشت به میزکار</span></> : <X className="w-5 h-5" />}
-          </button>
 
-          {/* BANNER / HERO PANEL (Desktop = Left in RTL, Mobile = Top) */}
-          <div data-testid="identification-image-panel" className="sanat-visual-search-hero lg:col-span-5 lg:col-start-8 lg:row-start-1 order-first lg:order-last bg-[#0B0F19] text-white p-4 pt-14 lg:p-8 relative flex flex-col justify-between overflow-hidden shadow-2xl">
-            {/* Industrial Background Texture */}
-            <div
-              className="absolute inset-0 z-0 opacity-25 bg-cover bg-center pointer-events-none filter contrast-125"
-              style={{
-                backgroundImage: `url(${IMAGES.authIndustrialHero || IMAGES.refineryDuskWide})`,
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0B0F19]/85 via-[#0B0F19]/90 to-[#0B0F19] z-0" />
-
-            {/* Content Container */}
-            <div className="sanat-visual-search-hero__content relative z-10 grid grid-cols-3 items-center gap-3 lg:flex lg:flex-col lg:items-stretch lg:justify-between h-full lg:space-y-4">
-              <div className="sanat-visual-search-hero__copy col-span-2 col-start-2 row-start-1">
-                {/* Header Tag */}
-                <div className="flex items-center gap-2 text-[#E06518] text-[11px] lg:text-xs font-mono font-extrabold tracking-widest uppercase">
-                  <Sparkles className="w-3.5 h-3.5 text-[#E06518]" />
-                  <span>AI PART SEARCH</span>
-                </div>
-
-                {/* Main Title & Subtitle */}
-                <div className="mt-3 space-y-2">
-                  <h3 className="text-base lg:text-2xl font-black text-white leading-tight">
-                    با <span className="text-[#E06518]">هوش مصنوعی</span> قطعه
-                    را پیدا کنید
-                  </h3>
-                  <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                    با یک عکس، مشخصات قطعه را شناسایی کرده و سریع‌تر به محصول
-                    مورد نظر خود دسترسی پیدا کنید.
-                  </p>
-                </div>
+          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 py-5 sm:px-6 lg:py-8">
+            {errorMessage && (
+              <div className="mb-5 flex items-center gap-2 rounded-2xl bg-rose-50 border border-rose-200 p-3.5 text-xs font-bold text-rose-700">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{errorMessage}</span>
               </div>
-
-              {/* Central Targeted Bearing / Industrial Part Image */}
-              <div className="sanat-visual-search-hero__image col-start-1 row-start-1 lg:my-5 relative flex items-center justify-center">
-                <div className="relative p-2 lg:p-4 rounded-2xl bg-gradient-to-b from-slate-800/70 to-slate-900/90 border border-slate-700/80 shadow-2xl group max-w-[220px]">
-                  {/* Futuristic Glowing Orange Framing Brackets */}
-                  <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-[#E06518] rounded-tr-lg shadow-[0_0_8px_#E06518]" />
-                  <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-[#E06518] rounded-tl-lg shadow-[0_0_8px_#E06518]" />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-[#E06518] rounded-br-lg shadow-[0_0_8px_#E06518]" />
-                  <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-[#E06518] rounded-bl-lg shadow-[0_0_8px_#E06518]" />
-
-                  <img
-                    src={IMAGES.products.bearingNsk || IMAGES.products.bearing}
-                    alt="AI Part Search"
-                    className="w-16 h-20 sm:w-24 sm:h-24 lg:w-44 lg:h-44 object-contain filter drop-shadow-[0_12px_24px_rgba(224,101,24,0.4)] transform group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-              </div>
-
-              {/* Feature Badges - Desktop (Vertical) vs Mobile (3 Horizontal) */}
-              <div className="hidden lg:flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                    <Zap className="w-4 h-4 text-[#E06518]" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white">
-                      شناسایی دقیق قطعه
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      با هوش مصنوعی پیشرفته
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-4 h-4 text-[#E06518]" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white">
-                      جستجوی سریع
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      در میان هزاران محصول
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                    <Cpu className="w-4 h-4 text-[#E06518]" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white">
-                      نتایج معتبر
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      بر اساس کاتالوگ واقعی و قیمت‌گذاری
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Mobile Horizontal Feature Row */}
-              <div className="hidden grid-cols-3 gap-2 py-2 border-t border-b border-slate-800 text-center">
-                <div className="flex flex-col items-center">
-                  <Zap className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[11px] font-bold text-white">
-                    شناسایی دقیق
-                  </span>
-                  <span className="text-[9px] text-slate-400">
-                    با هوش مصنوعی
-                  </span>
-                </div>
-                <div className="flex flex-col items-center border-r border-l border-slate-800 px-1">
-                  <ShieldCheck className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[11px] font-bold text-white">
-                    جستجوی سریع
-                  </span>
-                  <span className="text-[9px] text-slate-400">در کاتالوگ</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <Cpu className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[11px] font-bold text-white">
-                    نتایج معتبر
-                  </span>
-                  <span className="text-[9px] text-slate-400">
-                    قیمت‌گذاری دقیق
-                  </span>
-                </div>
-              </div>
-
-              {/* Bottom Branding Tag */}
-              <div className="hidden lg:flex items-center gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 font-mono">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#E06518] animate-pulse shadow-[0_0_8px_#E06518]" />
-                <span>
-                  Powered by{" "}
-                  <strong className="text-white font-bold">FORZA AI</strong>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* FORM / UPLOAD PANEL (Desktop = Right in RTL, Mobile = Bottom) */}
-          <div className="sanat-visual-search-form lg:col-span-7 lg:col-start-1 lg:row-start-1 order-last lg:order-first bg-[#FAFBFD] p-4 sm:p-6 lg:p-8 flex flex-col justify-between">
-            {/* STEPPER HEADER */}
-            <div className="sanat-visual-stepper pt-2 pb-4 border-b border-slate-200/80">
-              <div className="flex items-center justify-between max-w-sm mx-auto relative">
-                {/* Step 1 Item */}
-                <div className="flex flex-col items-center gap-1.5 relative z-10">
-                  <div className="w-9 h-9 rounded-full bg-[#E06518] text-white font-black text-sm flex items-center justify-center shadow-md shadow-orange-500/20 ring-4 ring-orange-100">
-                    ۱
-                  </div>
-                  <span className="text-xs font-bold text-[#E06518]">
-                    تصویر قطعه
-                  </span>
-                </div>
-
-                <div className="flex-1 h-0.5 bg-slate-200 mx-2 -mt-5" />
-
-                {/* Step 2 Item */}
-                <div className="flex flex-col items-center gap-1.5 relative z-10 opacity-60">
-                  <div className="w-9 h-9 rounded-full bg-white border border-slate-300 text-slate-500 font-bold text-sm flex items-center justify-center shadow-2xs">
-                    ۲
-                  </div>
-                  <span className="text-xs font-medium text-slate-600">
-                    پردازش تصویر
-                  </span>
-                </div>
-
-                <div className="flex-1 h-0.5 bg-slate-200 mx-2 -mt-5" />
-
-                {/* Step 3 Item */}
-                <div className="flex flex-col items-center gap-1.5 relative z-10 opacity-60">
-                  <div className="w-9 h-9 rounded-full bg-white border border-slate-300 text-slate-500 font-bold text-sm flex items-center justify-center shadow-2xs">
-                    ۳
-                  </div>
-                  <span className="text-xs font-medium text-slate-600">
-                    تحلیل و نتایج
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* STEP CONTENT BODY */}
-            <div className="my-4 space-y-4">
-              <div className="sanat-visual-search-heading text-right space-y-1">
-                <h3 className="text-xl lg:text-2xl font-black text-[#2B313A]">
-                  {isUsingCamera ? "قطعه را در کادر دوربین قرار دهید" : "قطعه صنعتی خود را شناسایی کنید"}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  عکس واضح بگیرید یا تصویر انتخاب کنید؛ کدها و شکل ظاهری قطعه در کادر مشخص باشند.
-                </p>
-              </div>
-
-              {!selectedImage && !isUsingCamera && (
-                <div className="sanat-scan-intro" role="note">
-                  <div className="sanat-scan-intro__copy">
-                    <span className="sanat-scan-intro__eyebrow">FORZA VISION / صنعت پیش</span>
-                    <strong>از روی ظاهر قطعه جستجو کنید</strong>
-                    <span>عکس واقعی · مشخصات واقعی · نتیجه از کاتالوگ</span>
-                  </div>
-                </div>
-              )}
-              {/* Error notification banner */}
-              {errorMessage && !selectedImage && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2" role="alert">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-                  <span className="font-medium">{errorMessage}</span>
-                </div>
-              )}
-
-
-              {/* Upload Dropzone OR Camera OR Selected Image */}
-              {!selectedImage && !isUsingCamera ? (
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDragOver(true);
-                  }}
-                  onDragLeave={() => setIsDragOver(false)}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`sanat-visual-upload-dropzone border-2 border-dashed rounded-2xl p-6 lg:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                    isDragOver
-                      ? "border-[#E06518] bg-orange-50/70 scale-[1.01]"
-                      : "border-[#CBD8E6] bg-[#F4F7FC] hover:bg-slate-100/80 hover:border-slate-300"
-                  }`}
-                >
-                  <div className="w-14 h-14 rounded-2xl bg-white shadow-md border border-slate-200/80 flex items-center justify-center text-[#E06518] mb-3 group-hover:scale-105 transition-transform">
-                    <UploadCloud className="w-7 h-7 text-[#E06518]" />
-                  </div>
-                  <span className="font-bold text-xs sm:text-sm text-[#2B313A]">
-                    عکس قطعه را اینجا رها کنید یا برای انتخاب کلیک کنید
-                  </span>
-                  <span className="text-[11px] text-slate-400 mt-1 font-mono">
-                    حداکثر حجم ۱۰ مگابایت | JPG • PNG • WEBP
-                  </span>
-                </div>
-              ) : isUsingCamera ? (
-                <div className="sanat-scan-viewfinder relative rounded-2xl overflow-hidden bg-[#12203C] border border-slate-800 shadow-md my-2">
-                  <div className="sanat-scan-viewfinder__video relative aspect-video w-full flex items-center justify-center bg-[#12203C]">
-                    <video
-                      ref={(node) => {
-                        videoRef.current = node;
-                        if (node && cameraStreamRef.current && node.srcObject !== cameraStreamRef.current) {
-                          node.srcObject = cameraStreamRef.current;
-                          void node.play().catch(() => undefined);
-                        }
-                      }}
-                      onLoadedMetadata={() => setIsCameraReady(true)}
-                      aria-label="پیش‌نمایش زنده دوربین برای عکاسی از قطعه"
-                      className="w-full h-full object-cover"
-                      autoPlay
-                      playsInline
-                    />
-                    <canvas ref={canvasRef} className="hidden" />
-                    <span className="sanat-scan-viewfinder__corners" aria-hidden="true" />
-                    <span className="sanat-scan-viewfinder__hint" role="status" aria-live="polite">{isCameraReady ? "دوربین فعال · قطعه را در کادر قرار دهید" : "در حال آماده‌سازی تصویر دوربین…"}</span>
-                  </div>
-                  <div className="sanat-scan-viewfinder__actions absolute bottom-4 left-0 right-0 flex items-center justify-center gap-3 px-4">
-                    <button
-                      type="button"
-                      onClick={capturePhoto}
-                      disabled={!isCameraReady}
-                      className="min-h-12 px-5 bg-[#E06518] hover:bg-[#C95210] text-white rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 cursor-pointer transition-all"
-                    >
-                      <Camera className="w-4 h-4" />
-                      <span>ثبت عکس قطعه</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={stopCamera}
-                      className="min-h-12 px-4 bg-white/90 hover:bg-white text-slate-800 rounded-xl text-xs font-bold cursor-pointer transition-all"
-                    >
-                      انصراف
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-              {!selectedImage && !isUsingCamera && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedImage) {
-                      handleAnalyze("quick");
-                    } else {
-                      fileInputRef.current?.click();
-                    }
-                  }}
-                  disabled={isUploadingImage}
-                  className="h-12 bg-[#E06518] hover:bg-[#C95210] active:scale-[0.99] text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md shadow-orange-500/20 hover:shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
-                >
-                  <UploadCloud className="w-4 h-4" />
-                  <span>
-                    {selectedImage ? "شروع شناسایی هوشمند" : "انتخاب تصویر"}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => void startCamera()}
-                  className="h-12 bg-white hover:bg-slate-50 active:scale-[0.98] text-[#2B313A] border border-slate-200 hover:border-slate-300 rounded-2xl text-xs sm:text-sm font-bold shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                >
-                  <Camera className="w-4 h-4 text-slate-600" />
-                  <span>استفاده از دوربین</span>
-                </button>
-              </div>
-              )}
-
-              {/* 3 FEATURE HIGHLIGHT BADGES */}
-              {!selectedImage && !isUsingCamera && (
-              <div className="grid grid-cols-3 gap-2 py-3 px-3 bg-slate-100/70 rounded-2xl border border-slate-200/60 text-center">
-                <div className="flex flex-col items-center justify-center">
-                  <Cpu className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-700">
-                    تشخیص خودکار با AI
-                  </span>
-                </div>
-                <div className="flex flex-col items-center justify-center border-r border-l border-slate-200/80 px-1">
-                  <Search className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-700">
-                    جستجو در کاتالوگ
-                  </span>
-                </div>
-                <div className="flex flex-col items-center justify-center">
-                  <Target className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-700">
-                    نمایش نتایج دقیق
-                  </span>
-                </div>
-              </div>
-              )}
-            </div>
-
-            {/* BOTTOM SAMPLE THUMBNAILS SECTION */}
-            {!selectedImage && !isUsingCamera && (
-            <div className="pt-3 border-t border-slate-200/80 space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-600">
-                <span>نمونه تصاویر قابل قبول</span>
-              </div>
-              <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
-                {INDUSTRIAL_PRESET_SAMPLES.map((sample) => (
-                  <button
-                    key={sample.id}
-                    type="button"
-                    onClick={() => loadPreset(sample)}
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white hover:bg-orange-50/70 border border-slate-200 hover:border-[#E06518] p-1.5 flex items-center justify-center transition-all cursor-pointer shrink-0 group shadow-2xs"
-                    title={sample.title}
-                  >
-                    <img
-                      src={sample.imageUrl}
-                      alt={sample.title}
-                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
-                    />
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => loadPreset(INDUSTRIAL_PRESET_SAMPLES[0])}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center shrink-0 cursor-pointer transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
             )}
-          </div>
-        </div>
-      ) : (
-        <div className={currentStep === "analyzing" ? "sp-vision-analysis-container" : "p-5 sm:p-6 text-right space-y-5"}>
-          {/* TOP STEPPER (Only visible during steps 2 & 3) */}
-          {typeof currentStep === "number" && (
-            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
-              <div className="flex items-center justify-between max-w-md mx-auto relative">
-                {/* Stepper connecting line */}
-                <div className="absolute top-1/2 left-6 right-6 -translate-y-1/2 h-0.5 bg-slate-200 z-0" />
+
+            {/* Top-to-Bottom Smooth Studio Reveal */}
+            <motion.div
+              initial={{ opacity: 0, y: -14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-12 lg:gap-7"
+            >
+              {/* Primary Action & Upload Zone */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragOver(true);
+                }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragOver(false);
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) handleFile(f);
+                }}
+                data-testid="forza-vision-upload-panel"
+                className={`relative overflow-hidden flex flex-col justify-between rounded-3xl border p-5 sm:p-8 lg:col-span-7 transition-colors ${
+                  isDragOver
+                    ? 'border-[#E06518] bg-[#FFF4EC]'
+                    : 'border-[#DFE3E6] bg-[#F5F6F6]'
+                }`}
+              >
+                {/* Architectural Drafting Grid Corner */}
                 <div
-                  className="absolute top-1/2 right-6 -translate-y-1/2 h-0.5 bg-[#E06518] transition-all duration-300 z-0"
+                  className="pointer-events-none absolute inset-0 opacity-40"
                   style={{
-                    width: currentStep === 2 ? "50%" : "100%",
+                    backgroundImage:
+                      'linear-gradient(#dfe3e6 1px, transparent 1px), linear-gradient(90deg, #dfe3e6 1px, transparent 1px)',
+                    backgroundSize: '40px 40px',
+                    maskImage: 'linear-gradient(135deg, #000, transparent 58%)',
                   }}
                 />
 
-                {/* Step 1 Item */}
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className={`relative z-10 flex flex-col items-center gap-1.5 cursor-pointer group transition-all`}
-                >
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all bg-emerald-500 text-white">
-                    <Check className="w-4 h-4" />
+                <div className="relative">
+                  <div className="inline-flex items-center gap-2 text-xs font-bold text-[#E06518] mb-3">
+                    <VisualScannerIcon size={17} />
+                    <span>تشخیص خودکار کانتور و کد فنی</span>
                   </div>
-                  <span className="text-[11px] font-bold text-slate-600">
-                    تصویر قطعه
-                  </span>
-                </button>
 
-                {/* Step 2 Item */}
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(2)}
-                  className={`relative z-10 flex flex-col items-center gap-1.5 cursor-pointer group transition-all`}
-                >
-                  <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
-                      currentStep === 2
-                        ? "bg-[#E06518] text-white ring-4 ring-orange-100 shadow-sm"
-                        : currentStep > 2
-                          ? "bg-emerald-500 text-white"
-                          : "bg-white text-slate-400 border border-slate-300"
-                    }`}
-                  >
-                    {currentStep > 2 ? <Check className="w-4 h-4" /> : "۲"}
-                  </div>
-                  <span
-                    className={`text-[11px] font-bold ${
-                      currentStep === 2 ? "text-[#E06518]" : "text-slate-600"
-                    }`}
-                  >
-                    طول و عرض
-                  </span>
-                </button>
+                  <h1 className="text-xl font-black leading-snug text-[#2B313A] sm:text-3xl lg:text-[34px]">
+                    قطعه را با یک عکس بشناسید و نمونه مشابه را پیدا کنید
+                  </h1>
+                  <p className="mt-2.5 text-xs sm:text-sm leading-relaxed text-[#55565A]">
+                    تصویر را اینجا رها کنید یا مستقیماً عکس بگیرید؛ قطعات بلافاصله دورگیری و با کاتالوگ اطلس تطبیق داده می‌شوند.
+                  </p>
 
-                {/* Step 3 Item */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedImage || length || width) {
-                      setCurrentStep(3);
-                    }
-                  }}
-                  className={`relative z-10 flex flex-col items-center gap-1.5 cursor-pointer group transition-all`}
-                >
-                  <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
-                      currentStep === 3
-                        ? "bg-[#E06518] text-white ring-4 ring-orange-100 shadow-sm"
-                        : "bg-white text-slate-400 border border-slate-300"
-                    }`}
-                  >
-                    ۳
+                  {/* Two Primary Actions */}
+                  <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                    <button
+                      type="button"
+                      onClick={() => void startCamera()}
+                      className="inline-flex h-12 items-center justify-center gap-2.5 rounded-2xl bg-[#E06518] px-6 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#C95210] whitespace-nowrap cursor-pointer"
+                    >
+                      <Camera className="h-5 w-5" aria-hidden="true" />
+                      <span>گرفتن عکس با دوربین</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex h-12 items-center justify-center gap-2.5 rounded-2xl border border-[#DFE3E6] bg-[#FFFFFF] px-6 text-sm font-bold text-[#2B313A] transition-colors hover:border-[#2B313A] whitespace-nowrap cursor-pointer"
+                    >
+                      <GalleryImage className="h-5 w-5 text-[#E06518]" aria-hidden="true" />
+                      <span>انتخاب تصویر از گالری</span>
+                    </button>
                   </div>
-                  <span
-                    className={`text-[11px] font-bold ${
-                      currentStep === 3 ? "text-[#E06518]" : "text-slate-600"
-                    }`}
-                  >
-                    کاربرد و ویژگی‌ها
-                  </span>
-                </button>
+
+                  <p className="mt-3 flex items-center gap-1.5 text-[11px] sm:text-xs text-[#74757C]">
+                    <UploadCloud className="h-4 w-4 text-[#E06518] shrink-0" aria-hidden="true" />
+                    <span>پشتیبانی از JPG، PNG و WebP تا ۱۰ مگابایت · امکان کشیدن و رها کردن تصویر</span>
+                  </p>
+                </div>
+
+                {/* Hairline-Separated Guidance Points */}
+                <div className="relative mt-7 divide-y divide-[#DFE3E6] border-t border-[#DFE3E6] pt-2">
+                  <div className="flex items-start gap-2.5 py-2.5">
+                    <Focus className="mt-0.5 h-4 w-4 shrink-0 text-[#E06518]" aria-hidden="true" />
+                    <span className="text-xs font-bold leading-relaxed text-[#2B313A]">
+                      برای تسمه‌ها: مستقیم روبه‌روی برند و اطلاعات درج‌شده روی تسمه عکس بگیرید و بفرستید
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2.5 py-2.5">
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#E06518]" aria-hidden="true" />
+                    <span className="text-xs leading-relaxed text-[#55565A]">
+                      تشخیص خودکار قطعه در لحظه ثبت عکس با جداسازی دقیق لبه‌ها از پس‌زمینه
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2.5 py-2.5">
+                    <Search className="mt-0.5 h-4 w-4 shrink-0 text-[#E06518]" aria-hidden="true" />
+                    <span className="text-xs leading-relaxed text-[#55565A]">
+                      کلیک روی هر بخش از تصویر برای تغییر قطعه هدف و مشاهده محصولات مشابه
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Error notification banner */}
-          {errorMessage && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-              <span className="font-medium">{errorMessage}</span>
-            </div>
-          )}
-
-          {/* MAIN STEP CONTENT AREA WITH MOTION ANIMATION */}
-          <AnimatePresence mode="wait">
-            {/* STEP 2: DIMENSIONS (LENGTH & WIDTH)                          */}
-            {/* ============================================================ */}
-            {currentStep === 2 && (
-              <motion.div
-                key="step-2"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18 }}
-                className="space-y-5"
-              >
-                {/* Header Title */}
-                <div className="text-center space-y-1">
-                  <h4 className="text-base font-black text-[#55565A] flex items-center justify-center gap-2">
-                    <Ruler className="w-5 h-5 text-[#E06518]" />
-                    <span>مرحله دوم: مشخصات لازم برای تطبیق کد</span>
-                  </h4>
-                  <p className="text-xs text-slate-500">
-                    ابعاد فیزیکی قطعه را برحسب میلی‌متر وارد نمایید تا انطباق
-                    دقیق در کاتالوگ انجام گیرد.
-                  </p>
-                </div>
-
-                {/* Context bar showing if image was selected */}
-                {selectedImage && (
-                  <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={selectedImage}
-                        alt="قطعه"
-                        className="w-10 h-10 object-cover rounded-lg border border-emerald-200 bg-[#12203C]"
-                      />
-                      <div>
-                        <span className="text-xs font-bold text-emerald-900 block">
-                          تصویر قطعه دریافت شد
-                        </span>
-                        <span className="text-[10px] text-emerald-700">
-                          اکنون ابعاد قطعه را وارد نمایید
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setCurrentStep(1)}
-                      className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline cursor-pointer"
-                    >
-                      تغییر عکس
-                    </button>
+              {/* Photographic Optical Showcase & Supported Industrial Families */}
+              <div className="flex flex-col justify-between gap-4 lg:col-span-5">
+                <div className="relative flex-1 overflow-hidden rounded-3xl border border-[#DFE3E6] bg-[#2B313A] min-h-[210px]">
+                  <img
+                    src="/images/company/ai-search-mobile.webp"
+                    alt="جستجوی تصویری قطعات صنعتی فورزا"
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#181C22]/90 via-[#181C22]/25 to-transparent" />
+                  {/* Optical Reticle Accent Preview */}
+                  <div className="pointer-events-none absolute top-4 left-4 right-4 flex items-center justify-between text-[11px] font-mono text-white/85">
+                    <span className="rounded-full bg-[#181C22]/70 px-2.5 py-1 backdrop-blur-xs">
+                      AUTO CONTOUR · U2NET
+                    </span>
+                    <span className="h-2 w-2 rounded-full bg-[#E06518]" />
                   </div>
-                )}
-
-                {analysisResult?.requiredMeasurements ? <>
-                  <div className="rounded-2xl border border-orange-200 bg-orange-50/60 p-4 space-y-2" role="status">
-                    <h5 className="font-bold text-sm text-slate-800">تحلیل قطعه</h5>
-                    <p className="text-sm leading-7 text-slate-700">{analysisResult.summary.visualAnalysis}</p>
-                    <p className="text-xs leading-6 text-slate-500">مشخصات زیر برای این نوع قطعه لازم‌اند. هر مورد را اندازه بگیرید یا «مشخص نیست» را انتخاب کنید؛ با مقدار نامعلوم فقط مشابه‌ها نمایش داده می‌شوند.</p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {analysisResult.requiredMeasurements.map(field=><div key={field.id} className="rounded-2xl border border-slate-200 p-4 space-y-2 bg-slate-50/70">
-                      <label htmlFor={`part-${field.id}`} className="text-sm font-bold text-slate-700">{field.label}{field.unit ? ` (${field.unit})` : ''}</label>
-                      <input id={`part-${field.id}`} type={field.kind==='number' ? 'number' : 'text'} min={field.kind==='number' ? '0' : undefined} step="any" dir="auto" disabled={measurements[field.id]==='unknown'} value={measurements[field.id]==='unknown' ? '' : measurements[field.id] || ''} onChange={event=>setMeasurements(previous=>({...previous,[field.id]:event.target.value}))} className="w-full h-11 px-3 rounded-xl border border-slate-300 bg-white text-sm disabled:bg-slate-100 focus:border-orange-500 outline-none" />
-                      <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={measurements[field.id]==='unknown'} onChange={event=>setMeasurements(previous=>({...previous,[field.id]:event.target.checked ? 'unknown' : ''}))} />مشخص نیست / کاربرد ندارد</label>
-                      <p className="text-xs leading-5 text-slate-500">{field.hint}</p>
-                    </div>)}
-                  </div>
-                </> : <>
-                {/* Dimensions Input Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Length Input */}
-                  <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-2">
-                    <label className="block text-xs font-bold text-[#55565A]">
-                      طول قطعه یا تسمه (میلی‌متر){" "}
-                      <span className="text-[#E06518]">*</span>
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        dir="ltr"
-                        value={length}
-                        onChange={(e) => setLength(e.target.value)}
-                        placeholder="مثلاً 1760"
-                        className="w-full h-11 px-3 border border-slate-300 rounded-xl text-sm font-mono text-left focus:border-[#E06518] focus:bg-white focus:outline-none bg-white shadow-2xs"
-                      />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-mono pointer-events-none">
-                        mm
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      محیط دور بیرونی، طول گام دندانه یا طول کلی رولیک/نوار
+                  <div className="absolute bottom-5 right-5 left-5 text-white">
+                    <p className="text-sm font-extrabold sm:text-base">
+                      تشخیص دقیق تسمه، بلبرینگ، پولی و قطعات صنعتی
                     </p>
-                  </div>
-
-                  {/* Width Input */}
-                  <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-2">
-                    <label className="block text-xs font-bold text-[#55565A]">
-                      عرض مقطع (میلی‌متر){" "}
-                      <span className="text-[#E06518]">*</span>
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        dir="ltr"
-                        value={width}
-                        onChange={(e) => setWidth(e.target.value)}
-                        placeholder="مثلاً 50 یا 13"
-                        className="w-full h-11 px-3 border border-slate-300 rounded-xl text-sm font-mono text-left focus:border-[#E06518] focus:bg-white focus:outline-none bg-white shadow-2xs"
-                      />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-mono pointer-events-none">
-                        mm
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      پهنای پشت تسمه، قطر لوله رولیک یا ضخامت نوار
+                    <p className="mt-1 text-xs text-slate-200">
+                      تطبیق فوری با کدهای فنی و موجودی انبار صنعت‌پیش
                     </p>
                   </div>
                 </div>
 
-                {/* Optional Pitch / Tooth Profile */}
-                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-[#55565A]">
-                      فاصله گام دندانه‌ها یا ضخامت (اختیاری)
-                    </label>
-                    <span className="text-[10px] text-slate-400">اختیاری</span>
+                {/* Supported Families Quick Visual Strip */}
+                <div className="grid grid-cols-4 gap-2 rounded-2xl border border-[#DFE3E6] bg-[#FFFFFF] p-2.5 text-center">
+                  <div className="flex flex-col items-center gap-1 py-1">
+                    <BeltIcon size={18} className="text-[#E06518]" />
+                    <span className="text-[11px] font-bold text-[#2B313A]">تسمه</span>
                   </div>
-                  <div className="relative max-w-sm">
-                    <input
-                      type="number"
-                      dir="ltr"
-                      value={pitch}
-                      onChange={(e) => setPitch(e.target.value)}
-                      placeholder="مثلاً 8 برای گام 8M یا 10 برای T10"
-                      className="w-full h-10 px-3 border border-slate-300 rounded-xl text-xs font-mono text-left focus:border-[#E06518] focus:bg-white focus:outline-none bg-white shadow-2xs"
-                    />
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-mono pointer-events-none">
-                      mm
-                    </span>
+                  <div className="flex flex-col items-center gap-1 py-1">
+                    <PulleyIcon size={18} className="text-[#55565A]" />
+                    <span className="text-[11px] font-bold text-[#2B313A]">پولی</span>
                   </div>
-                  <p className="text-[11px] text-slate-500">
-                    فاصله نوک یک دندانه تا نوک دندانه بعدی بر حسب میلی‌متر (در
-                    صورت نامشخص بودن خالی بگذارید).
-                  </p>
-                </div>
-
-                </>}
-                {/* Step 2 Actions (Back & Next) */}
-                <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(1)}
-                    className="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                    <span>بازگشت به مرحله تصویر</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={goToStep3}
-                    className="h-11 px-6 bg-[#E06518] hover:bg-[#C95210] text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
-                  >
-                    <span>مرحله بعد: کاربرد و ویژگی‌ها</span>
-                    <ArrowLeft className="w-4 h-4" />
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ============================================================ */}
-            {/* STEP 3: APPLICATION & FEATURES (FINAL STEP BEFORE AI)        */}
-            {/* ============================================================ */}
-            {currentStep === 3 && (
-              <motion.div
-                key="step-3"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18 }}
-                className="space-y-5"
-              >
-                {/* Header Title */}
-                <div className="text-center space-y-1">
-                  <h4 className="text-base font-black text-[#55565A] flex items-center justify-center gap-2">
-                    <Sliders className="w-5 h-5 text-[#E06518]" />
-                    <span>
-                      مرحله سوم: برای چه کاری می‌خواهید؟ و ویژگی‌های محصول
-                    </span>
-                  </h4>
-                  <p className="text-xs text-slate-500">
-                    نوع دستگاه و شرایط کاری را مشخص فرمایید تا بهترین قطعه
-                    سازگار انتخاب شود.
-                  </p>
-                </div>
-
-                {/* Compact Review of Steps 1 & 2 */}
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-3">
-                    {selectedImage ? (
-                      <img
-                        src={selectedImage}
-                        alt="قطعه"
-                        className="w-9 h-9 object-cover rounded-lg border border-slate-300 bg-[#12203C]"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-lg bg-slate-200 flex items-center justify-center text-slate-500">
-                        <Camera className="w-4 h-4" />
-                      </div>
-                    )}
-                    <div>
-                      <span className="font-bold text-[#55565A] block">
-                        {selectedImage ? "تصویر دارد" : "بدون تصویر"}
-                      </span>
-                      <span className="text-slate-500 text-[11px] font-mono">
-                        طول: {length ? `${length}mm` : "نامشخص"} | عرض:{" "}
-                        {width ? `${width}mm` : "نامشخص"}
-                      </span>
-                    </div>
+                  <div className="flex flex-col items-center gap-1 py-1">
+                    <BearingIcon size={18} className="text-[#55565A]" />
+                    <span className="text-[11px] font-bold text-[#2B313A]">بلبرینگ</span>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(2)}
-                    className="text-xs text-[#E06518] font-bold hover:underline cursor-pointer"
-                  >
-                    ویرایش ابعاد
-                  </button>
-                </div>
-
-                {/* 1. Application / Purpose */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-[#55565A] flex items-center justify-between">
-                    <span>
-                      برای چه کاری می‌خواهید؟ (دستگاه یا صنعت مورد نظر)
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-normal">
-                      توصیه شده
-                    </span>
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={application}
-                    onChange={(e) => setApplication(e.target.value)}
-                    placeholder="مثال: برای کوره رولری پخت سوم کاشی، فن مکنده صنعتی، خط انتقال بسته‌بندی، نساجی، سنگبری..."
-                    className="w-full p-3 border border-slate-300 rounded-xl text-xs focus:border-[#E06518] focus:bg-white focus:outline-none bg-slate-50/50 resize-none transition-colors"
-                  />
-
-                  {/* Quick Application Suggestions */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[10px] text-slate-400 font-bold ml-1">
-                      پیشنهاد سریع:
-                    </span>
-                    {APPLICATION_SUGGESTIONS.map((item, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setApplication(item)}
-                        className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                          application === item
-                            ? "bg-orange-50 border-[#E06518] text-[#E06518] font-bold"
-                            : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-                        }`}
-                      >
-                        {item}
-                      </button>
-                    ))}
+                  <div className="flex flex-col items-center gap-1 py-1">
+                    <ChainCouplingIcon size={18} className="text-[#55565A]" />
+                    <span className="text-[11px] font-bold text-[#2B313A]">کوپلینگ</span>
                   </div>
                 </div>
+              </div>
+            </motion.div>
 
-                {/* 2. Features / Environmental requirements */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-[#55565A] flex items-center justify-between">
-                    <span>ویژگی خاص یا الزامات فنی قطعه</span>
-                    <span className="text-[11px] text-slate-400 font-normal">
-                      اختیاری
-                    </span>
-                  </label>
-                  <input
-                    type="text"
-                    value={features}
-                    onChange={(e) => setFeatures(e.target.value)}
-                    placeholder="مثال: مقاومت به حرارت ۱۲۰۰ درجه، ضدروغن و گریس، روکش ضدسایش دندانه، کورد استیل..."
-                    className="w-full h-10 px-3 border border-slate-300 rounded-xl text-xs focus:border-[#E06518] focus:bg-white focus:outline-none bg-slate-50/50 transition-colors"
-                  />
-
-                  {/* Quick Feature Suggestions */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[10px] text-slate-400 font-bold ml-1">
-                      ویژگی‌های پرکاربرد:
-                    </span>
-                    {FEATURE_SUGGESTIONS.map((item, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          if (features.includes(item)) return;
-                          setFeatures(features ? `${features}، ${item}` : item);
-                        }}
-                        className="text-[10px] px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-[#E06518] hover:text-[#E06518] transition-all cursor-pointer"
-                      >
-                        + {item}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Step 3 Actions: Back to Step 2 & Trigger AI Analysis */}
-                <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(2)}
-                    className="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                    <span>بازگشت به مرحله ابعاد</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleAnalyze("refined")}
-                    disabled={isUploadingImage}
-                    className="h-11 px-7 bg-[#E06518] hover:bg-[#C95210] text-white rounded-xl text-xs sm:text-sm font-black shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isUploadingImage ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-4 h-4" />
-                    )}
-                    <span>
-                      {isUploadingImage
-                        ? "در حال بارگذاری تصویر…"
-                        : lastStage === "quick"
-                          ? "تحلیل دقیق نهایی با ابعاد"
-                          : "تحلیل هوش مصنوعی و یافتن کالا"}
-                    </span>
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ============================================================ */}
-            {/* STEP: ANALYZING STATE (Bright, Delightful Studio Scanner)    */}
-            {/* ============================================================ */}
-            {currentStep === "analyzing" && (
-              <motion.div
-                key="analyzing"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18 }}
-                className="sp-vision-progress-screen"
-                data-testid="vision-analyzing-screen"
-              >
-                <VisionAnalysisProgress
-                  image={selectedImage}
-                  region={queryRegion}
-                  progress={analysisProgress}
-                  phaseIndex={analysisPhaseIndex}
-                  phases={ANALYSIS_PHASES}
-                  counts={scanCounts}
-                  quickMode={pendingStage === "quick"}
-                  onClose={() => { stopCamera(); onClose(); }}
-                />
-              </motion.div>
-            )}
-
-            {/* ============================================================ */}
-            {/* STEP: RESULTS VIEW                                           */}
-            {/* ============================================================ */}
-            {currentStep === "results" && analysisResult && (
-              <motion.div
-                key="results"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18 }}
-                className="space-y-5 sp-vision-result-panel"
-                data-testid="kiki-vision-results-shell"
-                data-sheet-expanded={mobileResultsExpanded}
-              >
-                <span data-testid="vision-journey" className="sr-only" aria-hidden="true" />
-                <div className="fv-catalog-sheet__layout" data-testid="forza-vision-two-panel-layout">
-                  <aside className="fv-catalog-sheet__lens" aria-label="تصویر و ناحیه انتخاب‌شده قطعه">
-                    <div className="fv-kiki-optical-toolbar" data-testid="forza-vision-optical-toolbar">
-                      <div className="fv-kiki-optical-toolbar__title">
-                        <span>FORZA VISION · OPTICAL LENS</span>
-                        <strong>تصویر واقعی و ناحیه انتخاب‌شده</strong>
-                      </div>
-                      <div className="fv-kiki-optical-toolbar__buttons">
-                        <button type="button" onClick={() => { resetForm(); setCameraFlowActive(true); void startCamera(); }} aria-label="گرفتن تصویر جدید با دوربین">
-                          <Camera size={15} aria-hidden="true" /><span>دوربین</span>
-                        </button>
-                        <button type="button" onClick={() => { setMobileResultsExpanded(false); resetForm(); }} aria-label="انتخاب عکس جدید">
-                          <RotateCcw size={15} aria-hidden="true" /><span>عکس جدید</span>
-                        </button>
-                      </div>
-                    </div>
-                {localRegionEnabled && selectedImage && <ImageRegionSelector
-                  src={selectedImage}
-                  value={queryRegion}
-                  candidateRegions={candidateRegions}
-                  onChange={searchRegion}
-                  onSearch={() => { if(queryRegion)void handleAnalyze('quick', queryRegion); }}
-                  onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
-                />}
-                {!localRegionEnabled && selectedImage && (
-                  <div className="kiki-vision-image-evidence" data-testid="kiki-vision-image-evidence">
-                    <span className="kiki-vision-image-evidence__label">تصویر مبنای شناسایی</span>
-                    <img src={selectedImage} alt="تصویر واقعی قطعه انتخاب‌شده برای تطبیق با کاتالوگ" />
-                    <p>تصویر اصلی برای مقایسه نگهداری شده است؛ نتیجه‌های مشابه به‌تنهایی تأیید فنی محسوب نمی‌شوند.</p>
-                  </div>
-                )}
-                  </aside>
-                  <section className="fv-catalog-sheet__results" id="forza-vision-catalog-results" aria-label="نتایج واقعی شناسایی و تطبیق قطعه">
-                <header
-                  className="fv-catalog-sheet__header"
-                  data-testid="forza-vision-catalog-sheet-header"
-                  onTouchStart={event => { resultsSwipeStartY.current = event.touches[0]?.clientY ?? null; }}
-                  onTouchEnd={event => {
-                    const start = resultsSwipeStartY.current;
-                    resultsSwipeStartY.current = null;
-                    if (start === null) return;
-                    const movement = start - (event.changedTouches[0]?.clientY ?? start);
-                    if (movement > 48) setMobileResultsExpanded(true);
-                    if (movement < -48) setMobileResultsExpanded(false);
-                  }}
-                >
-                  <div className="fv-catalog-sheet__identity">
-                    {selectedImage && <img src={selectedImage} alt="تصویر ارسالی برای جستجوی قطعه" />}
-                    <div>
-                      <span>FORZA VISION · CATALOGUE MATCHING</span>
-                      <h2>نتایج جستجوی تصویری کاتالوگ</h2>
-                      <p>{(analysisResult.matchedProducts?.length || 0) + (analysisResult.similarCandidates?.length || 0)} مورد نامزد کاتالوگ · کد و مشخصات پیش از سفارش نیازمند تأیید است</p>
-                    </div>
-                  </div>
-                  <div className="fv-catalog-sheet__actions">
+            {/* User Recent Scans History */}
+            {recentSearches.length > 0 && (
+              <section data-testid="forza-vision-recent-history" className="mt-7">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h3 className="flex items-center gap-2 text-sm font-bold text-[#2B313A]">
+                    <History className="h-4 w-4 text-[#E06518]" aria-hidden="true" />
+                    <span>جستجوهای تصویری اخیر شما</span>
+                  </h3>
+                  {recentSearches.length > 6 && (
                     <button
                       type="button"
-                      className="fv-catalog-sheet__mobile-toggle"
-                      aria-expanded={mobileResultsExpanded}
-                      aria-controls="forza-vision-catalog-results"
-                      onTouchStart={event => event.stopPropagation()}
-                      onTouchEnd={event => event.stopPropagation()}
-                      onClick={() => setMobileResultsExpanded(expanded => !expanded)}
+                      onClick={() => setShowAllHistory((v) => !v)}
+                      className="text-xs font-bold text-[#E06518] hover:underline cursor-pointer"
                     >
-                      {mobileResultsExpanded ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}
-                      {mobileResultsExpanded ? 'نمایش تصویر قطعه' : 'نمایش همه نتایج'}
+                      {showAllHistory ? 'نمایش کمتر' : `همه (${toPersianDigits(recentSearches.length)})`}
                     </button>
-                    <button type="button" className="fv-catalog-sheet__new-search" onClick={() => { setMobileResultsExpanded(false); resetForm(); }}>
-                      <RotateCcw size={16} aria-hidden="true" /> عکس یا قطعه دیگر
-                    </button>
-                  </div>
-                </header>
-                    <div className="sp-vision-result-intro">
-                  <div>
-                    <span>FORZA VISION · CATALOGUE EVIDENCE</span>
-                    <h3>نتایج بررسی تصویری قطعه</h3>
-                    <p>تصاویر را بزرگ کنید، تفاوت‌ها را بررسی کنید و پیش از سفارش، کد و ابعاد را تأیید کنید.</p>
-                  </div>
-                  <div className="sp-vision-result-intro__actions">
-                    <span className="sp-vision-result-intro__status"><ShieldCheck size={16} /> نیازمند تأیید فنی</span>
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="kiki-vision-review-shell__back"
-                      aria-label={standalone ? "بازگشت به سایت از نتایج شناسایی" : "بازگشت به میزکار از نتایج شناسایی"}
-                    >
-                      <ArrowRight size={16} aria-hidden="true" />
-                      <span>{standalone ? "بازگشت به سایت" : "بازگشت به میزکار"}</span>
-                    </button>
-                  </div>
-                </div>
-                {/* Fallback / AI-error notices */}
-                {!analysisResult.isAiGenerated &&
-                  analysisResult.fallbackNotice && (
-                    <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
-                      <div className="space-y-1">
-                        <span className="font-bold block">
-                          حالت تطبیق مهندسی (بدون هوش مصنوعی)
-                        </span>
-                        <span className="leading-relaxed block">
-                          {analysisResult.fallbackNotice}
-                        </span>
-                        {analysisResult.aiError && (
-                          <span
-                            className="block text-[10px] text-amber-700 font-mono"
-                            dir="ltr"
-                          >
-                            Detail: {analysisResult.aiError.slice(0, 220)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
                   )}
+                </div>
 
-                {analysisResult.catalogSearchWarning && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
-                    <span className="leading-relaxed">
-                      {analysisResult.catalogSearchWarning}
-                    </span>
-                  </div>
-                )}
-
-                {/* Summary Bar */}
-                <details className="fv-catalog-sheet__analysis-details">
-                  <summary>
-                    <Sparkles size={16} aria-hidden="true" />
-                    <strong>تحلیل تکمیلی تصویر</strong>
-                    <span>{analysisResult.summary.detectedPartType || 'قطعه صنعتی'} · مشاهده جزئیات و شواهد</span>
-                    <ChevronDown size={16} className="fv-catalog-sheet__details-chevron" aria-hidden="true" />
-                  </summary>
-                  <div className="bg-[#55565A] text-white p-4 rounded-2xl space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-[#E06518] text-white flex items-center justify-center font-bold text-xs">
-                        <Sparkles className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-2 flex-wrap">
-                          <span>
-                            {analysisResult.isAiGenerated
-                              ? "نتیجه تطبیق قطعه توسط هوش مصنوعی"
-                              : "نتیجه تطبیق قطعه"}
-                          </span>
-                          {(analysisResult.stage || lastStage) === "quick" ? (
-                            <span className="text-[10px] font-bold bg-teal-500/20 border border-teal-400/40 text-teal-300 px-2 py-0.5 rounded-lg">
-                              تحلیل اولیه از روی تصویر
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold bg-orange-500/20 border border-orange-400/40 text-orange-300 px-2 py-0.5 rounded-lg">
-                              تحلیل دقیق با ابعاد و مشخصات
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-slate-400">
-                          نوع قطعه: {analysisResult.summary.detectedPartType} |
-                          مقطع: {analysisResult.summary.detectedProfile}
-                          {analysisResult.summary.material
-                            ? ` | جنس: ${analysisResult.summary.material}`
-                            : ""}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>
-                          {analysisResult.retrieval?.mode === "local-embedding"
-                            ? "جست‌وجوی محلی بر اساس شباهت تصویر"
-                            : <>اطمینان تحلیل تصویری: {toPersianDigits(analysisResult.summary.confidence)}٪</>}
-                        </span>
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(1)}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span>جستجوی جدید</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* What the AI literally sees + detected part location on the user image */}
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    {selectedImage && (
-                      <div
-                        className="relative w-full sm:w-40 h-32 rounded-xl overflow-hidden bg-[#12203C] border border-slate-700 shrink-0"
-                        dir="ltr"
-                      >
-                        <img
-                          src={selectedImage}
-                          alt="تصویر کاربر"
-                          className="w-full h-full object-contain"
-                        />
-                        {analysisResult.summary.boundingBox && (
-                          <div
-                            className="absolute border-2 border-emerald-400 rounded-md shadow-[0_0_0_2px_rgba(52,211,153,0.35)]"
-                            style={{
-                              left: `${analysisResult.summary.boundingBox.x_min / 10}%`,
-                              top: `${analysisResult.summary.boundingBox.y_min / 10}%`,
-                              width: `${(analysisResult.summary.boundingBox.x_max - analysisResult.summary.boundingBox.x_min) / 10}%`,
-                              height: `${(analysisResult.summary.boundingBox.y_max - analysisResult.summary.boundingBox.y_min) / 10}%`,
-                            }}
-                          >
-                            <span className="absolute -top-5 left-0 text-[9px] font-bold bg-emerald-400 text-slate-900 px-1.5 py-0.5 rounded whitespace-nowrap">
-                              قطعه شناسایی‌شده
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex-1 space-y-2 min-w-0">
-                      <p className="text-sm text-slate-100 leading-7"><strong>تحلیل قطعه: </strong>{analysisResult.summary.visualAnalysis}</p>
-                    </div>
-                  </div>
-                  </div>
-                </details>
-
-                {/* Refine CTA: visible after quick (image-only) analysis */}
-                {(analysisResult.stage || lastStage) === "quick" && (
-                  <div className="p-4 bg-gradient-to-l from-orange-50 to-amber-50 border border-orange-200 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-[#E06518] text-white flex items-center justify-center shrink-0">
-                        <Ruler className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="font-black text-sm text-[#55565A]">
-                          می‌خوای دقیق‌تر پیدا کنی؟
-                        </div>
-                        <p className="text-xs text-slate-600 leading-relaxed">
-                          طول، عرض، گام دندانه و کاربرد دستگاه را وارد کن تا
-                          سرور بتواند محصولات واقعی کاتالوگ را دقیق‌تر رتبه‌بندی
-                          کند.
-                        </p>
-                      </div>
-                    </div>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3">
+                  {displayedRecentSearches.map((item) => (
                     <button
+                      key={item.id}
                       type="button"
-                      onClick={() => setCurrentStep(2)}
-                      className="h-10 px-5 bg-[#55565A] hover:bg-[#1B293E] text-white rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors shrink-0"
+                      disabled={!item.imageUrl}
+                      onClick={() => handleRecentClick(item)}
+                      className="flex items-center gap-3 rounded-2xl border border-[#DFE3E6] bg-[#FFFFFF] p-2.5 text-right transition-colors hover:border-[#E06518]/65 hover:bg-[#FAFBFB] cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <Sliders className="w-4 h-4" />
-                      <span>وارد کردن ابعاد و مشخصات</span>
-                    </button>
-                  </div>
-                )}
-
-                {/* Visual Verification & Catalog Availability Banner */}
-                {analysisResult.summary.catalogAvailability && (
-                  <div
-                    className={`p-4 rounded-2xl border shadow-xs transition-all ${
-                      analysisResult.summary.catalogAvailability.status ===
-                      "confirmed_in_catalog"
-                        ? "bg-gradient-to-l from-emerald-950 via-[#55565A] to-[#55565A] border-emerald-500/50 text-white"
-                        : analysisResult.summary.catalogAvailability.status ===
-                            "similar_in_catalog"
-                          ? "bg-gradient-to-l from-blue-950 via-[#55565A] to-[#55565A] border-blue-500/50 text-white"
-                          : "bg-gradient-to-l from-amber-950 via-slate-900 to-[#55565A] border-amber-500/50 text-white"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                          analysisResult.summary.catalogAvailability.status ===
-                          "confirmed_in_catalog"
-                            ? "bg-emerald-500 text-white"
-                            : analysisResult.summary.catalogAvailability
-                                  .status === "similar_in_catalog"
-                              ? "bg-blue-500 text-white"
-                              : "bg-amber-500 text-slate-950"
-                        }`}
-                      >
-                        {analysisResult.summary.catalogAvailability.status ===
-                        "confirmed_in_catalog" ? (
-                          <ShieldCheck className="w-6 h-6" />
-                        ) : analysisResult.summary.catalogAvailability
-                            .status === "similar_in_catalog" ? (
-                          <Sparkles className="w-5 h-5" />
+                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-[#E7E8EC] bg-[#F5F6F6] p-1">
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.title}
+                            referrerPolicy="no-referrer"
+                            className="h-full w-full object-contain"
+                          />
                         ) : (
-                          <Wrench className="w-5 h-5" />
+                          <History className="h-full w-full p-2 text-[#A0A2A8]" aria-hidden="true" />
                         )}
                       </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-black text-sm text-white">
-                            {
-                              analysisResult.summary.catalogAvailability
-                                .statusFarsiTitle
-                            }
-                          </span>
-                          <span
-                            className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
-                              analysisResult.summary.catalogAvailability
-                                .status === "confirmed_in_catalog"
-                                ? "bg-emerald-400/20 text-emerald-300 border border-emerald-400/40"
-                                : analysisResult.summary.catalogAvailability
-                                      .status === "similar_in_catalog"
-                                  ? "bg-blue-400/20 text-blue-300 border border-blue-400/40"
-                                  : "bg-amber-400/20 text-amber-300 border border-amber-400/40"
-                            }`}
-                          >
-                            {analysisResult.summary.catalogAvailability
-                              .status === "confirmed_in_catalog"
-                              ? "کد یا تصویر با یک رکورد کاتالوگ تطبیق دارد"
-                              : analysisResult.summary.catalogAvailability
-                                    .status === "similar_in_catalog"
-                                ? "نامزدهای مرتبط؛ سازگاری فنی تأیید نشده"
-                                : "نیاز به بررسی یا استعلام سفارشی"}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-200 leading-relaxed">
-                          {
-                            analysisResult.summary.catalogAvailability
-                              .statusFarsiMessage
-                          }
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold text-[#2B313A]">{item.title}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-[#74757C]">
+                          {item.subtitle || formatVisionRecentTime(item.createdAt)}
                         </p>
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {!!analysisResult.summary.readableMarkings?.length && <p className="text-xs leading-6 text-slate-600">نوشته‌های خوانده‌شده: {analysisResult.summary.readableMarkings.join(" · ")}</p>}
-                {!!analysisResult.summary.observedSpecifications?.length && <div className="grid grid-cols-2 gap-2">{analysisResult.summary.observedSpecifications.map((spec,i)=><div key={i} className="rounded-xl border border-slate-200 p-3 text-xs"><span className="text-slate-500">{spec.name}: </span><span dir="auto">{spec.value}</span><p className="text-slate-400 mt-1">خوانده‌شده از نوشتهٔ تصویر</p></div>)}</div>}
-                {analysisResult.scanCoverage && (
-                  <p role="status" className="text-xs text-slate-600 leading-6 border border-slate-200 rounded-xl p-3">
-                    {toPersianDigits(analysisResult.scanCoverage.compared)} از {toPersianDigits(analysisResult.scanCoverage.total)} تصویر {analysisResult.retrieval?.mode === "local-embedding" ? "در نمایهٔ جست‌وجوی محلی مقایسه شد." : "با هوش مصنوعی بررسی شد."}
-                    {analysisResult.retrieval?.mode==="local-embedding" ? " نتایج بر اساس شباهت تصویر هستند؛ مدل و سایز هنوز تأیید نشده است." : analysisResult.retrieval?.mode==="indexed" ? ` جست‌وجو در ${toPersianDigits(analysisResult.retrieval.indexed)} تصویر ایندکس‌شده؛ ${analysisResult.scanCoverage.complete ? "بازبینی گزینه‌های نزدیک کامل شد." : "بازبینی کامل نشده است."}` : analysisResult.scanCoverage.complete ? " بررسی تمام تصاویر کامل شد." : " بررسی کامل کاتالوگ انجام نشده است؛ نتیجه موقت است."}
-                  </p>
-                )}
-                {analysisResult.modelSuggestions && <LocalModelResults key={analysisResult.customerImageUrl} items={analysisResult.modelSuggestions} onClose={onClose} />}
-                {!!visiblePhotoMatches.length && (
-                  <section className="space-y-3" aria-label="تصاویر مشابه در کاتالوگ">
-                    <h4 className="font-bold text-sm text-slate-800">{analysisResult.modelSuggestions?.length?"تصاویر مشابه بدون کد متصل":"تصاویر مشابه پیدا‌شده در کاتالوگ"}</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {visiblePhotoMatches.map(photo=>(
-                        <article key={photo.imageId} className="rounded-2xl border border-slate-200 bg-white p-3 space-y-2">
-                          <CatalogResultImage sources={[photo.image]} alt={photo.label} className="sp-vision-photo-evidence" />
-                          <p className="text-xs font-bold text-slate-700">{photo.label}</p>
-                          <p className="text-xs text-orange-700">{photo.relation==="related" ? "هم‌خانواده؛ دارای تفاوت" : "شباهت بصری بیشتر"}</p>
-                          {!!photo.familyNames?.length && <p className="text-xs text-slate-600">خانواده: {photo.familyNames.join("، ")}</p>}
-                          <p className="text-xs leading-6 text-slate-500">{photo.reason}</p>
-                          {photo.bindings.some(binding=>binding.code) && !photo.bindings.some(binding=>binding.verified) && <p className="text-xs text-slate-500">کدهای متصل به عکس؛ تعلق دقیق تصویر به این کدها هنوز تأیید نشده است.</p>}
-                          {[...new Set(photo.bindings.flatMap(binding=>binding.code ? [binding.code] : []))].map(code=>(
-                            <Link key={code} to={`/product/${encodeURIComponent(code)}`} onClick={onClose} className="inline-block border rounded-lg px-2 py-1 m-1 text-xs text-orange-700">مشخصات کد {code}</Link>
-                          ))}
-                          {[...new Set(photo.bindings.map(binding=>binding.familyCode))].map(familyCode=>(
-                            <Link key={familyCode} to={`/product/${encodeURIComponent(familyCode)}`} onClick={onClose} className="inline-block border rounded-lg px-2 py-1 m-1 text-xs text-orange-700">مشاهده خانواده و سایزها</Link>
-                          ))}
-                          {!photo.bindings.some(binding=>binding.code) && <p className="text-xs text-slate-500">تصویر کاتالوگی مشابه؛ کد دقیق این عکس هنوز تأیید نشده است.</p>}
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                )}
-                {/* Strong visual evidence banner */}
-                {analysisResult.summary.exactVisualMatch &&
-                  analysisResult.matchedProducts.some(
-                    (item) => item.visualVerdict === "exact_match",
-                  ) && (
-                    <div className="p-4 bg-gradient-to-l from-emerald-600 via-teal-600 to-emerald-700 text-white rounded-2xl flex items-center gap-3.5 shadow-lg border border-emerald-400/40">
-                      <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0 shadow-inner">
-                        <CheckCircle2 className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <div className="font-black text-sm sm:text-base flex items-center gap-2">
-                          <span>
-                            کد منطبق بر اساس شواهد در کاتالوگ پیدا شد
-                          </span>
-                        </div>
-                        <p className="text-xs text-emerald-50 leading-relaxed mt-0.5">
-                          محصول دقیق کاتالوگ: «
-                          {
-                            analysisResult.matchedProducts.find(
-                              (item) => item.visualVerdict === "exact_match",
-                            )?.name
-                          }
-                          » (کد:{" "}
-                          {
-                            analysisResult.matchedProducts.find(
-                              (item) => item.visualVerdict === "exact_match",
-                            )?.code
-                          }
-                          ) — پیش از سفارش، ابعاد، جنس و شرایط کارکرد را کنترل کنید.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                {/* All matched real catalog records returned by the server */}
-                {(() => {
-                  if(analysisResult.modelSuggestions?.length)return null;
-                  const combinedList = [
-                    ...(analysisResult.matchedProducts || []),
-                    ...(analysisResult.similarCandidates || []),
-                  ].filter(
-                    (item, idx, self) =>
-                      idx === self.findIndex((t) => t.code === item.code),
-                  );
-
-                  const exactMatches = combinedList.filter(
-                    (item) =>
-                      item.visualVerdict === "exact_match",
-                  );
-
-                  // Show all matched and closest similar products found in the catalog
-                  const allDisplayProducts = combinedList;
-
-                  if (allDisplayProducts.length > 0) {
-                    return (
-                      <div className="space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 border-b border-slate-100 pb-2">
-                          <h4 className="font-black text-sm text-[#55565A] flex items-center gap-2">
-                            <Layers className="w-4 h-4 text-[#E06518]" />
-                            <span>
-                              {exactMatches.length > 0
-                                ? `کالای منطبق و گزینه‌های مشابه در کاتالوگ (${toPersianDigits(allDisplayProducts.length)} محصول)`
-                                : `محصولات با بیشترین تشابه شکل و شمایل به تصویر مشتری (${toPersianDigits(allDisplayProducts.length)} محصول)`}
-                            </span>
-                          </h4>
-                          <span className="text-xs text-slate-500">
-                            {exactMatches.length > 0
-                              ? "کد منطبق بر اساس شواهد ثبت‌شده؛ ابعاد و شرایط کارکرد را پیش از سفارش کنترل کنید"
-                              : "تطبیق تصویری هوشمند بر اساس بیشترین تشابه شکل، هندسه، دندانه‌ها و ساختار ظاهری"}
-                          </span>
-                        </div>
-
-                        <div className="sp-vision-match-grid">
-                          {allDisplayProducts.map((match, idx) => {
-                            const catalogItem = (match.catalogProduct ||
-                              match) as any;
-                            const priceInfo = getItemPrice(catalogItem);
-                            const isExact =
-                              match.visualVerdict === "exact_match";
-
-                            return (
-                              <div
-                                key={match.code + idx}
-                                className={`sp-vision-match-card bg-white border rounded-2xl p-4 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-3 ${
-                                  isExact
-                                    ? "border-emerald-500 ring-2 ring-emerald-200/80 shadow-sm"
-                                    : "border-blue-300 ring-1 ring-blue-100 hover:border-blue-400"
-                                }`}
-                              >
-                                <div className="space-y-2.5">
-                                  <div className="sp-vision-match-layout">
-                                    <CatalogResultImage
-                                      sources={[match.image, ...(Array.isArray(catalogItem?.images) ? catalogItem.images : []), catalogItem?.image]}
-                                      alt={match.name}
-                                      className="sp-vision-match-photo"
-                                      hideZoomPill
-                                      cleanSurface
-                                      eager={idx === 0}
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-start justify-between gap-1.5 flex-wrap">
-                                        <span className="px-2 py-0.5 rounded-lg bg-orange-100 text-[#E06518] font-mono text-xs font-bold">
-                                          {match.code}
-                                        </span>
-                                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-bold flex items-center gap-1">
-                                          <Zap className="w-3 h-3 text-emerald-600" />
-                                          <span>
-                                            امتیاز{" "}
-                                            {toPersianDigits(
-                                              match.similarityScore,
-                                            )}{" "}
-                                            از ۱۰۰
-                                          </span>
-                                        </span>
-                                        {match.matchType === "code" && isExact && (
-                                          <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 text-[10px] font-bold">
-                                            کد خوانده‌شده منطبق است
-                                          </span>
-                                        )}
-                                        <span
-                                          className={`px-2 py-0.5 rounded-md text-[10px] font-black flex items-center gap-1 ${
-                                            isExact
-                                              ? "bg-emerald-600 text-white"
-                                              : "bg-blue-600 text-white"
-                                          }`}
-                                        >
-                                          {isExact ? (
-                                            <CheckCircle2 className="w-3 h-3" />
-                                          ) : (
-                                            <Sparkles className="w-3 h-3" />
-                                          )}
-                                          <span>
-                                            {isExact
-                                              ? "کد منطبق بر اساس شواهد"
-                                              : "گزینه مشابه در کاتالوگ صنعت پیش"}
-                                          </span>
-                                        </span>
-                                      </div>
-
-                                      <h5 className="font-bold text-sm text-[#55565A] leading-snug mt-1 line-clamp-2">
-                                        {match.name}
-                                      </h5>
-
-                                      {((match as any).forzaCode ||
-                                        (catalogItem as any)?.forzaCode) && (
-                                        <span className="text-[10px] text-slate-500 font-mono block mt-0.5">
-                                          {(match as any).forzaCode ||
-                                            (catalogItem as any)?.forzaCode}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* Visual Explanation */}
-                                  {match.visualExplanation ? (
-                                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-[11px] text-emerald-950 space-y-1">
-                                      <div className="flex items-center gap-1 font-bold text-emerald-900">
-                                        <Eye className="w-3.5 h-3.5 text-emerald-700" />
-                                        <span>مبنای رتبه‌بندی سرور:</span>
-                                      </div>
-                                      <p className="leading-relaxed">
-                                        {match.visualExplanation}
-                                      </p>
-                                    </div>
-                                  ) : match.distinction ? (
-                                    <div className="p-2 rounded-xl bg-blue-50/70 border border-blue-200/70 text-[11px] text-blue-900 flex items-start gap-1.5">
-                                      <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
-                                      <span>
-                                        <strong>تفاوت عملکردی:</strong>{" "}
-                                        {match.distinction}
-                                      </span>
-                                    </div>
-                                  ) : match.matchReason ? (
-                                    <p className="text-[11px] text-slate-600 leading-relaxed bg-slate-50 p-2 rounded-xl border border-slate-100">
-                                      {match.matchReason}
-                                    </p>
-                                  ) : null}
-
-                                  {/* Quick Specs */}
-                                  {match.specs && match.specs.length > 0 && (
-                                    <div className="grid grid-cols-2 gap-1 text-[11px] pt-1">
-                                      {match.specs
-                                        .slice(0, 4)
-                                        .map((s, sIdx) => (
-                                          <div
-                                            key={sIdx}
-                                            className="bg-slate-50 px-2 py-1 rounded-md text-[10px] text-slate-600 flex justify-between"
-                                          >
-                                            <span>{s.key}:</span>
-                                            <span className="font-mono font-bold text-[#55565A]">
-                                              {s.value}
-                                            </span>
-                                          </div>
-                                        ))}
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Price & Actions */}
-                                <div className="pt-3 border-t border-slate-100 space-y-2.5">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span className="text-slate-500">
-                                      قیمت / استعلام:
-                                    </span>
-                                    {priceInfo ? (
-                                      <div className="text-left font-bold text-[#55565A]">
-                                        <span>
-                                          {formatPrice(
-                                            priceInfo.calculatedPrice,
-                                          )}
-                                        </span>
-                                        {priceInfo.discountPercent > 0 && (
-                                          <span className="text-[10px] text-emerald-600 mr-1">
-                                            (
-                                            {toPersianDigits(
-                                              priceInfo.discountPercent,
-                                            )}
-                                            ٪ تخفیف)
-                                          </span>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <span className="text-[#E06518] font-bold">
-                                        قیمت و موجودی در پنل
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <div className="flex items-center gap-2">
-                                    {catalogItem && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          onClose();
-                                          if (currentUser)
-                                            navigate(
-                                              memberPath(
-                                                currentUser,
-                                                match.code,
-                                              ),
-                                            );
-                                          else
-                                            openAuthModal(
-                                              memberPath(null, match.code),
-                                              "register",
-                                            );
-                                        }}
-                                        className="flex-1 h-9 bg-slate-100 hover:bg-orange-50 hover:text-[#E06518] text-[#55565A] rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200"
-                                      >
-                                        <ShoppingCart className="w-3.5 h-3.5" />
-                                        <span>بررسی در پنل</span>
-                                      </button>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        onClose();
-                                        navigate(`/product/${match.code}`);
-                                      }}
-                                      className="h-9 px-4 bg-[#55565A] hover:bg-[#1B293E] text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                                    >
-                                      <span>مشاهده کالا</span>
-                                      <ChevronLeft className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (imageEventId) {
-                                          void selectCustomerImageProduct(imageEventId, match.code).catch(error =>
-                                            console.warn('[Customer image history] selected product sync unavailable', error)
-                                          );
-                                        }
-                                        const isSimilar = Boolean(
-                                          analysisResult?.similarCandidates?.some(candidate => candidate.code === match.code) ||
-                                          match.visualVerdict === 'very_similar'
-                                        );
-                                        const q = buildVisionConsultationPrompt({
-                                          code: match.code,
-                                          name: match.name || match.code,
-                                          brand: match.brand,
-                                          isSimilar,
-                                        }, analysisResult?.summary);
-                                        const params = new URLSearchParams({
-                                          productCode: match.code,
-                                          productName: match.name || match.code,
-                                          ...(q ? { q } : {}),
-                                        });
-                                        onClose();
-                                        navigate('/ai-consult?' + params.toString());
-                                      }}
-                                      className="h-9 px-3 bg-orange-50 hover:bg-orange-100 text-[#A64B14] rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer border border-orange-200"
-                                    >
-                                      <Sparkles className="w-3.5 h-3.5" />
-                                      <span>مشاوره FORZA</span>
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Workshop custom fabrication reminder */}
-                        <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                          <div className="flex items-center gap-2 text-slate-700">
-                            <Wrench className="w-4 h-4 text-[#E06518] shrink-0" />
-                            <span>
-                              نیاز به ساخت سفارشی یا تغییر ابعاد همین قطعه
-                              دارید؟ کارگاه تخصصی صنعت پیش (پیش به صنعت) در خدمت
-                              شماست.
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <a
-                              href="tel:03535254703"
-                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold text-[11px] flex items-center gap-1.5"
-                            >
-                              <Phone className="w-3.5 h-3.5" />
-                              <span>۰۳۵-۳۵۲۵۴۷۰۳</span>
-                            </a>
-                            <a
-                              href="https://wa.me/989903427027?text=سلام%2C%20این%20تصویر%20قطعه%20را%20برای%20استعلام%20ارسال%20می‌کنم"
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] flex items-center gap-1.5"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              <span>واتس‌اپ</span>
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    /* KIKI source: calm no-match message with a compact pinned manufacturing rail. */
-                    <div className="fv-kiki-empty-state" data-testid="vision-kiki-no-match">
-                      <div className="fv-kiki-empty-state__message">
-                        <Target size={22} className="text-[#E06518]" aria-hidden="true" />
-                        <div>
-                          <strong>محصول مشابهی در کاتالوگ پیدا نشد</strong>
-                          <p>روی قطعه دیگری در تصویر بزنید یا درخواست ساخت سفارشی ثبت کنید. نبود نتیجه به معنی ناممکن بودن تأمین نیست.</p>
-                        </div>
-                      </div>
-                      <details className="fv-kiki-empty-state__details">
-                        <summary>نحوه بررسی تخصصی و حریم خصوصی عکس</summary>
-                        <p>کارشناسان صنعت پیش پس از بررسی ابعاد، جنس و شرایط کارکرد، امکان تأمین، مهندسی معکوس یا ساخت سفارشی را اعلام می‌کنند.</p>
-                        <p>نسخه محلی عکس در مرورگر نگهداری می‌شود؛ پس از تأیید شما، محتوای لازم برای تحلیل به API شناسایی ارسال می‌شود. تصویر فقط با ثبت نهایی فرم به درخواست ساخت پیوست می‌شود.</p>
-                      </details>
-                      <div className="fv-kiki-empty-state__rail">
-                        <div className="fv-kiki-empty-state__rail-copy">
-                          <strong>قطعه موردنظر پیدا نشد؟ امکان بررسی ساخت سفارشی وجود دارد.</strong>
-                          <span>با همین عکس، درخواست بررسی ثبت کنید یا با صنعت پیش تماس بگیرید.</span>
-                        </div>
-                        <div className="fv-kiki-empty-state__buttons">
-                          <button
-                            type="button"
-                            disabled={isPreparingCustomRequest || !selectedImage}
-                            onClick={() => void openCustomManufacturingRequest()}
-                            className="fv-kiki-empty-state__primary"
-                          >
-                            <Wrench size={15} aria-hidden="true" />
-                            {isPreparingCustomRequest ? 'آماده‌سازی تصویر…' : 'ثبت درخواست ساخت'}
-                          </button>
-                          <a href="tel:03535254703" className="fv-kiki-empty-state__secondary" aria-label="تماس با صنعت پیش: ۰۳۵-۳۵۲۵۴۷۰۳">
-                            <Phone size={15} aria-hidden="true" /><span>تماس</span>
-                          </a>
-                          <a href="https://wa.me/989903427027?text=سلام%2C%20این%20تصویر%20قطعه%20را%20برای%20ساخت%20سفارشی%20ارسال%20می‌کنم" target="_blank" rel="noreferrer" className="fv-kiki-empty-state__whatsapp" aria-label="ارسال درخواست در واتس‌اپ">
-                            <MessageCircle size={15} aria-hidden="true" /><span>واتس‌اپ</span>
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Technical Advice Footnote */}
-                {analysisResult.technicalAdvice && (
-                  <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-start gap-2">
-                    <HelpCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <div className="space-y-0.5">
-                      <span className="font-bold block">
-                        توصیه فنی مهندسی صنعت پیش:
-                      </span>
-                      <p className="leading-relaxed">
-                        {analysisResult.technicalAdvice}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Return to edit button */}
-                <div className="pt-2 flex justify-between items-center">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(3)}
-                    className="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                    <span>بازگشت و اصلاح مشخصات</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="text-xs text-slate-500 hover:text-[#55565A] font-bold cursor-pointer"
-                  >
-                    شروع جستجوی جدید
-                  </button>
+                      <ChevronLeft className="h-4 w-4 shrink-0 text-[#74757C]" aria-hidden="true" />
+                    </button>
+                  ))}
                 </div>
-                  </section>
-                </div>
-              </motion.div>
+              </section>
             )}
-          </AnimatePresence>
+          </main>
         </div>
       )}
-      </div>
-    </Modal>
-    {customRequestOpen && customRequestDraft && (
-      <Suspense fallback={
-        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/65 p-4" role="status">
-          <div className="rounded-2xl bg-white px-5 py-4 text-sm font-bold text-slate-700">در حال آماده‌سازی فرم درخواست ساخت...</div>
+
+      {/* Lazy Custom Manufacturing Modal */}
+      {(isMatching || isDetectingParts || isAiSegmenting) && (
+        <div
+          className="fixed inset-0 z-[140] overflow-y-auto bg-[#F5F6F8]"
+          data-testid="vision-analysis-progress-overlay"
+        >
+          <VisionAnalysisProgress
+            image={selectedImage}
+            region={queryRegion || undefined}
+            progress={0}
+            phaseIndex={isDetectingParts ? 0 : isAiSegmenting ? 1 : 2}
+            phases={VISION_ANALYSIS_PHASES}
+            counts={null}
+            quickMode={scanMode === 'quick'}
+            onClose={handleCloseAction}
+          />
         </div>
-      }>
-        <LazyCustomPartRequestModal
-          isOpen={customRequestOpen}
-          onClose={() => setCustomRequestOpen(false)}
-          initialPartName={customRequestDraft.partName}
-          initialPartType={customRequestDraft.partType}
-          initialDimensions={customRequestDraft.dimensions}
-          initialAlloyCondition={customRequestDraft.alloyCondition}
-          initialQuantity="1"
-          initialNotes={customRequestDraft.notes}
-          initialFile={customRequestDraft.file}
-        />
-      </Suspense>
-    )}
-    </>
+      )}
+
+      {customRequestOpen && customRequestDraft && (
+        <Suspense fallback={null}>
+          <LazyCustomPartRequestModal
+            isOpen={customRequestOpen}
+            initialFile={customRequestDraft.file}
+            initialPartName={customRequestDraft.partName}
+            initialPartType={customRequestDraft.partType}
+            initialDimensions={customRequestDraft.dimensions}
+            initialAlloyCondition={customRequestDraft.alloyCondition}
+            initialNotes={customRequestDraft.notes}
+            onClose={() => setCustomRequestOpen(false)}
+          />
+        </Suspense>
+      )}
+    </div>
   );
 };

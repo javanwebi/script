@@ -52,7 +52,7 @@ test('a no-match vision result opens a prefilled manufacturing request only afte
   assert.match(vision, /MAX_MANUFACTURING_IMAGE_BYTES = 8 \* 1024 \* 1024/);
   assert.match(vision, /canvas\.toBlob/);
   assert.match(modal, /initialQuantity\?: string/);
-  assert.match(vision, /محتوای لازم برای تحلیل به API شناسایی ارسال می‌شود/);
+  assert.match(vision, /نسخه موقت تصویر به API شناسایی ارسال می‌شود/);
   assert.match(vision, /تصویر فقط با ثبت نهایی فرم به درخواست ساخت پیوست می‌شود/);
   assert.match(vision, /customRequestOpen && customRequestDraft/);
 });

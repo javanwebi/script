@@ -6,119 +6,135 @@ import test from 'node:test';
 const source = (relative: string) =>
   readFileSync(fileURLToPath(new URL('../' + relative, import.meta.url)), 'utf8');
 
-test('KIKI entry, camera, crop review and results share one real identification flow', () => {
+test('KIKI entry, real camera, explicit review and catalog results share one identification flow', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
-  assert.ok(modal.includes('<VisionEntryPage'));
-  assert.ok(modal.includes('full-screen-camera-experience'));
-  assert.ok(modal.includes('<ImageRegionReview'));
-  assert.ok(modal.includes('kiki-vision-results-shell'));
-  assert.ok(modal.includes('forza-vision-catalog-sheet-header'));
-  assert.ok(modal.includes('forza-vision-catalog-results'));
-  assert.ok(modal.includes('src={selectedImage}'));
-  assert.ok(modal.includes('onConfirm={confirmRegionAndAnalyze}'));
+  assert.ok(modal.includes('data-testid="forza-vision-entry"'));
+  assert.ok(modal.includes('data-testid="forza-vision-upload-panel"'));
+  assert.ok(modal.includes('data-testid="full-screen-camera-experience"'));
+  assert.ok(modal.includes("screen === 'review'"));
+  assert.ok(modal.includes('data-testid="kiki-vision-review-shell"'));
+  assert.ok(modal.includes('data-testid="kiki-vision-results-shell"'));
+  assert.ok(modal.includes('data-testid="forza-vision-catalog-results"'));
+  assert.ok(modal.includes('data-testid="vision-analysis-progress-overlay"'));
+  assert.ok(modal.includes('<VisionAnalysisProgress'));
+  assert.ok(modal.includes('counts={null}'));
+  assert.ok(modal.includes('className="sanat-camera-experience__stage fv-camera-stage'));
+  assert.ok(modal.includes('onClick={confirmCameraPhoto}'));
+  assert.ok(modal.includes('const runFullImageVisualMatch = () =>'));
+  assert.ok(modal.includes('data-testid="forza-vision-full-image-search"'));
+  assert.ok(modal.includes('region: opts.fullImage ? undefined : opts.region'));
+  assert.ok(modal.includes('fullImage: opts.fullImage === true'));
   assert.ok(modal.includes('aiVisualSearchService.analyzePartWithAi'));
+  assert.ok(!modal.includes('OPTICAL_BENCH_ART'));
 });
 
-test('local segmenter is warmed and can win without serial server crop detection', () => {
+test('local contour and ONNX segmentation start before catalog matching while the original stays in the device vault', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
-  const fast = modal.slice(
-    modal.indexOf('const detectUploadedImageRegions'),
-    modal.indexOf('const uploadAndPrepareImage'),
-  );
-  assert.ok(modal.includes('preloadClientAiSegmentation()'));
-  assert.ok(fast.includes('const localDetection = segmentImageWithClientAi(imageUrl)'));
-  assert.ok(fast.includes('Promise.race'));
-  assert.ok(fast.includes('aiVisualSearchService.detectImageRegions(imageUrl)'));
-  assert.ok(fast.includes('sequence !== regionDetectionSequenceRef.current'));
-  assert.ok(fast.includes('getForegroundRegion(segmented)'));
-  assert.ok(fast.indexOf('const localDetection') < fast.indexOf('aiVisualSearchService.detectImageRegions'));
-  assert.ok(modal.includes('saveCustomerDeviceImage(blob'));
-  assert.ok(modal.includes('customerImageBlobToDataUrl(blob)'));
-  assert.ok(modal.includes('Promise.all(['));
-  assert.ok(modal.includes('temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob)'));
+  const provider = source('src/components/search/PartIdentificationProvider.tsx');
+  const start = modal.indexOf('const launchDirectVisualResults');
+  const end = modal.indexOf('const handleImagePointSelect', start);
+  const pipeline = modal.slice(start, end);
+
+  assert.ok(provider.includes('preloadClientAiSegmentation()'));
+  assert.ok(pipeline.includes('const instantCvPromise = analyzeImageAutoContour(fastDetectUrl, 0)'));
+  assert.ok(pipeline.includes('const aiSegPromise = segmentWithOnnx(fastDetectUrl)'));
+  assert.ok(pipeline.includes('void aiSegPromise'));
+  assert.ok(pipeline.includes('enrichWithGeminiInBackground'));
+  assert.ok(pipeline.indexOf('const instantCvPromise') < pipeline.indexOf('const instantCv = await instantCvPromise'));
+  assert.ok(pipeline.indexOf('const aiSegPromise') < pipeline.indexOf('const instantCv = await instantCvPromise'));
+  assert.ok(modal.includes('const saved = await saveCustomerDeviceImage('));
+  assert.ok(modal.includes('const effectiveLocalImageId = opts.savedLocalImageId || localImageId'));
+  assert.ok(modal.includes('getCustomerDeviceImage(effectiveLocalImageId)'));
+  assert.ok(modal.includes('customerImageBlobToDataUrl(localRecord.blob)'));
+  assert.ok(modal.includes('imageBase64: payloadImage.startsWith'));
+  assert.ok(modal.includes('completeCustomerImageIdentification('));
+  assert.ok(modal.includes('selectCustomerImageProduct('));
 });
 
-test('mobile KIKI result sheet supports pull-up and image-return without dropping crop actions', () => {
+test('mobile KIKI result sheet supports pull-up, touch gestures and returning to the image without losing region selection', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
-  const css = source('src/components/search/vision-camera-design.css');
-  assert.ok(modal.includes('resultsSwipeStartY'));
-  assert.ok(modal.includes('data-sheet-expanded={mobileResultsExpanded}'));
-  assert.ok(modal.includes('aria-expanded={mobileResultsExpanded}'));
-  assert.ok(modal.includes('setMobileResultsExpanded(true)'));
-  assert.ok(modal.includes('setMobileResultsExpanded(false)'));
-  assert.ok(modal.includes('onFullImageSearch'));
-  assert.ok(modal.includes('onRegionChange={handleRegionSelection}'));
-  assert.ok(css.includes('KIKI mobile results: swipe up to expand'));
-  assert.ok(css.includes('data-sheet-expanded="true"'));
+  const css = source('src/components/search/industrial-scan.css');
+  assert.ok(modal.includes('mobileSheetExpanded'));
+  assert.ok(modal.includes('data-sheet-expanded={mobileSheetExpanded}'));
+  assert.ok(modal.includes('aria-expanded={mobileSheetExpanded}'));
+  assert.ok(modal.includes('setMobileSheetExpanded((v) => !v)'));
+  assert.ok(modal.includes("addEventListener('touchstart', onTouchStart"));
+  assert.ok(modal.includes("addEventListener('touchend', onTouchEnd"));
+  assert.ok(modal.includes('handlePhotoSurfaceClick'));
+  assert.ok(modal.includes('handleImagePointSelect'));
+  assert.ok(css.includes('.fv-camera-stage'));
+  assert.ok(css.includes('.fv-lens-bracket'));
+  assert.ok(css.includes('.fv-tap-ripple'));
   assert.ok(css.includes('prefers-reduced-motion'));
 });
 
-test('new presentation remains isolated from FORZA voice and catalog data', () => {
-  const styles = source('src/components/search/vision-camera-design.css');
+test('KIKI presentation remains connected to the existing FORZA recognition APIs, not voice or catalog replacement', () => {
+  const styles = source('src/components/search/industrial-scan.css');
   const service = source('src/services/aiVisualSearchService.ts');
-  assert.ok(styles.includes('.kiki-vision-review-shell'));
-  assert.ok(styles.includes('.fv-catalog-sheet__header'));
+  assert.ok(styles.includes('.fv-camera-stage'));
+  assert.ok(styles.includes('.fv-corner-brackets'));
+  assert.ok(styles.includes('.fv-scan-laser'));
   assert.ok(service.includes('/api/ai/analyze-part'));
   assert.ok(service.includes('/api/ai/detect-regions'));
-  assert.ok(service.includes('const interval = polls++ === 0 ? 450 : polls === 2 ? 850 : 1200;'));
+  assert.ok(!service.includes('speechSynthesis'));
   assert.ok(!styles.includes('body * {'));
 });
 
-test('VISION entry uses original KIKI portal layout while retaining real image handlers', () => {
-  const entry = source('src/components/search/VisionEntryPage.tsx');
-  assert.ok(entry.includes('data-testid="forza-vision-entry"'));
-  assert.ok(entry.includes('data-testid="forza-vision-upload-panel"'));
-  assert.ok(entry.includes('تشخیص خودکار کانتور و کد فنی'));
-  assert.ok(entry.includes('قطعه را با یک عکس بشناسید و نمونه مشابه را پیدا کنید'));
-  assert.ok(entry.includes('Photographic Optical Showcase'));
-  assert.ok(entry.includes('/images/company/ai-search-mobile.webp'));
-  assert.ok(entry.includes('onClick={onCamera}'));
-  assert.ok(entry.includes('onClick={onUpload}'));
-  assert.ok(entry.includes('onDropFile?.(f)'));
-  assert.ok(entry.includes('disabled={isUploading}'));
-  assert.ok(entry.includes('onRecentClick?.(item)'));
-  assert.ok(!entry.includes('handleFile(f)'));
-  assert.ok(!entry.includes('/src/assets/'));
+test('KIKI entry portal retains real camera, upload, drag-and-drop and recent-search handlers', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  assert.ok(modal.includes('data-testid="forza-vision-entry"'));
+  assert.ok(modal.includes('data-testid="forza-vision-upload-panel"'));
+  assert.ok(modal.includes('تشخیص خودکار کانتور و کد فنی'));
+  assert.ok(modal.includes('قطعه را با یک عکس بشناسید و نمونه مشابه را پیدا کنید'));
+  assert.ok(modal.includes('onClick={() => void startCamera()}'));
+  assert.ok(modal.includes('onClick={() => fileInputRef.current?.click()}'));
+  assert.ok(modal.includes('onDrop={(e) =>'));
+  assert.ok(modal.includes('if (f) handleFile(f)'));
+  assert.ok(modal.includes('onClick={() => handleRecentClick(item)}'));
+  assert.ok(modal.includes('data-testid="forza-vision-recent-history"'));
 });
 
-test('real multi-part lens exposes KIKI quick-select buttons without auto-running analysis', () => {
-  const picker = source('src/components/search/ImageRegionSelector.tsx');
+test('multi-part lens exposes selectable detected contours without launching a new match for every candidate automatically', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
-  const optical = source('src/components/search/vision-camera-design.css');
-  const review = source('src/components/search/image-region-review.css');
   const styles = source('src/components/search/industrial-scan.css');
-  assert.ok(picker.includes('data-testid="vision-region-candidates"'));
-  assert.ok(picker.includes('candidates.length > 1'));
-  assert.ok(picker.includes('onClick={() => { setDraft(undefined); onChange(region); }}'));
-  assert.ok(picker.includes('aria-pressed={sameRegion(selected, region)}'));
-  assert.ok(modal.includes('data-testid="forza-vision-optical-toolbar"'));
-  assert.ok(modal.includes('setMobileResultsExpanded(false); resetForm();'));
-  assert.ok(modal.includes('resetForm(); setCameraFlowActive(true); void startCamera();'));
-  assert.ok(optical.includes('.fv-kiki-optical-toolbar'));
-  assert.ok(review.includes('Source-parity optical review'));
-  assert.ok(styles.includes('.fv-region-candidates__item.is-active'));
+  assert.ok(modal.includes('detectedCandidates.length > 1'));
+  assert.ok(modal.includes('detectedCandidates.slice(0, 5).map'));
+  assert.ok(modal.includes('onClick={() => void handleImagePointSelect(cand.center.x, cand.center.y, cand)}'));
+  assert.ok(modal.includes('segmentPartAtTapPoint'));
+  assert.ok(modal.includes('className="fv-lens-corner fv-lens-corner--tl"'));
+  assert.ok(modal.includes('className="fv-tap-ripple pointer-events-none absolute z-30"'));
+  assert.ok(styles.includes('.fv-lens-corner--br'));
+  assert.ok(styles.includes('.fv-object-dot--active'));
 });
 
-test('no-match catalogue view uses real custom-request actions and truthful privacy language', () => {
+test('no-match catalog view uses real custom-request actions, approved contacts and accurate image privacy wording', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
-  const style = source('src/components/search/vision-camera-design.css');
   assert.ok(modal.includes('data-testid="vision-kiki-no-match"'));
   assert.ok(modal.includes('onClick={() => void openCustomManufacturingRequest()}'));
   assert.ok(modal.includes('href="tel:03535254703"'));
   assert.ok(modal.includes('https://wa.me/989903427027'));
-  assert.ok(modal.includes('محتوای لازم برای تحلیل به API شناسایی ارسال می‌شود'));
+  assert.ok(modal.includes('نسخه موقت تصویر به API شناسایی ارسال می‌شود'));
+  assert.ok(modal.includes('تصویر فقط با ثبت نهایی فرم به درخواست ساخت پیوست می‌شود'));
   assert.ok(!modal.includes('tel:02166700000'));
   assert.ok(!modal.includes('wa.me/989120000000'));
-  assert.ok(style.includes('.fv-kiki-empty-state__rail'));
+  assert.ok(modal.includes('observedDimensions'));
+  assert.ok(modal.includes('unknownParameters'));
 });
 
-test('KIKI results header stays within the independently scrollable catalogue pane', () => {
+test('KIKI results header remains sticky inside the independently scrollable catalog pane', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
-  const style = source('src/components/search/vision-camera-design.css');
-  const layout = modal.indexOf('className="fv-catalog-sheet__layout"');
-  const panel = modal.indexOf('className="fv-catalog-sheet__results"', layout);
-  const header = modal.indexOf('className="fv-catalog-sheet__header"', layout);
-  assert.ok(layout > 0 && panel > layout && header > panel);
-  assert.ok(style.includes('.fv-catalog-sheet__results > .fv-catalog-sheet__header'));
-  assert.ok(style.includes('.sp-vision-result-panel[data-sheet-expanded="true"]'));
+  const layout = modal.indexOf('data-testid="kiki-vision-results-shell"');
+  const panel = modal.indexOf('data-sheet-expanded={mobileSheetExpanded}', layout);
+  const header = modal.indexOf('data-testid="forza-vision-catalog-sheet-header"', panel);
+  const results = modal.indexOf('data-testid="forza-vision-catalog-results"', header);
+  assert.ok(layout > 0 && panel > layout && header > panel && results > header);
+  assert.ok(modal.includes('lg:overflow-y-auto'));
+  assert.ok(modal.includes('sticky top-0'));
+});
+
+test("region selection keeps the pointer frame stable while the crop preview updates after commit", () => {
+  const selector = source("src/components/search/ImageRegionSelector.tsx");
+  assert.match(selector, /const previewRegion=draft \? value : selected/);
+  assert.match(selector, /\{previewRegion\?/);
+  assert.match(selector, /sanat-region-picker__crop/);
 });

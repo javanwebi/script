@@ -146,20 +146,22 @@ async function testVisionEntryResponsive(browser) {
         });
       }
       if (width === 390) {
-        const scrollRegion = page.locator('[role="dialog"][data-fullscreen="true"] > div.overflow-y-auto');
-        const scrollState = await scrollRegion.evaluate(el => ({
-          clientHeight: el.clientHeight,
-          scrollHeight: el.scrollHeight,
-          overflowY: getComputedStyle(el).overflowY,
+        const fullScreenPage = page.locator('[role="main"][data-fullscreen="true"]');
+        await fullScreenPage.waitFor({ state: "visible" });
+        const scrollState = await page.evaluate(() => ({
+          documentHeight: document.documentElement.scrollHeight,
+          viewportHeight: window.innerHeight,
+          bodyOverflowY: getComputedStyle(document.body).overflowY,
         }));
-        assert.equal(scrollState.overflowY, "auto");
-        assert.ok(scrollState.scrollHeight > scrollState.clientHeight, "Mobile VISION content must remain reachable in the modal scroll region");
-        // The reference KIKI entrance ends with its main panel, not a footer.
-        // Verify that the real bottom-most content remains reachable in the modal.
+        assert.ok(
+          scrollState.documentHeight > scrollState.viewportHeight,
+          "Mobile KIKI VISION content must remain reachable by page scrolling",
+        );
+        // The standalone KIKI entry uses the document scroll rather than a nested legacy dialog scroller.
         const bottom = entry.locator("main").last();
         await bottom.evaluate(el => el.scrollIntoView({block: "end"}));
-        const reached = await scrollRegion.evaluate(el =>
-          el.scrollTop + el.clientHeight >= el.scrollHeight - 4,
+        const reached = await page.evaluate(() =>
+          window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4,
         );
         assert.ok(reached, "Bottom of the mobile VISION page must be reachable by scrolling");
         await page.screenshot({
@@ -194,9 +196,9 @@ async function testUploadEntry(browser) {
         "base64",
       ),
     });
-    await page.getByTestId("identification-wizard").waitFor({ timeout: 15000 });
+    await page.getByTestId("kiki-vision-results-shell").waitFor({ timeout: 15000 });
     assert.equal(await page.getByTestId("forza-vision-entry").count(), 0,
-      "Selecting an image must leave the VISION landing screen and enter the existing image-review flow");
+      "Selecting an image must leave the VISION landing screen and enter the KIKI results/review flow");
     console.log("PASS FORZA VISION upload action opens the picker and enters the existing image-review flow");
   } finally {
     await page.close();
@@ -211,6 +213,10 @@ async function testCameraEntry(browser) {
     permissions: ["camera"],
   });
   const page = await context.newPage();
+  let analysisRequests = 0;
+  page.on("request", request => {
+    if (new URL(request.url()).pathname === "/api/ai/analyze-part") analysisRequests++;
+  });
   try {
     await page.goto(base + "/identify-part", { waitUntil: "domcontentloaded" });
     await page.getByTestId("forza-vision-entry").waitFor({ timeout: 30000 });
@@ -219,7 +225,15 @@ async function testCameraEntry(browser) {
     await camera.waitFor({ timeout: 15000 });
     assert.ok(await camera.isVisible(), "Camera action did not enter the full-screen camera/review flow");
     assert.ok(await camera.locator(".sanat-camera-experience__stage").count() > 0);
-    console.log("PASS FORZA VISION camera action enters the existing full-screen camera flow");
+    await page.waitForFunction(() => {
+      const shutter = document.querySelector('button[aria-label="ثبت تصویر قطعه"]');
+      return !!shutter && !shutter.disabled;
+    }, null, { timeout: 30000 });
+    await page.getByRole("button", { name: "ثبت تصویر قطعه" }).click();
+    await page.getByTestId("kiki-vision-review-shell").waitFor({ timeout: 15000 });
+    await page.getByRole("button", { name: "تأیید و شناسایی قطعه" }).waitFor();
+    assert.equal(analysisRequests, 0, "Camera frames must not be analyzed before explicit customer confirmation");
+    console.log("PASS FORZA VISION camera frame enters review and waits for explicit confirmation");
   } finally {
     await context.close();
   }
