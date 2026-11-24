@@ -79,6 +79,7 @@ import { memberPath } from '../storefront/MemberAccess';
 import { CatalogResultImage } from './CatalogResultImage';
 import { LocalModelResults } from './LocalModelResults';
 import {
+  formatVisionRecentTime,
   loadVisionRecentSearches,
   recordVisionRecentSearch,
   type VisionRecentSearchItem,
@@ -1241,6 +1242,10 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
   };
 
   const handleRecentClick = (item: VisionRecentSearchItem) => {
+    if (!item.imageUrl) {
+      setErrorMessage('تصویر این جستجوی قبلی ذخیره نشده است؛ لطفاً تصویر قطعه را دوباره بارگذاری کنید.');
+      return;
+    }
     void launchDirectVisualResults(item.imageUrl, item.imageUrl, {
       originalName: item.code || item.id,
       sampleHint: `${item.title} ${item.partHint || ''} ${item.code || ''}`.trim(),
@@ -2570,21 +2575,26 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                     <button
                       key={item.id}
                       type="button"
+                      disabled={!item.imageUrl}
                       onClick={() => handleRecentClick(item)}
-                      className="flex items-center gap-3 rounded-2xl border border-[#DFE3E6] bg-[#FFFFFF] p-2.5 text-right transition-colors hover:border-[#E06518]/65 hover:bg-[#FAFBFB] cursor-pointer"
+                      className="flex items-center gap-3 rounded-2xl border border-[#DFE3E6] bg-[#FFFFFF] p-2.5 text-right transition-colors hover:border-[#E06518]/65 hover:bg-[#FAFBFB] cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-[#E7E8EC] bg-[#F5F6F6] p-1">
-                        <img
-                          src={item.imageUrl}
-                          alt={item.title}
-                          referrerPolicy="no-referrer"
-                          className="h-full w-full object-contain"
-                        />
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.title}
+                            referrerPolicy="no-referrer"
+                            className="h-full w-full object-contain"
+                          />
+                        ) : (
+                          <History className="h-full w-full p-2 text-[#A0A2A8]" aria-hidden="true" />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-bold text-[#2B313A]">{item.title}</p>
                         <p className="mt-0.5 truncate text-[11px] text-[#74757C]">
-                          {item.subtitle || item.timeLabel}
+                          {item.subtitle || formatVisionRecentTime(item.createdAt)}
                         </p>
                       </div>
                       <ChevronLeft className="h-4 w-4 shrink-0 text-[#74757C]" aria-hidden="true" />
