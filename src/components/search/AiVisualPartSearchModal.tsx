@@ -2059,11 +2059,11 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
           data-testid="kiki-vision-results-shell"
           data-vision-journey="true"
         >
-          <div className="flex flex-1 flex-col lg:grid lg:grid-cols-12 lg:h-full lg:overflow-hidden">
+          <div data-testid="forza-vision-two-panel-layout" className="flex flex-1 flex-col lg:grid lg:grid-cols-12 lg:h-full lg:overflow-hidden">
             {/* -------------------------------------------------------------- */}
             {/* PHOTO & CONTOUR LENS STAGE (Mobile Top Split / Desktop Right)   */}
             {/* -------------------------------------------------------------- */}
-            <div className="relative flex shrink-0 flex-col bg-[#F5F6F6] lg:col-span-5 lg:h-full lg:border-l lg:border-[#DFE3E6]">
+            <div data-testid="forza-vision-photo-lens" className="relative flex shrink-0 flex-col bg-[#F5F6F6] lg:col-span-5 lg:h-full lg:border-l lg:border-[#DFE3E6]">
               {/* Top Floating Controls */}
               <div data-testid="forza-vision-optical-toolbar" className="pointer-events-none absolute top-0 left-0 right-0 z-30 flex items-center justify-between gap-2 px-3 sm:px-5 pt-3.5">
                 <button
@@ -2206,6 +2206,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
             {/* -------------------------------------------------------------- */}
             <div
               ref={mobileResultsAnchorRef}
+              data-testid="forza-vision-catalog-results"
               data-sheet-expanded={mobileSheetExpanded}
               aria-expanded={mobileSheetExpanded}
               className={`flex flex-1 min-h-0 flex-col bg-[#FFFFFF] text-[#2B313A] lg:col-span-7 lg:h-full lg:overflow-y-auto transition-all ${
