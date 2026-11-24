@@ -1226,7 +1226,7 @@ summary,
         <div className="h-14 px-3 flex items-center justify-between shrink-0 border-b border-[#DFE3E6]/70">
           <div className="flex items-center gap-2">
             <img
-              src="/images/brand/logo-forza.webp"
+              src="/assets/aistudio/logo-forza_9b7fcf6e.png"
               alt="FORZA"
               className="h-8 sm:h-9 w-auto object-contain"
             />
@@ -1515,7 +1515,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
               className="relative flex flex-col items-center"
             >
               <img
-                src="/images/brand/logo-forza.webp"
+                src="/assets/aistudio/logo-forza_9b7fcf6e.png"
                 alt="لوگوی FORZA"
                 className="w-64 sm:w-80 md:w-[360px] h-auto object-contain drop-shadow-[0_12px_32px_rgba(224,101,24,0.18)]"
               />
@@ -1571,7 +1571,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
             <header className="h-14 px-4 sm:px-6 border-b border-[#DFE3E6] flex items-center justify-between bg-[#FFFFFF] shrink-0">
               <div className="flex items-center gap-3">
                 <img
-                  src="/images/brand/logo-forza.webp"
+                  src="/assets/aistudio/logo-forza_9b7fcf6e.png"
                   alt="FORZA"
                   className="h-8 sm:h-9 w-auto object-contain"
                 />
@@ -1629,7 +1629,6 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                   className="min-h-[38px] px-2 sm:px-2.5 rounded-xl hover:bg-[#F3F4F6] flex items-center gap-1.5 transition-colors cursor-pointer min-w-0"
                   title="تنظیمات مدل و حوزه صنعتی"
                 >
-                  <CognivoGeometricLogo className="w-4 h-4 shrink-0" />
                   <span className="font-extrabold text-[13.5px] sm:text-[15px] text-[#2B313A] tracking-tight whitespace-nowrap truncate">
                     FORZA مهندسی
                   </span>
@@ -2257,7 +2256,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                         initial={{ y: -18, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ duration: 0.45, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-                        src="/images/brand/logo-forza.webp"
+                        src="/assets/aistudio/logo-forza_9b7fcf6e.png"
                         alt="FORZA"
                         className="h-9 sm:h-11 w-auto mx-auto mb-3 object-contain"
                       />

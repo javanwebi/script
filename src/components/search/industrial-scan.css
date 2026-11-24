@@ -1,1441 +1,8 @@
+/* ==========================================================================
+   FORZA VISION — OPTICAL LENS, CAMERA HUD & CATALOG RESULTS STYLES
+   Website-Aligned Palette: #2B313A (Ink), #55565A, #F5F6F6, #DFE3E6, #E06518
+   ========================================================================== */
 
-/* Industrial product discovery: real product photography, no mock records */
-.sanat-scan-intro {
-  position:relative; min-height:130px; overflow:hidden; border-radius:18px; isolation:isolate;
-  background: #202936 url('/images/precision-scan-technical-overlay.svg') right center / auto 100% no-repeat, url('/images/scan-industrial-generated.webp') 30% center / cover no-repeat;
-  border:1px solid rgba(224,101,24,.45); box-shadow:0 8px 28px rgba(28,39,53,.13);
-}
-.sanat-scan-intro::before {
-  content:""; position:absolute; inset:0; z-index:-1;
-  background:linear-gradient(270deg,rgba(20,28,40,.98),rgba(20,28,40,.78) 55%,rgba(20,28,40,.06));
-}
-.sanat-scan-intro__copy {
-  min-height:130px; max-width:83%; padding:17px 20px; display:flex;
-  flex-direction:column; align-items:flex-start; justify-content:center; gap:7px; color:white;
-}
-.sanat-scan-intro__eyebrow { color:#ffad6e; font-size:10px; font-weight:750; direction:ltr; }
-.sanat-scan-intro__copy strong { color:#fff; font-size:clamp(14px,2vw,19px); font-weight:850; }
-.sanat-scan-intro__copy > span:last-child { color:#f1f3f6; font-size:11px; line-height:1.8; }
-.sanat-scan-viewfinder { box-shadow:0 14px 36px rgba(18,28,39,.25); }
-.sanat-scan-viewfinder__video { min-height:260px; max-height:470px; }
-.sanat-scan-viewfinder__corners {
-  pointer-events:none; position:absolute; inset:18% 16%; border:1px solid rgba(255,255,255,.2); border-radius:13px;
-  background:linear-gradient(#ffab65,#ffab65) top left/28px 3px no-repeat,
-    linear-gradient(#ffab65,#ffab65) top left/3px 28px no-repeat,
-    linear-gradient(#ffab65,#ffab65) top right/28px 3px no-repeat,
-    linear-gradient(#ffab65,#ffab65) top right/3px 28px no-repeat,
-    linear-gradient(#ffab65,#ffab65) bottom left/28px 3px no-repeat,
-    linear-gradient(#ffab65,#ffab65) bottom left/3px 28px no-repeat,
-    linear-gradient(#ffab65,#ffab65) bottom right/28px 3px no-repeat,
-    linear-gradient(#ffab65,#ffab65) bottom right/3px 28px no-repeat;
-}
-.sanat-scan-viewfinder__hint {
-  position:absolute; inset-block-start:12px; inset-inline-start:12px; padding:7px 10px;
-  background:rgba(13,21,31,.86); color:white; font-size:10px;
-  border:1px solid rgba(255,255,255,.3); border-radius:10px;
-}
-.sanat-scan-viewfinder__actions { z-index:2; }
-@media (max-width:639px) {
-  .sanat-scan-intro,.sanat-scan-intro__copy { min-height:112px; }
-  .sanat-scan-intro__copy { padding:12px 16px; }
-  .sanat-scan-intro__copy strong { font-size:14px; }
-  .sanat-scan-intro__copy > span:last-child { font-size:10px; }
-  .sanat-scan-viewfinder__video { aspect-ratio:3/4; min-height:300px; max-height:min(60dvh,470px); }
-}
-@media (prefers-reduced-motion:reduce) { .sanat-scan-viewfinder * { animation:none!important; } }
-
-
-/* Full-viewport capture and review flow launched from the mobile scan dock. */
-.sanat-camera-experience {
-  width: 100%;
-  height: 100vh;
-  height: 100dvh;
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  color: #fff;
-  background: #0b1118;
-  font-family: inherit;
-}
-.sanat-camera-experience__header {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  padding: calc(16px + env(safe-area-inset-top)) 18px 15px;
-  background: linear-gradient(180deg,#121c28 0%,#0b1118 100%);
-  border-bottom: 1px solid rgba(255,255,255,.09);
-}
-.sanat-camera-experience__heading { min-width: 0; }
-.sanat-camera-experience__eyebrow {
-  display: block;
-  color: #f28a43;
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: .13em;
-  direction: ltr;
-  text-align: right;
-}
-.sanat-camera-experience__heading h1 {
-  margin: 7px 0 3px;
-  color: #fff;
-  font-size: clamp(19px,4vw,25px);
-  font-weight: 900;
-  line-height: 1.35;
-}
-.sanat-camera-experience__heading p {
-  margin: 0;
-  color: #b9c2cd;
-  font-size: 11px;
-  line-height: 1.8;
-}
-.sanat-camera-experience__close {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255,255,255,.16);
-  border-radius: 14px;
-  background: rgba(255,255,255,.08);
-  color: #fff;
-}
-.sanat-camera-experience__stage {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #070b10;
-}
-.sanat-camera-experience__video,
-.sanat-camera-experience__preview {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.sanat-camera-experience__video { object-fit: cover; }
-.sanat-camera-experience__preview {
-  object-fit: contain;
-  background: radial-gradient(ellipse at center,#202b36,#070b10 78%);
-}
-.sanat-camera-experience__frame {
-  position: absolute;
-  inset: 12% 7%;
-  pointer-events: none;
-  border: 1px solid rgba(255,255,255,.28);
-  border-radius: 22px;
-  background:
-    linear-gradient(#f28a43,#f28a43) top left/34px 4px no-repeat,
-    linear-gradient(#f28a43,#f28a43) top left/4px 34px no-repeat,
-    linear-gradient(#f28a43,#f28a43) top right/34px 4px no-repeat,
-    linear-gradient(#f28a43,#f28a43) top right/4px 34px no-repeat,
-    linear-gradient(#f28a43,#f28a43) bottom left/34px 4px no-repeat,
-    linear-gradient(#f28a43,#f28a43) bottom left/4px 34px no-repeat,
-    linear-gradient(#f28a43,#f28a43) bottom right/34px 4px no-repeat,
-    linear-gradient(#f28a43,#f28a43) bottom right/4px 34px no-repeat;
-  box-shadow: 0 0 0 999px rgba(0,0,0,.08);
-}
-.sanat-camera-experience__live-tag {
-  position: absolute;
-  top: 18px;
-  inset-inline-start: 18px;
-  padding: 8px 11px;
-  border: 1px solid rgba(255,255,255,.2);
-  border-radius: 999px;
-  color: #fff;
-  background: rgba(9,15,22,.72);
-  font-size: 10px;
-  font-weight: 750;
-  backdrop-filter: blur(10px);
-}
-.sanat-camera-experience__loading {
-  position: absolute;
-  inset-inline: 18px;
-  bottom: 22px;
-  text-align: center;
-  color: #e7edf4;
-  font-size: 12px;
-  text-shadow: 0 2px 12px #000;
-}
-.sanat-camera-experience__footer {
-  flex: 0 0 auto;
-  padding: 15px 18px calc(15px + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg,#111a24,#0b1118);
-  border-top: 1px solid rgba(255,255,255,.09);
-}
-.sanat-camera-experience__live-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 66px;
-}
-.sanat-camera-experience__capture {
-  min-width: min(100%,280px);
-  min-height: 64px;
-  padding: 8px 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 13px;
-  border: 1px solid rgba(255,255,255,.32);
-  border-radius: 999px;
-  color: #fff;
-  background: linear-gradient(135deg,#f28a43,#e06518 70%,#c95210);
-  box-shadow: 0 8px 26px rgba(224,101,24,.3),inset 0 1px rgba(255,255,255,.25);
-  font-size: 14px;
-  font-weight: 850;
-}
-.sanat-camera-experience__capture:disabled {
-  opacity: .48;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-.sanat-camera-experience__shutter {
-  width: 43px;
-  height: 43px;
-  display: grid;
-  place-items: center;
-  border: 2px solid rgba(255,255,255,.9);
-  border-radius: 50%;
-  background: rgba(255,255,255,.15);
-}
-.sanat-camera-experience__actions {
-  display: grid;
-  grid-template-columns: minmax(0,1.2fr) minmax(0,1fr);
-  gap: 10px;
-}
-.sanat-camera-experience__confirm,
-.sanat-camera-experience__retake {
-  min-height: 54px;
-  padding: 10px 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 15px;
-  font-size: 12px;
-  font-weight: 850;
-}
-.sanat-camera-experience__confirm {
-  border: 1px solid #f28a43;
-  color: #fff;
-  background: linear-gradient(135deg,#f28a43,#e06518 70%,#c95210);
-  box-shadow: 0 7px 20px rgba(224,101,24,.22);
-}
-.sanat-camera-experience__retake {
-  border: 1px solid rgba(255,255,255,.2);
-  color: #f2f5f8;
-  background: rgba(255,255,255,.08);
-}
-.sanat-camera-experience__error {
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border: 1px solid rgba(248,113,113,.4);
-  border-radius: 12px;
-  color: #fecaca;
-  background: rgba(127,29,29,.25);
-  font-size: 11px;
-  line-height: 1.8;
-}
-.sanat-camera-experience__footnote {
-  margin: 12px 0 0;
-  color: #98a4b2;
-  font-size: 10px;
-  line-height: 1.8;
-  text-align: center;
-}
-@media (max-width:380px) {
-  .sanat-camera-experience__header { padding-inline: 13px; }
-  .sanat-camera-experience__footer { padding-inline: 13px; }
-  .sanat-camera-experience__actions { grid-template-columns: 1fr; }
-  .sanat-camera-experience__confirm,
-  .sanat-camera-experience__retake { min-height: 49px; }
-  .sanat-camera-experience__frame { inset: 13% 5%; }
-}
-@media (orientation:landscape) and (max-height:520px) {
-  .sanat-camera-experience__header { padding-block: calc(7px + env(safe-area-inset-top)) 7px; }
-  .sanat-camera-experience__heading h1 { margin-top: 2px; font-size: 17px; }
-  .sanat-camera-experience__heading p { font-size: 10px; }
-  .sanat-camera-experience__footer { padding-block: 7px calc(7px + env(safe-area-inset-bottom)); }
-  .sanat-camera-experience__footnote { margin-top: 5px; }
-}
-@media (prefers-reduced-motion:reduce) {
-  .sanat-camera-experience__capture,
-  .sanat-camera-experience__confirm,
-  .sanat-camera-experience__retake { transition: none; }
-}
-
-/* Mobile first identification input: remove the over-sized old hero on phones. */
-@media (max-width: 1023px) {
-  .sp-vision-entry { min-height: 100dvh; border-radius: 0; align-content: start; }
-  .sp-vision-entry [data-testid="identification-image-panel"] {
-    min-height: 146px;
-    padding: 23px 16px 14px;
-    box-shadow: none;
-  }
-  .sp-vision-entry [data-testid="identification-image-panel"] h3 { font-size: clamp(16px,4.5vw,20px); }
-  .sp-vision-entry [data-testid="identification-image-panel"] p { max-width: 37ch; }
-  .sp-vision-entry [data-testid="identification-image-panel"] .grid { align-items: center; }
-}
-@media (max-width: 390px) {
-  .sp-vision-entry [data-testid="identification-image-panel"] { min-height: 128px; padding: 18px 12px 10px; }
-}
-
-/* Reference-accurate full-bleed mobile camera: real lens feed, no simulated scans. */
-@media (max-width:1023px) {
-  .sanat-camera-reference {
-    height:100dvh; min-height:100dvh; max-height:100dvh;
-    display:grid; grid-template-rows:auto minmax(0,1fr) auto;
-    background:#0a1017;
-  }
-  .sanat-camera-reference .sanat-camera-experience__header {
-    z-index:4; display:grid; grid-template-columns:70px minmax(0,1fr) 70px;
-    align-items:center; gap:2px;
-    padding:calc(12px + env(safe-area-inset-top)) 13px 11px;
-    background:linear-gradient(180deg,#121b25 0%,#0c131b 100%);
-    border:0; min-height:70px;
-  }
-  .sanat-camera-reference .sanat-camera-experience__heading {
-    grid-column:2; text-align:center; min-width:0;
-  }
-  .sanat-camera-reference .sanat-camera-experience__heading h1 {
-    margin:0; font-size:clamp(13px,3.7vw,17px);
-    font-weight:850; white-space:nowrap; line-height:1.5;
-  }
-  .sanat-camera-reference .sanat-camera-experience__torch {
-    grid-column:1; justify-self:start; display:grid; place-items:center;
-    width:42px; height:42px; border-radius:50%;
-    color:#ecf2f7; background:rgba(255,255,255,.08);
-    border:1px solid rgba(255,255,255,.14);
-    box-shadow:inset 0 1px rgba(255,255,255,.08);
-  }
-  .sanat-camera-reference .sanat-camera-experience__torch.is-on {
-    color:#ffb56b; border-color:#eb8b42;
-    box-shadow:0 0 18px #ef792e66;
-  }
-  .sanat-camera-reference .sanat-camera-experience__torch:disabled { opacity:.48; }
-  .sanat-camera-reference .sanat-camera-experience__header-actions {
-    grid-column:3; display:flex; align-items:center; justify-self:end; gap:5px;
-  }
-  .sanat-camera-reference :is(.sanat-camera-experience__info,.sanat-camera-experience__close) {
-    display:grid; place-items:center; border:0; border-radius:50%;
-    background:none; color:#e9edf2; width:33px; height:39px; padding:0;
-  }
-  .sanat-camera-reference .sanat-camera-experience__stage {
-    min-height:0; height:100%; position:relative; display:block;
-    background:#0b1118 url('/images/scan-industrial-generated.webp') center / cover no-repeat;
-    isolation:isolate;
-  }
-  .sanat-camera-reference :is(.sanat-camera-experience__video,.sanat-camera-experience__preview) {
-    width:100%; height:100%; position:absolute; inset:0;
-    object-fit:cover; background:transparent;
-  }
-  .sanat-camera-reference .sanat-camera-experience__video.is-selfie { transform:scaleX(-1); }
-  .sanat-camera-reference .sanat-camera-experience__stage-shade {
-    position:absolute; inset:0; z-index:1; pointer-events:none;
-    background:linear-gradient(180deg,rgba(8,12,17,.31) 0%,transparent 22%,transparent 71%,rgba(8,12,17,.32) 100%);
-  }
-  .sanat-camera-reference .sanat-camera-experience__instruction {
-    position:absolute; z-index:5; top:6%; inset-inline:8%;
-    width:max-content; max-width:84%; margin:auto;
-    display:flex; align-items:center; justify-content:center; gap:9px;
-    border:1px solid rgba(255,184,111,.55);
-    background:rgba(17,23,29,.84); color:#fff;
-    border-radius:999px; padding:11px 16px; font-weight:800;
-    font-size:clamp(11px,3vw,13px);
-    box-shadow:0 5px 20px #0006,0 0 18px #ed7e2a30;
-    backdrop-filter:blur(9px); -webkit-backdrop-filter:blur(9px);
-    text-align:center;
-  }
-  .sanat-camera-reference .sanat-camera-experience__instruction svg { flex:0 0 17px; color:#ffb16a; }
-  .sanat-camera-reference .sanat-camera-experience__frame {
-    z-index:3; position:absolute; inset:18% 9% 13%;
-    border:0; border-radius:0;
-    background:
-      linear-gradient(#fff,#fff) top left/29px 4px no-repeat,
-      linear-gradient(#fff,#fff) top left/4px 29px no-repeat,
-      linear-gradient(#fff,#fff) top right/29px 4px no-repeat,
-      linear-gradient(#fff,#fff) top right/4px 29px no-repeat,
-      linear-gradient(#fff,#fff) bottom left/29px 4px no-repeat,
-      linear-gradient(#fff,#fff) bottom left/4px 29px no-repeat,
-      linear-gradient(#fff,#fff) bottom right/29px 4px no-repeat,
-      linear-gradient(#fff,#fff) bottom right/4px 29px no-repeat;
-    filter:drop-shadow(0 0 5px #ed782a) drop-shadow(0 0 1px #ed782a);
-    box-shadow:none; pointer-events:none;
-  }
-  .sanat-camera-reference .sanat-camera-experience__scan-line {
-    position:absolute; z-index:3; top:50%; left:9%; right:9%; height:2px;
-    background:linear-gradient(90deg,transparent 0%,#ffb265 8%,#ff8628 50%,#ffb265 92%,transparent 100%);
-    box-shadow:0 0 8px 2px #f56e17b3,0 0 25px 6px #f56e1755;
-    animation:sanat-camera-scan-sweep 3.4s ease-in-out infinite alternate;
-    pointer-events:none;
-  }
-  @keyframes sanat-camera-scan-sweep {
-    from {top:30%;}
-    to {top:72%;}
-  }
-  .sanat-camera-reference .sanat-camera-experience__live-tag {
-    z-index:5; top:auto; bottom:9px; inset-inline:9px auto;
-    padding:5px 9px; font-size:10px;
-    border-color:rgba(255,255,255,.12);
-    background:rgba(7,12,17,.58); color:#e8eef4;
-  }
-  .sanat-camera-reference .sanat-camera-experience__loading {
-    z-index:5; bottom:48px; font-size:11px;
-  }
-  .sanat-camera-reference .sanat-camera-experience__help {
-    position:absolute; z-index:6; top:20%; inset-inline:9%;
-    padding:14px 16px; background:#101b27ef; color:#fff;
-    border:1px solid #ef8b43; border-radius:16px;
-    font-size:12px; line-height:2;
-    box-shadow:0 12px 40px #0007;
-  }
-  .sanat-camera-reference .sanat-camera-experience__footer {
-    position:relative; z-index:4; padding:13px 20px calc(19px + env(safe-area-inset-bottom));
-    background:linear-gradient(180deg,#17232e 0%,#0c141d 100%);
-    border:0; border-radius:0;
-  }
-  .sanat-camera-reference .sanat-camera-experience__footer::after {
-    content:""; pointer-events:none; position:absolute;
-    bottom:0; left:0; width:100%; height:15px;
-    background:radial-gradient(ellipse at 50% 100%,#f47a2233,transparent 65%);
-  }
-  .sanat-camera-reference .sanat-camera-experience__live-actions {
-    display:grid; grid-template-columns:minmax(0,1fr) 84px minmax(0,1fr);
-    align-items:center; justify-items:center; gap:6px; min-height:79px;
-    direction:ltr;
-  }
-  .sanat-camera-reference .sanat-camera-experience__side-action {
-    display:grid; place-items:center; width:53px; height:53px;
-    color:#f4f6f8; background:linear-gradient(145deg,#263440,#131e28);
-    border:1px solid rgba(255,255,255,.16); border-radius:50%;
-    box-shadow:0 5px 14px #0005,inset 0 1px #ffffff19;
-  }
-  .sanat-camera-reference .sanat-camera-experience__capture {
-    padding:0; width:76px; height:76px; min-width:76px; min-height:76px;
-    border:3px solid #ff9f43; border-radius:50%;
-    background:linear-gradient(135deg,#f3892a,#f26c13);
-    box-shadow:0 0 0 3px #fff,0 0 0 6px #ee7d2485,0 0 19px 7px #ee78294d;
-  }
-  .sanat-camera-reference .sanat-camera-experience__shutter {
-    width:59px; height:59px; border:0; border-radius:50%;
-    background:linear-gradient(145deg,#fff,#eff2f4);
-    box-shadow:inset 0 -2px 3px #c8ced8,0 1px 5px #0004;
-  }
-  .sanat-camera-reference .sanat-camera-experience__capture:disabled { opacity:.58; box-shadow:0 0 0 3px #fff; }
-  .sanat-camera-reference .sanat-camera-experience__actions {
-    direction:rtl; grid-template-columns:1fr 1fr; gap:10px; padding:6px 0;
-  }
-  .sanat-camera-reference .sanat-camera-experience__footnote { display:none; }
-  .sanat-camera-reference :is(button):focus-visible {
-    outline:3px solid #ff9b45; outline-offset:3px;
-  }
-}
-@media (max-width:370px) {
-  .sanat-camera-reference .sanat-camera-experience__header { grid-template-columns:59px minmax(0,1fr) 59px; padding-inline:8px; }
-  .sanat-camera-reference .sanat-camera-experience__heading h1 { font-size:12px; }
-  .sanat-camera-reference .sanat-camera-experience__live-actions { grid-template-columns:minmax(0,1fr) 75px minmax(0,1fr); }
-  .sanat-camera-reference .sanat-camera-experience__capture { width:69px; height:69px; min-height:69px; min-width:69px; }
-  .sanat-camera-reference .sanat-camera-experience__shutter { width:54px; height:54px; }
-}
-@media (orientation:landscape) and (max-height:520px) and (max-width:1023px) {
-  .sanat-camera-reference .sanat-camera-experience__header { min-height:50px; padding-block:4px; }
-  .sanat-camera-reference .sanat-camera-experience__instruction { top:3%; }
-  .sanat-camera-reference .sanat-camera-experience__frame { inset:17% 13% 13%; }
-  .sanat-camera-reference .sanat-camera-experience__live-actions { min-height:56px; }
-  .sanat-camera-reference .sanat-camera-experience__capture { width:57px; height:57px; min-width:57px; min-height:57px; }
-  .sanat-camera-reference .sanat-camera-experience__shutter { width:46px; height:46px; }
-  .sanat-camera-reference .sanat-camera-experience__side-action { width:43px; height:43px; }
-}
-@media (prefers-reduced-motion:reduce) {
-  .sanat-camera-reference .sanat-camera-experience__scan-line { animation:none; top:50%; }
-}
-
-
-/* FORZA visual-recognition workspace — calm, responsive and touch-first. */
-.sanat-visual-search-shell {
-  --sp-scan-orange: #e56b1e;
-  --sp-scan-ink: #252d38;
-  --sp-scan-muted: #687382;
-  width: 100%;
-  min-width: 0;
-  color: var(--sp-scan-ink);
-  overflow-x: hidden;
-}
-.sanat-visual-search-shell .sanat-scan-intro {
-  min-height: 158px;
-  border-radius: 22px;
-  border: 1px solid rgba(229,107,30,.24);
-  box-shadow: 0 12px 30px rgba(28,39,53,.10);
-}
-.sanat-visual-search-shell .sanat-scan-intro::before {
-  background: linear-gradient(270deg,rgba(20,28,40,.96),rgba(20,28,40,.72) 62%,rgba(20,28,40,.12));
-}
-.sanat-visual-search-shell .sanat-scan-intro__copy {
-  max-width: 100%;
-  min-height: 158px;
-  padding: 22px 24px;
-  gap: 9px;
-}
-.sanat-visual-search-shell .sanat-scan-intro__copy strong {
-  font-size: clamp(17px,2.4vw,23px);
-  letter-spacing: -.02em;
-}
-.sanat-visual-search-shell .sanat-scan-intro__copy > span:last-child {
-  font-size: 12px;
-  max-width: 32rem;
-}
-.sanat-visual-search-shell .sanat-scan-viewfinder {
-  border-radius: 22px;
-}
-.sanat-visual-search-shell button {
-  -webkit-tap-highlight-color: transparent;
-}
-.sanat-visual-search-shell .sanat-camera-experience {
-  border-radius: 0;
-}
-.sanat-visual-search-shell .sp-vision-analysis-container {
-  min-height: 260px;
-}
-
-/* Automatic object proposals and the selected crop. */
-.sanat-region-picker {
-  margin: 14px 0;
-  padding: 15px;
-  border: 1px solid #e5e9ef;
-  border-radius: 22px;
-  background: #fff;
-  box-shadow: 0 8px 26px rgba(28,39,53,.055);
-  color: #252d38;
-}
-.sanat-region-picker__header,
-.sanat-region-picker__heading,
-.sanat-region-picker__layout {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.sanat-region-picker__header {
-  justify-content: space-between;
-  margin-bottom: 13px;
-}
-.sanat-region-picker__heading { min-width: 0; }
-.sanat-region-picker__icon {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  border-radius: 14px;
-  background: #fff2e9;
-  color: #d85f16;
-  font-size: 25px;
-  font-weight: 800;
-}
-.sanat-region-picker__heading strong {
-  display: block;
-  font-size: 13px;
-  font-weight: 850;
-}
-.sanat-region-picker__heading p {
-  margin: 4px 0 0;
-  color: #718092;
-  font-size: 11px;
-  line-height: 1.8;
-}
-.sanat-region-picker__status {
-  flex: 0 0 auto;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #f4f6f8;
-  color: #596575;
-  font-size: 10px;
-  font-weight: 750;
-}
-.sanat-region-picker__layout {
-  align-items: stretch;
-  display: grid;
-  grid-template-columns: minmax(0,1fr) 190px;
-  gap: 13px;
-}
-.sanat-region-picker__canvas {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  min-height: 120px;
-  overflow: hidden;
-  border: 1px solid #e5e9ef;
-  border-radius: 17px;
-  background: #f4f6f8;
-}
-.sanat-region-picker__frame {
-  position: relative;
-  width: fit-content;
-  max-width: 100%;
-  max-height: 540px;
-  overflow: hidden;
-  border-radius: 14px;
-  cursor: crosshair;
-  touch-action: none;
-  user-select: none;
-  outline-offset: 3px;
-}
-.sanat-region-picker__frame:focus-visible { outline: 2px solid #e56b1e; }
-
-.sanat-region-picker__frame > img {
-  display: block;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 540px;
-  object-fit: contain;
-  pointer-events: none;
-}
-.sanat-region-picker__candidate,
-.sanat-region-picker__draft {
-  position: absolute;
-  z-index: 2;
-  pointer-events: none;
-  border: 2px dashed rgba(255,255,255,.95);
-  border-radius: 10px;
-  background: rgba(255,255,255,.055);
-  box-shadow: 0 1px 8px rgba(16,24,40,.25);
-}
-.sanat-region-picker__candidate span {
-  position: absolute;
-  top: -11px;
-  inset-inline-start: -8px;
-  display: grid;
-  place-items: center;
-  width: 23px;
-  height: 23px;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  background: #596575;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 850;
-}
-.sanat-region-picker__candidate.is-selected {
-  z-index: 3;
-  border: 3px solid #e56b1e;
-  background: rgba(229,107,30,.12);
-  box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 0 0 5px rgba(229,107,30,.2);
-}
-.sanat-region-picker__candidate.is-selected span {
-  background: #e56b1e;
-}
-.sanat-region-picker__candidate.is-manual span { display: none; }
-.sanat-region-picker__draft {
-  z-index: 4;
-  border: 2px solid #e56b1e;
-  background: rgba(229,107,30,.18);
-}
-.sanat-region-picker__side {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  min-width: 0;
-  padding: 11px;
-  border: 1px solid #edf0f3;
-  border-radius: 16px;
-  background: #f9fafb;
-}
-.sanat-region-picker__side-title {
-  font-size: 11px;
-  font-weight: 850;
-  color: #394453;
-}
-.sanat-region-picker__crop,
-.sanat-region-picker__empty {
-  width: 100%;
-  max-height: 160px;
-  border: 1px solid #e2e7ed;
-  border-radius: 12px;
-  background-color: #fff;
-  background-repeat: no-repeat;
-}
-.sanat-region-picker__empty {
-  display: grid;
-  place-items: center;
-  min-height: 115px;
-  padding: 10px;
-  color: #8792a0;
-  font-size: 10px;
-  line-height: 1.8;
-  text-align: center;
-}
-.sanat-region-picker__side p,
-.sanat-region-picker__hint {
-  margin: 0;
-  color: #778393;
-  font-size: 10px;
-  line-height: 1.9;
-}
-.sanat-region-picker__side button {
-  margin-top: auto;
-  min-height: 39px;
-  padding: 8px 10px;
-  border: 1px solid #f0c7aa;
-  border-radius: 11px;
-  background: #fff7f1;
-  color: #b95012;
-  font-size: 11px;
-  font-weight: 800;
-}
-.sanat-region-picker__side button:hover { background: #ffede0; }
-.sanat-region-picker__hint { padding-top: 10px; }
-
-/* Product cards are ranked by image evidence, not by SKU availability. */
-.sanat-visual-results { min-width: 0; }
-.sanat-visual-results__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 2px 0 13px;
-  border-bottom: 1px solid #e9edf2;
-}
-.sanat-visual-results__eyebrow {
-  display: block;
-  margin-bottom: 5px;
-  color: #d9651b;
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: .08em;
-  direction: ltr;
-  text-align: right;
-}
-.sanat-visual-results__header h4 {
-  margin: 0;
-  color: #252d38;
-  font-size: 16px;
-  font-weight: 900;
-}
-.sanat-visual-results__header p {
-  margin: 5px 0 0;
-  color: #6c7887;
-  font-size: 11px;
-  line-height: 1.9;
-}
-.sanat-visual-results__count {
-  flex: 0 0 auto;
-  padding: 7px 10px;
-  border-radius: 12px;
-  background: #fff3eb;
-  color: #bd5415;
-  font-size: 11px;
-  font-weight: 850;
-}
-.sanat-visual-results__grid {
-  display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-  gap: 13px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.sanat-visual-result-card {
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
-  height: 100%;
-  min-width: 0;
-  padding: 13px;
-  border: 1px solid #e5e9ef;
-  border-radius: 19px;
-  background: #fff;
-  box-shadow: 0 5px 18px rgba(24,36,52,.045);
-  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
-}
-.sanat-visual-result-card:hover {
-  border-color: #efbd9b;
-  box-shadow: 0 12px 26px rgba(24,36,52,.085);
-  transform: translateY(-2px);
-}
-.sanat-visual-result-card__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 7px;
-  font-size: 10px;
-}
-.sanat-visual-result-card__rank {
-  color: #475363;
-  font-weight: 850;
-}
-.sanat-visual-result-card__score {
-  padding: 6px 8px;
-  border-radius: 9px;
-  background: #fff2e9;
-  color: #bd5415;
-  font-weight: 850;
-}
-.sanat-visual-result-card__kind {
-  padding: 6px 8px;
-  border-radius: 9px;
-  background: #f2f4f6;
-  color: #637082;
-  font-weight: 750;
-}
-.sanat-visual-result-card__image {
-  display: grid;
-  place-items: center;
-  height: 176px;
-  overflow: hidden;
-  border-radius: 14px;
-  background: #f7f8fa;
-}
-.sanat-visual-result-card__image img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 8px;
-}
-.sanat-visual-result-card__image span {
-  color: #8a94a1;
-  font-size: 11px;
-}
-.sanat-visual-result-card__body h5 {
-  margin: 0;
-  color: #26313e;
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 1.7;
-}
-.sanat-visual-result-card__family {
-  margin: 4px 0 0;
-  color: #758192;
-  font-size: 10px;
-  line-height: 1.7;
-}
-.sanat-visual-result-card__code {
-  margin: 6px 0 0;
-  color: #bd5415;
-  font-size: 11px;
-  font-weight: 850;
-  letter-spacing: .02em;
-}
-.sanat-visual-result-card__no-code {
-  display: inline-flex;
-  margin-top: 7px;
-  padding: 5px 8px;
-  border-radius: 8px;
-  background: #f2f4f6;
-  color: #5c6878;
-  font-size: 10px;
-  font-weight: 800;
-}
-.sanat-visual-result-card__image-note {
-  margin: 5px 0 0;
-  color: #84909e;
-  font-size: 9px;
-  line-height: 1.8;
-}
-.sanat-visual-result-card__specs {
-  display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-  gap: 6px;
-  margin: 0;
-}
-.sanat-visual-result-card__specs div {
-  min-width: 0;
-  padding: 8px;
-  border-radius: 10px;
-  background: #f7f8fa;
-}
-.sanat-visual-result-card__specs dt {
-  color: #8a94a1;
-  font-size: 9px;
-}
-.sanat-visual-result-card__specs dd {
-  margin: 3px 0 0;
-  color: #394555;
-  font-size: 10px;
-  font-weight: 800;
-}
-.sanat-visual-result-card__reason {
-  margin: 0;
-  color: #6c7887;
-  font-size: 10px;
-  line-height: 1.9;
-}
-.sanat-visual-result-card__actions {
-  display: flex;
-  gap: 7px;
-  margin-top: auto;
-  padding-top: 10px;
-  border-top: 1px solid #edf0f3;
-}
-.sanat-visual-result-card__actions a {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  min-height: 38px;
-  padding: 8px;
-  border: 1px solid #e5e9ef;
-  border-radius: 11px;
-  color: #485565;
-  font-size: 10px;
-  font-weight: 850;
-  text-align: center;
-  text-decoration: none;
-}
-.sanat-visual-result-card__actions a:first-child {
-  border-color: #e56b1e;
-  background: #e56b1e;
-  color: #fff;
-}
-.sanat-visual-result-card__actions a:hover { filter: brightness(.97); }
-.sanat-visual-results__more {
-  width: 100%;
-  min-height: 43px;
-  border: 1px solid #f0c7aa;
-  border-radius: 12px;
-  background: #fff7f1;
-  color: #b95012;
-  font-size: 11px;
-  font-weight: 850;
-}
-
-@media (max-width: 680px) {
-  .sanat-visual-search-shell .sanat-scan-intro,
-  .sanat-visual-search-shell .sanat-scan-intro__copy { min-height: 125px; }
-  .sanat-visual-search-shell .sanat-scan-intro__copy { padding: 15px 17px; }
-  .sanat-region-picker { padding: 11px; border-radius: 18px; }
-  .sanat-region-picker__header { align-items: flex-start; }
-  .sanat-region-picker__layout { grid-template-columns: minmax(0,1fr); }
-  .sanat-region-picker__canvas { border-radius: 14px; }
-  .sanat-region-picker__frame,
-  .sanat-region-picker__frame > img { max-height: 54dvh; }
-  .sanat-region-picker__side {
-    display: grid;
-    grid-template-columns: 104px minmax(0,1fr);
-    align-items: center;
-    gap: 8px 10px;
-    padding: 9px;
-  }
-  .sanat-region-picker__side-title { grid-column: 1 / -1; }
-  .sanat-region-picker__crop,
-  .sanat-region-picker__empty { grid-row: span 2; max-height: 112px; }
-  .sanat-region-picker__side p { align-self: end; }
-  .sanat-region-picker__side button { align-self: start; min-height: 35px; }
-  .sanat-visual-results__grid { grid-template-columns: minmax(0,1fr); gap: 10px; }
-  .sanat-visual-result-card {
-    display: grid;
-    grid-template-columns: 112px minmax(0,1fr);
-    gap: 9px 11px;
-    padding: 11px;
-    border-radius: 16px;
-  }
-  .sanat-visual-result-card__meta { grid-column: 1 / -1; }
-  .sanat-visual-result-card__image {
-    grid-column: 1;
-    grid-row: 2 / span 2;
-    height: 112px;
-    border-radius: 12px;
-  }
-  .sanat-visual-result-card__body { grid-column: 2; grid-row: 2; align-self: center; }
-  .sanat-visual-result-card__specs,
-  .sanat-visual-result-card__reason,
-  .sanat-visual-result-card__actions { grid-column: 1 / -1; }
-  .sanat-visual-result-card__image-note { display: none; }
-  .sanat-visual-result-card__actions a { min-height: 40px; }
-}
-
-
-/* Upload/camera stage: less visual noise, more room for the submitted part. */
-.sanat-visual-search-wizard {
-  background: #fff;
-  border: 1px solid #e9edf2;
-  box-shadow: 0 18px 52px rgba(20,31,46,.09);
-}
-.sanat-visual-search-hero {
-  min-width: 0;
-  background: #111a27;
-}
-.sanat-visual-search-hero__content { min-width: 0; }
-.sanat-visual-search-hero__copy h3 { letter-spacing: -.025em; }
-.sanat-visual-search-form {
-  min-width: 0;
-  background: linear-gradient(180deg,#fff 0%,#f8fafc 100%);
-}
-.sanat-visual-stepper {
-  margin-bottom: 4px;
-  border-color: #e8edf2;
-}
-.sanat-visual-stepper > div { max-width: 440px; }
-.sanat-visual-search-heading h3 { letter-spacing: -.025em; }
-.sanat-visual-search-heading p { max-width: 42rem; }
-.sanat-visual-upload-dropzone {
-  min-height: 190px;
-  border-color: #efc6aa;
-  background: linear-gradient(135deg,#fff 0%,#fff7f1 100%);
-  box-shadow: inset 0 0 0 1px rgba(229,107,30,.035);
-}
-.sanat-visual-upload-dropzone:hover {
-  border-color: #e56b1e;
-  background: linear-gradient(135deg,#fff 0%,#fff1e6 100%);
-  box-shadow: 0 12px 30px rgba(229,107,30,.09);
-}
-.sanat-visual-image-preview {
-  background: #fff;
-  border-color: #e5e9ef;
-  box-shadow: 0 8px 22px rgba(28,39,53,.055);
-}
-.sanat-visual-image-preview > div:first-child {
-  border-radius: 14px;
-  background: #f7f8fa;
-}
-.sanat-visual-search-form input,
-.sanat-visual-search-form textarea,
-.sanat-visual-search-form select {
-  border-radius: 12px;
-}
-@media (max-width: 1023px) {
-  .sanat-visual-search-hero {
-    min-height: 146px;
-    padding-bottom: 14px;
-  }
-  .sanat-visual-search-hero__content {
-    display: grid;
-    grid-template-columns: minmax(0,1fr);
-    gap: 0;
-  }
-  .sanat-visual-search-hero__copy {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    min-width: 0;
-  }
-  .sanat-visual-search-hero__image { display: none !important; }
-  .sanat-visual-search-hero__copy h3 { font-size: 19px; }
-  .sanat-visual-search-hero__copy p { max-width: 34rem; }
-}
-@media (max-width: 640px) {
-  .sanat-visual-search-wizard {
-    min-height: 0;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-  }
-  .sanat-visual-search-hero {
-    min-height: 128px;
-    padding: 48px 16px 12px;
-  }
-  .sanat-visual-search-hero__copy h3 { font-size: 17px; }
-  .sanat-visual-search-hero__copy p { font-size: 11px; line-height: 1.8; }
-  .sanat-visual-search-form { padding: 13px !important; }
-  .sanat-visual-stepper { padding-bottom: 12px; }
-  .sanat-visual-stepper > div { max-width: 100%; }
-  .sanat-visual-stepper > div > div { gap: 5px; }
-  .sanat-visual-stepper > div > div > div:first-child { width: 32px; height: 32px; }
-  .sanat-visual-stepper span { font-size: 10px; }
-  .sanat-visual-search-heading h3 { font-size: 17px; }
-  .sanat-visual-upload-dropzone {
-    min-height: 156px;
-    padding: 18px 14px;
-    border-radius: 17px;
-  }
-  .sanat-visual-image-preview { padding: 10px; gap: 10px; }
-}
-
-
-/* Explicit crop search action: selection is preview-only until the customer confirms. */
-.sanat-region-picker__side .sanat-region-picker__search {
-  border-color: #d95f17;
-  color: #fff;
-  background: linear-gradient(120deg,#ef812f,#d95f17);
-  box-shadow: 0 6px 16px rgba(217,95,23,.18);
-}
-.sanat-region-picker__side .sanat-region-picker__search:hover:not(:disabled) {
-  background: linear-gradient(120deg,#f18d43,#c95110);
-}
-.sanat-region-picker__side .sanat-region-picker__search:disabled {
-  opacity: .45;
-  cursor: not-allowed;
-}
-.sanat-region-picker__side .sanat-region-picker__full-image {
-  background: #fff;
-}
-@media (max-width:680px) {
-  .sanat-region-picker__side .sanat-region-picker__search,
-  .sanat-region-picker__side .sanat-region-picker__full-image {
-    min-height: 42px;
-    width: 100%;
-  }
-}
-
-/* Phase 9 — evidence-first vision UX. Scope to the existing scanner so
-   product, category and admin cards retain their original design. */
-.sanat-visual-search-shell .sp-vision-journey {
-  position: relative;
-  z-index: 4;
-  display: grid;
-  grid-template-columns: repeat(4,minmax(0,1fr));
-  gap: 7px;
-  padding: 12px 14px;
-  border-bottom: 1px solid #e1e6ed;
-  background: linear-gradient(110deg,#fff,#f6f8fa 60%,#fff4ed);
-}
-.sanat-visual-search-shell .sp-vision-journey__step {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  padding: 9px 11px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  color: #7d8793;
-}
-.sanat-visual-search-shell .sp-vision-journey__step.is-current {
-  border-color: #efb790;
-  background: #fff1e7;
-  color: #8e3b0c;
-  box-shadow: 0 3px 12px rgba(224,101,24,.09);
-}
-.sanat-visual-search-shell .sp-vision-journey__step.is-complete {
-  color: #34624a;
-}
-.sanat-visual-search-shell .sp-vision-journey__number {
-  display: grid;
-  place-items: center;
-  width: 27px;
-  height: 27px;
-  flex: 0 0 27px;
-  border: 1px solid #dfe4ea;
-  border-radius: 10px;
-  background: #fff;
-  color: inherit;
-  font: 800 12px/1 inherit;
-}
-.sanat-visual-search-shell .is-current .sp-vision-journey__number {
-  background: #e06518;
-  border-color: #e06518;
-  color: white;
-}
-.sanat-visual-search-shell .is-complete .sp-vision-journey__number {
-  background: #e7f6ee;
-  border-color: #c0e6d1;
-}
-.sanat-visual-search-shell .sp-vision-journey__step strong {
-  display: block;
-  font-size: 11px;
-  line-height: 1.7;
-  font-weight: 850;
-  white-space: normal;
-}
-.sanat-visual-search-shell .sp-vision-journey__step small {
-  display: block;
-  margin-top: 1px;
-  font-size: 10px;
-  line-height: 1.7;
-  color: #87919b;
-}
-.sp-vision-result-panel { min-width: 0; }
-.sp-vision-result-intro {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
-  padding: 18px 20px;
-  border: 1px solid #e7eaf0;
-  border-radius: 18px;
-  background: linear-gradient(115deg,#fff 40%,#fff6ef);
-}
-.sp-vision-result-intro > div > span {
-  display: block;
-  color: #c35c1d;
-  direction: ltr;
-  text-align: right;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .08em;
-}
-.sp-vision-result-intro h3 {
-  margin-top: 5px;
-  color: #222d39;
-  font-size: clamp(17px,2vw,23px);
-  font-weight: 900;
-}
-.sp-vision-result-intro p {
-  margin-top: 5px;
-  color: #627081;
-  font-size: 12px;
-  line-height: 1.9;
-}
-.sp-vision-result-intro__status {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 11px;
-  border: 1px solid #efcf9c;
-  border-radius: 10px;
-  background: #fff9ed;
-  color: #926017;
-  font-size: 11px;
-  font-weight: 800;
-}
-.sanat-visual-search-shell .sp-vision-match-grid {
-  display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-  align-items: stretch;
-  gap: 15px;
-}
-.sanat-visual-search-shell .sp-vision-match-card {
-  min-width: 0;
-  padding: 15px;
-  border-radius: 20px;
-}
-.sanat-visual-search-shell .sp-vision-match-layout {
-  display: grid;
-  grid-template-columns: minmax(165px,.95fr) minmax(0,1.05fr);
-  gap: 13px;
-  align-items: start;
-  min-width: 0;
-}
-.sp-catalog-photo {
-  position: relative;
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  isolation: isolate;
-  border: 1px solid #e3e8ef;
-  border-radius: 15px;
-  background: radial-gradient(ellipse at 50% 32%,#fff 0%,#f4f6f9 74%);
-}
-.sp-catalog-photo__open,
-.sp-catalog-photo__empty {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  text-align: center;
-}
-.sp-catalog-photo__open {
-  cursor: zoom-in;
-  outline-offset: -3px;
-}
-.sp-catalog-photo__open img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  padding: 12px;
-  object-fit: contain;
-  object-position: center;
-  transition: transform .22s ease;
-}
-.sp-catalog-photo__open:hover img {
-  transform: scale(1.075);
-}
-.sp-catalog-photo__open:focus-visible {
-  outline: 3px solid #e06518;
-  border-radius: inherit;
-}
-.sp-catalog-photo__zoom {
-  position: absolute;
-  bottom: 9px;
-  left: 9px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 7px 9px;
-  border-radius: 9px;
-  background: rgba(28,37,49,.87);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 750;
-}
-.sp-catalog-photo__family {
-  position: absolute;
-  z-index: 1;
-  top: 8px;
-  right: 8px;
-  max-width: calc(100% - 16px);
-  padding: 5px 7px;
-  border: 1px solid #ead4a8;
-  border-radius: 7px;
-  background: rgba(255,251,237,.94);
-  color: #8c6319;
-  font-size: 10px;
-  font-weight: 750;
-  pointer-events: none;
-}
-.sp-catalog-photo__missing {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  max-width: 24ch;
-  padding: 16px;
-  color: #697889;
-  font-size: 11px;
-  line-height: 1.9;
-}
-.sanat-visual-search-shell .sp-vision-match-photo {
-  width: 100%;
-  height: 218px;
-}
-.sanat-visual-search-shell .sp-vision-photo-evidence {
-  width: 100%;
-  height: 204px;
-}
-.sanat-visual-result-card__image.sp-catalog-photo {
-  display: block;
-  width: 100%;
-  height: auto;
-  min-height: 210px;
-  aspect-ratio: 4 / 3;
-  padding: 0;
-}
-.sanat-visual-result-card__image.sp-catalog-photo .sp-catalog-photo__open img {
-  padding: 10px;
-}
-.sp-catalog-lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  display: grid;
-  place-items: center;
-  padding: max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
-  background: rgba(13,20,30,.89);
-  backdrop-filter: blur(5px);
-}
-.sp-catalog-lightbox__dialog {
-  display: flex;
-  flex-direction: column;
-  width: min(100%,860px);
-  max-height: 95dvh;
-  min-width: 0;
-  border: 1px solid rgba(255,255,255,.18);
-  border-radius: 20px;
-  overflow: hidden;
-  background: #fff;
-  box-shadow: 0 32px 90px rgba(0,0,0,.35);
-}
-.sp-catalog-lightbox__toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 13px 17px;
-  border-bottom: 1px solid #e4e8ed;
-  color: #283441;
-  font-size: 13px;
-  font-weight: 800;
-}
-.sp-catalog-lightbox__toolbar button {
-  display: grid;
-  place-items: center;
-  width: 43px;
-  height: 43px;
-  border-radius: 11px;
-  background: #f1f3f6;
-  cursor: pointer;
-}
-.sp-catalog-lightbox__dialog > img {
-  width: 100%;
-  max-height: 69dvh;
-  min-height: 120px;
-  padding: 16px;
-  object-fit: contain;
-  background: #f9fafb;
-}
-.sp-catalog-lightbox__dialog > p {
-  padding: 10px 15px 14px;
-  color: #657184;
-  font-size: 12px;
-  line-height: 1.9;
-  text-align: right;
-}
-@media (max-width: 760px) {
-  .sanat-visual-search-shell .sp-vision-journey {
-    display: flex;
-    gap: 6px;
-    padding: 10px;
-    overflow-x: auto;
-    scrollbar-width: thin;
-    scroll-snap-type: x mandatory;
-  }
-  .sanat-visual-search-shell .sp-vision-journey__step {
-    flex: 0 0 122px;
-    padding: 7px;
-    scroll-snap-align: start;
-  }
-  .sanat-visual-search-shell .sp-vision-journey__step strong { font-size: 10px; }
-  .sanat-visual-search-shell .sp-vision-journey__step small { font-size: 9px; }
-  .sanat-visual-search-shell .sp-vision-match-grid { grid-template-columns: minmax(0,1fr); gap: 13px; }
-  .sanat-visual-search-shell .sp-vision-match-layout { grid-template-columns: minmax(0,1fr); gap: 13px; }
-  .sanat-visual-search-shell .sp-vision-match-photo { height: clamp(210px,56vw,310px); }
-  .sanat-visual-search-shell .sp-vision-match-card { padding: 12px; }
-  .sanat-visual-result-card__image.sp-catalog-photo {
-    grid-column: 1 / -1;
-    grid-row: auto;
-    height: clamp(195px,56vw,290px);
-    aspect-ratio: auto;
-  }
-  .sanat-visual-result-card__image-note { display: block; }
-  .sanat-visual-result-card__body { grid-column: 1 / -1; grid-row: auto; }
-  .sp-vision-result-intro { padding: 14px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sp-catalog-photo__open img,
-  .sanat-visual-result-card { transition: none; }
-  .sp-catalog-photo__open:hover img { transform: none; }
-}
-
-/* Approved 2026-11-22 FORZA ZIP: focus dot and tactile tap feedback.
-   Scoped to the existing selector; actual region detection is not replaced. */
-.sanat-region-picker__frame > .fv-object-dot {
-  position: absolute;
-  z-index: 5;
-  pointer-events: none;
-  width: 16px;
-  height: 16px;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  border: 2.5px solid #fff;
-  background: #e06518;
-  box-shadow: 0 0 0 4px rgba(224,101,24,.36), 0 2px 8px rgba(0,0,0,.28);
-}
-@keyframes fv-approved-tap-ripple {
-  0% { transform: translate(-50%,-50%) scale(.35); opacity: .95; }
-  100% { transform: translate(-50%,-50%) scale(2.1); opacity: 0; }
-}
-.sanat-region-picker__frame > .fv-tap-ripple {
-  position: absolute;
-  z-index: 6;
-  pointer-events: none;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  border: 2px solid #e06518;
-  background: radial-gradient(circle,rgba(224,101,24,.32),transparent 72%);
-  animation: fv-approved-tap-ripple 480ms cubic-bezier(.16,1,.3,1) forwards;
-}
-@media (prefers-reduced-motion: reduce) {
-  .sanat-region-picker__frame > .fv-tap-ripple { animation: none; opacity: .35; }
-}
-
-/* Approved ZIP: product imagery stays clean inside result cards, with zoom retained. */
-.sp-catalog-photo--clean { border: 0; border-radius: 0; background: transparent; }
-
-
-/* Approved ZIP camera HUD: white industrial workbench, calibrated reticle and optical sweep. */
 .fv-workbench {
   background-color: #ffffff;
   color: #2b313a;
@@ -1444,6 +11,7 @@
   flex-direction: column;
 }
 
+/* Pinch-locked camera viewfinder stage: touch-action: none stops browser zoom */
 .fv-camera-stage {
   touch-action: none;
   overscroll-behavior: none;
@@ -1451,6 +19,7 @@
   -webkit-user-select: none;
 }
 
+/* Camera calibrated precision L-corner reticle */
 .fv-corner-brackets {
   position: relative;
   background:
@@ -1465,9 +34,20 @@
 }
 
 @keyframes fv-scan-sweep {
-  0% { transform: translateY(8px); opacity: 0; }
-  15%, 85% { opacity: 0.85; }
-  100% { transform: translateY(calc(100% - 10px)); opacity: 0; }
+  0% {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  85% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateY(calc(100% - 10px));
+    opacity: 0;
+  }
 }
 
 .fv-scan-laser {
@@ -1482,6 +62,7 @@
   animation: fv-scan-sweep 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
+/* Sleek white rounded L-corner Lens Bracket */
 .fv-lens-bracket {
   position: absolute;
   pointer-events: none;
@@ -1494,15 +75,28 @@
     height 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.fv-lens-bracket--box-mask { box-shadow: 0 0 0 9999px rgba(17, 21, 28, 0.56); }
-.fv-lens-bracket--light-mask { box-shadow: 0 0 0 9999px rgba(255, 255, 255, 0.52); }
-
-@keyframes fv-bracket-lock {
-  0% { transform: scale(1.045); opacity: 0.72; }
-  100% { transform: scale(1); opacity: 1; }
+.fv-lens-bracket--box-mask {
+  box-shadow: 0 0 0 9999px rgba(17, 21, 28, 0.56);
 }
 
-.fv-lens-bracket--locking { animation: fv-bracket-lock 320ms cubic-bezier(0.16, 1, 0.3, 1); }
+.fv-lens-bracket--light-mask {
+  box-shadow: 0 0 0 9999px rgba(255, 255, 255, 0.52);
+}
+
+@keyframes fv-bracket-lock {
+  0% {
+    transform: scale(1.045);
+    opacity: 0.72;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.fv-lens-bracket--locking {
+  animation: fv-bracket-lock 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
 
 .fv-lens-corner {
   position: absolute;
@@ -1519,28 +113,36 @@
 }
 
 .fv-lens-corner--tl {
-  top: -1.5px; left: -1.5px;
+  top: -1.5px;
+  left: -1.5px;
   border-width: 3.5px 0 0 3.5px;
   border-top-left-radius: 14px;
 }
+
 .fv-lens-corner--tr {
-  top: -1.5px; right: -1.5px;
+  top: -1.5px;
+  right: -1.5px;
   border-width: 3.5px 3.5px 0 0;
   border-top-right-radius: 14px;
 }
+
 .fv-lens-corner--bl {
-  bottom: -1.5px; left: -1.5px;
+  bottom: -1.5px;
+  left: -1.5px;
   border-width: 0 0 3.5px 3.5px;
   border-bottom-left-radius: 14px;
 }
+
 .fv-lens-corner--br {
-  bottom: -1.5px; right: -1.5px;
+  bottom: -1.5px;
+  right: -1.5px;
   border-width: 0 3.5px 3.5px 0;
   border-bottom-right-radius: 14px;
 }
 
 @keyframes fv-dot-pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(-50%, -50%) scale(1);
     box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25), 0 2px 8px rgba(0, 0, 0, 0.45);
   }
@@ -1574,8 +176,14 @@
 }
 
 @keyframes fv-tap-ripple {
-  0% { transform: translate(-50%, -50%) scale(0.35); opacity: 0.95; }
-  100% { transform: translate(-50%, -50%) scale(2.1); opacity: 0; }
+  0% {
+    transform: translate(-50%, -50%) scale(0.35);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.1);
+    opacity: 0;
+  }
 }
 
 .fv-tap-ripple {
@@ -1588,8 +196,12 @@
 }
 
 @keyframes fv-indeterminate-slide {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(-160%); }
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-160%);
+  }
 }
 
 .fv-indeterminate-bar {
@@ -1610,57 +222,360 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fv-lens-bracket { transition: none; }
+  .fv-lens-bracket {
+    transition: none;
+  }
   .fv-object-dot,
   .fv-scan-laser,
   .fv-indeterminate-bar::after,
-  .fv-lens-bracket--locking { animation: none; }
+  .fv-lens-bracket--locking {
+    animation: none;
+  }
 }
 
-/* KIKI multi-object optical selector — candidate buttons use real detected boxes. */
-.fv-region-candidates {
+/* Catalog image frames & lightbox */
+.sp-catalog-photo {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #dfe3e6;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.sp-catalog-photo--clean {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sp-catalog-photo__open,
+.sp-catalog-photo__empty {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.sp-catalog-photo__open {
+  cursor: zoom-in;
+}
+
+.sp-catalog-photo__open img {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  object-fit: contain;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sp-catalog-photo--clean .sp-catalog-photo__open img {
+  padding: 8px;
+}
+
+.sp-catalog-photo__open:hover img {
+  transform: scale(1.04);
+}
+
+.sp-catalog-photo__zoom {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(43, 49, 58, 0.85);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sp-catalog-photo__missing {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  padding: 18px;
+  color: #74757c;
+  font-size: 12px;
+  text-align: center;
+}
+
+.sp-catalog-photo__family {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(43, 49, 58, 0.85);
+  color: #ffffff;
+  font-size: 10px;
+}
+
+.sp-vision-match-photo,
+.sp-vision-photo-evidence {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+}
+
+.sp-catalog-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(17, 21, 28, 0.88);
+  backdrop-filter: blur(4px);
+}
+
+.sp-catalog-lightbox__dialog {
+  width: min(100%, 760px);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #dfe3e6;
+}
+
+.sp-catalog-lightbox__toolbar {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
-  gap: 8px;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scrollbar-width: thin;
-  max-width: 100%;
-  padding: 11px 2px;
-  margin-top: 10px;
-  border-top: 1px solid #dfe3e6;
-  direction: rtl;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #dfe3e6;
+  font-size: 13px;
+  font-weight: 700;
+  color: #2b313a;
 }
-.fv-region-candidates__heading {
-  flex: 0 0 auto;
-  color: #74757c;
-  font-size: 11px;
-  font-weight: 750;
-}
-.fv-region-candidates__item {
-  flex: 0 0 auto;
-  min-height: 34px;
-  padding: 6px 13px;
-  border-radius: 999px;
-  border: 1px solid #dfe3e6;
-  background: #fff;
+
+.sp-catalog-lightbox__toolbar button {
+  padding: 4px;
   color: #55565a;
-  font-size: 11px;
-  font-weight: 800;
   cursor: pointer;
 }
-.fv-region-candidates__item:hover,
-.fv-region-candidates__item:focus-visible {
-  border-color: #e06518;
-  outline-offset: 2px;
+
+.sp-catalog-lightbox__dialog > img {
+  width: 100%;
+  max-height: 68dvh;
+  object-fit: contain;
+  padding: 20px;
+  background: #f5f6f6;
 }
-.fv-region-candidates__item.is-active {
-  color: #fff;
+
+.sp-catalog-lightbox__dialog > p {
+  padding: 10px 16px 14px;
+  font-size: 12px;
+  color: #55565a;
+  border-top: 1px solid #dfe3e6;
+}
+
+/* LocalModelResults & Website-Aligned Engineering Cards */
+.sanat-visual-results {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sanat-visual-results__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #dfe3e6;
+}
+
+.sanat-visual-results__eyebrow {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #e06518;
+  font-family: monospace;
+}
+
+.sanat-visual-results__header h4 {
+  margin-top: 2px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #2b313a;
+}
+
+.sanat-visual-results__header p {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #74757c;
+}
+
+.sanat-visual-results__count {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #55565a;
+  font-variant-numeric: tabular-nums;
+}
+
+.sanat-visual-results__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sanat-visual-result-card {
+  height: 100%;
+  background: #ffffff;
+  border: 1px solid #dfe3e6;
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.sanat-visual-result-card:hover {
+  border-color: rgba(224, 101, 24, 0.55);
+  background: #fafbfb;
+}
+
+.sanat-visual-result-card__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #74757c;
+}
+
+.sanat-visual-result-card__rank {
+  font-weight: 700;
+  color: #2b313a;
+}
+
+.sanat-visual-result-card__score {
+  font-weight: 700;
+  color: #e06518;
+  font-variant-numeric: tabular-nums;
+}
+
+.sanat-visual-result-card__kind {
+  color: #55565a;
+}
+
+.sanat-visual-result-card__image {
+  aspect-ratio: 4 / 3;
+  background: #f5f6f6;
+  border: 1px solid #e7e8ec;
+}
+
+.sanat-visual-result-card__body h5 {
+  font-size: 13px;
+  font-weight: 800;
+  color: #2b313a;
+  line-height: 1.5;
+}
+
+.sanat-visual-result-card__family,
+.sanat-visual-result-card__reason {
+  font-size: 11.5px;
+  color: #74757c;
+  line-height: 1.65;
+}
+
+.sanat-visual-result-card__code {
+  font-family: monospace;
+  font-size: 12px;
+  color: #c95210;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.sanat-visual-result-card__no-code,
+.sanat-visual-result-card__image-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #74757c;
+}
+
+.sanat-visual-result-card__specs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f5f6f6;
+  border: 1px solid #e7e8ec;
+  font-size: 11px;
+  margin: 0;
+}
+
+.sanat-visual-result-card__specs dt {
+  color: #74757c;
+  font-weight: 500;
+}
+
+.sanat-visual-result-card__specs dd {
+  color: #2b313a;
+  font-weight: 700;
+  margin: 0;
+}
+
+.sanat-visual-result-card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.sanat-visual-result-card__actions a {
+  flex: 1;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: #f3f4f6;
+  color: #2b313a;
+  border: 1px solid #dfe3e6;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.sanat-visual-result-card__actions a:first-child {
   background: #e06518;
   border-color: #e06518;
+  color: #ffffff;
 }
-@media (max-width: 580px) {
-  .fv-region-candidates { padding-inline: 7px; }
-  .fv-region-candidates__item { min-height: 40px; }
+
+.sanat-visual-result-card__actions a:first-child:hover {
+  background: #c95210;
+}
+
+.sanat-visual-results__more {
+  align-self: center;
+  min-height: 40px;
+  padding: 0 20px;
+  border-radius: 9999px;
+  border: 1px solid #dfe3e6;
+  background: #ffffff;
+  color: #2b313a;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sanat-visual-results__more:hover {
+  border-color: #e06518;
+  color: #e06518;
 }
