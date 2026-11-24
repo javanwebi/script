@@ -1998,6 +1998,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="flex min-h-[100dvh] lg:h-[100dvh] flex-col bg-[#FFFFFF] text-[#2B313A] lg:overflow-hidden"
           aria-label="لنز هوشمند و محصولات مشابه"
+          data-testid="kiki-vision-results-shell"
         >
           <div className="flex flex-1 flex-col lg:grid lg:grid-cols-12 lg:h-full lg:overflow-hidden">
             {/* -------------------------------------------------------------- */}
@@ -2005,7 +2006,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
             {/* -------------------------------------------------------------- */}
             <div className="relative flex shrink-0 flex-col bg-[#F5F6F6] lg:col-span-5 lg:h-full lg:border-l lg:border-[#DFE3E6]">
               {/* Top Floating Controls */}
-              <div className="pointer-events-none absolute top-0 left-0 right-0 z-30 flex items-center justify-between gap-2 px-3 sm:px-5 pt-3.5">
+              <div data-testid="forza-vision-optical-toolbar" className="pointer-events-none absolute top-0 left-0 right-0 z-30 flex items-center justify-between gap-2 px-3 sm:px-5 pt-3.5">
                 <button
                   type="button"
                   onClick={handleCloseAction}
@@ -2146,6 +2147,8 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
             {/* -------------------------------------------------------------- */}
             <div
               ref={mobileResultsAnchorRef}
+              data-sheet-expanded={mobileSheetExpanded}
+              aria-expanded={mobileSheetExpanded}
               className={`flex flex-1 min-h-0 flex-col bg-[#FFFFFF] text-[#2B313A] lg:col-span-7 lg:h-full lg:overflow-y-auto transition-all ${
                 mobileSheetExpanded
                   ? 'fixed inset-0 z-40 rounded-none mt-0 overflow-y-auto lg:static lg:inset-auto lg:z-auto'
@@ -2163,7 +2166,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
               </div>
 
               {/* Sticky Summary Header */}
-              <div className="sticky top-0 z-20 border-b border-[#DFE3E6] bg-[#FFFFFF]/95 px-4 py-3 backdrop-blur sm:px-6">
+              <div data-testid="forza-vision-catalog-sheet-header" className="sticky top-0 z-20 border-b border-[#DFE3E6] bg-[#FFFFFF]/95 px-4 py-3 backdrop-blur sm:px-6">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-13 w-13 sm:h-14 sm:w-14 shrink-0 overflow-hidden rounded-xl border border-[#DFE3E6] bg-[#F5F6F6] p-1">
@@ -2275,7 +2278,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
               <div className="flex-1 p-4 sm:p-6">
                 {unifiedProducts.length > 0 ? (
                   <>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
+                    <div data-testid="forza-vision-catalog-results" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
                       {(mobileSheetExpanded ? unifiedProducts : unifiedProducts.slice(0, 12)).map(
                         renderUnifiedProductCard,
                       )}
@@ -2310,12 +2313,15 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-[#DFE3E6] bg-[#F5F6F6] p-8 text-center">
+                  <div data-testid="vision-kiki-no-match" className="rounded-2xl border border-[#DFE3E6] bg-[#F5F6F6] p-8 text-center">
                     <p className="text-sm font-bold text-[#2B313A]">
                       محصول مشابهی در کاتالوگ پیدا نشد
                     </p>
                     <p className="mt-1 text-xs text-[#74757C]">
                       روی بخش دیگری از تصویر کلیک کنید یا درخواست ساخت سفارشی ثبت کنید.
+                    </p>
+                    <p className="mt-3 text-[11px] leading-6 text-[#74757C]">
+                      برای تحلیل، نسخه موقت تصویر به API شناسایی ارسال می‌شود؛ تصویر اصلی در حافظه محلی مرورگر نگهداری می‌شود و در CRM ذخیره نمی‌شود. تصویر فقط با ثبت نهایی فرم به درخواست ساخت پیوست می‌شود.
                     </p>
                   </div>
                 )}
@@ -2345,14 +2351,14 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                       <span>ثبت سفارش ساخت</span>
                     </button>
                     <a
-                      href="tel:02166700000"
+                      href="tel:03535254703"
                       className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[#DFE3E6] bg-[#FFFFFF] px-2.5 sm:px-3 text-xs font-semibold text-[#2B313A] hover:border-[#2B313A] transition-colors whitespace-nowrap"
                     >
                       <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                       <span>تماس</span>
                     </a>
                     <a
-                      href="https://wa.me/989120000000"
+                      href="https://wa.me/989903427027"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 sm:px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors whitespace-nowrap"
@@ -2372,7 +2378,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
       {/* SCREEN: WEBSITE-ALIGNED ENTRY PORTAL (DESKTOP & MOBILE RESPONSIVE)   */}
       {/* ==================================================================== */}
       {screen === 'entry' && (
-        <div className="flex min-h-[100dvh] flex-col bg-[#FFFFFF] text-[#2B313A]">
+        <div data-testid="forza-vision-entry" className="flex min-h-[100dvh] flex-col bg-[#FFFFFF] text-[#2B313A]">
           {/* Clean Branded Header */}
           <header className="border-b border-[#DFE3E6] bg-[#FFFFFF] shrink-0">
             <div className="mx-auto flex h-16 sm:h-18 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
@@ -2432,6 +2438,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                   const f = e.dataTransfer.files?.[0];
                   if (f) handleFile(f);
                 }}
+                data-testid="forza-vision-upload-panel"
                 className={`relative overflow-hidden flex flex-col justify-between rounded-3xl border p-5 sm:p-8 lg:col-span-7 transition-colors ${
                   isDragOver
                     ? 'border-[#E06518] bg-[#FFF4EC]'
