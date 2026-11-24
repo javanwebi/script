@@ -7655,6 +7655,7 @@ app.get('/api/ai/forza-live-status', (_req, res) => {
     model: (process.env.FORZA_LIVE_MODEL || 'gemini-3.8-live').trim(),
     transport: 'websocket',
     maxSessionMs,
+    maxSessionsPerHour: Number(process.env.FORZA_LIVE_MAX_SESSIONS_PER_HOUR) || 100,
   });
 });
 
