@@ -7653,7 +7653,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
 // Dedicated bidirectional FORZA Live gateway. Provider credentials stay server-side.
 app.get('/api/ai/forza-live-status', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  const enabled = process.env.FORZA_LIVE_ENABLED !== 'false';
+  const enabled = process.env.FORZA_LIVE_ENABLED === 'true';
   const maxSessionMs = Number(process.env.FORZA_LIVE_MAX_SESSION_MS) || 240_000;
   res.json({
     enabled,
