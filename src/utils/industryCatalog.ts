@@ -26,6 +26,19 @@ function normalize(value: unknown): string {
     .trim();
 }
 
+const CONTEXT_STOPWORDS = new Set([
+  "و", "از", "در", "برای", "با", "به", "تا", "یا", "که", "این", "آن",
+  "را", "روی", "زیر", "یک", "نوع", "خط", "کار", "مورد", "است", "باشد",
+  "شود", "می", "هم", "هر", "بین", "بعد", "قبل", "نیاز",
+  "قطعه", "قطعات", "محصول", "فرایند", "فرآیند", "تولید", "مرحله", "مناسب",
+]);
+
+function tokenizeTechnicalTerms(value: string): string[] {
+  return normalize(value)
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(token => token.length >= 3 && !CONTEXT_STOPWORDS.has(token));
+}
+
 function productRelevance(product: Product, terms: readonly string[]): number {
   const name = normalize(product.name);
   const taxonomy = normalize([
@@ -51,8 +64,10 @@ function productRelevance(product: Product, terms: readonly string[]): number {
     else if (tags.includes(term)) score += 6;
     else if (details.includes(term)) score += 2;
   }
-  if (product.featured) score += 1;
-  if (product.hasCatalogueImage) score += 1;
+  // Quality signals may break ties, but must never turn an unrelated item
+  // into a match for an industry or production station.
+  if (score > 0 && product.featured) score += 1;
+  if (score > 0 && product.hasCatalogueImage) score += 1;
   return score;
 }
 
@@ -74,6 +89,68 @@ export function rankIndustryProducts(
     .filter(product => product.active !== false && Boolean(product.code && product.name))
     .map(product => ({ product, score: productRelevance(product, terms) }))
     .filter(item => item.score > 0)
+    .sort((a, b) =>
+      b.score - a.score ||
+      Number(Boolean(b.product.featured)) - Number(Boolean(a.product.featured)) ||
+      a.product.name.localeCompare(b.product.name, "fa"),
+    )
+    .filter(item => {
+      const code = normalize(item.product.code);
+      if (!code || seen.has(code)) return false;
+      seen.add(code);
+      return true;
+    })
+    .slice(0, Math.max(0, limit))
+    .map(item => item.product);
+}
+
+/**
+ * Rank catalogue families for one production station. A stage or industry
+ * match is required for admission; customer-entered operating conditions only
+ * refine the ranking of anchored candidates and cannot create a match alone.
+ */
+export function rankIndustryStageProducts(
+  products: readonly Product[],
+  industry: IndustryCatalogDefinition,
+  stage: { title: string; subtitle?: string },
+  limit = 3,
+  extraTerms: readonly string[] = [],
+): Product[] {
+  const stageTerms = [...new Set(
+    [stage.title, stage.subtitle || ""]
+      .flatMap(term => [term, ...tokenizeTechnicalTerms(term)])
+      .map(normalize)
+      .filter(Boolean),
+  )];
+  const contextTerms = [...new Set(
+    extraTerms
+      .flatMap(term => [term, ...tokenizeTechnicalTerms(term)])
+      .map(normalize)
+      .filter(Boolean),
+  )];
+  const industryTerms = [...new Set((industry.terms || []).map(normalize).filter(Boolean))];
+  const broadTerms = INDUSTRY_KEYWORDS[industry.slug] || [];
+  const seen = new Set<string>();
+
+  return products
+    .filter(product => product.active !== false && Boolean(product.code && product.name))
+    .map(product => {
+      const stageScore = productRelevance(product, stageTerms);
+      const contextScore = productRelevance(product, contextTerms);
+      const industryScore = productRelevance(product, industryTerms);
+      const broadScore = productRelevance(product, broadTerms);
+      return {
+        product,
+        stageScore,
+        industryScore,
+        score:
+          stageScore * 4 +
+          industryScore * 2 +
+          Math.min(contextScore, 18) * 1.5 +
+          Math.min(broadScore, 8) * 0.25,
+      };
+    })
+    .filter(item => item.stageScore > 0 || item.industryScore > 0)
     .sort((a, b) =>
       b.score - a.score ||
       Number(Boolean(b.product.featured)) - Number(Boolean(a.product.featured)) ||

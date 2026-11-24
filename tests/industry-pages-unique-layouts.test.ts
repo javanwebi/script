@@ -15,6 +15,12 @@ test("all six industry routes use one lazy-loaded canonical page template", () =
   assert.match(app, /path="\/industries\/:slug"[\s\S]*?element=\{<IndustryTemplatePage \/>\}/);
   assert.match(app, /path="\/industry\/:slug"[\s\S]*?element=\{<IndustryTemplatePage \/>\}/);
   assert.match(app, /Navigate to="\/industries\/ceramic"/);
+  assert.ok(!app.includes('path="/industries/ceramic"'),
+    "the canonical ceramic page must receive its slug from the shared dynamic route");
+  assert.ok(!app.includes('path="/industries/tile-ceramic"'));
+  assert.ok(!app.includes('path="/industry/ceramic-tile"'));
+  assert.match(page, /"tile-ceramic": "ceramic"/);
+  assert.match(page, /"ceramic-tile": "ceramic"/);
   for (const slug of ["ceramic", "textile", "packaging", "food", "machinery", "rubber"]) {
     assert.ok(details.includes(slug + ": {"), "missing content for " + slug);
     assert.ok(page.includes("industry.title"), "industry content must come from the canonical registry");
@@ -41,7 +47,7 @@ test("catalog cards and stage recommendations come only from the live catalog ra
   assert.doesNotMatch(page, /databaseStorageEnabled\(\)/);
   assert.match(page, /subscribeCatalogChanges/);
   assert.match(page, /rankIndustryProducts\(products, industry, 6\)/);
-  assert.match(page, /rankIndustryProducts\(products, \{ \.\.\.industry, terms:/);
+  assert.match(page, /rankIndustryStageProducts\(products, industry, activeStage, 3\)/);
   assert.match(page, /<ProductCard/);
   assert.match(page, /نتیجه ساختگی ارائه نمی‌شود/);
   assert.match(page, /کالای تأییدشده‌ای برای پیشنهاد مستقیم پیدا نشد/);

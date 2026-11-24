@@ -163,22 +163,10 @@ export default function App() {
                       element={<Navigate to="/account" replace />}
                     />
 
-                    {/* Dedicated Tile & Ceramic Industry Page */}
+                    {/* Legacy ceramic category URL; industry slugs use the shared dynamic route below. */}
                     <Route
                       path="/category/ceramic-tiles"
                       element={<Navigate to="/industries/ceramic" replace />}
-                    />
-                    <Route
-                      path="/industries/ceramic"
-                      element={<IndustryTemplatePage />}
-                    />
-                    <Route
-                      path="/industries/tile-ceramic"
-                      element={<IndustryTemplatePage />}
-                    />
-                    <Route
-                      path="/industry/ceramic-tile"
-                      element={<IndustryTemplatePage />}
                     />
 
                     {/* 2. Category Listing */}

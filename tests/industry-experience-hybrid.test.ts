@@ -1,0 +1,122 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import type { Product } from "../src/types";
+import { INDUSTRY_EXPERIENCE } from "../src/data/industryExperience";
+import { rankIndustryStageProducts } from "../src/utils/industryCatalog";
+
+const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
+const map = read("src/components/storefront/IndustryProcessMap.tsx");
+const page = read("src/pages/IndustryTemplatePage.tsx");
+const directory = read("src/pages/DiscoveryPages.tsx");
+const styles = read("src/industry-experience.css") + read("src/pages/industry-template.css");
+const workflow = read(".github/workflows/verify-vps-build.yml");
+const consumerWorkflow = read(".github/workflows/consumer-portal-responsive.yml");
+
+test("all six industries have distinct process-map art directions", () => {
+  const expected = {
+    ceramic: "thermal",
+    textile: "woven",
+    packaging: "conveyor",
+    food: "hygiene",
+    machinery: "blueprint",
+    rubber: "polymer",
+  } as const;
+  for (const [slug, layout] of Object.entries(expected)) {
+    assert.equal(INDUSTRY_EXPERIENCE[slug as keyof typeof INDUSTRY_EXPERIENCE].layout, layout);
+    assert.match(styles, new RegExp("\\.ipt-process-map--" + layout));
+  }
+});
+
+test("the process map keeps accessible stage selection and updates the existing detail panel", () => {
+  assert.match(page, /<IndustryProcessMap/);
+  assert.match(page, /setRequestOpen\(false\);[\s\S]*?\}, \[slug\]\)/,
+    "industry navigation must close an open custom-part request modal");
+  assert.doesNotMatch(page, /ipt-production-visual/);
+  assert.match(map, /role="tablist"/);
+  assert.match(map, /role="tab"/);
+  assert.match(map, /aria-selected=\{selected\}/);
+  assert.match(map, /tabIndex=\{selected \? 0 : -1\}/);
+  assert.match(map, /event\.key === "ArrowRight"/);
+  assert.match(map, /event\.key === "ArrowLeft"/);
+  assert.match(map, /event\.key === "Home"/);
+  assert.match(map, /event\.key === "End"/);
+  assert.match(map, /aria-controls="ipt-stage-panel"/);
+  assert.match(map, /id=\{"ipt-stage-tab-" \+ index\}/);
+  assert.match(page, /aria-labelledby=\{"ipt-stage-tab-" \+ Math\.min\(activeStageIndex, stages\.length - 1\)\}/);
+  assert.match(map, /data-stage-title=\{stage\.title\}/);
+  assert.match(map, /نمای شماتیک مسیر فرایند؛ نه نقشه اجرایی کارخانه/);
+});
+
+test("the industry directory gives customers three real starting routes and an editorial six-industry grid", () => {
+  assert.match(directory, /industry-directory-paths/);
+  assert.match(directory, /to="\/products"/);
+  assert.match(directory, /to="\/identify-part"/);
+  assert.match(directory, /to="\/ai-consult"/);
+  assert.match(directory, /company-industry-grid--editorial/);
+  assert.match(styles, /grid-template-columns: repeat\(12, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /company-industry-card:nth-child\(1\)/);
+});
+
+function catalogProduct(code: string, name: string, overrides: Partial<Product> = {}): Product {
+  return {
+    code,
+    name,
+    brand: "TEST",
+    categorySlug: "industrial-parts",
+    categoryName: "قطعات صنعتی",
+    subcategory: "قطعات انتقال",
+    technicalSpecs: [],
+    prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 },
+    stock: 0,
+    inquiryOnly: true,
+    images: [],
+    tags: [],
+    unit: "عدد",
+    ...overrides,
+  };
+}
+
+test("station ranking requires stage or industry evidence and uses free-text conditions only to refine relevant matches", () => {
+  const ceramic = { slug: "ceramic", title: "کاشی و سرامیک", terms: ["تسمه", "چرخ", "مکنده", "نسوز"] };
+  const stage = { title: "کوره پخت", subtitle: "رولر، مشعل و قطعات نسوز" };
+  const contextual = catalogProduct("CAT-KILN-01", "رولر نسوز کوره", {
+    technicalSpecs: [{ key: "کاربرد", value: "کوره پخت" }],
+  });
+  const contextBoostedIndustryMatch = catalogProduct("CAT-CONTEXT-02", "تسمه صنعتی", {
+    description: "مناسب دمای بالا، فشار ۱۲ بار و سرعت ۱۲۰۰ دور در دقیقه",
+  });
+  const industryFallback = catalogProduct("CAT-BELT-03", "تسمه صنعتی انتقال");
+  const inactive = catalogProduct("CAT-OLD-03", "تسمه نسوز", { active: false });
+  const unrelatedContextOnly = catalogProduct("CAT-OTHER-04", "دستکش ایمنی", {
+    description: "مناسب دمای بالا، فشار ۱۲ بار و سرعت ۱۲۰۰ دور در دقیقه",
+    featured: true,
+    hasCatalogueImage: true,
+  });
+  const ranked = rankIndustryStageProducts(
+    [industryFallback, inactive, unrelatedContextOnly, contextBoostedIndustryMatch, contextual],
+    ceramic,
+    stage,
+    4,
+    ["دمای بالا، فشار ۱۲ بار و سرعت ۱۲۰۰ دور در دقیقه"],
+  );
+  assert.deepEqual(
+    ranked.map(product => product.code),
+    ["CAT-KILN-01", "CAT-CONTEXT-02", "CAT-BELT-03"],
+    "operating conditions must improve a stage/industry-matched candidate without admitting context-only products",
+  );
+});
+
+test("the consumer responsive workflow stages its pinned ONNX runtime before TypeScript and build", () => {
+  const runtimeInstall = consumerWorkflow.indexOf("onnxruntime-web@1.18.0");
+  const typecheck = consumerWorkflow.indexOf("run: npm run lint");
+  const build = consumerWorkflow.indexOf("run: npm run build");
+  assert.ok(runtimeInstall >= 0 && runtimeInstall < typecheck && typecheck < build,
+    "the responsive workflow must install ONNX before typecheck and production build");
+  assert.ok(consumerWorkflow.includes("cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/"));
+});
+
+test("the VPS workflow runs the new industry tests and all-industry responsive smoke", () => {
+  assert.match(workflow, /tests\/industry-experience-hybrid\.test\.ts/);
+  assert.match(workflow, /scripts\/tests\/industry-experience-responsive-smoke\.cjs/);
+});

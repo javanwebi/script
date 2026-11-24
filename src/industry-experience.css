@@ -1,0 +1,209 @@
+/* Hybrid industrial experience — scoped to industry directory and detail routes. */
+.company-page--industries .company-hero {
+  min-height: clamp(470px, 42vw, 590px);
+  border-radius: 4px 30px 4px 30px;
+  background:
+    radial-gradient(circle at 8% 90%, rgba(229,107,30,.13), transparent 34%),
+    linear-gradient(125deg, #fff 0%, #f6f7f6 54%, #e9eef0 100%);
+}
+.company-page--industries .company-hero-visual {
+  min-height: 390px;
+  border-radius: 4px 26px 4px 26px;
+  background: #26343d;
+}
+.company-page--industries .company-hero-visual img {
+  filter: saturate(.9) contrast(1.08);
+}
+.company-page--industries .company-hero-visual-shade {
+  background: linear-gradient(0deg, rgba(16,27,36,.82), rgba(16,27,36,.04) 70%);
+}
+.company-page--industries .company-hero-visual-caption {
+  right: 24px;
+  bottom: 24px;
+}
+.industry-directory-proof {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 18px;
+  margin-top: 25px;
+  padding-top: 17px;
+  border-top: 1px solid #e4e8eb;
+}
+.industry-directory-proof span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #596572;
+  font-size: 11px;
+  font-weight: 750;
+}
+.industry-directory-proof b {
+  color: #c85a17;
+  font-size: 17px;
+  font-weight: 950;
+}
+.industry-directory-paths {
+  display: grid;
+  grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: 24px;
+  margin: clamp(32px, 4vw, 54px) 0;
+  padding: clamp(18px, 2.5vw, 30px);
+  border: 1px solid #e4e8eb;
+  border-radius: 20px;
+  background: linear-gradient(120deg, #fff 0%, #f8f8f6 100%);
+}
+.industry-directory-paths__heading h2 {
+  margin: 8px 0 7px;
+  color: #202833;
+  font-size: clamp(20px, 2.1vw, 28px);
+  font-weight: 950;
+  line-height: 1.55;
+}
+.industry-directory-paths__heading p {
+  margin: 0;
+  color: #6a7480;
+  font-size: 12px;
+  line-height: 2;
+}
+.industry-directory-paths__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.industry-directory-path {
+  display: flex;
+  min-width: 0;
+  min-height: 112px;
+  align-items: center;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #e4e8eb;
+  border-radius: 13px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.industry-directory-path:hover {
+  transform: translateY(-2px);
+  border-color: #e7b08d;
+  box-shadow: 0 10px 24px rgba(28,40,52,.07);
+}
+.industry-directory-path__icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: 11px;
+  background: #fff2e8;
+  color: #c85a17;
+}
+.industry-directory-path__copy { display: grid; min-width: 0; gap: 5px; }
+.industry-directory-path__copy strong { color: #2a333c; font-size: 11px; font-weight: 900; line-height: 1.6; }
+.industry-directory-path__copy small { color: #7b858e; font-size: 9px; line-height: 1.7; }
+.industry-directory-path > svg { flex: 0 0 auto; margin-inline-start: auto; color: #c85a17; }
+
+.company-page--industries .company-industry-grid--editorial {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: minmax(155px, auto);
+  gap: 14px;
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card {
+  min-height: 285px;
+  border: 0;
+  border-radius: 3px 20px 3px 20px;
+  box-shadow: 0 14px 34px rgba(22,34,48,.09);
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(1) {
+  grid-column: span 7;
+  grid-row: span 2;
+  min-height: 570px;
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(2),
+.company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(3) {
+  grid-column: span 5;
+  min-height: 278px;
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(n+4) {
+  grid-column: span 4;
+  min-height: 305px;
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card > img {
+  filter: saturate(.91) contrast(1.06);
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card-shade {
+  background: linear-gradient(0deg, rgba(9,18,29,.96), rgba(9,18,29,.32) 62%, rgba(9,18,29,.04));
+}
+.company-industry-card-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 28px;
+  margin-top: 10px;
+  border: 1px solid rgba(255,255,255,.42);
+  border-radius: 5px;
+  color: #fff;
+  background: rgba(17,29,39,.36);
+  font-size: 10px;
+  font-weight: 900;
+  direction: ltr;
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card-copy h2 {
+  font-size: clamp(20px, 2vw, 29px);
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card-copy b {
+  margin-top: 3px;
+}
+.company-page--industries .company-industry-intro {
+  margin: clamp(28px, 4vw, 48px) 0 18px;
+  padding: 10px 4px;
+}
+.company-page--industries .company-bottom-cta {
+  margin-top: 42px;
+}
+
+
+@media (max-width: 760px) {
+  .company-page--industries .company-hero { min-height: 0; padding: 18px; }
+  .company-page--industries .company-hero-visual { min-height: 230px; }
+  .industry-directory-paths { grid-template-columns: 1fr; gap: 15px; }
+  .industry-directory-paths__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .company-page--industries .company-industry-grid--editorial {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: auto;
+  }
+  .company-page--industries .company-industry-grid--editorial .company-industry-card,
+  .company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(n) {
+    grid-column: span 1;
+    grid-row: auto;
+    min-height: 300px;
+  }
+  .company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(1) {
+    grid-column: 1 / -1;
+    min-height: 360px;
+  }
+}
+@media (max-width: 480px) {
+  .industry-directory-paths__grid { grid-template-columns: 1fr; }
+  .company-page--industries .company-industry-grid--editorial {
+    grid-template-columns: 1fr;
+  }
+  .company-page--industries .company-industry-grid--editorial .company-industry-card,
+  .company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(n),
+  .company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(1) {
+    grid-column: 1;
+    min-height: 315px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .industry-directory-path * {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

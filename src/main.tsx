@@ -10,6 +10,7 @@ import './index.css';
 import './company-pages.css';
 import './about-page-approved.css';
 import './company-pages-premium.css';
+import './industry-experience.css';
 
 function showRuntimeUnavailable(message:string,onRetry:()=>void){
   let notice=document.getElementById('sanat-backend-status');
