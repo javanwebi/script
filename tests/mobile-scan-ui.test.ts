@@ -188,7 +188,7 @@ test("KIKI scanner uses a real camera, gallery, torch, switch-camera and honest 
   assert.match(modal, /cameraGalleryRef/);
   assert.match(modal, /const switchCamera/);
   assert.match(modal, /const toggleTorch/);
-  assert.match(modal, /className="fv-camera-stage/);
+  assert.match(modal, /className="sanat-camera-experience__stage fv-camera-stage/);
   assert.match(modal, /className="fv-corner-brackets/);
   assert.match(modal, /className="fv-scan-laser/);
   assert.match(modal, /disabled=\{!isCameraReady\}/);
