@@ -51,17 +51,20 @@ test('FORZA workspace uses the approved ZIP icon and modal components', () => {
   assert.match(modals, /setConfirmClear\(true\)/);
 });
 
-test('FORZA vision keeps the current scanner engine and adds the ZIP optical HUD', () => {
+test('FORZA vision uses the KIKI optical HUD with the production recognition service preserved', () => {
   const modal = read('src/components/search/AiVisualPartSearchModal.tsx');
-  const selector = read('src/components/search/ImageRegionSelector.tsx');
-  const styles = read('src/components/search/vision-camera-design.css');
+  const provider = read('src/components/search/PartIdentificationProvider.tsx');
+  const service = read('src/services/aiVisualSearchService.ts');
+  const styles = read('src/components/search/industrial-scan.css');
 
-  assert.match(modal, /vision-camera-design\.css/);
+  assert.match(modal, /data-testid="full-screen-camera-experience"/);
+  assert.match(modal, /data-testid="kiki-vision-review-shell"/);
+  assert.match(modal, /data-testid="kiki-vision-results-shell"/);
   assert.match(modal, /fv-camera-stage/);
   assert.match(modal, /fv-corner-brackets/);
   assert.match(modal, /fv-scan-laser/);
-  assert.match(selector, /fv-lens-corner--tl/);
-  assert.match(selector, /fv-lens-corner--br/);
+  assert.match(provider, /preloadClientAiSegmentation/);
+  assert.match(service, /\/api\/ai\/analyze-part/);
   assert.match(styles, /\.fv-camera-stage/);
   assert.match(styles, /\.fv-lens-corner--br/);
   assert.doesNotMatch(styles.match(/\.fv-corner-brackets\s*\{[^}]*\}/)?.[0] || '', /position:\s*relative/);
@@ -83,19 +86,18 @@ test('mobile FORZA launcher preserves the swipe-up contact sheet and direct desk
   assert.match(styles, /prefers-reduced-motion/);
 });
 
-test('approved optical tap feedback is cosmetic and retains the live region selector', () => {
-  const selector = read('src/components/search/ImageRegionSelector.tsx');
+test('KIKI optical tap feedback is cosmetic and retains selectable live contour regions', () => {
   const styles = read('src/components/search/industrial-scan.css');
   const scanner = read('src/components/search/AiVisualPartSearchModal.tsx');
-  assert.match(selector, /tapFeedback/);
-  assert.match(selector, /fv-tap-ripple/);
-  assert.match(selector, /fv-object-dot--active/);
-  assert.match(selector, /findImageRegionAtPoint/);
-  assert.match(selector, /tapImageRegion/);
-  assert.match(styles, /fv-approved-tap-ripple/);
+  assert.match(scanner, /tapRipple/);
+  assert.match(scanner, /fv-tap-ripple/);
+  assert.match(scanner, /fv-object-dot--active/);
+  assert.match(scanner, /handlePhotoSurfaceClick/);
+  assert.match(scanner, /handleImagePointSelect/);
+  assert.match(scanner, /segmentPartAtTapPoint/);
+  assert.match(styles, /fv-tap-ripple/);
   assert.match(styles, /prefers-reduced-motion/);
-  assert.match(scanner, /ImageRegionSelector/);
-  assert.match(scanner, /clientAiSegmentation/);
+  assert.doesNotMatch(scanner, /ImageRegionSelector/);
 });
 
 test('approved workspace keeps catalog search collapsible without dropping live callbacks', () => {
@@ -121,19 +123,17 @@ test('workspace visual-identification actions open the standalone VISION route',
   assert.match(provider, /Studio isOpen standalone fullScreen/);
 });
 
-test('VISION history keeps only product metadata and registered public catalogue images', () => {
+test('KIKI VISION history keeps only product metadata and registered public catalogue images', () => {
   const modal = read('src/components/search/AiVisualPartSearchModal.tsx');
-  const entry = read('src/components/search/VisionEntryPage.tsx');
   const history = read('src/components/search/visionRecentHistory.ts');
   assert.match(modal, /recordVisionRecentSearch/);
   assert.match(modal, /loadVisionRecentSearches/);
-  assert.match(entry, /forza-vision-recent-history/);
+  assert.match(modal, /data-testid="forza-vision-recent-history"/);
   assert.match(history, /sanatpish_forza_vision_recent_v2/);
   assert.match(history, /getCatalogDisplayImageCandidates/);
   assert.ok(history.includes('removeItem(LEGACY_STORAGE_KEY)'));
   assert.doesNotMatch(history, /DEFAULT_RECENT_SEARCHES/);
 });
-
 
 test('history starts empty and never injects sample records', () => {
   const { values } = installStorage();
