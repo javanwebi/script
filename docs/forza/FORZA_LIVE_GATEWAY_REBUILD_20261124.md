@@ -6,7 +6,7 @@ The customer browser connects to the same-origin `/api/live` WebSocket. The Expr
 
 - Microphone input: mono PCM16 at 16 kHz.
 - Model output: native audio chunks at 24 kHz plus available text transcription.
-- Turn-taking: provider VAD plus a short local near-field speech detector; queued browser audio is stopped immediately on barge-in, including the case where the model has already finished generating.
+- Turn-taking: provider VAD plus a short local near-field speech detector; start-of-speech sensitivity is LOW to reduce far-field/noise activation in busy exhibition spaces, while end-of-speech sensitivity stays LOW so short pauses do not prematurely close a spoken turn. Queued browser audio is stopped immediately on barge-in, including the case where the model has already finished generating.
 - Text input remains supported over the same socket.
 - Session state is in memory only. No audio or transcript is written to disk or logged.
 - WebSocket upgrades require a strict matching same-origin `Origin` header. Forwarded client-IP headers are trusted only when the TCP peer is the local Nginx proxy, preventing direct clients from spoofing their IP to evade rate limits.
@@ -22,7 +22,7 @@ Optional settings:
 | Variable | Default | Purpose |
 |---|---:|---|
 | `FORZA_LIVE_API_KEY` | not set | Dedicated server-side key; falls back to the existing Gemini key when blank |
-| `FORZA_LIVE_ENABLED` | `true` | Emergency on/off switch |
+| `FORZA_LIVE_ENABLED` | `false` (opt-in) | Must be explicitly set to `true` to open customer calls |
 | `FORZA_LIVE_MODEL` | `gemini-3.8-live` | Gemini Live model |
 | `FORZA_LIVE_VOICE` | `Charon` | Native output voice |
 | `FORZA_LIVE_MAX_CONNECTIONS` | `20` | Global concurrent session cap |
