@@ -270,7 +270,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       words,heardSpeechEchoRef.current,recentPlayback) || playbackEchoHistoryRef.current.matches(words);
   };
   const serverSttConfiguredRef=useRef(false);
-  const [serverSttLabel,setServerSttLabel]=useState('در حال بررسی موتور دایبا...');
+  const serverSttProviderRef=useRef('');
+  const [serverSttLabel,setServerSttLabel]=useState('در حال بررسی موتور تشخیص گفتار...');
 
   // MediaRecorder audio capture refs (fallback & complementary for STT)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -285,6 +286,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const currentBufferSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const audioSourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const micAnalyserRef = useRef<AnalyserNode | null>(null);
+  const micAnalyserSinkRef = useRef<GainNode | null>(null);
   const micSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const animFrameAudioRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -432,7 +434,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     // Prefer the on-device Diba/Vosk partial recognizer once its pinned model
     // is warm. Chrome remains the immediate fallback while that model loads,
     // and is restarted automatically if local recognition fails.
-    const localReady=startDibaTurn();
+    const browserReady=Boolean(recognitionRef.current&&!recognitionFailedRef.current&&!webSpeechFailedRef.current);
+    const localReady=browserReady?false:startDibaTurn();
     if(localReady){
       if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
       recognitionRetryTimerRef.current=null;
@@ -1376,7 +1379,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // as a bounded final verifier too; on devices already using local Diba,
         // avoid wasting a second inference on the same model.
         const needsServerFinal = Boolean(audioBlob) &&
-          serverSttConfiguredRef.current === true && (!q || !localSttActiveRef.current);
+          serverSttConfiguredRef.current === true &&
+          (serverSttProviderRef.current==='avalai' || !q || !localSttActiveRef.current);
         if(audioBlob && needsServerFinal){
           const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
           const sttStartedAt=performance.now();
@@ -1913,7 +1917,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             const finalMime=mr.mimeType||mimeType||'audio/webm';
             const finalBlob=chunks.length?new Blob(chunks,{type:finalMime}):null;
             const audioBlobs=[...audioSegmentsRef.current];
-            if(finalBlob&&finalBlob.size>1200&&!rejectedSpeech)audioBlobs.push(finalBlob);
+            if(finalBlob&&finalBlob.size>1200&&(!rejectedSpeech||serverSttProviderRef.current==='avalai'))audioBlobs.push(finalBlob);
             audioSegmentsRef.current=[];
             if(audioBlobs.length){
               void handleUserFinishedSpeaking(currentTranscript,audioBlobs,finalMime);
@@ -1938,7 +1942,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const finalMime = mr.mimeType || mimeType || 'audio/webm';
           const audioBlobs=[...audioSegmentsRef.current];
           const finalBlob=chunks.length?new Blob(chunks,{type:finalMime}):null;
-          if(finalBlob&&finalBlob.size>1200&&!rejectedSpeech)audioBlobs.push(finalBlob);
+          if(finalBlob&&finalBlob.size>1200&&(!rejectedSpeech||serverSttProviderRef.current==='avalai'))audioBlobs.push(finalBlob);
           audioSegmentsRef.current=[];
           if(audioBlobs.length>0&&hadSpeech){
             void handleUserFinishedSpeaking('',audioBlobs,finalMime);
@@ -2232,6 +2236,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const stream=await navigator.mediaDevices.getUserMedia({audio:{
         echoCancellation:true,noiseSuppression:true,autoGainControl:false,channelCount:1,
       }});
+      // Resume after permission resolves too: a suspended AudioContext produces
+      // no PCM evidence, which would make the near-field gate reject valid STT.
+      if(ctx&&ctx.state==='suspended'){
+        try{await ctx.resume();}catch{}
+      }
       if(callClosedRef.current || microphoneGeneration!==microphoneGenerationRef.current){
         stream.getTracks().forEach(track=>track.stop());
         return;
@@ -2248,12 +2257,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       audioEvidenceCleanupRef.current?.();audioEvidenceCleanupRef.current=null;
       if(ctx){
         micSourceNodeRef.current?.disconnect();
+        micAnalyserSinkRef.current?.disconnect();micAnalyserSinkRef.current=null;
         const source=ctx.createMediaStreamSource(stream);
         const analyser=ctx.createAnalyser();
         analyser.fftSize=512;analyser.smoothingTimeConstant=0.6;
-        source.connect(analyser);
+        const analyserSink=ctx.createGain();analyserSink.gain.value=0;
+        source.connect(analyser);analyser.connect(analyserSink);analyserSink.connect(ctx.destination);
         micSourceNodeRef.current=source;
         micAnalyserRef.current=analyser;
+        micAnalyserSinkRef.current=analyserSink;
         void attachForzaAudioEvidence(ctx,source,(rms,at)=>{
           if(callClosedRef.current||microphoneGeneration!==microphoneGenerationRef.current||micMutedRef.current)return;
           speechAdmissionRef.current.sample(rms,at,
@@ -2277,8 +2289,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const dibaCpuCount=Number(navigator.hardwareConcurrency||0);
       const dibaDeviceMemory=Number((navigator as any).deviceMemory||0);
       const dibaSaveData=Boolean((navigator as any).connection?.saveData);
-      // Keep the WASM model off low-end phones and memory-constrained browsers.
-      const dibaHasHeadroom=dibaCpuCount>=4&&(dibaDeviceMemory>=4||(!dibaDeviceMemory&&dibaCpuCount>=8));
+      const browserSpeechAvailable=Boolean((window as any).SpeechRecognition||(window as any).webkitSpeechRecognition);
+      // Avoid downloading/activating the lower-accuracy WASM recognizer on
+      // Chrome/Edge when native Persian streaming STT is available.
+      const dibaHasHeadroom=!browserSpeechAvailable&&dibaCpuCount>=4&&
+        (dibaDeviceMemory>=4||(!dibaDeviceMemory&&dibaCpuCount>=8));
       if(dibaHasHeadroom&&!dibaSaveData&&!localSttModelRef.current&&!localSttModelLoadingRef.current){
         localSttModelLoadingRef.current=true;
         setLocalSttStatus('loading');
@@ -2351,30 +2366,38 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(!response.ok)throw new Error('stt_status_http_'+response.status);
         const info=await response.json() as {
           serverSttConfigured?:boolean;serverSttProvider?:string;serverSttReady?:boolean;
+          serverSttModel?:string;serverSttFallbackProvider?:string;
         };
         if(controller.signal.aborted)return;
-        // Configuration and warm readiness are separate states. A cold Diba
-        // worker is still a usable server fallback; never disable it forever
-        // because the first status poll raced model startup.
-        const dibaConfigured=info.serverSttProvider==='diba'&&info.serverSttConfigured===true;
-        serverSttConfiguredRef.current=dibaConfigured;
-        setServerSttLabel(localSttModelRef.current
-          ? 'دایبا محلی آماده است · تشخیص زنده'
-          : localSttModelLoadingRef.current
-            ? 'در حال آماده‌سازی دایبا محلی · متن مرورگر فعال است'
-            : dibaConfigured
-              ? info.serverSttReady===true
-                ? 'دایبا سرور آماده است'
-                : 'دایبا سرور در حال آماده‌سازی · متن زنده فعال است'
-              : 'دایبا تنظیم نشده؛ متن زنده مرورگر');
-        if(dibaConfigured&&info.serverSttReady!==true&&attempts<12){
+        const provider=String(info.serverSttProvider||'');
+        const configured=info.serverSttConfigured===true&&
+          (provider==='avalai'||provider==='diba'||provider==='gemini');
+        serverSttProviderRef.current=provider;
+        serverSttConfiguredRef.current=configured;
+        setServerSttLabel(provider==='avalai'&&configured
+          ? info.serverSttReady===true
+            ? 'AvalAI هوشمند آماده است · اصلاح متن نهایی'
+            : 'AvalAI در دسترس نیست · متن زنده مرورگر'
+          : provider==='diba'&&configured
+            ? info.serverSttReady===true
+              ? 'دایبا سرور آماده است · متن زنده مرورگر'
+              : 'دایبا سرور در حال آماده‌سازی · متن زنده فعال است'
+            : provider==='gemini'&&configured
+              ? 'تشخیص گفتار هوشمند آماده است'
+              : localSttModelRef.current
+                ? 'دایبا محلی آماده است · تشخیص زنده'
+                : localSttModelLoadingRef.current
+                  ? 'در حال آماده‌سازی تشخیص محلی · متن مرورگر فعال است'
+                  : 'تشخیص گفتار سرور تنظیم نشده؛ متن زنده مرورگر');
+        if(configured&&info.serverSttReady!==true&&attempts<12){
           attempts++;
           retryTimer=window.setTimeout(()=>void checkServerStt(),2500);
         }
       }catch{
         if(controller.signal.aborted)return;
         serverSttConfiguredRef.current=false;
-        setServerSttLabel('وضعیت دایبا نامشخص؛ متن زنده مرورگر');
+        serverSttProviderRef.current='';
+        setServerSttLabel('وضعیت تشخیص گفتار نامشخص؛ متن زنده مرورگر');
         if(attempts<4){
           attempts++;
           retryTimer=window.setTimeout(()=>void checkServerStt(),2500);
@@ -2496,12 +2519,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     localSttModelLoadingRef.current=false;
     try{localModel?.terminate?.();}catch{}
     for(const node of [localSttNodeRef.current,localSttSinkRef.current,
-      micSourceNodeRef.current,micAnalyserRef.current,audioSourceNodeRef.current,
+      micSourceNodeRef.current,micAnalyserRef.current,micAnalyserSinkRef.current,audioSourceNodeRef.current,
       analyserRef.current,gainNodeRef.current]){
       try{node?.disconnect();}catch{}
     }
     localSttNodeRef.current=null;localSttSinkRef.current=null;
-    micSourceNodeRef.current=null;micAnalyserRef.current=null;
+    micSourceNodeRef.current=null;micAnalyserRef.current=null;micAnalyserSinkRef.current=null;
     audioSourceNodeRef.current=null;analyserRef.current=null;gainNodeRef.current=null;
     if(animFrameAudioRef.current!==null)cancelAnimationFrame(animFrameAudioRef.current);
     animFrameAudioRef.current=null;
