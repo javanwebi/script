@@ -43,6 +43,7 @@ export function ImageRegionReview({
 }: Props) {
   const preparing = status === 'uploading' || status === 'detecting';
   const detected = Boolean(selectedRegion);
+  const selectorDisabled = preparing || Boolean(busy);
 
   return (
     <section
@@ -64,7 +65,7 @@ export function ImageRegionReview({
           type="button"
           className="kiki-region-review__change-top"
           onClick={onChangeImage}
-          disabled={preparing}
+          disabled={selectorDisabled}
         >
           <ImagePlus size={16} aria-hidden="true" />
           <span>تصویر جدید</span>
@@ -90,6 +91,7 @@ export function ImageRegionReview({
           onChange={onRegionChange}
           onSearch={onConfirm}
           onFullImageSearch={onFullImageSearch}
+          disabled={selectorDisabled}
         />
       </div>
 
@@ -102,7 +104,7 @@ export function ImageRegionReview({
               {message || 'ناحیه قطعه را روی تصویر مشخص کنید؛ تصویر اصلی شما محفوظ می‌ماند.'}
             </span>
           </div>
-          <button type="button" onClick={onRetryPreparation} disabled={preparing}>
+          <button type="button" onClick={onRetryPreparation} disabled={selectorDisabled}>
             تلاش مجدد
           </button>
         </div>
@@ -125,7 +127,7 @@ export function ImageRegionReview({
             <strong>تحلیل تصویر انجام نشد.</strong>
             <span>{analysisError}</span>
           </div>
-          <button type="button" onClick={onRetryAnalysis}>
+          <button type="button" onClick={onRetryAnalysis} disabled={selectorDisabled}>
             <RefreshCw size={14} aria-hidden="true" />
             تلاش مجدد
           </button>
