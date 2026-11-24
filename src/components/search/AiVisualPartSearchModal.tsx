@@ -611,10 +611,12 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
         throw new Error('تصویر در حافظه داخلی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.');
       }
       const localRecord = await getCustomerDeviceImage(effectiveLocalImageId);
+      if (analyzeController.signal.aborted || opts.seq !== pipelineSequenceRef.current) return;
       if (!localRecord) {
         throw new Error('تصویر اصلی در حافظه داخلی دستگاه پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.');
       }
       if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
+      if (analyzeController.signal.aborted || opts.seq !== pipelineSequenceRef.current) return;
 
       const effectiveAlpha = opts.alphaData !== undefined ? opts.alphaData : null;
       const [cutout] = await Promise.all([
@@ -858,8 +860,10 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
         setLocalImageId(saved.id);
         setMimeType(saved.mimeType || blob.type || 'image/jpeg');
         const localRecord = await getCustomerDeviceImage(saved.id);
+        if (seq !== pipelineSequenceRef.current) return;
         if (!localRecord) throw new Error('تصویر پس از ذخیره‌سازی محلی قابل بازیابی نیست.');
         resolvedUrl = await customerImageBlobToDataUrl(localRecord.blob);
+        if (seq !== pipelineSequenceRef.current) return;
       } catch (error) {
         if (seq !== pipelineSequenceRef.current) return;
         setErrorMessage(error instanceof Error ? error.message : 'ذخیره امن تصویر روی دستگاه انجام نشد.');
