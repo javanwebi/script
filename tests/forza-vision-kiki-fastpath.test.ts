@@ -91,7 +91,10 @@ test('real multi-part lens exposes KIKI quick-select buttons without auto-runnin
   assert.ok(picker.includes('data-testid="vision-region-candidates"'));
   assert.ok(picker.includes('candidates.length > 1'));
   assert.ok(picker.includes('onClick={() => { setDraft(undefined); onChange(region); }}'));
-  assert.ok(picker.includes('aria-pressed={sameRegion(selected, region)}'));
+  assert.ok(picker.includes('aria-pressed={sameRegion(selected,region)}'));
+  assert.ok(picker.includes("variant?:'default'|'viewer';"));
+  assert.ok(picker.includes('sanat-region-picker--viewer'));
+  assert.ok(picker.includes('mode:\'resize\''));
   assert.ok(modal.includes('data-testid="forza-vision-optical-toolbar"'));
   assert.ok(modal.includes('setMobileResultsExpanded(false); resetForm();'));
   assert.ok(modal.includes('resetForm(); setCameraFlowActive(true); void startCamera();'));
