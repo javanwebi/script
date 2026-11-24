@@ -88,6 +88,10 @@ async function installRoutes(page) {
         assert.equal(await nodes.count(), industry.stages,
           industry.slug + ' must expose every production stage');
         const first = nodes.first();
+        assert.equal(await first.getAttribute('aria-posinset'), '1',
+          industry.slug + ' tabs must expose their position in the stage sequence');
+        assert.equal(await first.getAttribute('aria-setsize'), String(industry.stages),
+          industry.slug + ' tabs must expose the total number of production stages');
         await first.focus();
         await first.press('ArrowLeft');
         const keyboardSelected = nodes.nth(1);

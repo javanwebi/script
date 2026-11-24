@@ -30,9 +30,10 @@ const CONTEXT_STOPWORDS = new Set([
   "و", "از", "در", "برای", "با", "به", "تا", "یا", "که", "این", "آن",
   "را", "روی", "زیر", "یک", "نوع", "خط", "کار", "مورد", "است", "باشد",
   "شود", "می", "هم", "هر", "بین", "بعد", "قبل", "نیاز",
+  "قطعه", "قطعات", "محصول", "فرایند", "فرآیند", "تولید", "مرحله", "مناسب",
 ]);
 
-function tokenizeOperatingContext(value: string): string[] {
+function tokenizeTechnicalTerms(value: string): string[] {
   return normalize(value)
     .split(/[^\p{L}\p{N}]+/u)
     .filter(token => token.length >= 3 && !CONTEXT_STOPWORDS.has(token));
@@ -116,9 +117,8 @@ export function rankIndustryStageProducts(
   extraTerms: readonly string[] = [],
 ): Product[] {
   const stageTerms = [...new Set([
-    stage.title,
-    stage.subtitle || "",
-    ...extraTerms.flatMap(term => [term, ...tokenizeOperatingContext(term)]),
+    ...[stage.title, stage.subtitle || ""].flatMap(term => [term, ...tokenizeTechnicalTerms(term)]),
+    ...extraTerms.flatMap(term => [term, ...tokenizeTechnicalTerms(term)]),
   ].map(normalize).filter(Boolean))];
   const industryTerms = [...new Set((industry.terms || []).map(normalize).filter(Boolean))];
   const broadTerms = INDUSTRY_KEYWORDS[industry.slug] || [];
