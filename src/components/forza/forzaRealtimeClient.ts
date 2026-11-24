@@ -246,6 +246,7 @@ export class ForzaRealtimeClient {
     this.playbackEndAt = 0;
     this.turnCompleted = false;
     this.responseId = '';
+    this.micSpeechFrames = 0;
   }
 
   private handleMic(input: Float32Array) {
@@ -349,7 +350,10 @@ export class ForzaRealtimeClient {
 
   setMicMuted(value: boolean) {
     this.muted = value;
-    if (value) this.send({ type: 'audio_stream_end' });
+    if (value) {
+      this.micSpeechFrames = 0;
+      this.send({ type: 'audio_stream_end' });
+    }
   }
 
   setSpeakerMuted(value: boolean) {
