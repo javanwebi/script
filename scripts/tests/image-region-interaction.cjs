@@ -179,7 +179,7 @@ const {chromium}=require('playwright');
   await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
   await page.getByTestId('kiki-vision-results-shell').waitFor();
   assert.equal(queries.length,4);
-  assert.match(queries[3].imageBase64,/^data:image\\/(?:png|jpeg|webp);base64,/);
+  assert.match(queries[3].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
   assert.equal(queries[3].region,undefined);
   assert.equal(queries[3].fullImage,true);
   assert.equal(uploads,0);
