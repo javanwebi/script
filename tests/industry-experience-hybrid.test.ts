@@ -9,7 +9,7 @@ const read = (path: string) => readFileSync(new URL("../" + path, import.meta.ur
 const map = read("src/components/storefront/IndustryProcessMap.tsx");
 const page = read("src/pages/IndustryTemplatePage.tsx");
 const directory = read("src/pages/DiscoveryPages.tsx");
-const styles = read("src/industry-experience.css");
+const styles = read("src/industry-experience.css") + read("src/pages/industry-template.css");
 const workflow = read(".github/workflows/verify-vps-build.yml");
 
 test("all six industries have distinct process-map art directions", () => {
