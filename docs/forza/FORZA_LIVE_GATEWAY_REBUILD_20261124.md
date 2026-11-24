@@ -9,7 +9,7 @@ The customer browser connects to the same-origin `/api/live` WebSocket. The Expr
 - Turn-taking: provider VAD plus a short local near-field speech detector; queued browser audio is stopped immediately on barge-in, including the case where the model has already finished generating.
 - Text input remains supported over the same socket.
 - Session state is in memory only. No audio or transcript is written to disk or logged.
-- WebSocket upgrades require a matching same-origin `Origin` header.
+- WebSocket upgrades require a strict matching same-origin `Origin` header. Forwarded client-IP headers are trusted only when the TCP peer is the local Nginx proxy, preventing direct clients from spoofing their IP to evade rate limits.
 - Default limits: 20 concurrent sessions, 2 per source IP, 60 session starts per source IP per hour, 100 total session starts per hour, 4 minutes per session, 15 seconds to establish the provider session.
 - Slow consumers, invalid payloads, excessive audio frame rates, provider failures and missing credentials fail closed. There is no silent switch to the old request/response voice path.
 
