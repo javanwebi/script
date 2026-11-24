@@ -98,7 +98,7 @@ test('KIKI recognition results use full-resolution catalogue photography and exp
   assert.match(wizard,/sources=\{\[item\.image, product\?\.image\]\}/);
   assert.match(modelResults,/sources=\{\[item\.image\]\}/);
   assert.match(wizard,/نیازمند تأیید فنی/);
-  assert.match(wizard,/حداکثر حجم ۱۰ مگابایت/);
+  assert.match(wizard,/تا ۱۰ مگابایت/);
   assert.doesNotMatch(wizard,/resolveMatchImage/);
   assert.match(modelResults,/CatalogResultImage/);
   assert.match(modelResults,/familyReference=\{item\.imageScope === 'family'\}/);
