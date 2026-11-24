@@ -210,7 +210,7 @@ test("AvalAI private config is required for Voice while Desk may retain its inde
   assert.match(configGate, /AVALAI_API_KEY_NOT_EFFECTIVE/);
   assert.match(configGate, /voiceProvider = String\(\s*process\.env\.FORZA_VOICE_PROVIDER \|\| process\.env\.FORZA_DESK_PROVIDER/);
   assert.doesNotMatch(configGate, /DESK_PROVIDER_NOT_AVALAI/);
-  assert.match(one.slice(gate - 900, promotion), /PRIVATE_FORZA_CONFIG_MOUNT_OK/);
+  assert.match(configGate, /PRIVATE_FORZA_CONFIG_MOUNT_OK/);
 });
 
 test("the private canary verifies effective AvalAI voice and Nima readiness before promotion", () => {
