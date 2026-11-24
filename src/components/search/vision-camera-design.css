@@ -652,3 +652,11 @@
     box-shadow: 0 9px 22px rgba(43,49,58,.08);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .kiki-vision-image-evidence * {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
