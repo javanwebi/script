@@ -605,6 +605,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     savedLocalImageId?: string | null;
     imageEventId?: string | null;
     detectionId?: string | null;
+    fullImage?: boolean;
   }) => {
     analyzeAbortRef.current?.abort();
     const analyzeController = new AbortController();
@@ -627,18 +628,19 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
       if (analyzeController.signal.aborted || opts.seq !== pipelineSequenceRef.current) return;
 
       const effectiveAlpha = opts.alphaData !== undefined ? opts.alphaData : null;
-      const [cutout] = await Promise.all([
-        renderSegmentedVisionCutout(
+      let previewCutoutUrl: string | undefined;
+      if (!opts.fullImage) {
+        const cutout = await renderSegmentedVisionCutout(
           opts.imageSrc,
           opts.region,
           0,
           opts.polygon,
           effectiveAlpha,
-        ).catch((): SegmentedVisionCutout => ({})),
-      ]);
+        ).catch((): SegmentedVisionCutout => ({}));
+        previewCutoutUrl = cutout.previewUrl || cutout.modelInputUrl;
+      }
 
       if (analyzeController.signal.aborted || opts.seq !== pipelineSequenceRef.current) return;
-      const previewCutoutUrl = cutout.previewUrl || cutout.modelInputUrl;
       if (previewCutoutUrl) setCroppedPreviewUrl(previewCutoutUrl);
 
       let activeImageEventId: string | null =
@@ -667,7 +669,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
       const payloadImage = temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob);
       const resolvedPayloadMime =
         payloadImage.match(/^data:([^;]+);base64,/i)?.[1] || localRecord.mimeType || opts.mime || mimeType;
-      const croppedDataUrl = previewCutoutUrl || opts.imageSrc;
+      const croppedDataUrl = opts.fullImage ? payloadImage : previewCutoutUrl || opts.imageSrc;
 
       const result = await aiVisualSearchService.analyzePartWithAi(
         {
@@ -676,9 +678,9 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
           mimeType: resolvedPayloadMime,
           stage: opts.stage || 'quick',
           observationOnly: false,
-          region: opts.region,
-          detectionId: opts.detectionId || regionDetectionId || undefined,
-          fullImage: false,
+          region: opts.fullImage ? undefined : opts.region,
+          detectionId: opts.fullImage ? undefined : opts.detectionId || regionDetectionId || undefined,
+          fullImage: opts.fullImage === true,
           includeNearest: false,
         },
         undefined,
@@ -736,6 +738,38 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
         setIsMatching(false);
       }
     }
+  };
+
+  const runFullImageVisualMatch = () => {
+    if (!selectedImage || !localImageId) return;
+    const seq = ++pipelineSequenceRef.current;
+    userInteractedRef.current = true;
+    analyzeAbortRef.current?.abort();
+    detectAbortRef.current?.abort();
+    setIsDetectingParts(false);
+    setIsAiSegmenting(false);
+    setIsTracingContour(false);
+    setErrorMessage('');
+    setDetectedCandidates([]);
+    setActiveCandidateId(null);
+    setActivePolygon([]);
+    setCroppedPreviewUrl(null);
+    setMobileSheetExpanded(false);
+    const fullRegion: ImageRegion = { x: 0, y: 0, width: 1, height: 1 };
+    setQueryRegion(fullRegion);
+    void runRegionVisualMatch({
+      imageSrc: temporaryImageDataUrl || selectedImage,
+      region: fullRegion,
+      polygon: [],
+      seq,
+      displayUrl: selectedImage,
+      sampleHint: '',
+      originalName: selectedOriginalName || '',
+      mime: mimeType,
+      savedLocalImageId: localImageId,
+      imageEventId,
+      fullImage: true,
+    });
   };
 
   /**
