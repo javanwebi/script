@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
+const liveUi=readFileSync(new URL('../src/components/forza/AiForzaLiveExperience.tsx',import.meta.url),'utf8');
+const faceToFace=readFileSync(new URL('../src/components/search/AiForzaFaceToFaceModal.tsx',import.meta.url),'utf8');
 const audio=readFileSync(new URL('../src/utils/forzaContinuousWav.ts',import.meta.url),'utf8');
 const speechPipeline=readFileSync(new URL('../src/utils/forzaSpeechPipeline.ts',import.meta.url),'utf8');
 const avatar=readFileSync(new URL('../src/components/forza/ParticleAvatar.tsx',import.meta.url),'utf8');
@@ -95,18 +97,22 @@ test('a pure stop consumes cumulative Chrome finals instead of replaying the sam
 });
 
 
-test('FORZA route paints its shell while the voice controller and particle scene load independently',()=>{
+test('FORZA route and face-to-face modal use the customer-facing native live controller',()=>{
   assert.match(forzaPage,/lazy\(\(\) =>/);
-  assert.match(forzaPage,/import\('\.\.\/components\/forza\/AiForzaCallExperience'\)/);
+  assert.match(forzaPage,/import\('\.\.\/components\/forza\/AiForzaLiveExperience'\)/);
   assert.match(forzaPage,/<Suspense fallback=/);
-  assert.match(routePreload,/import\('\.\.\/forza\/AiForzaCallExperience'\)/);
+  assert.match(faceToFace,/AiForzaLiveExperience/);
+  assert.doesNotMatch(faceToFace,/AiForzaCallExperience/);
+  assert.match(routePreload,/import\('\.\.\/forza\/AiForzaLiveExperience'\)/);
 });
 
-test('FORZA opens its voice controller without putting Three.js in the first call bundle',()=>{
-  assert.match(ui,/const ParticleAvatar = lazy\(async \(\) =>/);
-  assert.match(ui,/await import\('\.\/ParticleAvatar'\)/);
-  assert.match(ui,/<Suspense fallback=\{<div className="forza-avatar-fallback"/);
-  assert.match(routePreload,/import\('\.\.\/forza\/ParticleAvatar'\)/);
+test('FORZA live call streams through the native client without loading the legacy particle engine',()=>{
+  assert.match(liveUi,/new ForzaRealtimeClient\(/);
+  assert.match(liveUi,/onTurnComplete/);
+  assert.match(liveUi,/client\.sendText\(text\)/);
+  assert.match(liveUi,/getUserMedia/);
+  assert.doesNotMatch(liveUi,/ParticleAvatar|THREE|three\.js/i);
+  assert.doesNotMatch(routePreload,/ParticleAvatar/);
   assert.match(routePreload,/const warmForza=\(\)=>Promise\.all/);
 });
 
