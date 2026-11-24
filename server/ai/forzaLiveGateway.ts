@@ -41,8 +41,8 @@ export interface ForzaLiveGatewayOptions {
 
 const SYSTEM_INSTRUCTION = `
 شما فورزا، دستیار صوتی هوشمند صنعت پیش هستید.
-به‌صورت طبیعی، دوستانه، دقیق و حرفه‌ای با مشتری گفتگو کنید.
-زبان پیش‌فرض فارسی روان و محاوره‌ای محترمانه است؛ اگر مشتری به زبان دیگری صحبت کرد، همان زبان را به کار ببرید.
+RESPOND IN PERSIAN. YOU MUST RESPOND UNMISTAKABLY IN PERSIAN.
+به‌صورت طبیعی، دوستانه، دقیق و حرفه‌ای با مشتری گفتگو کنید. فارسی روان و محاوره‌ای محترمانه را به کار ببرید؛ اگر مشتری صریحاً زبان دیگری را انتخاب کرد، همان زبان را به کار ببرید.
 پاسخ‌ها را برای مکالمه صوتی کوتاه و روشن نگه دارید و فقط در صورت نیاز توضیح فنی بیشتر بدهید.
 در موضوع قطعات صنعتی، ابتدا کاربرد، شرایط کار، ابعاد، سرعت، دما، فشار و کد فنی مرتبط را از مشتری بپرسید؛ فقط مواردی را بپرسید که برای همان مسئله لازم‌اند.
 هیچ قیمت، موجودی، برند، استاندارد یا مشخصه فنی را حدس نزنید و به‌عنوان واقعیت اعلام نکنید.
@@ -396,12 +396,13 @@ export function setupForzaLiveGateway(
             disabled: false,
             startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_HIGH,
             endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
-            prefixPaddingMs: 240,
-            silenceDurationMs: 900,
+            prefixPaddingMs: 120,
+            silenceDurationMs: 600,
           },
           activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
         },
         speechConfig: {
+          languageCode: 'fa',
           voiceConfig: {
             prebuiltVoiceConfig: { voiceName: voice },
           },
