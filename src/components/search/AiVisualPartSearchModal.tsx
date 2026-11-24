@@ -2252,6 +2252,16 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                       <p className="mt-1 text-[10px] leading-5 text-[#74757C]">
                         این تطبیق تصویری پیشنهادی و نیازمند تأیید فنی کد، ابعاد و سازگاری قطعه پیش از سفارش است.
                       </p>
+                      <button
+                        type="button"
+                        data-testid="forza-vision-full-image-search"
+                        onClick={runFullImageVisualMatch}
+                        disabled={isMatching || !localImageId}
+                        className="mt-1 inline-flex items-center text-[11px] font-bold text-[#E06518] transition-colors hover:text-[#B94D0B] disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="جست‌وجوی کل تصویر"
+                      >
+                        جست‌وجوی کل تصویر
+                      </button>
                     </div>
                   </div>
 
