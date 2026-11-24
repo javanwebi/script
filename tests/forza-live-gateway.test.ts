@@ -85,7 +85,8 @@ test('FORZA Live gateway connects to Gemini and bridges continuous audio, text, 
   let connectOptions: any;
   let providerClosed = false;
   const fakeSession = {
-    sendRealtimeInput(input: any) { receivedInputs.push(input); },
+    sendRealtimeInput(input: any) { receivedInputs.push({ kind: 'realtime', input }); },
+    sendClientContent(input: any) { receivedInputs.push({ kind: 'client_content', input }); },
     close() { providerClosed = true; },
   };
   const fakeClient: any = {
@@ -124,11 +125,11 @@ test('FORZA Live gateway connects to Gemini and bridges continuous audio, text, 
     client.send(JSON.stringify({ type: 'text', text: 'سلام فورزا' }));
     client.send(JSON.stringify({ type: 'audio_stream_end' }));
     await new Promise(resolve => setTimeout(resolve, 20));
-    assert.match(receivedInputs[0].text, /خوش‌آمدگویی کوتاه/);
+    assert.match(receivedInputs[0].input.turns[0].parts[0].text, /خوش‌آمدگویی کوتاه/);
     assert.deepEqual(receivedInputs.slice(1, 4), [
-      { audio: { data: audio, mimeType: 'audio/pcm;rate=16000' } },
-      { text: 'سلام فورزا' },
-      { audioStreamEnd: true },
+      { kind: 'realtime', input: { audio: { data: audio, mimeType: 'audio/pcm;rate=16000' } } },
+      { kind: 'client_content', input: { turns: [{ role: 'user', parts: [{ text: 'سلام فورزا' }] }], turnComplete: true } },
+      { kind: 'realtime', input: { audioStreamEnd: true } },
     ]);
 
     const outputAudio = Buffer.from([0, 0, 1, 0, 2, 0]).toString('base64');
@@ -207,7 +208,7 @@ test('FORZA Live gateway reports missing server credentials without exposing a p
 });
 
 test('FORZA Live gateway rate-limits repeated demo sessions from one source IP', async () => {
-  const fakeSession = { sendRealtimeInput() {}, close() {} };
+  const fakeSession = { sendRealtimeInput() {}, sendClientContent() {}, close() {} };
   const fakeClient: any = {
     live: { async connect() { return fakeSession; } },
   };
@@ -237,7 +238,7 @@ test('FORZA Live gateway rate-limits repeated demo sessions from one source IP',
 });
 
 test('FORZA Live gateway enforces the global hourly session budget across different IPs', async () => {
-  const fakeSession = { sendRealtimeInput() {}, close() {} };
+  const fakeSession = { sendRealtimeInput() {}, sendClientContent() {}, close() {} };
   const fakeClient: any = {
     live: { async connect() { return fakeSession; } },
   };
