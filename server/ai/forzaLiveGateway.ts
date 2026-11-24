@@ -34,6 +34,7 @@ export interface ForzaLiveGatewayOptions {
   voice?: string;
   maxConnections?: number;
   maxConnectionsPerIp?: number;
+  maxSessionsPerHourPerIp?: number;
   maxSessionMs?: number;
   connectTimeoutMs?: number;
 }
@@ -123,6 +124,9 @@ export function setupForzaLiveGateway(
   const maxConnectionsPerIp = boundedInteger(
     options.maxConnectionsPerIp ?? process.env.FORZA_LIVE_MAX_CONNECTIONS_PER_IP, 2, 1, 10,
   );
+  const maxSessionsPerHourPerIp = boundedInteger(
+    options.maxSessionsPerHourPerIp ?? process.env.FORZA_LIVE_MAX_SESSIONS_PER_HOUR_PER_IP, 60, 1, 600,
+  );
   const maxSessionMs = boundedInteger(
     options.maxSessionMs ?? process.env.FORZA_LIVE_MAX_SESSION_MS, 240_000, 30_000, 600_000,
   );
@@ -142,6 +146,7 @@ export function setupForzaLiveGateway(
   });
   const activeSockets = new Set<WebSocket>();
   const activeByIp = new Map<string, number>();
+  const startsByIp = new Map<string, { windowStartedAt: number; count: number }>();
   const reservedIp = new WeakMap<WebSocket, string>();
   let activeTotal = 0;
 
@@ -171,6 +176,22 @@ export function setupForzaLiveGateway(
     if (activeTotal >= maxConnections || (activeByIp.get(ip) || 0) >= maxConnectionsPerIp) {
       rejectUpgrade(socket, 429);
       return;
+    }
+    const now = Date.now();
+    const previousWindow = startsByIp.get(ip);
+    const startWindow = !previousWindow || now - previousWindow.windowStartedAt >= 3_600_000
+      ? { windowStartedAt: now, count: 0 }
+      : previousWindow;
+    if (startWindow.count >= maxSessionsPerHourPerIp) {
+      rejectUpgrade(socket, 429);
+      return;
+    }
+    startWindow.count += 1;
+    startsByIp.set(ip, startWindow);
+    if (startsByIp.size > 2_000) {
+      for (const [key, value] of startsByIp) {
+        if (now - value.windowStartedAt >= 3_600_000) startsByIp.delete(key);
+      }
     }
 
     activeTotal += 1;
