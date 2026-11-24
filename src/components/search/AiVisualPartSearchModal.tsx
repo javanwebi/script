@@ -16,7 +16,6 @@ import {
   Camera,
   Image as GalleryImage,
   SwitchCamera,
-  UploadCloud,
   Sparkles,
   ArrowRight,
   ArrowLeft,
@@ -61,7 +60,6 @@ import { toPersianDigits, formatPrice } from "../../utils/formatters";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
 import { pricingCreditService } from "../../services/pricingCreditService";
-import { IMAGES } from "../../assets/images";
 import "./industrial-scan.css";
 import "./vision-camera-design.css";
 import { VisionEntryPage } from "./VisionEntryPage";
@@ -275,7 +273,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [customRequestOpen, setCustomRequestOpen] = useState(false);
   const [isPreparingCustomRequest, setIsPreparingCustomRequest] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [showSimilar, setShowSimilar] = useState<boolean>(true);
   const [mobileResultsExpanded, setMobileResultsExpanded] = useState(false);
   const resultsSwipeStartY = useRef<number | null>(null);
@@ -469,14 +466,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setFullImageSelected(false);
     if (isUsingCamera) stopCamera();
     void uploadAndPrepareImage(file, file.name);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
-    }
   };
 
   // Preset sample loader
