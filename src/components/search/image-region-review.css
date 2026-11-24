@@ -374,6 +374,10 @@
     gap: 8px 12px;
     padding: 12px;
   }
+  .kiki-region-review .sanat-region-picker__search,
+  .kiki-region-review .sanat-region-picker__full-image {
+    grid-column: 1 / -1;
+  }
   .kiki-region-review .sanat-region-picker__side-title {
     grid-column: 1 / -1;
   }
