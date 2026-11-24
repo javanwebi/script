@@ -389,6 +389,11 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     latestImageUrlRef.current = selectedImage;
   }, [selectedImage]);
 
+  useEffect(() => () => {
+    const latest = latestImageUrlRef.current;
+    if (latest?.startsWith('blob:')) URL.revokeObjectURL(latest);
+  }, []);
+
   useEffect(() => {
     latestRegionRef.current = queryRegion;
   }, [queryRegion]);
@@ -1325,6 +1330,10 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     stopCameraStream();
     setCameraReviewImage(null);
     setCameraReviewHint('');
+    customRequestSequenceRef.current++;
+    const latest = latestImageUrlRef.current;
+    if (latest?.startsWith('blob:')) URL.revokeObjectURL(latest);
+    latestImageUrlRef.current = null;
     pipelineSequenceRef.current++;
     analyzeAbortRef.current?.abort();
     analyzeAbortRef.current = null;
@@ -1999,6 +2008,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
           className="flex min-h-[100dvh] lg:h-[100dvh] flex-col bg-[#FFFFFF] text-[#2B313A] lg:overflow-hidden"
           aria-label="لنز هوشمند و محصولات مشابه"
           data-testid="kiki-vision-results-shell"
+          data-vision-journey="true"
         >
           <div className="flex flex-1 flex-col lg:grid lg:grid-cols-12 lg:h-full lg:overflow-hidden">
             {/* -------------------------------------------------------------- */}
@@ -2173,7 +2183,8 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                       <img
                         src={croppedPreviewUrl || selectedImage}
                         alt="برش قطعه انتخاب‌شده"
-                        className="h-full w-full object-contain"
+                        data-testid="sp-vision-match-photo"
+                        className="sp-vision-match-photo h-full w-full object-contain"
                       />
                     </div>
                     <div className="min-w-0">
@@ -2233,7 +2244,14 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                   </div>
                 </div>
 
-                {isMatching && <div className="fv-indeterminate-bar mt-2.5 rounded-full" />}
+                {isMatching && (
+                  <div
+                    data-testid="vision-analyzing-screen"
+                    role="status"
+                    aria-live="polite"
+                    className="fv-indeterminate-bar mt-2.5 rounded-full"
+                  />
+                )}
               </div>
 
               {errorMessage && (
@@ -2569,7 +2587,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
 
             {/* User Recent Scans History */}
             {recentSearches.length > 0 && (
-              <section className="mt-7">
+              <section data-testid="forza-vision-recent-history" className="mt-7">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h3 className="flex items-center gap-2 text-sm font-bold text-[#2B313A]">
                     <History className="h-4 w-4 text-[#E06518]" aria-hidden="true" />
