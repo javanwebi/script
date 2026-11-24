@@ -10,17 +10,25 @@ const styles=readFileSync(new URL('../src/components/forza/style.css',import.met
 const routePreload=readFileSync(new URL('../src/components/layout/RouteIntentPreload.tsx',import.meta.url),'utf8');
 const forzaPage=readFileSync(new URL('../src/pages/AiForzaPage.tsx',import.meta.url),'utf8');
 
-test('new FORZA turns retain the mic instead of stopping live WebSpeech before AI playback',()=>{
+test('new FORZA turns retain the filtered Diba stream instead of reopening the microphone',()=>{
   const from=ui.indexOf('const handleUserFinishedSpeaking = useCallback(');
   const to=ui.indexOf('// Setup MediaRecorder',from);
   assert.ok(from>0 && to>from);
   const turn=ui.slice(from,to);
   assert.doesNotMatch(turn,/\bstopListening\(\)/,'no dropped microphone frames at each request');
   assert.match(turn,/startListening\(true\)/,'monitor STT while model/TTS runs');
-  assert.match(turn,/recognitionConsumedCountRef\.current=recognitionCheckpointRef\.current.count/);
+  assert.match(turn,/localSttFinalRef\.current=''/);
+  assert.match(turn,/localSttAdmissionRef\.current\?\.reset\(\)/);
   assert.match(turn,/activeTurnRef\.current\?\.generation!==generation/);
   assert.match(turn,/activeNimaBuffer\.finish\(\)/);
   assert.match(turn,/bounded_idle_flush=1/);
+});
+
+test('final STT text is authoritative when the UI commits a customer turn',()=>{
+  assert.equal((ui.match(/engine\.commitUserTurn\(candidate\)/g)||[]).length,1);
+  assert.match(ui,/engine\.commitUserTurn\(q\)/);
+  assert.match(ui,/engine\.commitUserTurn\(resolvedUserQuery\)/);
+  assert.doesNotMatch(ui,/engine\.updateTranscript\((?:candidate|q|resolvedUserQuery)\);engine\.commitUserTurn\(\)/);
 });
 
 test('text correction can stop a pending/playing answer and does not block on UI thinking state',()=>{
@@ -65,7 +73,8 @@ test('manual replay keeps microphone monitoring alive and aborts in-flight TTS o
   assert.match(ui,/manualReplayAbortRef\.current\?\.abort\(new Error\('forza_manual_replay_stopped'\)\)/);
   assert.match(ui,/isManualReplayPendingRef\.current=true;\s*startListening\(true\)/);
   assert.match(ui,/await playPocketFullAnswer\(phrase,player,controller\.signal,/);
-  assert.match(ui,/if\(isProcessingTurnRef\.current\|\|isAiSpeakingRef\.current\|\|isManualReplayPendingRef\.current\)/);
+  assert.match(ui,/const playback=isProcessingTurnRef\.current\|\|isAiSpeakingRef\.current\|\|isManualReplayPendingRef\.current/);
+  assert.match(ui,/if\(playback\)\{conversationEngineRef\.current\?\.updateTranscript\(transcript\);interruptRequestRef\.current\(\);\}/);
   assert.match(ui,/if\(!\/aborted\|stopped\|interrupted\|cancelled\/i\.test\(code\)\)/);
 });
 
@@ -84,14 +93,14 @@ test('mic VAD is independent of WebGL animation frame rate',()=>{
   assert.doesNotMatch(ui,/Date\.now\(\)-lastMicActivityRef\.current>3500/);
 });
 
-test('a pure stop consumes cumulative Chrome finals instead of replaying the same command',()=>{
+test('a pure stop consumes the active Diba turn without replaying the same command',()=>{
   const start=ui.indexOf("if(q && forzaTurnIntent(q)==='stop')");
-  const end=ui.indexOf('// Chrome keeps final results',start);
-  assert.ok(start>=0 && end>start);
+  const end=ui.indexOf("return;",start);
+  assert.ok(start>=0&&end>start);
   const stop=ui.slice(start,end);
-  assert.match(stop,/recognitionConsumedCountRef\.current=recognitionCheckpointRef\.current.count/);
+  assert.match(stop,/activeTranscriptRef\.current=''/);
   assert.match(stop,/localSttFinalRef\.current=''/);
-  assert.match(stop,/return;/);
+  assert.match(stop,/localSttAdmissionRef\.current\?\.reset\(\)/);
 });
 
 
@@ -133,24 +142,46 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 });
 
 
-test('server Diba remains a fallback when browser recognition has no transcript',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true && \(!q \|\| !localSttActiveRef\.current\)/);
-  assert.match(ui,/transcribeOnly:true/);
-  assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
-  assert.match(ui,/info\.serverSttProvider==='diba'/);
-  assert.match(ui,/info\.serverSttReady===true/);
-  assert.match(ui,/دایبا تنظیم نشده؛ متن زنده مرورگر/);
-  assert.match(ui,/serverSttConfiguredRef=useRef\(false\)/);
-  assert.match(ui,/تشخیص گفتار: \{serverSttLabel\}/);
+test('server live Diba is the only low-power fallback and receives foreground-gated PCM',()=>{
+  assert.ok(ui.includes('const needsServerFinal = Boolean(audioBlob)'));
+  assert.ok(ui.includes('transcribeOnly:true'));
+  assert.ok(ui.includes("fetch('/api/ai/forza-live'"));
+  assert.ok(ui.includes("info.serverSttProvider==='diba'"));
+  assert.ok(ui.includes("info.serverLiveSttReady===true"));
+  assert.ok(ui.includes("serverLiveSttConfigured?:boolean;serverLiveSttReady?:boolean;"));
+  assert.ok(ui.includes("attachForzaLivePcmTap(ctx,source"));
+  assert.ok(ui.includes("client?.sendPcm(pcm)"));
+  assert.ok(!ui.includes("SpeechRecognition"));
+  assert.ok(ui.includes('دایبا تنظیم نشده؛ تشخیص گفتار در دسترس نیست'));
+  assert.ok(ui.includes('serverSttConfiguredRef=useRef(false)'));
+  assert.ok(ui.includes('تشخیص گفتار: {serverSttLabel}'));
 });
 
-test('a two-second pause preserves the same live transcript across browser recognizer restarts',()=>{
-  assert.match(ui,/recognitionSessionBaseRef=useRef<string>\(''\)/);
-  assert.match(ui,/recognitionSessionBaseRef\.current=activeTranscriptRef\.current\.trim\(\)/);
-  assert.match(ui,/appendForzaSpeechSegment\(recognitionSessionBaseRef\.current,currentSpeech\)/);
-  assert.match(ui,/: 5200;/);
-  assert.match(ui,/Math\.max\(5200,pauseMs\)-acousticSilence/);
-  assert.match(speechPipeline,/hasInterim\?4600:4200/);
+test('all speech consumers receive foreground-gated PCM before STT; native direct-mic Web Speech is disabled',()=>{
+  const start=ui.indexOf('const initializeMicrophone = useCallback(async () => {');
+  const end=ui.indexOf('},[ensureCtx,setupMediaRecorder,startListening,attachLocalStt,startDibaTurn,startServerLiveStt,stopServerLiveStt]);',start);
+  assert.ok(start>=0&&end>start);
+  const mic=ui.slice(start,end);
+  assert.ok(mic.includes('attachForzaAudioEvidence(ctx,rawSource'));
+  assert.ok(mic.includes('micSourceNodeRef.current=route.node'));
+  assert.ok(mic.includes('route.node.connect(analyser)'));
+  assert.ok(mic.includes('setupMediaRecorder(route.stream)'));
+  assert.ok(mic.includes('attachForzaAudioEvidence(ctx,rawSource'));
+  assert.ok(!ui.includes('SpeechRecognition'));
+  assert.ok(!mic.includes('initSpeechRecognition()'));
+  const gate=readFileSync(new URL('../public/worklets/forza-foreground-gate.js',import.meta.url),'utf8');
+  assert.ok(gate.includes('speechSnrDb >= 11'));
+  assert.ok(gate.includes('highSnrDb >= 2'));
+  assert.ok(gate.includes("registerProcessor('forza-foreground-gate'"));
+});
+
+test('a long pause keeps the same Diba session and does not erase the active customer transcript',()=>{
+  assert.match(ui,/if\(localSttRecognizerRef\.current\)\{/);
+  assert.match(ui,/serverLiveSttClientRef\.current/);
+  assert.match(ui,/localSttFinalRef\.current=appendForzaSpeechSegment\(localSttFinalRef\.current,recognized\.text\)/);
+  assert.match(ui,/: 10_000;/);
+  assert.match(ui,/Math\.max\(10_000,pauseMs\)-acousticSilence/);
+  assert.match(speechPipeline,/hasInterim\?6_500:5_500/);
 });
 
 test('FORZA hair animation remains visible during the spoken greeting despite microphone echo cancellation',()=>{
@@ -175,20 +206,23 @@ test('local Diba keeps one recognizer and appends finalized segments across repl
 });
 
 test('VAD waits for delayed speech text before stopping an empty transcript recording',()=>{
-  assert.match(ui,/: 5200;/);
-  assert.match(ui,/Math\.max\(0,Math\.max\(5200,pauseMs\)-acousticSilence\)/);
+  assert.match(ui,/: 10_000;/);
+  assert.match(ui,/Math\.max\(0,Math\.max\(10_000,pauseMs\)-acousticSilence\)/);
   assert.match(ui,/turnDispatchPendingRef\.current=true/);
   assert.match(ui,/if\(turnDispatchPendingRef\.current && !\(q && forzaTurnIntent\(q\)==='stop'\)\)return/);
 });
 
-test('Nima phrase requests are serialized to match the private single-worker CPU engine',()=>{
-  assert.match(ui,/maxConcurrent:1/);
-  assert.match(ui,/maxAheadPhrases:2/);
+test('Nima phrase requests use only verified spare private workers for parallel synthesis',()=>{
+  assert.match(ui,/nimaSynthesisConcurrencyRef=useRef\(1\)/);
+  assert.match(ui,/forzaNimaClientConcurrency\(data\?\.workers\)/);
+  assert.match(ui,/X-Forza-TTS-Workers/);
+  assert.match(ui,/maxConcurrent:nimaConcurrency/);
+  assert.match(ui,/maxAheadPhrases:nimaConcurrency>=2\?3:2/);
   assert.match(ui,/AbortSignal\.timeout\(65000\)/);
   assert.match(ui,/phase=http_error status=/);
 });
 
-test('server Diba verification preserves browser text and merges complete recorder segments in order',()=>{
+test('server Diba verification preserves live Diba text and merges complete recorder segments in order',()=>{
   assert.match(ui,/mapForzaSegmentsInOrder\(audioBlobs,2,async segment=>/);
   assert.match(ui,/Math\.ceil\(audioBlobs\.length\/2\)\*22_000/);
   assert.match(ui,/A failed final verifier must never erase a usable live transcript/);

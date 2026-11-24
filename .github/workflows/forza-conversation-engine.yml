@@ -6,34 +6,91 @@ on:
     paths:
       - "src/components/forza/**"
       - "src/utils/forzaConversationEngine.ts"
-      - "src/utils/clientAiSegmentation.ts"
-      - "src/components/search/AiVisualPartSearchModal.tsx"
+      - "src/utils/forzaSpeechPipeline.ts"
+      - "src/utils/forzaIncrementalSpeechText.ts"
+      - "src/utils/forzaTtsConcurrency.ts"
+      - "src/utils/forzaNimaWavFrames.ts"
+      - "tests/forzaNimaWavFrames.test.ts"
+      - "tests/forzaNimaIncrementalSpeech.test.ts"
+      - "tests/forzaTtsConcurrency.test.ts"
+      - "src/utils/forzaAudioEvidence.ts"
+      - "src/utils/forzaLiveSttClient.ts"
+      - "server/ai/forzaDibaLiveStt.ts"
+      - "scripts/forza_diba_live_worker.py"
+      - "public/worklets/forza-stt-pcm.js"
+      - "tests/forzaLiveSttClient.test.ts"
+      - "tests/test_forza_diba_live_worker.py"
+      - "src/utils/forzaSpeechAdmission.ts"
+      - "tests/forzaSpeechAdmission.test.ts"
+      - "tests/forzaLocalDibaStreaming.test.ts"
+      - "public/worklets/forza-foreground-gate.js"
+      - "src/utils/silenceDetector.ts"
       - "server/ai/forzaDibaStt.ts"
       - "server/ai/forzaSttQueue.ts"
+      - "server.ts"
       - "tests/forza-conversation-engine.test.ts"
+      - "tests/forza-smart-turn.test.ts"
+      - "tests/forzaVoiceRecoveryUi.test.ts"
+      - "tests/forzaAudioEvidence.test.ts"
       - "tests/forza-speech-pipeline.test.ts"
       - "tests/forzaBrowserRecognitionLifecycle.test.ts"
       - "tests/forzaCallTeardown.test.ts"
       - "tests/forza-diba-queue.test.ts"
+      - "ops/deploy-single-port-vps.sh"
+      - "ops/deploy-forza-only-vps.sh"
+      - "ops/verify-forza-only-canary.mjs"
+      - "tests/forza-only-deploy.test.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/forza-conversation-engine.yml"
+      - ".github/workflows/deploy-production-after-main-ci.yml"
   push:
     branches:
+      - main
       - "feat/forza-conversation-engine-v2-*"
     paths:
       - "src/components/forza/**"
       - "src/utils/forzaConversationEngine.ts"
+      - "src/utils/forzaSpeechPipeline.ts"
+      - "src/utils/forzaIncrementalSpeechText.ts"
+      - "src/utils/forzaTtsConcurrency.ts"
+      - "src/utils/forzaNimaWavFrames.ts"
+      - "tests/forzaNimaWavFrames.test.ts"
+      - "tests/forzaNimaIncrementalSpeech.test.ts"
+      - "tests/forzaTtsConcurrency.test.ts"
+      - "src/utils/forzaAudioEvidence.ts"
+      - "src/utils/forzaLiveSttClient.ts"
+      - "server/ai/forzaDibaLiveStt.ts"
+      - "scripts/forza_diba_live_worker.py"
+      - "public/worklets/forza-stt-pcm.js"
+      - "tests/forzaLiveSttClient.test.ts"
+      - "tests/test_forza_diba_live_worker.py"
+      - "src/utils/forzaSpeechAdmission.ts"
+      - "public/worklets/forza-foreground-gate.js"
+      - "src/utils/silenceDetector.ts"
       - "server/ai/forzaDibaStt.ts"
       - "server/ai/forzaSttQueue.ts"
+      - "server.ts"
       - "tests/forza-conversation-engine.test.ts"
+      - "tests/forza-smart-turn.test.ts"
+      - "tests/forzaVoiceRecoveryUi.test.ts"
+      - "tests/forzaAudioEvidence.test.ts"
+      - "tests/forzaSpeechAdmission.test.ts"
+      - "tests/forzaLocalDibaStreaming.test.ts"
+      - "tests/forzaBrowserRecognitionLifecycle.test.ts"
+      - "tests/forzaCallTeardown.test.ts"
       - "tests/forza-speech-pipeline.test.ts"
       - "tests/forzaBrowserRecognitionLifecycle.test.ts"
       - "tests/forzaCallTeardown.test.ts"
       - "tests/forza-diba-queue.test.ts"
+      - "ops/deploy-single-port-vps.sh"
+      - "ops/deploy-forza-only-vps.sh"
+      - "ops/verify-forza-only-canary.mjs"
+      - "tests/forza-only-deploy.test.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/forza-conversation-engine.yml"
+      - ".github/workflows/deploy-production-after-main-ci.yml"
 
 permissions:
   contents: read
@@ -59,11 +116,28 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Install pinned ONNX runtime for visual segmentation typecheck
-        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
+      - name: Validate live Diba Python worker protocol
+        run: python3 tests/test_forza_diba_live_worker.py
 
       - name: Test conversation engine
         run: npm run test:forza-engine
 
+      - name: Test turn endpoint and final transcript handoff
+        run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaWavFrames.test.ts tests/forzaTtsConcurrency.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts tests/forzaLiveSttClient.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaLocalDibaStreaming.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts
+
       - name: TypeScript validation
         run: npm run lint
+
+      - name: Validate Forza-only deployment safety
+        run: |
+          bash -n ops/deploy-single-port-vps.sh ops/deploy-forza-only-vps.sh
+          node --check ops/verify-forza-only-canary.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path("ops/deploy-single-port-vps.sh").read_text()
+          prefix = "python3 - \"$NEXT\" <<'PY'\n"
+          start = source.index(prefix) + len(prefix)
+          end = source.index("\nPY\n", start)
+          compile(source[start:end], "deploy-public-forza-verifier", "exec")
+          PY
+          node --import tsx --test tests/forza-only-deploy.test.ts

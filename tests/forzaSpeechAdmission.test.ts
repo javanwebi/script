@@ -14,6 +14,12 @@ function calibrated(playback=false,noise=0.003){
 function speak(gate:ForzaSpeechAdmission,from:number,to:number,level:number,playback=false){
  for(let t=from;t<=to;t+=50)gate.sample(level,t,playback);
 }
+test('secondary admission cannot revive a frame rejected by the pre-STT foreground gate',()=>{
+ const gate=calibrated(false,0.0005);
+ for(let t=1050;t<=1450;t+=50)gate.sample(0.06,t,false,false);
+ assert.equal(gate.decide('گفتگوی فرد دور',false,false,1450),'reject');
+});
+
 test('room noise and distant stop words do not authorize interruption or transcription',()=>{
  for(const playback of [false,true]){
   const gate=calibrated(playback,0.008);

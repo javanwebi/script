@@ -13,7 +13,7 @@ NETWORK="$(python3 - "$APP" <<'PY'
 import json,subprocess,sys
 app=json.loads(subprocess.check_output(['docker','inspect',sys.argv[1]]))[0]
 assert app['State']['Running']
-assert any(m['Source']=='/opt/sanatpish' and m['Destination']=='/app' for m in app['Mounts']), 'UNEXPECTED_APP_MOUNT'
+assert any(m['Destination']=='/app' for m in app['Mounts']), 'APP_RELEASE_MOUNT_MISSING'
 n=app['HostConfig']['NetworkMode'];assert n in app['NetworkSettings']['Networks'] and n not in ('host','bridge','none')
 print(n)
 PY
@@ -87,12 +87,12 @@ run_voice(){
   --cpus="$WORKERS" --memory="$MEMORY" --memory-swap="$MEMORY" --pids-limit=192 \
   --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m --cap-drop=ALL --security-opt=no-new-privileges \
   --env-file "$BUILD/private.env" -e PORT=8080 -e FORZA_NIMA_BIND=0.0.0.0 \
-  -e "FORZA_NIMA_WORKERS=$WORKERS" -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 -e MKL_NUM_THREADS=1 "$IMAGE" >/dev/null
+  -e "FORZA_NIMA_WORKERS=$WORKERS" -e "FORZA_NIMA_LENGTH_SCALE=${FORZA_NIMA_LENGTH_SCALE:-0.92}" -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 -e MKL_NUM_THREADS=1 "$IMAGE" >/dev/null
 }
 wait_voice(){
  for _ in $(seq 1 90); do
   if docker exec -e "FORZA_CHECK_HOST=$1" -e "FORZA_CHECK_WORKERS=$WORKERS" "$APP" node -e '
-fetch("http://"+process.env.FORZA_CHECK_HOST+":8080/health",{signal:AbortSignal.timeout(2000)}).then(async r=>{const d=await r.json();process.exit(r.ok&&d.voice==="piper-nima-gyro-medium"&&d.workers===Number(process.env.FORZA_CHECK_WORKERS)&&d.onnx_threads_per_worker===1?0:1)}).catch(()=>process.exit(1))' >/dev/null 2>&1; then return 0; fi
+fetch("http://"+process.env.FORZA_CHECK_HOST+":8080/health",{signal:AbortSignal.timeout(2000)}).then(async r=>{const d=await r.json();process.exit(r.ok&&d.voice==="piper-nima-gyro-medium"&&d.workers===Number(process.env.FORZA_CHECK_WORKERS)&&d.onnx_threads_per_worker===1&&typeof d.length_scale==="number"&&d.length_scale>=0.85&&d.length_scale<=1?0:1)}).catch(()=>process.exit(1))' >/dev/null 2>&1; then return 0; fi
   [[ "$(docker inspect "$1" --format '{{.State.Running}}')" == true ]] || return 1
   sleep 1
  done
@@ -113,6 +113,47 @@ n=int(os.environ['FORZA_NIMA_WORKERS'])
 with concurrent.futures.ThreadPoolExecutor(max_workers=n) as clients:results=list(clients.map(call,range(n)))
 print('FORZA_CONCURRENCY_CANARY '+json.dumps({'workers':n,'wallMs':round((time.monotonic()-start)*1000),'requests':results}))
 PY
+# Verify the stream endpoint emits separate sentence frames before the full
+# multi-sentence response completes. Only in-memory WAV bytes are inspected.
+docker exec -i "$CANARY" python - <<'PY'
+import json,os,struct,time,urllib.request
+text='سلام، شماره فنی قطعه را بفرمایید. سپس اگر ممکن است مدل دستگاه را هم اعلام کنید.'
+request=urllib.request.Request(
+ 'http://127.0.0.1:8080/speak-stream',
+ data=json.dumps({'text':text},ensure_ascii=False).encode('utf-8'),
+ headers={'Content-Type':'application/json','X-Forza-Voice-Token':os.environ['FORZA_VOICE_TOKEN']})
+start=time.monotonic()
+with urllib.request.urlopen(request,timeout=35) as response:
+ assert response.status==200
+ assert response.headers.get('X-Forza-Voice')=='piper-nima-gyro-medium'
+ assert response.headers.get('X-Forza-Stream-Mode')=='sentence-frames'
+ assert 'application/x-forza-wav-frames' in response.headers.get('Content-Type','')
+ header=response.read(4)
+ assert len(header)==4,'first_stream_frame_header_missing'
+ first_length=struct.unpack('<I',header)[0]
+ assert 44<=first_length<=8_000_000
+ first_wav=response.read(first_length)
+ assert len(first_wav)==first_length and first_wav[:4]==b'RIFF' and first_wav[8:12]==b'WAVE'
+ first_frame_ms=round((time.monotonic()-start)*1000)
+ remaining=response.read()
+ payload=header+first_wav+remaining
+ frames=[]
+ offset=0
+ while offset<len(payload):
+  assert offset+4<=len(payload),'truncated_frame_header'
+  length=struct.unpack_from('<I',payload,offset)[0]
+  offset+=4
+  assert 44<=length<=8_000_000 and offset+length<=len(payload),'truncated_wav_frame'
+  wav=payload[offset:offset+length]
+  assert wav[:4]==b'RIFF' and wav[8:12]==b'WAVE'
+  frames.append(len(wav))
+  offset+=length
+ assert len(frames)>=2,'sentence_stream_did_not_emit_multiple_frames'
+ print('FORZA_SENTENCE_STREAM_CANARY '+json.dumps({
+  'frames':len(frames),'firstFrameMs':first_frame_ms,
+  'totalMs':round((time.monotonic()-start)*1000),'frameBytes':frames,
+  'queueMs':response.headers.get('X-Forza-Queue-Ms','unknown')}))
+PY
 # Do not contend with the new live pool by leaving the canary's workers running.
 docker rm -f "$CANARY" >/dev/null
 docker stop --time 15 "$LIVE" >/dev/null
@@ -125,6 +166,21 @@ docker exec "$APP" node -e '
 fetch("http://127.0.0.1:3000/api/ai/forza-speech",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"سلام، شماره فنی قطعه را بفرمایید.",turnId:"realtime-upgrade-check"}),signal:AbortSignal.timeout(15000)})
 .then(async r=>{const b=Buffer.from(await r.arrayBuffer());if(!r.ok||r.headers.get("X-Forza-Voice")!=="piper-nima-gyro-medium"||b.toString("ascii",0,4)!=="RIFF"||b.toString("ascii",8,12)!=="WAVE")process.exit(1);console.log("FORZA_SITE_VOICE_WAV_OK bytes="+b.length)})
 .catch(()=>process.exit(1))'
+docker exec "$APP" node -e '
+const text="سلام، شماره فنی قطعه را بفرمایید. سپس اگر ممکن است مدل دستگاه را هم اعلام کنید.";
+fetch("http://127.0.0.1:3000/api/ai/forza-speech-stream",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,turnId:"realtime-stream-upgrade-check"}),signal:AbortSignal.timeout(35000)})
+.then(async r=>{
+ if(!r.ok||r.headers.get("X-Forza-Voice")!=="piper-nima-gyro-medium"||r.headers.get("X-Forza-Stream-Mode")!=="sentence-frames"||!(r.headers.get("Content-Type")||"").includes("application/x-forza-wav-frames"))process.exit(1);
+ const reader=r.body.getReader();let buffer=Buffer.alloc(0),frames=0;
+ while(true){const {done,value}=await reader.read();if(done)break;if(value)buffer=Buffer.concat([buffer,Buffer.from(value)]);
+  while(buffer.length>=4){const length=buffer.readUInt32LE(0);if(length<44||length>8000000)process.exit(1);if(buffer.length<4+length)break;
+   const wav=buffer.subarray(4,4+length);if(wav.toString("ascii",0,4)!=="RIFF"||wav.toString("ascii",8,12)!=="WAVE")process.exit(1);
+   frames++;buffer=buffer.subarray(4+length);
+  }
+ }
+ if(buffer.length!==0||frames<2)process.exit(1);
+ console.log("FORZA_SITE_SENTENCE_STREAM_OK frames="+frames);
+}).catch(()=>process.exit(1))'
 SUCCESS=1
 echo "FORZA_REALTIME_VOICE_READY workers=$WORKERS cpu_limit=$WORKERS memory_limit=$MEMORY"
 echo "VOICE_ROLLBACK_CONTAINER=$BACKUP"

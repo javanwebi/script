@@ -71,7 +71,7 @@ test('the Persian Diba browser recognizer is loaded from the same origin, never 
  assert.match(canary,/DIBA_BROWSER_VOSK_SCRIPT_CONTENT_LENGTH_MISSING/);
 });
 
-test('local Diba streams partial and final hypotheses and falls back to browser recognition on model errors',()=>{
+test('local Diba streams partials and low-power devices use the filtered server Diba websocket',()=>{
  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
  assert.match(ui,/loadDibaSttModel\(\)\.then\(model=>/);
  assert.match(ui,/dibaCpuCount>=4/);
@@ -84,30 +84,64 @@ test('local Diba streams partial and final hypotheses and falls back to browser 
  assert.match(ui,/recognizer\.on\('partialresult'/);
  assert.match(ui,/recognizer\.on\('result'/);
  assert.match(ui,/recognizer\.on\('error'/);
- assert.match(ui,/recognitionStartRef\.current\(\)/);
+ assert.match(ui,/acceptDibaHypothesis\(value,isFinal\)/);
+ assert.match(ui,/recognizer\.on\('partialresult'/);
+ assert.match(ui,/recognizer\.on\('result'/);
+ assert.match(ui,/void startServerLiveStt\(\)/);
  assert.match(ui,/const localReady=startDibaTurn\(\)/);
- assert.match(ui,/دایبا محلی آماده است · تشخیص زنده/);
+ assert.match(ui,/دایبا محلی آماده است · صدای فیلترشده/);
 });
 
-test('the native browser fallback remains active while local model loading is pending',()=>{
- const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
- const load=ui.indexOf('void loadDibaSttModel().then(model=>');
- const native=ui.indexOf('recognitionRef.current=initSpeechRecognition()',load);
- assert.ok(load>0&&native>load);
- assert.match(ui,/Chrome keeps transcribing immediately/);
- assert.match(ui,/if\(localReady\)/);
-});
+test('native browser SpeechRecognition is disabled because it bypasses the foreground gate',()=>{
+  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
+  const start=ui.indexOf('const initializeMicrophone = useCallback(async () => {');
+  const end=ui.indexOf('},[ensureCtx,setupMediaRecorder,startListening,attachLocalStt,startDibaTurn,startServerLiveStt,stopServerLiveStt]);',start);
+  assert.ok(start>0&&end>start);
+  const mic=ui.slice(start,end);
+  assert.ok(mic.includes('attachForzaAudioEvidence(ctx,rawSource'));
+  assert.ok(!ui.includes('SpeechRecognition'));
+  assert.ok(!mic.includes('initSpeechRecognition()'));
+  assert.ok(mic.includes('setupMediaRecorder(route.stream)'));
+  assert.ok(!ui.includes('if (!localReady && !micMutedRef.current && recognitionRef.current'));
+  assert.ok(!ui.includes('new SpeechRec()'));
+  assert.match(ui,/دایبا سرور زنده · فقط صدای فیلترشده/);
+  assert.match(ui,/attachForzaLivePcmTap\(ctx,source/);
+  assert.match(ui,/client\?\.sendPcm\(pcm\)/);
+  assert.match(ui,/liveSttActiveRef\.current/);
+ assert.match(ui,/serverLiveSttReadyAtRef\.current=Date\.now\(\)/);
+ assert.match(ui,/startedBeforeLiveReady/);
+ assert.match(ui,/local_diba_partial_timeout=1 switching_to_server_live=1/);
+ assert.match(ui,/startServerLiveStt\(true\)/);
+ assert.match(ui,/localSttFinalRef\.current=activeTranscriptRef\.current\.trim\(\)/,
+  'the local interim transcript must be committed before changing to the server decoder');
+ assert.match(ui,/if\(forceLocalFallback\)liveSttActiveRef\.current=false/);
+ assert.match(ui,/liveSttActiveRef\.current=forceLocalFallback\?false:localSttActiveRef\.current/);
+ assert.match(ui,/if\(localSttActiveRef\.current&&!serverLiveSttActiveRef\.current\)\s*liveSttActiveRef\.current=true/);
 
+ assert.match(ui,/localSttAdmissionRef\.current\?\.reset\(\)/);
+ assert.match(ui,/lastDibaHypothesisAtRef\.current>3000/);
+ assert.match(ui,/micNow-lastForzaPlaybackAtRef\.current>1500/,
+  'speaker echo tail must not trigger a local-to-server Diba handoff immediately after playback');
+ const accept=ui.slice(ui.indexOf('const acceptDibaHypothesis'),ui.indexOf('const startServerLiveStt'));
+ assert.ok(accept.indexOf('lastDibaHypothesisAtRef.current=Date.now()')<
+  accept.indexOf('const echo=likelySpeakerEcho(words)'),
+  'any non-empty Diba hypothesis proves the decoder is active, even when rejected as speaker echo');
+ assert.match(ui,/if\(isFinal&&silenceTimerRef\.current\)\{\s*window\.clearTimeout\(silenceTimerRef\.current\);\s*silenceTimerRef\.current=null;/,
+  'a final Diba hypothesis must re-arm a stale interim endpoint with the final linguistic classification');
+ assert.match(ui,/speechStartedAtRef\.current===0/);
+});
 
 test('the browser keeps one Diba recognizer alive across listen/monitor transitions',()=>{
  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
  assert.match(ui,/if\(localSttRecognizerRef\.current\)\{/,
   'monitor-only listening must not destroy the active Vosk decoder');
+ assert.match(ui,/if\(!forceLocalFallback&&localSttRecognizerRef\.current&&localSttActiveRef\.current\)\{\s*stopServerLiveStt\(\);\s*return;\s*\}/,
+  'local and server Diba decoders must never consume the same mic session concurrently');
  assert.match(ui,/localSttFinalRef\.current=appendForzaSpeechSegment\(localSttFinalRef\.current,recognized\.text\)/,
   'final Vosk segments must append to the same customer turn');
 });
 
-test('server Diba status is non-blocking and browser retains configured fallback while warming',()=>{
+test('server Diba status is non-blocking and the streaming pool warms independently',()=>{
  const server=readFileSync('server.ts','utf8');
  const status=server.split("app.get('/api/ai/forza-stt-info'")[1].split("// POST: /api/ai/forza-live")[0];
  assert.match(status,/serverSttConfigured:choice\.provider==='gemini'\|\|dibaConfigured/);
@@ -116,9 +150,28 @@ test('server Diba status is non-blocking and browser retains configured fallback
   'readiness diagnostics must not block while workers warm');
  assert.match(server,/void warmForzaDibaStt\(\)\.then/,
   'the local worker pool must warm independently of status requests');
+ assert.match(server,/void warmForzaDibaLiveStt\(\)\.then/,
+  'the streaming worker pool must warm before the first low-power call');
+ assert.match(server,/setupForzaDibaLiveSttWebSocket\(server\)/);
+ assert.match(status,/serverLiveSttConfigured:isForzaDibaLiveSttConfigured\(\)/);
+ assert.match(status,/serverLiveSttReady:choice\.provider==='diba'\?isForzaDibaLiveSttReady\(\)/);
+ const stream=readFileSync('server/ai/forzaDibaLiveStt.ts','utf8');
+ assert.match(stream,/MAX_SESSIONS = 40/);
+ assert.match(stream,/activeForIp >= MAX_SESSIONS/);
+
+ assert.match(stream,/activeConnections >= MAX_SESSIONS/);
+ assert.match(stream,/diba_stream_start_timeout/);
+ assert.match(stream,/10_000/);
+ assert.match(stream,/request\.headers\['x-real-ip'\]/,
+  'reverse-proxy visitors must be counted by real client IP, not the shared Nginx socket address');
+ assert.match(stream,/MAX_STDIN_BUFFER/);
+ const worker=readFileSync('scripts/forza_diba_live_worker.py','utf8');
+ assert.match(worker,/recognizer_type\(model, 16000\)/);
+ assert.match(worker,/PartialResult\(\)/);
+ assert.match(worker,/FinalResult\(\)/);
  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
- assert.match(ui,/const dibaConfigured=info\.serverSttProvider==='diba'&&info\.serverSttConfigured===true/);
- assert.match(ui,/serverSttConfiguredRef\.current=dibaConfigured/);
+ assert.match(ui,/const dibaLiveConfigured=info\.serverSttProvider==='diba'&&info\.serverLiveSttConfigured===true/);
+ assert.match(ui,/serverLiveSttConfiguredRef\.current=dibaLiveConfigured/);
  assert.match(ui,/attempts<12/,
   'the browser should poll a configured but cold worker instead of permanently disabling fallback');
 });

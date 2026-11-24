@@ -170,3 +170,69 @@ test('one failed synthesis cancels sibling requests and never starts further que
  await flush();fail(new Error('failed-first'));await assert.rejects(engine.finish(),/failed-first/);
  assert.equal(secondSignal?.aborted,true);assert.equal(count,2);
 });
+
+
+test('streamed sentence WAV frames are scheduled immediately and phrase streams stay ordered',async()=>{
+  const started:string[]=[];
+  const emit=new Map<string,(wav:Uint8Array)=>void>();
+  const finishStream=new Map<string,()=>void>();
+  const scheduled:number[]=[];
+  const played:string[]=[];
+  const engine=new ForzaNimaBufferedSpeech({
+    synthesize:async()=>pcm(0.2),
+    synthesizeStream:(text,_signal,onFrame)=>new Promise<void>(resolve=>{
+      started.push(text);
+      emit.set(text,onFrame);
+      finishStream.set(text,resolve);
+    }),
+    player:{enqueueWav(wav){scheduled.push(wav.byteLength);return Promise.resolve()}},
+    maxConcurrent:2,
+    maxAheadPhrases:2,
+    onPhrasePlayed:phrase=>played.push(phrase),
+  });
+  engine.add('first sentence');
+  engine.add('second sentence');
+  await flush();
+  assert.deepEqual(started,['first sentence'],'streaming forces one active phrase to preserve frame order');
+  emit.get('first sentence')!(pcm(0.4));
+  assert.deepEqual(scheduled,[pcm(0.4).byteLength],'the first complete WAV frame is scheduled before the stream ends');
+  finishStream.get('first sentence')!();
+  await flush();
+  assert.deepEqual(started,['first sentence','second sentence']);
+  emit.get('second sentence')!(pcm(0.6));
+  assert.deepEqual(scheduled,[pcm(0.4).byteLength,pcm(0.6).byteLength]);
+  finishStream.get('second sentence')!();
+  await engine.finish();
+  assert.deepEqual(played,['first sentence','second sentence']);
+  assert.equal(engine.statistics.scheduled,2);
+});
+
+
+test('barge-in progress stays attached to the sentence currently being spoken',async()=>{
+  const callbacks:Array<(progress:{phase:'started'|'finished'|'interrupted';playedMs:number;durationMs:number})=>void>=[];
+  const releases:Array<()=>void>=[];
+  const progress:Array<{phrase:string;phase:string;playedMs:number;durationMs:number}>=[];
+  const engine=new ForzaNimaBufferedSpeech({
+    synthesize:async()=>pcm(0.1),
+    synthesizeStream:async(_text,_signal,onFrame)=>{
+      onFrame(pcm(0.4));
+      onFrame(pcm(0.6));
+    },
+    player:{enqueueWav:(_wav,onProgress)=>{
+      callbacks.push(onProgress!);
+      return new Promise<void>(resolve=>releases.push(resolve));
+    }},
+    onPhraseProgress:(phrase,event)=>progress.push({phrase,...event}),
+  });
+  engine.add('sentence one. sentence two.');
+  await flush();await flush();
+  assert.equal(callbacks.length,2);
+  engine.cancel();
+  callbacks[0]({phase:'finished',playedMs:400,durationMs:400});
+  callbacks[1]({phase:'interrupted',playedMs:150,durationMs:600});
+  assert.deepEqual(progress[progress.length-1],{
+    phrase:'sentence two.',phase:'interrupted',playedMs:150,durationMs:600,
+  });
+  releases.forEach(release=>release());
+  await assert.rejects(engine.finish(),/aborted/);
+});

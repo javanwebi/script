@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline source checks for Nima/Piper deploy candidate. No model files/network."""
 from pathlib import Path
+import os
 import subprocess
 import sys
 import types
@@ -13,6 +14,51 @@ class NimaCandidateTests(unittest.TestCase):
     def test_source_compiles_without_importing_heavy_model(self):
         script=ROOT/"scripts/forza_nima_voice_http.py"
         compile(script.read_text(encoding="utf-8"),str(script),"exec")
+
+    def test_sentence_stream_emits_each_piper_chunk_as_a_standalone_wav_frame(self):
+        worker=(ROOT/"scripts/forza_nima_voice_http.py").read_text(encoding="utf-8")
+        scope={"__name__":"forza_nima_stream_probe"}
+        fake_piper=types.ModuleType("piper")
+        fake_piper.PiperVoice=object
+        with patch.dict(sys.modules,{"piper":fake_piper}):
+            exec(compile(worker,"forza_nima_voice_http.py","exec"),scope)
+
+        class FakeStop:
+            def is_set(self):
+                return False
+
+        class FakeQueue:
+            def __init__(self):
+                self.events=[]
+            def put(self,event,timeout=None):
+                self.events.append(event)
+
+        class FakeEngine:
+            def __init__(self):
+                self.calls=[]
+            def synthesize(self,text):
+                self.calls.append(text)
+                pcm=bytes([0,0])*80 if len(self.calls)==1 else bytes([1,0])*120
+                yield types.SimpleNamespace(sample_channels=1,sample_width=2,
+                    sample_rate=22050,audio_int16_bytes=pcm)
+
+        fake_engine=FakeEngine()
+        scope["engine"]=fake_engine
+        output=FakeQueue()
+        count=scope["synthesize_stream_to_queue"]("سلام. بله.",output,FakeStop())
+        self.assertEqual(count,2)
+        self.assertEqual(fake_engine.calls,["سلام","بله"])
+        self.assertEqual([event[0] for event in output.events],["frame","frame","done"])
+        for index,(kind,wav) in enumerate(output.events[:2]):
+            self.assertEqual(kind,"frame")
+            self.assertEqual(wav[:4],b"RIFF")
+            self.assertEqual(wav[8:12],b"WAVE")
+            self.assertEqual(int.from_bytes(wav[24:28],"little"),22050)
+            self.assertEqual(int.from_bytes(wav[40:44],"little"),[160,240][index])
+        self.assertEqual(scope["spoken_sentences"]("قطر 3.25 و کد SWR.A19. سپس نصب شود."),
+            ["قطر 3.25 و کد SWR A19","سپس نصب شود"])
+        self.assertEqual(scope["spoken_sentences"]("سطر اول\\nسطر دوم"),
+            ["سطر اول","سطر دوم"])
 
     def test_pinned_original_gyro_voice_and_no_audio_disk_cache(self):
         docker=(ROOT/"Dockerfile.forza-nima").read_text(encoding="utf-8")
@@ -55,6 +101,29 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertNotIn("*",spoken)
         self.assertNotIn("https",spoken)
         self.assertNotIn("example.com",spoken)
+        punctuation=scope["spoken_text"]("«سلام»؛ پاسخ آماده است؟ “بله”، نتیجه را بررسی می‌کنم! سپس اعلام می‌کنم.")
+        self.assertEqual(punctuation,"سلام پاسخ آماده است بله نتیجه را بررسی می‌کنم سپس اعلام می‌کنم")
+        self.assertEqual(scope["spoken_text"]("کد SWR/A19، تسمه SPA-1250 با قطر 3.25."),"کد SWR/A19 تسمه SPA-1250 با قطر 3.25")
+
+        # The speaking-rate override is deliberately bounded to protect Persian clarity.
+        with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"0.70"}):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),0.85)
+        with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"1.20"}):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),1.0)
+        with patch.dict(os.environ, {"FORZA_TEST_LENGTH_SCALE":"not-a-number"}):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),0.92)
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(scope["bounded_float"]("FORZA_TEST_LENGTH_SCALE",0.92,0.85,1.0),0.92)
+        self.assertGreaterEqual(scope["NIMA_LENGTH_SCALE"],0.85)
+        self.assertLessEqual(scope["NIMA_LENGTH_SCALE"],1.0)
+        self.assertIn("voice_config.length_scale = NIMA_LENGTH_SCALE",worker)
+        frontend=(ROOT/"src/components/forza/AiForzaCallExperience.tsx").read_text()
+        self.assertIn("maximumInitialWaitMs:180",frontend)
+        upgrade=ROOT/"ops/upgrade-forza-realtime-vps.sh"
+        subprocess.run(["bash","-n",str(upgrade)],check=True,capture_output=True)
+        upgrade_source=upgrade.read_text(encoding="utf-8")
+        self.assertIn("FORZA_NIMA_LENGTH_SCALE",upgrade_source)
+        self.assertIn('d.length_scale>=0.85&&d.length_scale<=1',upgrade_source)
 
         # Filling the bounded admission pool fails fast, without allowing
         # an unbounded queue or simultaneous inference on the same model.
@@ -153,12 +222,17 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertIn("new ForzaNimaBufferedSpeech({",frontend)
         self.assertIn("await activeNimaBuffer.finish()",frontend)
         self.assertIn("bufferedNima?.cancel()",frontend)
-        self.assertIn("maxConcurrent:1",frontend)
-        self.assertIn("maxAheadPhrases:2",frontend)
+        self.assertIn("nimaSynthesisConcurrencyRef=useRef(1)",frontend)
+        self.assertIn("forzaNimaClientConcurrency(data?.workers)",frontend)
+        self.assertIn("maxConcurrent:nimaConcurrency",frontend)
+        self.assertIn("maxAheadPhrases:nimaConcurrency>=2?3:2",frontend)
         self.assertIn("initialBufferSeconds:2",frontend)
         self.assertIn("phase=nima-incremental-finished",frontend)
         self.assertIn("app.get('/api/ai/forza-voice-info'",backend)
         self.assertIn("incrementalSpeech:voice==='piper-nima-gyro-medium'",backend)
+        self.assertIn("verifiedPrivateVoiceWorkers",backend)
+        self.assertIn("X-Forza-TTS-Workers",backend)
+        self.assertIn("normalizeForzaNimaWorkerCount(info.workers)",backend)
         self.assertIn("resolveForzaVoiceEngine()",backend)
         self.assertIn("privateServiceGreeting()",backend)
         self.assertNotIn("privateAmirGreeting()",backend)

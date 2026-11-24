@@ -4,6 +4,41 @@ on:
     paths:
       - 'src/components/forza/**'
       - 'src/utils/forzaSpeechPipeline.ts'
+      - 'src/utils/forzaAudioEvidence.ts'
+      - 'src/utils/forzaLiveSttClient.ts'
+      - 'server/ai/forzaDibaLiveStt.ts'
+      - 'scripts/forza_diba_live_worker.py'
+      - 'public/worklets/forza-stt-pcm.js'
+      - 'tests/forzaLiveSttClient.test.ts'
+      - 'tests/test_forza_diba_live_worker.py'
+      - 'public/worklets/forza-foreground-gate.js'
+      - 'src/utils/silenceDetector.ts'
+      - 'tests/forza-smart-turn.test.ts'
+      - 'tests/forza-speech-pipeline.test.ts'
+      - 'tests/forzaBrowserRecognitionLifecycle.test.ts'
+      - 'tests/forzaVoiceRecoveryUi.test.ts'
+      - 'tests/forzaAudioEvidence.test.ts'
+      - 'src/services/forzaGreetingAudio.ts'
+      - 'server.ts'
+      - 'scripts/tests/forza-pocket-ubuntu-browser.cjs'
+      - 'scripts/tests/forza-local-diba-browser.cjs'
+      - '.github/workflows/forza-private-ubuntu-browser.yml'
+      - 'tests/forza-boot-speech.test.ts'
+      - 'src/utils/forzaStreamingSpeech.ts'
+      - 'src/utils/forzaContinuousWav.ts'
+      - 'tests/forza-continuous-wav.test.ts'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/components/forza/**'
+      - 'src/utils/forzaSpeechPipeline.ts'
+      - 'src/utils/forzaLiveSttClient.ts'
+      - 'server/ai/forzaDibaLiveStt.ts'
+      - 'scripts/forza_diba_live_worker.py'
+      - 'public/worklets/forza-stt-pcm.js'
+      - 'tests/forzaLiveSttClient.test.ts'
+      - 'tests/test_forza_diba_live_worker.py'
       - 'src/utils/silenceDetector.ts'
       - 'tests/forza-smart-turn.test.ts'
       - 'tests/forza-speech-pipeline.test.ts'
@@ -12,6 +47,7 @@ on:
       - 'src/services/forzaGreetingAudio.ts'
       - 'server.ts'
       - 'scripts/tests/forza-pocket-ubuntu-browser.cjs'
+      - 'scripts/tests/forza-local-diba-browser.cjs'
       - '.github/workflows/forza-private-ubuntu-browser.yml'
       - 'tests/forza-boot-speech.test.ts'
       - 'src/utils/forzaStreamingSpeech.ts'
@@ -32,13 +68,13 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Install pinned ONNX types before TypeScript validation
-        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
+      - name: Validate live Diba Python worker protocol
+        run: python3 tests/test_forza_diba_live_worker.py
       - name: Validate source and private TTS contract
         run: |
           npm run lint
           node --import tsx --test tests/forza-boot-speech.test.ts tests/forza-streaming-speech.test.ts tests/forza-continuous-wav.test.ts tests/forza-speech-chunks.test.ts
-          node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaVoiceRecoveryUi.test.ts
+          node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaAudioEvidence.test.ts tests/forzaLiveSttClient.test.ts
       - name: Prepare Vite runtime
         run: |
           npm pkg set overrides.tslib=2.8.1
@@ -47,9 +83,8 @@ jobs:
           cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/
           cp node_modules/@diffusionstudio/piper-wasm/build/piper_phonemize.{data,wasm} public/forza-runtime/piper/
           cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/
-          node scripts/prepare-vision-assets.mjs
           npm run build
-      - run: npm install --no-save --ignore-scripts --legacy-peer-deps playwright@1.56.1 onnxruntime-web@1.18.0
+      - run: npm install --no-save --ignore-scripts --legacy-peer-deps playwright@1.56.1
       - run: npx playwright install --with-deps chromium
       - name: Start static app preview
         run: |
@@ -59,4 +94,4 @@ jobs:
       - name: Exercise SSE to private Pocket WAV playback in real Chromium
         run: |
           node scripts/tests/forza-pocket-ubuntu-browser.cjs
-          node scripts/tests/forza-live-stt-browser.cjs
+          node scripts/tests/forza-local-diba-browser.cjs

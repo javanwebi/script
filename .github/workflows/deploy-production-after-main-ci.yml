@@ -4,6 +4,10 @@ on:
   workflow_run:
     workflows:
       - Unified Sanat Pish main integration
+      - FORZA Conversation Engine
+      - FORZA autoplay/microphone UX smoke
+      - FORZA private Ubuntu Pocket browser integration
+      - FORZA Nima private voice and SSE speech tests
       - Verify source UI and database runtime
       - Verify VPS frontend build before deployment
     types: [completed]
@@ -45,11 +49,48 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: Classify exact main release as Forza-only or standard
+        id: release-mode
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "INVALID_DEPLOY_SHA"; exit 1; }
+          COMMIT_JSON="$(curl --fail --silent --show-error --retry 3 --retry-all-errors -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$DEPLOY_SHA")"
+          FILES="$(jq -r '.files[].filename' <<< "$COMMIT_JSON")"
+          FORZA_ONLY=1
+          FORZA_MARKER=0
+          while IFS= read -r file; do
+            if [[ "$file" == "ops/deploy-forza-only-vps.sh" ]]; then
+              FORZA_MARKER=1
+            fi
+            case "$file" in
+              server.ts|src/components/forza/AiForzaCallExperience.tsx|src/utils/forzaSpeechPipeline.ts|src/utils/forzaIncrementalSpeechText.ts|src/utils/forzaTtsConcurrency.ts|src/utils/silenceDetector.ts|src/utils/forzaAudioEvidence.ts|src/utils/forzaLiveSttClient.ts|src/utils/forzaSpeechAdmission.ts|server/ai/forzaDibaLiveStt.ts|scripts/forza_diba_live_worker.py|public/worklets/forza-foreground-gate.js|public/worklets/forza-stt-pcm.js|tests/forzaAudioEvidence.test.ts|tests/forzaLiveSttClient.test.ts|tests/test_forza_diba_live_worker.py|tests/test_forza_nima_private.py|tests/forzaSpeechAdmission.test.ts|tests/forzaBrowserRecognitionLifecycle.test.ts|tests/forzaCallPlainText.test.ts|tests/forzaCallTeardown.test.ts|tests/forzaConversationContinuity.test.ts|tests/forzaLocalDibaStreaming.test.ts|tests/forzaNimaIncrementalSpeech.test.ts|tests/forzaTtsConcurrency.test.ts|tests/forzaVoiceRecoveryUi.test.ts|scripts/tests/forza-local-diba-browser.cjs|ops/deploy-single-port-vps.sh|ops/deploy-forza-only-vps.sh|ops/verify-forza-only-canary.mjs|tests/forza-only-deploy.test.ts|tests/forza-smart-turn.test.ts|.github/workflows/forza-conversation-engine.yml|.github/workflows/forza-browser-smoke.yml|.github/workflows/forza-private-ubuntu-browser.yml|.github/workflows/forza-nima-private.yml|.github/workflows/deploy-production-after-main-ci.yml|.github/workflows/verify-vps-build.yml|scripts/forza_nima_voice_http.py|ops/upgrade-forza-realtime-vps.sh|src/utils/forzaUnbrokenText.ts|tests/forzaUnbrokenFullAnswer.test.ts|src/utils/forzaNimaBufferedSpeech.ts|tests/forzaNimaBufferedSpeech.test.ts|src/utils/forzaNimaWavFrames.ts|tests/forzaNimaWavFrames.test.ts) ;;
+              *) FORZA_ONLY=0 ;;
+            esac
+          done <<< "$FILES"
+          for required in server.ts src/components/forza/AiForzaCallExperience.tsx src/utils/forzaSpeechPipeline.ts src/utils/forzaIncrementalSpeechText.ts src/utils/forzaTtsConcurrency.ts src/utils/silenceDetector.ts src/utils/forzaAudioEvidence.ts src/utils/forzaLiveSttClient.ts server/ai/forzaDibaLiveStt.ts scripts/forza_diba_live_worker.py src/utils/forzaSpeechAdmission.ts public/worklets/forza-foreground-gate.js public/worklets/forza-stt-pcm.js tests/forzaAudioEvidence.test.ts tests/forzaLiveSttClient.test.ts tests/test_forza_diba_live_worker.py tests/test_forza_nima_private.py tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallPlainText.test.ts tests/forzaCallTeardown.test.ts tests/forzaConversationContinuity.test.ts tests/forzaLocalDibaStreaming.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaTtsConcurrency.test.ts scripts/tests/forza-local-diba-browser.cjs ops/deploy-single-port-vps.sh ops/deploy-forza-only-vps.sh ops/verify-forza-only-canary.mjs tests/forza-only-deploy.test.ts tests/forza-smart-turn.test.ts tests/forzaVoiceRecoveryUi.test.ts .github/workflows/forza-conversation-engine.yml .github/workflows/forza-browser-smoke.yml .github/workflows/forza-private-ubuntu-browser.yml .github/workflows/forza-nima-private.yml .github/workflows/deploy-production-after-main-ci.yml .github/workflows/verify-vps-build.yml scripts/forza_nima_voice_http.py ops/upgrade-forza-realtime-vps.sh src/utils/forzaUnbrokenText.ts tests/forzaUnbrokenFullAnswer.test.ts src/utils/forzaNimaBufferedSpeech.ts tests/forzaNimaBufferedSpeech.test.ts src/utils/forzaNimaWavFrames.ts tests/forzaNimaWavFrames.test.ts; do
+            grep -Fxq "$required" <<< "$FILES" || FORZA_ONLY=0
+          done
+          if [[ "$FORZA_MARKER" -eq 1 && "$FORZA_ONLY" -ne 1 ]]; then
+            echo "FORZA_ONLY_RELEASE_HAS_UNEXPECTED_FILES; refusing standard deployment" >&2
+            exit 1
+          fi
+          if [[ "$FORZA_ONLY" -eq 1 ]]; then
+            echo "forza_only=true" >> "$GITHUB_OUTPUT"
+            echo "RELEASE_MODE=FORZA_ONLY"
+          else
+            echo "forza_only=false" >> "$GITHUB_OUTPUT"
+            echo "RELEASE_MODE=STANDARD_MAIN"
+          fi
+
       - name: Verify every required main check passed for this exact SHA
         id: required-checks
         env:
           GITHUB_TOKEN: ${{ github.token }}
           DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
+          FORZA_ONLY: ${{ steps.release-mode.outputs.forza_only }}
         run: |
           set -euo pipefail
           [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "INVALID_DEPLOY_SHA"; exit 1; }
@@ -60,10 +101,23 @@ jobs:
               -H "Authorization: Bearer $GITHUB_TOKEN" \
               "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$DEPLOY_SHA&per_page=100")"
             WAITING=0
-            for required in \
-              "Unified Sanat Pish main integration" \
-              "Verify source UI and database runtime" \
-              "Verify VPS frontend build before deployment"; do
+            if [[ "$FORZA_ONLY" == "true" ]]; then
+              REQUIRED_WORKFLOWS=(
+                "Unified Sanat Pish main integration"
+                "Verify source UI and database runtime"
+                "FORZA Conversation Engine"
+                "FORZA autoplay/microphone UX smoke"
+                "FORZA private Ubuntu Pocket browser integration"
+                "FORZA Nima private voice and SSE speech tests"
+              )
+            else
+              REQUIRED_WORKFLOWS=(
+                "Unified Sanat Pish main integration"
+                "Verify source UI and database runtime"
+                "Verify VPS frontend build before deployment"
+              )
+            fi
+            for required in "${REQUIRED_WORKFLOWS[@]}"; do
               match="$(jq -c --arg name "$required" --arg sha "$DEPLOY_SHA" \
                 '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and .head_branch == "main" and .event == "push")] | sort_by(.created_at) | last // empty' \
                 <<< "$RUNS_JSON")"
@@ -133,8 +187,29 @@ jobs:
           ssh-keygen -y -f "$HOME/.ssh/sanatpish_deploy_ed25519" >/dev/null
           ssh-keygen -F "$SSH_HOST" -f "$HOME/.ssh/known_hosts" >/dev/null
 
-      - name: Deploy only the exact main commit whose CI passed
-        if: steps.required-checks.outputs.ready == 'true'
+      - name: Deploy exact Forza-only main commit without database migrations
+        if: steps.required-checks.outputs.ready == 'true' && steps.release-mode.outputs.forza_only == 'true'
+        env:
+          DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
+          SSH_HOST: ${{ secrets.SANATPISH_DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.SANATPISH_DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
+          REMOTE_COMMAND="sudo bash -lc 'cd /opt/sanatpish && git fetch --no-tags origin main && git show ${DEPLOY_SHA}:ops/deploy-forza-only-vps.sh | bash -s -- ${DEPLOY_SHA}'"
+          ssh \
+            -i "$HOME/.ssh/sanatpish_deploy_ed25519" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=20 \
+            -o ServerAliveCountMax=90 \
+            "$SSH_USER@$SSH_HOST" "$REMOTE_COMMAND"
+
+      - name: Deploy standard main release
+        if: steps.required-checks.outputs.ready == 'true' && steps.release-mode.outputs.forza_only != 'true'
         env:
           DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
           SSH_HOST: ${{ secrets.SANATPISH_DEPLOY_HOST }}

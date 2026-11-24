@@ -10,13 +10,17 @@ function speakInDeltas(text:string):string[] {
   return phrases;
 }
 
-test('short complete first sentence is dispatched immediately, without duplicate WAV',()=>{
+test('a short sentence ending in punctuation is joined to the next words instead of creating a tiny WAV',()=>{
   const planner=new ForzaIncrementalSpeechText();
   const short='سلام، فورزا آماده است. ';
-  const first=planner.push(short);
-  assert.deepEqual(first,['سلام، فورزا آماده است.']);
+  assert.deepEqual(planner.push(short),[]);
+  assert.deepEqual(planner.flushTerminalIdle(),[]);
   const full=short+'آیا مدل دستگاه را بفرمایید؟ سپس موجودی را بررسی می‌کنم.';
-  const phrases=[...first,...planner.push(full),...planner.complete(full)];
+  const first=planner.push(full);
+  assert.equal(first.length,1);
+  assert.ok(first[0].startsWith('سلام، فورزا آماده است.'));
+  assert.ok(first[0].includes('آیا'),'the first WAV must cross the punctuation boundary');
+  const phrases=[...first,...planner.complete(full)];
   assert.equal(phrases.join(' ').replace(/\s+/g,' ').trim(),full.trim());
   assert.equal(planner.complete(full).length,0);
 });
@@ -49,7 +53,7 @@ test('unfinished last word is buffered until its boundary or final done',()=>{
 
 test('Nima begins at first complete word group without waiting for full response',()=>{
   const planner=new ForzaIncrementalSpeechText();
-  const prefix='برای انتخاب قطعه صنعتی مناسب ابتدا مدل ';
+  const prefix='برای انتخاب قطعه صنعتی مناسب ابتدا مدل و شرایط کاری ';
   assert.ok(prefix.length<80);
   const first=planner.push(prefix);
   assert.equal(first.length,1);
@@ -109,7 +113,8 @@ test('holdback releases older buffered groups during long SSE, not only at done'
   const planner=new ForzaIncrementalSpeechText();
   const text='برای ارائه مشاوره درباره انواع تسمه صنعتی لازم است ابتدا مشخصات دستگاه را '+
     'بفرمایید تا بتوانیم کد فنی محصول را با اطلاعات معتبر کاتالوگ صنعت پیش '+
-    'مقایسه کرده و گزینه های مناسب را بررسی و پیشنهاد کنیم.';
+    'مقایسه کرده و گزینه های مناسب را بررسی و پیشنهاد کنیم و اطلاعات فنی را با '+
+    'شرایط نصب و نوع بار دستگاه تطبیق دهیم تا پیشنهاد نهایی دقیق باشد.';
   const output:string[]=[];
   for(let i=1;i<=text.length;i++)output.push(...planner.push(text.slice(0,i)));
   assert.ok(output.length>=2,'middle audio must keep streaming before final done');
@@ -145,7 +150,7 @@ test('terminal idle never pronounces an unfinished word or decimal as a complete
 
 test('new text after terminal idle flush is still streamed and voiced once in order',()=>{
   const planner=new ForzaIncrementalSpeechText();
-  const first='برای بررسی محصول مورد نظر لطفاً کد قطعه را بفرمایید.';
+  const first='برای بررسی محصول مورد نظر لطفاً کد قطعه را بفرمایید تا مشخصات و اندازه دقیق و برند سازنده را هم اعلام کنید.';
   const early=[...planner.push(first),...planner.flushTerminalIdle()];
   const full=first+' همچنین می‌توانید نام سازنده و اندازه قطعه را اعلام کنید.';
   const remaining=[...planner.push(full),...planner.complete(full)];
@@ -155,8 +160,8 @@ test('new text after terminal idle flush is still streamed and voiced once in or
 
 test('middle completed speech group leaves the idle holdback without duplicated words',()=>{
   const planner=new ForzaIncrementalSpeechText();
-  const first='برای انتخاب قطعات صنعتی مورد نیاز ابتدا مدل دستگاه را بفرمایید و ';
-  const next=first+'سپس کد دقیق قطعه را از روی برچسب یا دفترچه فنی ارسال کنید. ';
+  const first='برای انتخاب قطعات صنعتی مورد نیاز ابتدا مدل دستگاه را بفرمایید و شرایط کاری و ابعاد قطعه را هم اعلام کنید تا بررسی کنیم ';
+  const next=first+'سپس کد دقیق قطعه را از روی برچسب یا دفترچه فنی ارسال کنید و برند سازنده را نیز مشخص کنید. ';
   const early=planner.push(first);
   const middle=planner.push(next);
   const idle=planner.flushStableIdle();
@@ -181,10 +186,10 @@ test('idle flush never invents or voices unfinished trailing SKU characters',()=
 
 test('a short stable initial word group can start during provider idle without speaking a partial SKU',()=>{
  const planner=new ForzaIncrementalSpeechText();
- assert.deepEqual(planner.push('برای بررسی کد 620'),[]);
- const early=planner.flushStableIdle();assert.deepEqual(early,['برای بررسی کد']);
+ assert.deepEqual(planner.push('برای بررسی مشخصات کد فنی 620'),[]);
+ const early=planner.flushStableIdle();assert.deepEqual(early,['برای بررسی مشخصات کد فنی']);
  assert.deepEqual(planner.flushStableIdle(),[]);
- const full='برای بررسی کد 6203ZZ نام سازنده را هم بفرمایید.';
+ const full='برای بررسی مشخصات کد فنی 6203ZZ نام سازنده را هم بفرمایید.';
  assert.equal([...early,...planner.complete(full)].join(' '),full);
 });
 

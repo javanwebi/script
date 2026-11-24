@@ -215,16 +215,19 @@ export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number
   const normalized=normalizePersianTranscript(text);
   // No transcript yet is not proof that the customer stopped speaking. Keep
   // the recorder open long enough for delayed local/browser ASR hypotheses.
-  if(!normalized)return 5200;
+  if(!normalized)return 10_000;
   // Only explicit control commands bypass the natural-pause continuation window.
   if(/^(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|توقف|بسه|ساکت|ساکت شو|ادامه بده|ادامه بدید|ادامه)$/.test(normalized))
     return 650;
   const analysis = analyzePersianSentenceCompletion(normalized);
   // A grammatical full stop is not a reliable turn boundary: people pause
-  // mid-thought, breathe, or search for a technical part number.
-  if(analysis.isMidThought)return hasInterim?5600:5200;
-  if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?4600:4200;
-  return hasInterim?5200:4800;
+  // mid-thought, breathe, or search for a technical part number. Keep unfinished
+  // thoughts open much longer; a short fixed silence was splitting long Persian
+  // requests into multiple LLM turns even when the recognizer had not finished.
+  if(analysis.isMidThought)return hasInterim?30_000:25_000;
+  if(!analysis.isComplete)return hasInterim?20_000:15_000;
+  if(analysis.confidence<0.9)return hasInterim?12_000:9_000;
+  return hasInterim?6_500:5_500;
 }
 
 /**
