@@ -8,14 +8,18 @@ import {sanitizeStaffPermissions} from './staffPermissions';
 const error=(status:number,message:string)=>Object.assign(new Error(message),{status});
 function client(){const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;if(!url || !key)throw error(503,'اتصال Supabase Auth هنوز کامل نشده است.');return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});}
 const cookie=(req:IncomingMessage,name:string)=>(req.headers.cookie || '').split(';').map(value=>value.trim()).find(value=>value.startsWith(name+'='))?.slice(name.length+1);
-export function buildAuthCookieHeaders(session:Pick<Session,'access_token'|'refresh_token'|'expires_in'>|null,secure:boolean){
+export function buildRefreshCookieMigrationHeaders(refreshToken:string,secure:boolean,active=true){
  const suffix=secure?'; Secure':'';
- const active=Boolean(session);
  return [
-  `sp_access=${session?.access_token || ''}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${session?.expires_in || 0}${suffix}`,
-  `sp_refresh=${session?.refresh_token || ''}; Path=/api; HttpOnly; SameSite=Lax; Max-Age=${active?2592000:0}${suffix}`,
+  `sp_refresh=${active?refreshToken:''}; Path=/api; HttpOnly; SameSite=Lax; Max-Age=${active?2592000:0}${suffix}`,
   // Remove the previous portal-only cookie so duplicate names cannot shadow the new API-wide cookie.
   `sp_refresh=; Path=/api/portal; HttpOnly; SameSite=Lax; Max-Age=0${suffix}`
+ ];
+}
+export function buildAuthCookieHeaders(session:Pick<Session,'access_token'|'refresh_token'|'expires_in'>|null,secure:boolean){
+ return [
+  `sp_access=${session?.access_token || ''}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${session?.expires_in || 0}${secure?'; Secure':''}`,
+  ...buildRefreshCookieMigrationHeaders(session?.refresh_token || '',secure,Boolean(session))
  ];
 }
 function cookies(req:IncomingMessage,res:ServerResponse,session:Session|null){
@@ -76,11 +80,7 @@ export async function refreshAuth(req:IncomingMessage,res:ServerResponse){
    // Re-scope it during portal hydration, then expire the old path-specific cookie.
    const pathname=String(req.url || '').split('?',1)[0];
    if(pathname==='/api/portal' || pathname.startsWith('/api/portal/')){
-    const suffix=process.env.NODE_ENV==='production'?'; Secure':'';
-    res.setHeader('Set-Cookie',[
-     `sp_refresh=${refresh}; Path=/api; HttpOnly; SameSite=Lax; Max-Age=2592000${suffix}`,
-     `sp_refresh=; Path=/api/portal; HttpOnly; SameSite=Lax; Max-Age=0${suffix}`
-    ]);
+    res.setHeader('Set-Cookie',buildRefreshCookieMigrationHeaders(refresh,process.env.NODE_ENV==='production'));
    }
    return;
   }
