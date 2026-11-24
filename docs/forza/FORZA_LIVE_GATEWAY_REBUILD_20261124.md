@@ -33,6 +33,10 @@ Optional settings:
 
 The read-only `GET /api/ai/forza-live-status` endpoint reports whether the gateway is enabled and whether a server-side key is configured. It never returns the key.
 
+## Customer privacy and billing
+
+The gateway does not persist audio or transcripts to the Sanat Pish database or application logs, but audio/text is transmitted to Google for live inference. The customer UI displays a notice before starting. Google's current Gemini 3.8 Live pricing page says Free-tier content may be used to improve Google products, while Paid-tier content is not. Use a Paid-tier project for real customer or commercially sensitive conversations and publish the appropriate privacy notice. Free-tier audio is listed as free of charge; Paid-tier audio is listed at $0.005/min input and $0.018/min output. Availability and quotas depend on the Google project.
+
 ## Validation
 
 Run:
