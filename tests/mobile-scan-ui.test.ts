@@ -13,7 +13,7 @@ test("mobile scan action uses existing product identification context, not a dup
   assert.match(nav, /openIdentification\?\.\("camera"\)/);
   assert.match(provider, /startWithCamera/);
   assert.match(provider, /initialCamera=\{startWithCamera\}/);
-  assert.match(provider, /<Studio isOpen/);
+  assert.match(provider, /<Studio[\s\S]*?isOpen/);
 });
 
 test("camera flow captures only a real frame and holds it for explicit review", () => {
@@ -109,7 +109,7 @@ test("dock camera opens a full-screen live preview, local review, retake, and ex
   assert.match(modal, /عکس‌برداری مجدد/);
   assert.match(modal, /setCameraReviewImage\(dataUrl\)/);
   assert.match(styles, /100dvh/);
-  assert.match(styles, /env\(safe-area-inset-bottom\)/);
+  assert.match(modal, /env\(safe-area-inset-bottom\)/);
 });
 
 test("captured camera image is not uploaded until the customer confirms it", () => {
