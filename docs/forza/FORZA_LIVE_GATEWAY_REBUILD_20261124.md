@@ -10,7 +10,7 @@ The customer browser connects to the same-origin `/api/live` WebSocket. The Expr
 - Text input remains supported over the same socket.
 - Session state is in memory only. No audio or transcript is written to disk or logged.
 - WebSocket upgrades require a matching same-origin `Origin` header.
-- Default limits: 20 concurrent sessions, 2 per source IP, 60 session starts per source IP per hour, 4 minutes per session, 15 seconds to establish the provider session.
+- Default limits: 20 concurrent sessions, 2 per source IP, 60 session starts per source IP per hour, 100 total session starts per hour, 4 minutes per session, 15 seconds to establish the provider session.
 - Slow consumers, invalid payloads, excessive audio frame rates, provider failures and missing credentials fail closed. There is no silent switch to the old request/response voice path.
 
 ## Required server configuration
@@ -27,6 +27,7 @@ Optional settings:
 | `FORZA_LIVE_MAX_CONNECTIONS` | `20` | Global concurrent session cap |
 | `FORZA_LIVE_MAX_CONNECTIONS_PER_IP` | `2` | Concurrent sessions per IP |
 | `FORZA_LIVE_MAX_SESSIONS_PER_HOUR_PER_IP` | `60` | Session starts per IP per hour |
+| `FORZA_LIVE_MAX_SESSIONS_PER_HOUR` | `100` | Global session starts per hour |
 | `FORZA_LIVE_MAX_SESSION_MS` | `240000` | Maximum session duration |
 | `FORZA_LIVE_CONNECT_TIMEOUT_MS` | `15000` | Provider connection timeout |
 
