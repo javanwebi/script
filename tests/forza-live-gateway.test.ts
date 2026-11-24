@@ -112,6 +112,8 @@ test('FORZA Live gateway connects to Gemini and bridges continuous audio, text, 
     assert.equal(connected.sampleRate, 24000);
     assert.equal(connected.inputSampleRate, 16000);
     assert.equal(connectOptions.config.responseModalities[0], 'AUDIO');
+    assert.equal(connectOptions.config.speechConfig.languageCode, 'fa');
+    assert.equal(connectOptions.config.realtimeInputConfig.automaticActivityDetection.silenceDurationMs, 600);
     assert.deepEqual(connectOptions.config.inputAudioTranscription, {});
     assert.deepEqual(connectOptions.config.outputAudioTranscription, {});
 
