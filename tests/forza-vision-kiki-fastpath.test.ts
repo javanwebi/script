@@ -114,7 +114,7 @@ test('real multi-part lens exposes KIKI quick-select buttons without auto-runnin
   assert.ok(modal.includes('setMobileResultsExpanded(false); resetForm();'));
   assert.ok(modal.includes('resetForm(); setCameraFlowActive(true); void startCamera();'));
   assert.ok(optical.includes('.fv-kiki-optical-toolbar'));
-  assert.ok(review.includes('.kiki-region-review'));
+  assert.ok(review.includes('.kiki-vision-review-shell.kiki-image-workspace'));
   assert.ok(review.includes('.sanat-region-picker__canvas'));
   assert.ok(review.includes('.sanat-region-picker__search'));
   assert.ok(review.includes('.sanat-region-picker__full-image'));
