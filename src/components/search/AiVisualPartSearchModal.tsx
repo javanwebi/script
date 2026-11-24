@@ -2,7 +2,7 @@ import {LocalModelResults} from './LocalModelResults';
 import {CatalogResultImage} from './CatalogResultImage';
 import { loadVisionRecentSearches, recordVisionRecentSearch, type VisionRecentSearchItem } from './visionRecentHistory';
 import {apiUrl} from '../../config/apiConfig';
-import { getForegroundRegion, preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
+import { getForegroundRegion, getForegroundRegions, preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
@@ -363,17 +363,20 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     // first without waiting for the server's detection round-trip.
     const localDetection = segmentImageWithClientAi(imageUrl).then(segmented => {
       if (sequence !== regionDetectionSequenceRef.current || serverCommitted || !segmented) return false;
-      const region = getForegroundRegion(segmented);
+      const detectedRegions = getForegroundRegions(segmented);
+      const region = getForegroundRegion(segmented) || detectedRegions[0];
       if (!region) return false;
       localSucceeded = true;
       localSegmentationRef.current = { source: imageUrl, result: segmented, region };
       setRegionDetectionId(null);
       setQueryRegion(region);
-      setCandidateRegions([region]);
+      setCandidateRegions(detectedRegions.length ? detectedRegions : [region]);
       setFullImageSelected(false);
       setRegionDetectionState('ready');
       setLocalRegionEnabled(true);
-      setRegionDetectionMessage('مدل محلی قطعه را پیدا کرد. اگر چند قطعه در تصویر است، کادر را روی قطعه موردنظر تنظیم کنید.');
+      setRegionDetectionMessage(detectedRegions.length > 1
+        ? 'چند قطعه در تصویر پیدا شد؛ قطعه موردنظر را از روی کادرها انتخاب کنید یا برش را دستی اصلاح کنید.'
+        : 'مدل محلی ناحیه اصلی قطعه را پیدا کرد. برای دقیق‌تر شدن، کادر را جابه‌جا کنید یا گوشه‌های آن را بکشید.');
       return true;
     }).catch(() => false);
 
@@ -1074,44 +1077,24 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           isUploading={isUploadingImage}
         />
       ) : currentStep === 1 && selectedImage ? (
-        <main className="kiki-vision-review-shell" dir="rtl" data-testid="kiki-vision-review-shell">
-          <header className="kiki-vision-review-shell__header">
-            <div className="kiki-vision-review-shell__brand">
-              <img src="/images/brand/logo-forza.webp" alt="FORZA" />
-              <div className="kiki-vision-review-shell__brand-copy">
-                <span>FORZA VISION</span>
-                <h1>انتخاب قطعه از تصویر</h1>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => { stopCamera(); onClose(); }}
-              className="kiki-vision-review-shell__back"
-              aria-label="بازگشت از شناسایی تصویر"
-            >
-              <ArrowRight size={16} aria-hidden="true" />
-              <span>بازگشت</span>
-            </button>
-          </header>
-          <div className="kiki-vision-review-shell__content" data-testid="identification-wizard">
-                <ImageRegionReview
-                  image={selectedImage || ''}
-                  status={regionDetectionState}
-                  selectedRegion={queryRegion}
-                  candidateRegions={candidateRegions}
-                  message={[regionDetectionMessage, localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
-                  analysisError={errorMessage}
-                  busy={isUploadingImage || !temporaryImageDataUrl}
-                  onRegionChange={handleRegionSelection}
-                  onConfirm={confirmRegionAndAnalyze}
-                  onFullImageSearch={confirmFullImageAndAnalyze}
-                  onRetryPreparation={retryRegionPreparation}
-                  onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
-                  onChangeImage={() => fileInputRef.current?.click()}
-                />
-          </div>
-        </main>
-      ) : (
+        <ImageRegionReview
+          image={selectedImage || ''}
+          status={regionDetectionState}
+          selectedRegion={queryRegion}
+          candidateRegions={candidateRegions}
+          message={[regionDetectionMessage, localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
+          analysisError={errorMessage}
+          busy={isUploadingImage || !temporaryImageDataUrl}
+          onRegionChange={handleRegionSelection}
+          onConfirm={confirmRegionAndAnalyze}
+          onFullImageSearch={confirmFullImageAndAnalyze}
+          onRetryPreparation={retryRegionPreparation}
+          onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
+          onChangeImage={() => fileInputRef.current?.click()}
+          onCamera={() => { setCameraReview(false); setCameraFlowActive(true); void startCamera(); }}
+          onClose={() => { stopCamera(); onClose(); }}
+          onManufacture={() => { void openCustomManufacturingRequest(); }}
+        ) : (
         <div className={currentStep === "analyzing" ? "sp-vision-analysis-container" : "p-5 sm:p-6 text-right space-y-5"}>
           {/* TOP STEPPER (Only visible during steps 2 & 3) */}
           {typeof currentStep === "number" && (
