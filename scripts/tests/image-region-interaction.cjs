@@ -55,6 +55,11 @@ const {chromium}=require('playwright');
     await selectorFrame.focus();
     const beforeDisabled=await page.evaluate(()=>window.lastRegion);
     await page.evaluate(()=>window.setSelectorDisabled(true));
+    // Wait for React to commit the busy state before asserting keyboard blocking.
+    await page.waitForFunction(()=>{
+     const frame=document.querySelector('.sanat-region-picker__frame');
+     return frame?.getAttribute('tabindex')==='-1' && frame.getAttribute('aria-disabled')==='true';
+    });
     await page.keyboard.press('ArrowRight');
     assert.deepEqual(await page.evaluate(()=>window.lastRegion),beforeDisabled,'keyboard must not change the selected region while busy');
     assert.equal(await selectorFrame.getAttribute('tabindex'),'-1');
