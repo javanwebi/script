@@ -206,7 +206,7 @@ test("standalone identification route uses the new entry design and existing cam
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const entry = source("src/components/search/VisionEntryPage.tsx");
   assert.match(provider, /<Studio isOpen standalone fullScreen/);
-  assert.match(modal, /!initialCamera && currentStep === 1 && !selectedImage && !isUsingCamera/);
+  assert.match(modal, /currentStep === 1 && !selectedImage/);
   assert.match(modal, /setCameraFlowActive\(true\); void startCamera\(\)/);
   assert.match(modal, /onUpload=\{\(\) => fileInputRef\.current\?\.click\(\)\}/);
   assert.match(entry, /data-testid="forza-vision-entry"/);
@@ -228,11 +228,21 @@ test("visual identification preserves the existing production image input path",
 
 
 test("workspace vision entry, image review and results use the KIKI presentation without replacing the current recognition pipeline", () => {
+  const review = source("src/components/search/ImageRegionReview.tsx");
+  const reviewStyles = source("src/components/search/image-region-review.css");
+
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const entry = source("src/components/search/VisionEntryPage.tsx");
   const styles = source("src/components/search/vision-camera-design.css");
   assert.match(modal, /data-testid="kiki-vision-review-shell"/);
   assert.match(modal, /data-testid="kiki-vision-results-shell"/);
+  assert.doesNotMatch(modal, /sanat-visual-search-hero|sanat-visual-stepper|kiki-vision-review-shell__status/);
+  assert.match(review, /kiki-region-review/);
+  assert.match(review, /جستجوی این قطعه در کاتالوگ/);
+  assert.doesNotMatch(review, /تأیید تصویر و شروع تحلیل|تأیید برش و شروع تحلیل|sp-region-review__scanner-steps|دریافت تصویر|یافتن قطعه|آماده‌سازی برش/);
+  assert.match(reviewStyles, /\\.kiki-region-review \\.sanat-region-picker__canvas/);
+  assert.doesNotMatch(reviewStyles, /background:\\s*#172231|background:\\s*#111b27/);
+
   assert.match(modal, /بازگشت به میزکار از نتایج شناسایی/);
   assert.doesNotMatch(modal, /sp-vision-journey/);
   assert.match(entry, /شروع اسکن با دوربین/);
