@@ -86,7 +86,6 @@ import {
 } from './visionRecentHistory';
 import './industrial-scan.css';
 
-import OPTICAL_BENCH_ART from '../../assets/images/optical_inspection_bench_1795017104316.jpg';
 const CAMERA_TIPS_SEEN_KEY = 'forza_camera_tips_seen_v1';
 
 const LazyCustomPartRequestModal = lazy(() =>
@@ -156,7 +155,7 @@ export interface AiVisualPartSearchModalProps {
   onAnalysisResult?: (result: AiPartAnalysisResult, image: string) => void;
 }
 
-type StudioScreen = 'entry' | 'camera' | 'results';
+type StudioScreen = 'entry' | 'camera' | 'review' | 'results';
 
 type ManufacturingRequestDraft = {
   file: File;
@@ -172,9 +171,7 @@ const CAMERA_ZOOM_PRESETS = [1, 1.5, 2, 3];
 type CameraScanMode = 'deep' | 'quick';
 
 interface QuickMotionDetection {
-  category: string;
-  categoryKey: 'belts' | 'bearings' | 'pulleys' | 'chains';
-  confidence: number;
+  label: string;
   motionPercent: number;
   bbox: { x: number; y: number; w: number; h: number };
 }
@@ -241,6 +238,8 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
   const [cameraNotice, setCameraNotice] = useState('');
   const [cameraZoom, setCameraZoom] = useState(1);
   const [cameraGuideOpen, setCameraGuideOpen] = useState(false);
+  const [cameraReviewImage, setCameraReviewImage] = useState<string | null>(null);
+  const [cameraReviewHint, setCameraReviewHint] = useState('');
 
   // Custom manufacturing request & general errors
   const [errorMessage, setErrorMessage] = useState('');
@@ -278,7 +277,6 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
   const edgeLockTimerRef = useRef<number | null>(null);
   const motionPrevLumaRef = useRef<Uint8Array | null>(null);
   const motionCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const motionBenchImgRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     if (!showVisionSplash) return;
@@ -289,7 +287,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     return () => window.clearTimeout(timer);
   }, [showVisionSplash]);
 
-  // Real-time motion & contour category detector when Quick Scan is active
+  // Quick Scan highlights only motion measured from a real camera frame; it never invents a part category.
   useEffect(() => {
     if (!isOpen || screen !== 'camera' || scanMode !== 'quick') {
       motionPrevLumaRef.current = null;
@@ -300,146 +298,74 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     const W = 120;
     const H = 90;
     if (!motionCanvasRef.current) {
-      const c = document.createElement('canvas');
-      c.width = W;
-      c.height = H;
-      motionCanvasRef.current = c;
-    }
-    if (!motionBenchImgRef.current) {
-      const img = new Image();
-      img.src = OPTICAL_BENCH_ART;
-      motionBenchImgRef.current = img;
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      motionCanvasRef.current = canvas;
     }
 
-    let phase = 0;
     const tick = () => {
       const canvas = motionCanvasRef.current;
       const ctx = canvas?.getContext('2d', { willReadFrequently: true });
-      if (!canvas || !ctx) return;
-
-      const hasVideo = Boolean(
-        isCameraReady && videoRef.current && videoRef.current.videoWidth > 0,
-      );
-      if (hasVideo && videoRef.current) {
-        const video = videoRef.current;
-        const vw = video.videoWidth;
-        const vh = video.videoHeight;
-        const dz = hwZoomRangeRef.current ? 1 : cameraZoomRef.current;
-        const cw = Math.max(1, vw / dz);
-        const ch = Math.max(1, vh / dz);
-        ctx.drawImage(video, (vw - cw) / 2, (vh - ch) / 2, cw, ch, 0, 0, W, H);
-      } else if (motionBenchImgRef.current?.complete && motionBenchImgRef.current.naturalWidth > 0) {
-        ctx.drawImage(motionBenchImgRef.current, 0, 0, W, H);
-      } else {
+      const video = videoRef.current;
+      if (!canvas || !ctx || !isCameraReady || !video || !video.videoWidth || !video.videoHeight) {
+        motionPrevLumaRef.current = null;
+        setQuickDetection(null);
         return;
       }
 
-      const data = ctx.getImageData(0, 0, W, H).data;
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const zoom = hwZoomRangeRef.current ? 1 : cameraZoomRef.current;
+      const cropW = Math.max(1, vw / zoom);
+      const cropH = Math.max(1, vh / zoom);
+      ctx.drawImage(video, (vw - cropW) / 2, (vh - cropH) / 2, cropW, cropH, 0, 0, W, H);
+
+      const pixels = ctx.getImageData(0, 0, W, H).data;
       const luma = new Uint8Array(W * H);
       for (let i = 0; i < W * H; i++) {
-        const off = i * 4;
-        luma[i] = Math.round(data[off] * 0.299 + data[off + 1] * 0.587 + data[off + 2] * 0.114);
+        const offset = i * 4;
+        luma[i] = Math.round(pixels[offset] * 0.299 + pixels[offset + 1] * 0.587 + pixels[offset + 2] * 0.114);
       }
 
-      const prev = motionPrevLumaRef.current;
+      const previous = motionPrevLumaRef.current;
+      motionPrevLumaRef.current = luma;
+      if (!previous) {
+        setQuickDetection(null);
+        return;
+      }
+
       let motionPixels = 0;
       let minX = W;
-      let maxX = 0;
+      let maxX = -1;
       let minY = H;
-      let maxY = 0;
-      let edgeHits = 0;
-      let centerEdgeHits = 0;
-      let totalSampled = 0;
-
+      let maxY = -1;
       for (let y = 2; y < H - 2; y++) {
         for (let x = 2; x < W - 2; x++) {
-          const idx = y * W + x;
-          const gx = Math.abs(luma[idx + 1] - luma[idx - 1]);
-          const gy = Math.abs(luma[idx + W] - luma[idx - W]);
-          const grad = gx + gy;
-
-          const isMoving = prev ? Math.abs(luma[idx] - prev[idx]) > 20 : false;
-          if (isMoving) {
-            motionPixels++;
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
-
-          if (x > W * 0.15 && x < W * 0.85 && y > H * 0.15 && y < H * 0.85) {
-            totalSampled++;
-            if (grad > 36) {
-              edgeHits++;
-              if (x > W * 0.35 && x < W * 0.65 && y > H * 0.35 && y < H * 0.65) {
-                centerEdgeHits++;
-              }
-            }
-          }
+          const index = y * W + x;
+          if (Math.abs(luma[index] - previous[index]) <= 20) continue;
+          motionPixels++;
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
         }
       }
 
-      motionPrevLumaRef.current = luma;
-
-      const motionPercent = Math.min(100, Math.round((motionPixels / (W * H)) * 420));
-      const hasSignificantMotion = motionPixels > 18 && maxX > minX + 6 && maxY > minY + 6;
-
-      let bx = 0.22;
-      let by = 0.2;
-      let bw = 0.56;
-      let bh = 0.58;
-
-      if (hasSignificantMotion) {
-        bx = Math.max(0.08, minX / W - 0.04);
-        by = Math.max(0.08, minY / H - 0.04);
-        bw = Math.min(0.84, Math.max(0.24, (maxX - minX) / W + 0.08));
-        bh = Math.min(0.84, Math.max(0.24, (maxY - minY) / H + 0.08));
-      } else {
-        phase = (phase + 1) % 3;
-        const offsets = [
-          { x: 0.21, y: 0.2, w: 0.58, h: 0.56 },
-          { x: 0.25, y: 0.24, w: 0.5, h: 0.5 },
-          { x: 0.19, y: 0.26, w: 0.62, h: 0.44 },
-        ];
-        const o = offsets[phase];
-        bx = o.x;
-        by = o.y;
-        bw = o.w;
-        bh = o.h;
+      const significant = motionPixels > 18 && maxX > minX + 6 && maxY > minY + 6;
+      if (!significant) {
+        setQuickDetection(null);
+        return;
       }
 
-      const ratio = (bw * W) / Math.max(1, bh * H);
-      const edgeDensity = edgeHits / Math.max(1, totalSampled);
-      const centerRatio = (centerEdgeHits / Math.max(1, edgeHits)) * 4.2;
-
-      let category = 'تسمه صنعتی و تایمینگ';
-      let categoryKey: QuickMotionDetection['categoryKey'] = 'belts';
-      let confidence = 86;
-
-      if (ratio > 1.55 || ratio < 0.64) {
-        category = 'تسمه صنعتی و تایمینگ';
-        categoryKey = 'belts';
-        confidence = Math.min(96, 82 + Math.round(motionPercent * 0.12));
-      } else if (centerRatio > 1.12 && edgeDensity > 0.18) {
-        category = 'بلبرینگ و یاتاقان';
-        categoryKey = 'bearings';
-        confidence = Math.min(95, 80 + Math.round(edgeDensity * 28));
-      } else if (edgeDensity > 0.26) {
-        category = 'پولی و چرخ‌دنده صنعتی';
-        categoryKey = 'pulleys';
-        confidence = Math.min(94, 79 + Math.round(edgeDensity * 25));
-      } else {
-        category = 'زنجیر و کوپلینگ';
-        categoryKey = 'chains';
-        confidence = Math.min(91, 77 + Math.round(motionPercent * 0.1));
-      }
-
+      const x = Math.max(0, minX / W - 0.04);
+      const y = Math.max(0, minY / H - 0.04);
+      const width = Math.min(1 - x, Math.max(0.12, (maxX - minX) / W + 0.08));
+      const height = Math.min(1 - y, Math.max(0.12, (maxY - minY) / H + 0.08));
       setQuickDetection({
-        category,
-        categoryKey,
-        confidence,
-        motionPercent: hasSignificantMotion ? Math.max(12, motionPercent) : 18 + phase * 7,
-        bbox: { x: bx, y: by, w: bw, h: bh },
+        label: 'ناحیه دارای حرکت',
+        motionPercent: Math.min(100, Math.round((motionPixels / (W * H)) * 420)),
+        bbox: { x, y, w: width, h: height },
       });
     };
 
@@ -1336,44 +1262,69 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
   };
 
   const captureCameraFrame = (quickCategoryHint?: string) => {
-    const resolvedHint =
-      quickCategoryHint || (scanMode === 'quick' ? quickDetection?.category || '' : '');
-    if (videoRef.current && canvasRef.current && isCameraReady && videoRef.current.videoWidth) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
-
-      const digitalZoom = hwZoomRangeRef.current ? 1 : cameraZoomRef.current;
-      const cropW = Math.round(vw / digitalZoom);
-      const cropH = Math.round(vh / digitalZoom);
-      const sx = Math.round((vw - cropW) / 2);
-      const sy = Math.round((vh - cropH) / 2);
-
-      canvas.width = cropW;
-      canvas.height = cropH;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        void launchDirectVisualResults(dataUrl, dataUrl, {
-          originalName: 'camera-capture.jpg',
-          sampleHint: resolvedHint,
-          mime: 'image/jpeg',
-        });
-        return;
-      }
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!isCameraReady || !video || !canvas || !video.videoWidth || !video.videoHeight) {
+      setErrorMessage('دوربین هنوز تصویر واقعی و آماده‌ای برای ثبت ندارد. لطفاً کمی صبر کنید یا از گالری استفاده کنید.');
+      return;
     }
-    // Live multi-part optical inspection bench fallback when sandbox lacks webcam hardware
-    void launchDirectVisualResults(OPTICAL_BENCH_ART, OPTICAL_BENCH_ART, {
-      originalName: 'optical-inspection.jpg',
-      sampleHint: resolvedHint,
+
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    const digitalZoom = hwZoomRangeRef.current ? 1 : cameraZoomRef.current;
+    const cropWidth = Math.max(1, Math.round(videoWidth / digitalZoom));
+    const cropHeight = Math.max(1, Math.round(videoHeight / digitalZoom));
+    const sourceX = Math.round((videoWidth - cropWidth) / 2);
+    const sourceY = Math.round((videoHeight - cropHeight) / 2);
+
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      setErrorMessage('آماده‌سازی تصویر دوربین انجام نشد. دوباره تلاش کنید.');
+      return;
+    }
+
+    context.drawImage(video, sourceX, sourceY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    if (!dataUrl.startsWith('data:image/jpeg;base64,')) {
+      setErrorMessage('ثبت تصویر دوربین ناموفق بود. دوباره تلاش کنید.');
+      return;
+    }
+
+    setCameraReviewImage(dataUrl);
+    setCameraReviewHint(quickCategoryHint || '');
+    setCameraGuideOpen(false);
+    setErrorMessage('');
+    stopCameraStream();
+    setScreen('review');
+  };
+
+  const retakeCameraPhoto = () => {
+    setCameraReviewImage(null);
+    setCameraReviewHint('');
+    setErrorMessage('');
+    setScreen('camera');
+    void startCamera();
+  };
+
+  const confirmCameraPhoto = () => {
+    if (!cameraReviewImage) return;
+    const image = cameraReviewImage;
+    const hint = cameraReviewHint;
+    setCameraReviewImage(null);
+    setCameraReviewHint('');
+    void launchDirectVisualResults(image, image, {
+      originalName: 'camera-capture.jpg',
+      sampleHint: hint,
       mime: 'image/jpeg',
     });
   };
 
   const handleCloseAction = () => {
     stopCameraStream();
+    setCameraReviewImage(null);
+    setCameraReviewHint('');
     pipelineSequenceRef.current++;
     analyzeAbortRef.current?.abort();
     analyzeAbortRef.current = null;
@@ -1732,22 +1683,14 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
             />
 
             {!isCameraReady && (
-              <div className="relative h-full w-full max-w-4xl overflow-hidden rounded-2xl border border-white/12 bg-[#12161E]">
-                <img
-                  src={OPTICAL_BENCH_ART}
-                  alt="نمای آماده ثبت تصویر قطعه"
-                  style={{
-                    transform: `scale(${digitalPreviewZoom})`,
-                    transformOrigin: 'center center',
-                  }}
-                  className="h-full w-full object-cover opacity-85 transition-transform duration-75"
-                />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/35" />
-                {cameraNotice && (
-                  <p className="absolute top-3 left-3 right-3 mx-auto max-w-lg rounded-xl border border-white/15 bg-[#141820]/85 px-4 py-2 text-center text-xs font-medium text-slate-100 backdrop-blur-md">
-                    {cameraNotice}
-                  </p>
-                )}
+              <div className="relative flex h-full w-full max-w-4xl flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-white/12 bg-[#12161E] p-6 text-center">
+                <Camera className="h-12 w-12 text-white/45" aria-hidden="true" />
+                <p className="text-sm font-bold text-white">
+                  {cameraNotice || 'در حال آماده‌سازی دوربین…'}
+                </p>
+                <p className="max-w-sm text-xs leading-6 text-slate-300">
+                  تا زمانی که تصویر واقعی دوربین آماده نشده، امکان ثبت یا تحلیل تصویر وجود ندارد.
+                </p>
               </div>
             )}
 
@@ -1810,10 +1753,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                 >
                   <div className="absolute -top-7 right-0 inline-flex items-center gap-1.5 rounded-full bg-[#E06518] px-2.5 py-0.5 text-[11px] font-bold text-white whitespace-nowrap shadow">
                     <Activity className="h-3 w-3 animate-pulse" aria-hidden="true" />
-                    <span>{quickDetection.category}</span>
-                    <span className="tabular-nums opacity-90">
-                      · {toPersianDigits(quickDetection.confidence)}٪
-                    </span>
+                    <span>{quickDetection.label}</span>
                   </div>
                 </div>
               </div>
@@ -1823,7 +1763,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-6 sm:p-8">
               <div className="mb-4 max-w-sm rounded-full border border-white/20 bg-[#141820]/85 px-4 py-1.5 text-center text-[11px] font-semibold text-amber-200 backdrop-blur-md">
                 {scanMode === 'quick'
-                  ? 'اسکن سریع فعال است: تشخیص حرکت زنده و دسته‌بندی فوری قطعه'
+                  ? 'اسکن سریع فعال است: ناحیه دارای حرکت برای بررسی مشخص می‌شود'
                   : 'برای تسمه‌ها: مستقیم روبه‌روی برند و اطلاعات درج‌شده روی تسمه عکس بگیرید و بفرستید'}
               </div>
               <div className="fv-corner-brackets h-[min(64vw,290px)] w-[min(64vw,290px)] rounded-2xl overflow-hidden">
@@ -1913,11 +1853,11 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
               {scanMode === 'quick' && quickDetection && (
                 <button
                   type="button"
-                  onClick={() => captureCameraFrame(quickDetection.category)}
+                  onClick={() => captureCameraFrame(quickDetection.label)}
                   className="inline-flex items-center gap-2 rounded-full border border-[#E06518] bg-[#141820]/95 px-4 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-md hover:bg-[#E06518] transition-colors cursor-pointer whitespace-nowrap"
                 >
                   <Activity className="h-3.5 w-3.5 text-[#FF8C42]" aria-hidden="true" />
-                  <span>تایید فوری: {quickDetection.category}</span>
+                  <span>بررسی ناحیه</span>
                   <span className="text-[10px] opacity-80 tabular-nums">
                     (تحرک {toPersianDigits(quickDetection.motionPercent)}٪)
                   </span>
@@ -1964,8 +1904,9 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
               <button
                 type="button"
                 onClick={() => captureCameraFrame()}
+                disabled={!isCameraReady}
                 aria-label="ثبت تصویر قطعه"
-                className="group relative grid h-[74px] w-[74px] place-items-center rounded-full border-[3px] border-white p-1.5 transition-transform active:scale-95 cursor-pointer shadow-[0_0_24px_rgba(224,101,24,0.35)]"
+                className="group relative grid h-[74px] w-[74px] place-items-center rounded-full border-[3px] border-white p-1.5 transition-transform active:scale-95 cursor-pointer shadow-[0_0_24px_rgba(224,101,24,0.35)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <span className="h-full w-full rounded-full bg-[#E06518] transition-colors group-hover:bg-[#f07428]" />
               </button>
@@ -1995,6 +1936,55 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
             />
           </footer>
           <canvas ref={canvasRef} className="sr-only" />
+        </motion.section>
+      )}
+
+      {screen === 'review' && cameraReviewImage && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.24 }}
+          className="fixed inset-0 z-[120] flex flex-col bg-[#0B0E13] text-white"
+          data-testid="kiki-vision-review-shell"
+          aria-label="بازبینی تصویر ثبت‌شده"
+        >
+          <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-[#141820] px-4">
+            <button type="button" onClick={retakeCameraPhoto} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-xs font-bold text-white">
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              بازگشت به دوربین
+            </button>
+            <span className="text-sm font-black">بازبینی تصویر</span>
+            <button type="button" onClick={handleCloseAction} aria-label="بستن" className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/5">
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </header>
+          <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4 sm:p-8">
+            <img
+              src={cameraReviewImage}
+              alt="تصویر واقعی ثبت‌شده از قطعه"
+              className="max-h-full max-w-full rounded-2xl border border-white/15 object-contain shadow-2xl"
+            />
+          </div>
+          <footer className="shrink-0 border-t border-white/10 bg-[#141820] px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="mx-auto flex max-w-xl flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={retakeCameraPhoto}
+                className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 text-sm font-bold text-white hover:bg-white/10"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                عکس‌برداری مجدد
+              </button>
+              <button
+                type="button"
+                onClick={confirmCameraPhoto}
+                className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#E06518] px-5 text-sm font-black text-white hover:bg-[#C95210]"
+              >
+                <ScanLine className="h-4 w-4" aria-hidden="true" />
+                تأیید و شناسایی قطعه
+              </button>
+            </div>
+          </footer>
         </motion.section>
       )}
 
