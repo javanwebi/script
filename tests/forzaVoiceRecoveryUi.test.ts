@@ -150,7 +150,8 @@ test('a two-second pause preserves the same live transcript across browser recog
   assert.match(ui,/appendForzaSpeechSegment\(recognitionSessionBaseRef\.current,currentSpeech\)/);
   assert.match(ui,/: 5200;/);
   assert.match(ui,/Math\.max\(5200,pauseMs\)-acousticSilence/);
-  assert.match(speechPipeline,/hasInterim\?4600:4200/);
+  assert.match(speechPipeline,/hasInterim\?2100:1350/);
+  assert.match(speechPipeline,/hasInterim\?3400:2800/);
 });
 
 test('FORZA hair animation remains visible during the spoken greeting despite microphone echo cancellation',()=>{
