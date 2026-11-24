@@ -223,7 +223,7 @@ test("visual identification preserves the existing production image input path",
   assert.match(match, /aiVisualSearchService\.analyzePartWithAi/);
   assert.match(match, /region: opts\.fullImage \? undefined : opts\.region/);
   assert.match(match, /fullImage: opts\.fullImage === true/);
-  assert.match(match, /detectionId: opts\.detectionId/);
+  assert.match(match, /detectionId: opts\.fullImage \? undefined : opts\.detectionId \|\| regionDetectionId \|\| undefined/);
   assert.match(match, /imageBase64: payloadImage\.startsWith/);
   assert.match(modal, /const saved = await saveCustomerDeviceImage/);
 });
