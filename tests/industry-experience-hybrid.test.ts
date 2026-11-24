@@ -91,7 +91,7 @@ test("station ranking prioritizes stage evidence, keeps industry fallback and ex
     ceramic,
     stage,
     4,
-    ["دمای بالا، فشار ۱۲ بار"],
+    ["دمای بالا، فشار ۱۲ بار و کار مداوم"],
   );
   assert.deepEqual(
     ranked.map(product => product.code),

@@ -34,7 +34,7 @@ const CONTEXT_STOPWORDS = new Set([
 
 function tokenizeOperatingContext(value: string): string[] {
   return normalize(value)
-    .split(/[\\s,،;؛|/\\\\()[\\]{}:._-]+/)
+    .split(/[^\p{L}\p{N}]+/u)
     .filter(token => token.length >= 3 && !CONTEXT_STOPWORDS.has(token));
 }
 
