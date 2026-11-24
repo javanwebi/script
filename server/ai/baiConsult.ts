@@ -28,14 +28,14 @@ export class BaiConsultError extends Error {
 }
 
 export function configuredAvalaiModel(env: NodeJS.ProcessEnv, voice: boolean): string | null {
-  const provider = String((voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
+  const provider = String((voice ? env.FORZA_VOICE_PROVIDER || env.FORZA_DESK_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
   if (provider !== 'avalai' || !env.AVALAI_API_KEY?.trim()) return null;
-  const model = String((voice ? env.AVALAI_MODEL_VOICE : env.AVALAI_MODEL_DESK) || 'glm-5.3-flash').trim();
+  const model = String((voice ? env.AVALAI_MODEL_VOICE || env.AVALAI_MODEL_DESK : env.AVALAI_MODEL_DESK) || 'glm-5.3-flash').trim();
   return model && model.length <= 100 ? model : null;
 }
 
 export function configuredBaiModel(env: NodeJS.ProcessEnv, voice: boolean): string | null {
-  const provider = String(voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER || '').trim().toLowerCase();
+  const provider = String((voice ? env.FORZA_VOICE_PROVIDER || env.FORZA_DESK_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
   if (provider !== 'bai' || !env.BAI_API_KEY?.trim()) return null;
   // Defaults are deliberately cheap, not assumed free. Check B.AI billing.
   return String((voice ? env.BAI_MODEL_VOICE : env.BAI_MODEL_DESK) || 'qwen3.7-flash').trim();
@@ -71,8 +71,10 @@ export function resolveForzaTextProvider(
   env: NodeJS.ProcessEnv,
   voice: boolean,
 ): ForzaTextProviderResolution {
+  // When no voice-specific provider is configured, reuse the desk provider.
+  // An explicit FORZA_VOICE_PROVIDER still takes precedence.
   const requestedProvider = String(
-    (voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER) || '',
+    (voice ? env.FORZA_VOICE_PROVIDER || env.FORZA_DESK_PROVIDER : env.FORZA_DESK_PROVIDER) || '',
   ).trim().toLowerCase() || 'auto';
   const avalaiModel = configuredAvalaiModel(env, voice);
   const xkiroModel = configuredXkiroModel(env, voice);
