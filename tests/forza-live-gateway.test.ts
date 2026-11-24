@@ -100,7 +100,9 @@ test('FORZA Live gateway connects to Gemini and bridges continuous audio, text, 
     ]);
 
     const outputAudio = Buffer.from([0, 0, 1, 0, 2, 0]).toString('base64');
-    const providerMessagePromise = waitForMessage(client, message => message.type === 'audio_chunk');
+    const providerAudioPromise = waitForMessage(client, message => message.type === 'audio_chunk');
+    const providerUserTextPromise = waitForMessage(client, message => message.type === 'user_transcript');
+    const providerAiTextPromise = waitForMessage(client, message => message.type === 'ai_transcript');
     connectOptions.callbacks.onmessage({
       inputTranscription: { text: 'سلام' },
       outputTranscription: { text: 'سلام، من فورزا هستم.' },
@@ -112,14 +114,13 @@ test('FORZA Live gateway connects to Gemini and bridges continuous audio, text, 
         },
       },
     });
-    const audioMessage = await providerMessagePromise;
+    const [audioMessage, userText, aiText] = await Promise.all([
+      providerAudioPromise, providerUserTextPromise, providerAiTextPromise,
+    ]);
     assert.equal(audioMessage.data, outputAudio);
     assert.equal(audioMessage.mimeType, 'audio/pcm;rate=24000');
     assert.ok(audioMessage.responseId);
-
-    const userText = await waitForMessage(client, message => message.type === 'user_transcript');
     assert.equal(userText.text, 'سلام');
-    const aiText = await waitForMessage(client, message => message.type === 'ai_transcript');
     assert.equal(aiText.text, 'سلام، من فورزا هستم.');
 
     const interruptedPromise = waitForMessage(client, message => message.type === 'interrupted');
