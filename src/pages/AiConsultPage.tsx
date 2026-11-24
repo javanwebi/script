@@ -1631,6 +1631,7 @@ maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
                   className="min-h-[38px] px-2 sm:px-2.5 rounded-xl hover:bg-[#F3F4F6] flex items-center gap-1.5 transition-colors cursor-pointer min-w-0"
                   title="تنظیمات مدل و حوزه صنعتی"
                 >
+                  <CognivoGeometricLogo className="w-4 h-4 shrink-0" />
                   <span className="font-extrabold text-[13.5px] sm:text-[15px] text-[#2B313A] tracking-tight whitespace-nowrap truncate">
                     FORZA مهندسی
                   </span>
