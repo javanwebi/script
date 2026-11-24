@@ -70,9 +70,23 @@ function boundedInteger(value: unknown, fallback: number, min: number, max: numb
   return Math.min(max, Math.max(min, Math.floor(parsed)));
 }
 
+function isTrustedLocalProxy(address: string): boolean {
+  const normalized = address.trim().toLowerCase();
+  return normalized === '127.0.0.1' ||
+    normalized === '::1' ||
+    normalized === '::ffff:127.0.0.1' ||
+    normalized === '::ffff:7f00:1';
+}
+
 function clientIp(request: IncomingMessage): string {
+  const peer = String(request.socket.remoteAddress || 'unknown');
+  // Forwarded headers are only trusted when the TCP peer is our local Nginx
+  // reverse proxy. Direct clients cannot spoof X-Real-IP to evade rate limits.
+  if (!isTrustedLocalProxy(peer)) return peer.slice(0, 64);
+
   const realIp = request.headers['x-real-ip'];
   if (typeof realIp === 'string' && realIp.trim()) return realIp.trim().slice(0, 64);
+
   const forwarded = request.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.trim()) {
     // Nginx appends the actual peer address to X-Forwarded-For.
@@ -80,7 +94,7 @@ function clientIp(request: IncomingMessage): string {
     const last = chain.at(-1);
     if (last) return last.slice(0, 64);
   }
-  return String(request.socket.remoteAddress || 'unknown').slice(0, 64);
+  return peer.slice(0, 64);
 }
 
 function isSameOrigin(request: IncomingMessage): boolean {
@@ -90,6 +104,8 @@ function isSameOrigin(request: IncomingMessage): boolean {
   try {
     const origin = new URL(originHeader);
     return (origin.protocol === 'https:' || origin.protocol === 'http:') &&
+      !origin.username && !origin.password &&
+      origin.pathname === '/' && !origin.search && !origin.hash &&
       origin.host.toLowerCase() === hostHeader.toLowerCase();
   } catch {
     return false;
