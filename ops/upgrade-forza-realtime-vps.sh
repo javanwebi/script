@@ -87,12 +87,12 @@ run_voice(){
   --cpus="$WORKERS" --memory="$MEMORY" --memory-swap="$MEMORY" --pids-limit=192 \
   --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m --cap-drop=ALL --security-opt=no-new-privileges \
   --env-file "$BUILD/private.env" -e PORT=8080 -e FORZA_NIMA_BIND=0.0.0.0 \
-  -e "FORZA_NIMA_WORKERS=$WORKERS" -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 -e MKL_NUM_THREADS=1 "$IMAGE" >/dev/null
+  -e "FORZA_NIMA_WORKERS=$WORKERS" -e "FORZA_NIMA_LENGTH_SCALE=${FORZA_NIMA_LENGTH_SCALE:-0.92}" -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 -e MKL_NUM_THREADS=1 "$IMAGE" >/dev/null
 }
 wait_voice(){
  for _ in $(seq 1 90); do
   if docker exec -e "FORZA_CHECK_HOST=$1" -e "FORZA_CHECK_WORKERS=$WORKERS" "$APP" node -e '
-fetch("http://"+process.env.FORZA_CHECK_HOST+":8080/health",{signal:AbortSignal.timeout(2000)}).then(async r=>{const d=await r.json();process.exit(r.ok&&d.voice==="piper-nima-gyro-medium"&&d.workers===Number(process.env.FORZA_CHECK_WORKERS)&&d.onnx_threads_per_worker===1?0:1)}).catch(()=>process.exit(1))' >/dev/null 2>&1; then return 0; fi
+fetch("http://"+process.env.FORZA_CHECK_HOST+":8080/health",{signal:AbortSignal.timeout(2000)}).then(async r=>{const d=await r.json();process.exit(r.ok&&d.voice==="piper-nima-gyro-medium"&&d.workers===Number(process.env.FORZA_CHECK_WORKERS)&&d.onnx_threads_per_worker===1&&typeof d.length_scale==="number"&&d.length_scale>=0.85&&d.length_scale<=1?0:1)}).catch(()=>process.exit(1))' >/dev/null 2>&1; then return 0; fi
   [[ "$(docker inspect "$1" --format '{{.State.Running}}')" == true ]] || return 1
   sleep 1
  done
@@ -113,6 +113,37 @@ n=int(os.environ['FORZA_NIMA_WORKERS'])
 with concurrent.futures.ThreadPoolExecutor(max_workers=n) as clients:results=list(clients.map(call,range(n)))
 print('FORZA_CONCURRENCY_CANARY '+json.dumps({'workers':n,'wallMs':round((time.monotonic()-start)*1000),'requests':results}))
 PY
+# Verify progressive clause frames before the canary is promoted to the live voice name.
+docker exec -i "$CANARY" python - <<'PY'
+import json,os,urllib.request
+text='مشخصات تسمه صنعتی را بررسی می‌کنم. لطفاً کد فنی روی بدنه را اعلام کنید تا مدل و سایز دقیق را پیدا کنم.'
+request=urllib.request.Request(
+ 'http://127.0.0.1:8080/speak-stream',
+ data=json.dumps({'text':text}).encode(),
+ headers={'Content-Type':'application/json','X-Forza-Voice-Token':os.environ['FORZA_VOICE_TOKEN']}
+)
+with urllib.request.urlopen(request,timeout=30) as response:
+ assert response.status==200
+ assert response.headers.get('Content-Type','').startswith('application/x-forza-wav-frames')
+ assert response.headers.get('X-Forza-Voice')=='piper-nima-gyro-medium'
+ assert response.headers.get('X-Forza-Stream-Protocol')=='length-prefixed-wav-v1'
+ payload=response.read()
+offset=0
+frames=0
+wav_bytes=0
+while offset<len(payload):
+ assert len(payload)-offset>=4, 'TRUNCATED_FRAME_LENGTH'
+ size=int.from_bytes(payload[offset:offset+4],'little')
+ offset+=4
+ assert 44<=size<=8_000_000 and offset+size<=len(payload), 'INVALID_FRAME_SIZE'
+ wav=payload[offset:offset+size]
+ assert wav[:4]==b'RIFF' and wav[8:12]==b'WAVE', 'INVALID_FRAME_WAV'
+ frames+=1
+ wav_bytes+=size
+ offset+=size
+assert frames>=2, 'NIMA_STREAM_DID_NOT_EMIT_MULTIPLE_FRAMES'
+print('FORZA_PROGRESSIVE_STREAM_CANARY '+json.dumps({'frames':frames,'wavBytes':wav_bytes}))
+PY
 # Do not contend with the new live pool by leaving the canary's workers running.
 docker rm -f "$CANARY" >/dev/null
 docker stop --time 15 "$LIVE" >/dev/null
@@ -125,6 +156,30 @@ docker exec "$APP" node -e '
 fetch("http://127.0.0.1:3000/api/ai/forza-speech",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"سلام، شماره فنی قطعه را بفرمایید.",turnId:"realtime-upgrade-check"}),signal:AbortSignal.timeout(15000)})
 .then(async r=>{const b=Buffer.from(await r.arrayBuffer());if(!r.ok||r.headers.get("X-Forza-Voice")!=="piper-nima-gyro-medium"||b.toString("ascii",0,4)!=="RIFF"||b.toString("ascii",8,12)!=="WAVE")process.exit(1);console.log("FORZA_SITE_VOICE_WAV_OK bytes="+b.length)})
 .catch(()=>process.exit(1))'
+# Verify Express -> private Nima -> framed WAV proxy after live promotion.
+docker exec "$APP" node -e '
+const text="مشخصات تسمه صنعتی را بررسی می‌کنم. لطفاً کد فنی روی بدنه را اعلام کنید تا مدل و سایز دقیق را پیدا کنم.";
+fetch("http://127.0.0.1:3000/api/ai/forza-speech-stream",{
+ method:"POST",headers:{"Content-Type":"application/json"},
+ body:JSON.stringify({text,turnId:"realtime-stream-proxy-check"}),
+ signal:AbortSignal.timeout(30000)
+}).then(async r=>{
+ const body=Buffer.from(await r.arrayBuffer());
+ if(!r.ok||!r.headers.get("Content-Type")?.includes("application/x-forza-wav-frames")||
+    r.headers.get("X-Forza-Voice")!=="piper-nima-gyro-medium"||
+    r.headers.get("X-Forza-Stream-Protocol")!=="length-prefixed-wav-v1")process.exit(1);
+ let offset=0,frames=0;
+ while(offset<body.length){
+  if(body.length-offset<4)process.exit(1);
+  const size=body.readUInt32LE(offset);offset+=4;
+  if(size<44||size>8000000||offset+size>body.length)process.exit(1);
+  if(body.toString("ascii",offset,offset+4)!=="RIFF"||
+     body.toString("ascii",offset+8,offset+12)!=="WAVE")process.exit(1);
+  offset+=size;frames++;
+ }
+ if(frames<2)process.exit(1);
+ console.log("FORZA_SITE_PROGRESSIVE_STREAM_OK frames="+frames+" bytes="+body.length);
+}).catch(()=>process.exit(1))'
 SUCCESS=1
 echo "FORZA_REALTIME_VOICE_READY workers=$WORKERS cpu_limit=$WORKERS memory_limit=$MEMORY"
 echo "VOICE_ROLLBACK_CONTAINER=$BACKUP"

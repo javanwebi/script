@@ -13,7 +13,8 @@ export class ForzaIncrementalSpeechText {
   // Hold one not-yet-submitted middle phrase so the final 1–3 words can be
   // merged with it at explicit SSE done. Without this, complete() creates a
   // separate tiny Piper inference job after the prior WAV has played.
-  // The very first short phrase is still dispatched immediately.
+  // The first phrase starts as soon as a useful complete word group is ready;
+  // a short punctuation-ended sentence waits for its next words or final done.
   private started = false;
   private heldPhrase = '';
   private heldAt: number | null = null;
@@ -71,7 +72,7 @@ export class ForzaIncrementalSpeechText {
       const end=Math.max(tail.lastIndexOf(' '),tail.lastIndexOf('\n'));
       const stable=tail.slice(0,Math.max(0,end)).trim();
       // Only whitespace-terminated words are safe while SSE is unfinished.
-      if(stable.length>=12 && stable.split(/\s+/).length>=3){
+      if(stable.length>=24 && stable.split(/\s+/).length>=4){
         this.emitted+=end+1;
         this.started=true;
         return [stable];
@@ -97,7 +98,10 @@ export class ForzaIncrementalSpeechText {
     if (!/[.!؟؛]\s*$/.test(this.seen)) return [];
     const remaining = this.seen.slice(this.emitted).trim();
     const ready = [this.heldPhrase, remaining].filter(Boolean).join(' ');
-    if (!ready) return [];
+    // A punctuation-only idle is not a reason to create a tiny WAV. Wait for
+    // the next words or authoritative SSE done so punctuation cannot become
+    // an audible inter-request pause.
+    if (ready.length < 56) return [];
     this.heldPhrase = '';
     this.heldAt = null;
     this.emitted = this.seen.length;
@@ -119,27 +123,34 @@ export class ForzaIncrementalSpeechText {
   }
 
   private boundary(text: string): number {
-    // DO NOT split at full stops, commas or Persian question marks. Earlier
-    // versions treated every sentence as its own WAV, so the following phrase
-    // could miss the AudioContext deadline and leave a multi-second silence.
-    //
-    // Piper receives coherent groups of *complete words* while the LLM is
-    // still streaming; punctuation is kept in subtitles, and the private
-    // Nima worker removes spoken punctuation without adding long pauses.
+    // Keep the first request short for fast voice onset, then use larger
+    // middle groups to amortize Piper/ONNX startup and network overhead.
+    // Neither boundary is allowed to land directly after punctuation: include
+    // at least the next complete word so a full stop or comma cannot create a
+    // tiny standalone WAV followed by an audible synthesis gap.
     const first = this.emitted === 0;
-    // A completed initial sentence can be dispatched before the next SSE
-    // token. Do not hold "سلام." behind the 38-character word threshold.
-    // A digit followed by "." may be the beginning of a decimal instead.
-    if (first && text.length <= 38 &&
-        /[.!؟؛]\s*$/u.test(text) &&
-        !/[0-9۰-۹]\.\s*$/u.test(text))
-      return text.length;
-    const limit = first ? 38 : 66;
-    const minWordCut = first ? 22 : 42;
+    const limit = first ? 42 : 88;
+    const minWordCut = first ? 22 : 68;
+    const maxBoundary = first ? 92 : 144;
     if (text.length < limit) return 0;
-    // If the SSE ends mid-word, only the whitespace-delimited prefix is safe
-    // to pronounce; finish() flushes the final short text at authoritative done.
-    const end = Math.max(text.lastIndexOf(' ', limit), text.lastIndexOf('\n', limit));
-    return end >= minWordCut ? end + 1 : 0;
+
+    let end = Math.max(text.lastIndexOf(' ', limit), text.lastIndexOf('\n', limit));
+    if (end < minWordCut) return 0;
+
+    const prefix = text.slice(0, end).trimEnd();
+    const endsAtPunctuation = /[،,؛;:!?؟.…—–]$/u.test(prefix);
+    if (endsAtPunctuation) {
+      let nextBoundary = -1;
+      for (let index = end + 1; index < Math.min(text.length, maxBoundary); index++) {
+        if (/\s/u.test(text[index])) {
+          nextBoundary = index;
+          break;
+        }
+      }
+      // Wait for the next complete word rather than ending a WAV on punctuation.
+      if (nextBoundary < 0) return 0;
+      end = nextBoundary;
+    }
+    return end + 1;
   }
 }

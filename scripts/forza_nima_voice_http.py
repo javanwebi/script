@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Private low-memory Piper gyro (Nima in karim23657 demo) for FORZA.
 
-Wire-compatible with /speak and /speak-stream on the previous Pocket worker.
-Each *complete* response is synthesized once and sent as one gap-free PCM WAV
-frame. No customer WAV, transcript or PCM is written to disk or stored in a cache.
+Wire-compatible with the private /speak and /speak-stream endpoints.
+The legacy /speak path returns one complete WAV. /speak-stream sends ordered,
+bounded clause-level WAV frames as each clause finishes synthesis; it does not
+buffer the whole phrase. Frames remain in RAM and are never cached or persisted.
 """
 import concurrent.futures
 from concurrent.futures.process import BrokenProcessPool
@@ -12,6 +13,7 @@ import hmac
 from collections import deque
 import io
 import json
+import math
 import os
 import re
 import socket
@@ -21,6 +23,7 @@ import struct
 import sys
 import threading
 import time
+import unicodedata
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -32,6 +35,9 @@ VOICE_ID = "piper-nima-gyro-medium"
 MAX_TEXT_CHARS = 1000
 MAX_REQUEST_BYTES = 8192
 MAX_WAV_BYTES = 8_000_000
+MAX_STREAM_CHUNK_CHARS = 64
+MIN_STREAM_CHUNK_CHARS = 22
+MAX_STREAM_FRAMES = 48
 # Bounded FIFO admission across isolated CPU workers. Default stays one worker;
 # the upgraded VPS helper chooses a measured, resource-bounded larger pool.
 queue_condition = threading.Condition()
@@ -43,7 +49,20 @@ def bounded_int(name, default, minimum, maximum):
         return default
 
 
+def bounded_float(name, default, minimum, maximum):
+    try:
+        value = float(os.environ.get(name, default))
+        if not math.isfinite(value):
+            return default
+        return max(minimum, min(maximum, value))
+    except (TypeError, ValueError):
+        return default
+
+
 WORKER_COUNT = bounded_int("FORZA_NIMA_WORKERS", 1, 1, 8)
+# A modest 8% faster voice shortens both audible duration and CPU inference.
+# Keep a bounded override so deployments can tune this without changing code.
+NIMA_LENGTH_SCALE = bounded_float("FORZA_NIMA_LENGTH_SCALE", 0.92, 0.85, 1.0)
 queue_busy = 0
 MAX_WAITING_TOTAL = bounded_int("FORZA_NIMA_MAX_PENDING", max(2, WORKER_COUNT*4), WORKER_COUNT, 64)
 MAX_QUEUE_WAIT_SEC = 2.5
@@ -83,18 +102,112 @@ def release_inference():
         queue_busy = max(0, queue_busy-1)
         queue_condition.notify_all()
 
-# Keep decimals and part numbers intact while suppressing punctuation-induced
-# silence in the *spoken copy* only. The original LLM answer stays on screen.
-PUNCTUATION = re.compile(r"[،,؛;:!?؟…—–\[\]{}()]|(?<!\d)\.|\.(?!\d)")
-
-
+# Convert all Unicode punctuation to spaces in the spoken copy so
+# quotes, Arabic punctuation, brackets and full stops cannot add long pauses.
+# Preserve numeric decimal/group separators and separators inside technical IDs.
 def spoken_text(value):
-    # Defense in depth: even a non-FORZA caller must never make the male
-    # speaker recite Markdown markers or bare URLs. Do not alter part codes.
+    # Defense in depth: even a non-FORZA caller must never make the speaker
+    # recite Markdown markers or bare URLs. The original visible answer is untouched.
     value = re.sub(r"(?i)(?:https?://|www\.)\S+", " ", value)
     value = re.sub(r"(?<=\d)\s*\*\s*(?=\d)", " در ", value)
     value = re.sub(r"[*\x60#]", " ", value)
-    return " ".join(PUNCTUATION.sub(" ", value).split())
+    characters = list(value)
+    spoken = []
+    for index, character in enumerate(characters):
+        if not unicodedata.category(character).startswith("P"):
+            spoken.append(character)
+            continue
+        previous = characters[index - 1] if index else ""
+        following = characters[index + 1] if index + 1 < len(characters) else ""
+        numeric_separator = previous.isdigit() and following.isdigit() and character in ".,٫"
+        identifier_separator = previous.isalnum() and following.isalnum() and character in "-_/."
+        spoken.append(character if numeric_separator or identifier_separator else " ")
+    return " ".join("".join(spoken).split())
+
+
+def split_spoken_chunks(value):
+    """Return ordered, punctuation-free chunks for progressive Nima WAVs.
+
+    Piper's Python generator yields one AudioChunk per sentence, not partial
+    phonemes. Bounded clause/word segmentation therefore creates real
+    independently synthesized frames without adding silence at punctuation.
+    """
+    raw = re.sub(r"(?i)(?:https?://|www\.)\S+", " ", value)
+    raw = re.sub(r"(?<=\d)\s*\*\s*(?=\d)", " در ", raw)
+    raw = re.sub(r"[*\x60#]", " ", raw)
+    raw_parts = []
+    start = 0
+    for index, character in enumerate(raw):
+        previous = raw[index - 1] if index else ""
+        following = raw[index + 1] if index + 1 < len(raw) else ""
+        if character in "\r\n":
+            boundary = True
+            minimum = MIN_STREAM_CHUNK_CHARS
+        elif not unicodedata.category(character).startswith("P"):
+            continue
+        else:
+            numeric_separator = previous.isdigit() and following.isdigit() and character in ".,٫"
+            identifier_separator = previous.isalnum() and following.isalnum() and character in "-_/."
+            if numeric_separator or identifier_separator:
+                continue
+            if character in ".!?؟؛:":
+                boundary = True
+                minimum = MIN_STREAM_CHUNK_CHARS
+            elif character in "،,;":
+                boundary = True
+                minimum = 34
+            else:
+                continue
+        candidate = raw[start:index].strip()
+        if len(candidate) >= minimum:
+            raw_parts.append(candidate)
+            start = index + 1
+    tail = raw[start:].strip()
+    if tail:
+        raw_parts.append(tail)
+
+    cleaned = [spoken_text(part) for part in raw_parts]
+    merged = []
+    pending = []
+    for part in cleaned:
+        if not part:
+            continue
+        if len(part) < MIN_STREAM_CHUNK_CHARS:
+            if merged:
+                merged[-1] = (merged[-1] + " " + part).strip()
+            else:
+                pending.append(part)
+            continue
+        if pending:
+            part = " ".join(pending + [part])
+            pending.clear()
+        merged.append(part)
+    if pending:
+        if merged:
+            merged[-1] = (merged[-1] + " " + " ".join(pending)).strip()
+        else:
+            merged.append(" ".join(pending))
+
+    chunks = []
+    for part in merged:
+        current = []
+        for word in part.split():
+            candidate = " ".join(current + [word])
+            if current and len(candidate) > MAX_STREAM_CHUNK_CHARS:
+                chunks.append(" ".join(current))
+                current = [word]
+            else:
+                current.append(word)
+        if current:
+            chunks.append(" ".join(current))
+
+    if len(chunks) > 1 and len(chunks[-1]) < MIN_STREAM_CHUNK_CHARS:
+        chunks[-2] = (chunks[-2] + " " + chunks[-1]).strip()
+        chunks.pop()
+    while len(chunks) > MAX_STREAM_FRAMES:
+        chunks[-2] = (chunks[-2] + " " + chunks[-1]).strip()
+        chunks.pop()
+    return chunks
 
 
 def generation_error_diagnostics(exc):
@@ -159,9 +272,11 @@ def initialize_engine(ready=None):
     options.inter_op_num_threads = 1
     options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
     with open(str(MODEL)+".json", encoding="utf-8") as config:
-        engine = PiperVoice(config=PiperConfig.from_dict(json.load(config)),
-                            session=onnxruntime.InferenceSession(str(MODEL), sess_options=options,
-                                                                 providers=["CPUExecutionProvider"]))
+        voice_config = PiperConfig.from_dict(json.load(config))
+    voice_config.length_scale = NIMA_LENGTH_SCALE
+    engine = PiperVoice(config=voice_config,
+                        session=onnxruntime.InferenceSession(str(MODEL), sess_options=options,
+                                                             providers=["CPUExecutionProvider"]))
     for _ in engine.synthesize("سلام، من فورزا هستم"):
         pass
     if ready is not None:
@@ -221,6 +336,30 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             self.close_connection = True
 
+    def begin_wav_stream(self, queue_ms):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-forza-wav-frames")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.send_header("Cache-Control", "no-store, no-transform")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Accel-Buffering", "no")
+        self.send_header("X-Forza-Voice", VOICE_ID)
+        self.send_header("X-Forza-Queue-Ms", str(queue_ms))
+        self.send_header("X-Forza-Stream-Protocol", "length-prefixed-wav-v1")
+        self.end_headers()
+
+    def write_http_chunk(self, payload):
+        if not payload:
+            return
+        self.wfile.write(("%X\r\n" % len(payload)).encode("ascii"))
+        self.wfile.write(payload)
+        self.wfile.write(b"\r\n")
+        self.wfile.flush()
+
+    def finish_http_stream(self):
+        self.wfile.write(b"0\r\n\r\n")
+        self.wfile.flush()
+
     def client_disconnected(self):
         """Check at queue boundaries/chunk boundaries without reading payload."""
         try:
@@ -241,7 +380,7 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(200 if engine is not None or pool_ready else 503, {
                 "ok": engine is not None or pool_ready, "voice": VOICE_ID,
                 "workers": WORKER_COUNT, "active": queue_busy, "waiting": len(queue_waiters),
-                "max_pending": MAX_WAITING_TOTAL, "onnx_threads_per_worker": 1,
+                "max_pending": MAX_WAITING_TOTAL, "onnx_threads_per_worker": 1, "length_scale": NIMA_LENGTH_SCALE,
                 "generated_audio_persisted": False,
             })
         else:
@@ -285,43 +424,67 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(503, {"error": queue_error})
             return
         start = time.monotonic()
+        stream_started = False
+        stream_frames = 0
+        stream_bytes = 0
+        first_chunk_ms = None
         try:
-            wav = synthesize_request(phrase, self.client_disconnected)
-            inference_ms = round((time.monotonic() - start) * 1000)
-            timings = (queue_ms, inference_ms)
             if self.path == "/speak-stream":
-                # The browser's existing framing parser accepts a single
-                # complete WAV, which cannot underrun between model segments.
-                self.respond(200, struct.pack("<I", len(wav)) + wav,
-                             "application/x-forza-wav-frames", timings)
+                speech_chunks = split_spoken_chunks(phrase)
+                if not speech_chunks:
+                    raise ValueError("empty_spoken_text")
+                self.begin_wav_stream(queue_ms)
+                stream_started = True
+                for speech_chunk in speech_chunks:
+                    if self.client_disconnected():
+                        raise InterruptedError("voice_client_disconnected")
+                    wav = synthesize_request(speech_chunk, self.client_disconnected)
+                    if not (44 < len(wav) <= MAX_WAV_BYTES and
+                            wav[:4] == b"RIFF" and wav[8:12] == b"WAVE"):
+                        raise ValueError("invalid_stream_wav")
+                    frame = struct.pack("<I", len(wav)) + wav
+                    self.write_http_chunk(frame)
+                    if first_chunk_ms is None:
+                        first_chunk_ms = round((time.monotonic() - start) * 1000)
+                    stream_frames += 1
+                    stream_bytes += len(frame)
+                self.finish_http_stream()
+                self.close_connection = True
+                total_ms = round((time.monotonic() - start) * 1000)
+                print("[FORZA_NIMA_STREAM] queue_ms=%d first_chunk_ms=%d total_ms=%d frames=%d framed_bytes=%d chars=%d" % (
+                    queue_ms, first_chunk_ms or total_ms, total_ms,
+                    stream_frames, stream_bytes, len(phrase)
+                ), flush=True)
             else:
-                self.respond(200, wav, "audio/wav", timings)
-            print("[FORZA_NIMA_PRODUCTION] queue_ms=%d inference_ms=%d wav_bytes=%d chars=%d" % (
-                queue_ms, inference_ms, len(wav), len(phrase)
-            ), flush=True)
+                wav = synthesize_request(phrase, self.client_disconnected)
+                inference_ms = round((time.monotonic() - start) * 1000)
+                self.respond(200, wav, "audio/wav", (queue_ms, inference_ms))
+                print("[FORZA_NIMA_PRODUCTION] queue_ms=%d inference_ms=%d wav_bytes=%d chars=%d" % (
+                    queue_ms, inference_ms, len(wav), len(phrase)
+                ), flush=True)
         except BrokenProcessPool:
-            # A native worker crash poisons the whole executor. Do not keep
-            # advertising healthy service forever: let Docker's restart policy
-            # recreate and warm the private pool. No partial WAV was sent.
             pool_ready = False
             print("[FORZA_NIMA_FATAL] pool_broken restart_required=1", file=sys.stderr, flush=True)
-            self.respond(503, {"error": "voice_unavailable"})
+            if stream_started:
+                self.close_connection = True
+            else:
+                self.respond(503, {"error": "voice_unavailable"})
             os.kill(os.getpid(), signal.SIGTERM)
         except (BrokenPipeError, ConnectionResetError, InterruptedError):
             self.close_connection = True
         except Exception as exc:
-            # A production Error type alone is not actionable. Report safe
-            # exception identity and source location without exception text,
-            # phonemes, transcripts, audio or private runtime paths.
-            print("[FORZA Nima] generation_error=%s %s queue_ms=%d inference_elapsed_ms=%d chars=%d" % (
+            print("[FORZA Nima] generation_error=%s %s queue_ms=%d inference_elapsed_ms=%d chars=%d stream_started=%d" % (
                 type(exc).__name__, generation_error_diagnostics(exc),
-                queue_ms, round((time.monotonic()-start)*1000), len(phrase)
+                queue_ms, round((time.monotonic()-start)*1000), len(phrase),
+                int(stream_started)
             ), file=sys.stderr, flush=True)
-            if not self.wfile.closed:
+            if not stream_started and not self.wfile.closed:
                 try:
                     self.respond(503, {"error": "voice_unavailable"})
                 except (BrokenPipeError, ConnectionResetError):
                     self.close_connection = True
+            else:
+                self.close_connection = True
         finally:
             release_inference()
 
@@ -358,7 +521,7 @@ def main():
         except BaseException:
             inference_pool.shutdown(wait=False, cancel_futures=True)
             raise
-    print("[FORZA Nima] ready voice=%s warmed=1 no_audio_files=1" % VOICE_ID,
+    print("[FORZA Nima] ready voice=%s warmed=1 length_scale=%.2f no_audio_files=1" % (VOICE_ID, NIMA_LENGTH_SCALE),
           flush=True)
     port = int(os.environ.get("PORT", "8080"))
     bind = os.environ.get("FORZA_NIMA_BIND", "::")

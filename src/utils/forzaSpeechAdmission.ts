@@ -20,9 +20,12 @@ export class ForzaSpeechAdmission {
   private utteranceLatched=false;
   private utteranceStartedAt:number|null=null;
 
-  sample(rms:number,now:number,playback:boolean){
+  sample(rms:number,now:number,playback:boolean,gateOpen=true){
     if(!Number.isFinite(rms)||!Number.isFinite(now)){this.reset();return;}
-    const value=Math.max(0,Math.min(1,rms));
+    // The upstream AudioWorklet is the authoritative foreground gate. This
+    // class is a short-lived secondary/echo guard and must never resurrect a
+    // frame the worklet rejected.
+    const value=gateOpen?Math.max(0,Math.min(1,rms)):0;
     const enteringPlayback=playback&&!this.mode;
     const leavingPlayback=!playback&&this.mode;
     const samplingGap=now-this.lastSample>250||now<this.lastSample;
@@ -60,7 +63,7 @@ export class ForzaSpeechAdmission {
     }
     // A slightly lower adaptive gate admits normal conversational mic levels
     // without lowering the stricter anti-echo threshold during FORZA playback.
-    const threshold=Math.max(playback?0.004:0.0015,this.floor*(playback?3.5:1.8));
+    const threshold=Math.max(playback?0.0025:0.0008,this.floor*(playback?3.5:1.8));
     if(this.calibrated&&value>threshold){
       // A late main-thread tick is not an observed silent frame. The separate
       // 250ms discontinuity guard above rejects genuinely stale sampling.

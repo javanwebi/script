@@ -65,7 +65,9 @@ import {avalaiFailureMessage, buildForzaConsultSystemMessage, configuredAvalaiMo
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmForzaDibaStt} from './server/ai/forzaDibaStt';
+import {isForzaDibaLiveSttConfigured,isForzaDibaLiveSttReady,setupForzaDibaLiveSttWebSocket,warmForzaDibaLiveStt} from './server/ai/forzaDibaLiveStt';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
+import {normalizeForzaNimaWorkerCount} from './src/utils/forzaTtsConcurrency';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
 import { applyPrivateForzaConfig } from './server/ai/privateForzaConfig';
 
@@ -88,6 +90,8 @@ loadLocalVisionConfig(process.cwd());
 if(selectForzaSttProvider(process.env).provider==='diba'){
   void warmForzaDibaStt().then(ready=>console.info('[FORZA_STT] provider=diba ready='+Number(ready)))
     .catch(()=>console.warn('[FORZA_STT] provider=diba warmup_failed=1'));
+  void warmForzaDibaLiveStt().then(ready=>console.info('[FORZA_STT] provider=diba-live ready='+Number(ready)))
+    .catch(()=>console.warn('[FORZA_STT] provider=diba-live warmup_failed=1'));
 }
 // Example configuration is documentation only; never load placeholder defaults into runtime.
 
@@ -925,6 +929,17 @@ async function embedCatalogImages(buffers:Buffer[],publishImage:ImagePublisher):
  return (response.embeddings || []).map(embedding=>embedding.values || []);
 }
 function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus>,publishImage:ImagePublisher){
+ // A Forza-only release must not write catalog embeddings as an incidental
+ // server-startup side effect. Load the already-persisted index read-only;
+ // the deployment Canary rejects the release if its coverage is incomplete.
+ if(process.env.SANATPISH_FORZA_ONLY_READ_ONLY_INDEX==='1'){
+  void catalogVisualIndex.load().then(()=>{
+   const coverage=catalogVisualIndex.coverage(corpus);
+   if(!coverage.ready)console.warn('[Visual index] Forza-only read-only mode; persisted index incomplete:',JSON.stringify(coverage));
+   else console.log('[Visual index] Forza-only read-only persisted index:',JSON.stringify(coverage));
+  }).catch(error=>console.warn('[Visual index] Forza-only read-only load failed:',String(error?.message || 'index_unavailable').slice(0,120)));
+  return;
+ }
  if(Date.now()<nextVisualIndexBuild)return;
  nextVisualIndexBuild=Date.now()+60000;
  void catalogVisualIndex.update(corpus,row=>getCatalogImageBuffer(row.url,row.revision),buffers=>embedCatalogImages(buffers,publishImage))
@@ -5648,6 +5663,7 @@ const forzaVoiceEngine = process.env.FORZA_VOICE_ENGINE === 'nima'
   ? 'piper-nima-gyro-medium'
   : process.env.FORZA_VOICE_ENGINE === 'amir' ? 'piper-amir-medium' : 'pocket-farsi-v2';
 let verifiedPrivateVoice:string|null=null;
+let verifiedPrivateVoiceWorkers=1;
 let privateVoiceHealthAt=0;
 let privateVoiceHealthPromise:Promise<string>|null=null;
 
@@ -5664,9 +5680,11 @@ async function resolveForzaVoiceEngine():Promise<string>{
         signal:AbortSignal.timeout(1800),
         headers:{'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN!},
       });
-      const info=await response.json().catch(()=>null) as {voice?:string;ok?:boolean}|null;
-      if(response.ok&&info?.ok!==false&&info?.voice&&FORZA_PRIVATE_VOICES.has(info.voice))
+      const info=await response.json().catch(()=>null) as {voice?:string;ok?:boolean;workers?:number}|null;
+      if(response.ok&&info?.ok!==false&&info?.voice&&FORZA_PRIVATE_VOICES.has(info.voice)){
         verifiedPrivateVoice=info.voice;
+        verifiedPrivateVoiceWorkers=normalizeForzaNimaWorkerCount(info.workers);
+      }
     }catch{}
     privateVoiceHealthAt=Date.now();
     return verifiedPrivateVoice||forzaVoiceEngine;
@@ -5707,10 +5725,10 @@ async function renderPocketSpeech(
         ? AbortSignal.any([cancel,AbortSignal.timeout(60_000)])
         : AbortSignal.timeout(60_000),
     });
-    // The private CPU engine accepts one active job and one waiter. Preserve
-    // ordered audio; retry only known transient 503s within a short budget.
-    // The response is an error (no WAV delivered), so a retry cannot replay
-    // audible speech. Never retry auth failures or arbitrary upstream errors.
+    // The private worker uses a bounded FIFO across its verified isolated
+    // CPU processes. Preserve ordered audio; retry only known transient 503s
+    // within a short budget. A retry cannot replay audible speech because no
+    // WAV was delivered; never retry auth failures or arbitrary upstream errors.
     if(response.status===503){
       const reason=await response.json().catch(()=>null) as {error?:string}|null;
       const retryDelay=forzaVoiceRetryDelayMs(reason?.error,attempt,Date.now()-started);
@@ -5790,7 +5808,7 @@ app.get('/api/ai/forza-voice-info',async(_req,res)=>{
       .catch(()=>console.warn('[FORZA greeting] warm=deferred voice='+voice));
   }
   res.setHeader('Cache-Control','no-store');
-  res.json({voice,incrementalSpeech:voice==='piper-nima-gyro-medium',ready});
+  res.json({voice,incrementalSpeech:voice==='piper-nima-gyro-medium',ready,workers:voice==='piper-nima-gyro-medium'&&ready?verifiedPrivateVoiceWorkers:1});
 });
 
 const voiceTtsLimits=forzaTtsLimits(process.env);
@@ -5829,7 +5847,9 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
     if(timings.queueMs!==undefined)res.setHeader('X-Forza-Queue-Ms',String(timings.queueMs));
     if(timings.inferenceMs!==undefined)res.setHeader('X-Forza-Inference-Ms',String(timings.inferenceMs));
     res.setHeader('Cache-Control','no-store');
-    res.setHeader('X-Forza-Voice',await resolveForzaVoiceEngine());
+    const activeVoice=await resolveForzaVoiceEngine();
+    res.setHeader('X-Forza-Voice',activeVoice);
+    res.setHeader('X-Forza-TTS-Workers',String(activeVoice==='piper-nima-gyro-medium'?verifiedPrivateVoiceWorkers:1));
     res.setHeader('X-Forza-Voice-Backend',internalForzaVoiceUrl?'private-service':'legacy-local');
     console.info('[FORZA_TTS_STAGE] phase=server_responded turn='+
       String(req.body?.turnId||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40)+
@@ -5848,8 +5868,8 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
 });
 
 // Progressive binary frames: uint32 little-endian WAV length + standalone WAV.
-// The browser can play each generated phoneme chunk while Pocket continues
-// synthesizing the rest of the same phrase; /forza-speech remains as fallback.
+// The browser schedules each completed clause WAV while private Piper
+// synthesizes the next bounded clause; /forza-speech remains the full-WAV path.
 app.post('/api/ai/forza-speech-stream',async(req,res)=>{
   const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
   if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
@@ -5944,11 +5964,17 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('X-Forza-Voice',upstreamVoice);
     res.setHeader('X-Forza-Voice-Backend','private-service');
+    const upstreamQueueMs=upstream.headers.get('x-forza-queue-ms');
+    if(upstreamQueueMs!==null)res.setHeader('X-Forza-Queue-Ms',upstreamQueueMs);
+    res.setHeader('X-Forza-Stream-Protocol',
+      upstream.headers.get('x-forza-stream-protocol')||'length-prefixed-wav-v1');
     res.flushHeaders?.();
 
     let bytes=0;
+    let firstChunkMs:number|null=null;
     for await(const chunk of upstream.body as any){
       if(controller.signal.aborted)break;
+      if(firstChunkMs===null)firstChunkMs=Date.now()-started;
       bytes+=chunk.length;
       if(bytes>32_000_000)throw new Error('private_voice_stream_too_large');
       if(!res.write(chunk)){
@@ -5961,7 +5987,8 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
       }
     }
     if(!controller.signal.aborted){
-      console.info('[FORZA_LATENCY] phase=pocket-server-stream ms='+(Date.now()-started)+' bytes='+bytes);
+      console.info('[FORZA_LATENCY] phase=pocket-server-stream firstChunkMs='+
+        (firstChunkMs??-1)+' totalMs='+(Date.now()-started)+' bytes='+bytes);
       res.end();
     }
   }catch(error:any){
@@ -7258,6 +7285,8 @@ app.get('/api/ai/forza-stt-info',async(_req,res)=>{
     serverSttConfigured:choice.provider==='gemini'||dibaConfigured,
     serverSttProvider:choice.provider,
     serverSttReady:choice.provider==='diba'?isForzaDibaSttReady():choice.provider==='gemini',
+    serverLiveSttConfigured:isForzaDibaLiveSttConfigured(),
+    serverLiveSttReady:choice.provider==='diba'?isForzaDibaLiveSttReady():false,
     reason:choice.provider==='diba'&&!dibaConfigured?'model_missing':choice.reason,
   });
 });
@@ -7985,6 +8014,7 @@ async function start() {
 
   const server = http.createServer(app);
   setupGeminiLiveWebSocket(server);
+  setupForzaDibaLiveSttWebSocket(server);
 
   server.listen(PORT, '0.0.0.0', () => {
     const keyStatus = getGeminiKey()
