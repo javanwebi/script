@@ -751,7 +751,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     setIsTracingContour(false);
     setErrorMessage('');
     setDetectedCandidates([]);
-    setActiveCandidateId(null);
+    setActiveCandidateId('');
     setActivePolygon([]);
     setCroppedPreviewUrl('');
     setMobileSheetExpanded(false);
