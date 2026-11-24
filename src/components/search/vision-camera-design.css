@@ -113,84 +113,6 @@
   .fv-scan-laser, .fv-lens-bracket--locking { animation: none; }
 }
 
-
-/* KIKI-aligned FORZA VISION image review and evidence layout.
-   This layer only changes presentation; the current local-lens and catalogue pipeline remains authoritative. */
-.kiki-vision-review-shell {
-  min-height: 100dvh;
-  width: 100%;
-  background: #f5f6f6;
-  color: #2b313a;
-  padding: clamp(16px, 3vw, 30px);
-}
-.kiki-vision-review-shell__header {
-  width: min(100%, 1180px);
-  margin: 0 auto 18px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid #dfe3e6;
-  padding: 0 0 16px;
-}
-.kiki-vision-review-shell__header > div > span {
-  color: #e06518;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: .13em;
-}
-.kiki-vision-review-shell__header h1 {
-  margin: 6px 0 0;
-  color: #2b313a;
-  font-size: clamp(18px, 2vw, 25px);
-  font-weight: 900;
-  line-height: 1.5;
-}
-.kiki-vision-review-shell__header p {
-  margin: 5px 0 0;
-  color: #74757c;
-  font-size: 12px;
-  line-height: 1.9;
-}
-.kiki-vision-review-shell__status {
-  flex: 0 0 auto;
-  border: 1px solid #f3d1b9;
-  border-radius: 999px;
-  background: #fff4ec;
-  color: #a94e19;
-  padding: 7px 11px;
-  font-size: 10px;
-  font-weight: 800;
-}
-.kiki-vision-review-shell__content {
-  width: min(100%, 1180px);
-  margin: 0 auto;
-}
-.kiki-vision-review-shell .sp-region-review {
-  border: 1px solid #dfe3e6;
-  border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 16px 42px -30px rgba(43,49,58,.28);
-  padding: clamp(14px, 2.4vw, 24px);
-}
-.kiki-vision-review-shell .sp-region-review__header {
-  border-bottom-color: #e8ebec;
-}
-.kiki-vision-review-shell .sanat-region-picker {
-  border-color: #e3e6e7;
-  border-radius: 20px;
-  background: #f8f9f8;
-}
-.kiki-vision-review-shell .sp-region-review__actions {
-  border-top-color: #e8ebec;
-}
-.kiki-vision-review-shell .sp-region-review__confirm {
-  background: #e06518;
-}
-.kiki-vision-review-shell .sp-region-review__confirm:hover {
-  background: #c95210;
-}
-
 .kiki-vision-image-evidence {
   min-width: 0;
   align-self: start;
@@ -252,10 +174,6 @@
   min-width: 0;
 }
 @media (max-width: 860px) {
-  .kiki-vision-review-shell__header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
   .sp-vision-result-panel:has(> .sanat-region-picker),
   .sp-vision-result-panel:has(> .kiki-vision-image-evidence) {
     grid-template-columns: minmax(0, 1fr);
@@ -270,49 +188,6 @@
     top: auto;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .kiki-vision-review-shell *,
-  .kiki-vision-image-evidence * {
-    scroll-behavior: auto !important;
-    transition-duration: .01ms !important;
-    animation-duration: .01ms !important;
-  }
-}
-
-
-.kiki-vision-review-shell__header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.kiki-vision-review-shell__back {
-  display: inline-flex;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border: 1px solid #dfe3e6;
-  border-radius: 12px;
-  background: #fff;
-  padding: 0 12px;
-  color: #2b313a;
-  font-size: 11px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: border-color .16s ease, color .16s ease, background .16s ease;
-}
-.kiki-vision-review-shell__back:hover {
-  border-color: #e06518;
-  color: #c95210;
-  background: #fffaf6;
-}
-@media (max-width: 860px) {
-  .kiki-vision-review-shell__header-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-}
-
 
 .sp-vision-result-intro__actions {
   display: flex;
@@ -326,150 +201,8 @@
     width: 100%;
     justify-content: space-between;
   }
-  .sp-vision-result-intro__actions .kiki-vision-review-shell__back {
-    min-height: 36px;
-    padding-inline: 9px;
-  }
 }
 
-/* Full KIKI-style screen parity: one optical workbench, not stacked demo cards.
-   Scoped to the VISION route; voice, admin and catalogue styles are unaffected. */
-.kiki-vision-review-shell {
-  background: #fff;
-  padding: clamp(12px, 2.1vw, 26px);
-}
-.kiki-vision-review-shell__header,
-.kiki-vision-review-shell__content {
-  width: min(100%, 1360px);
-}
-.kiki-vision-review-shell__header {
-  margin-bottom: 14px;
-  align-items: center;
-}
-.kiki-vision-review-shell .sp-region-review {
-  border-radius: 22px;
-  padding: 0;
-  box-shadow: none;
-  overflow: hidden;
-  border-color: #dfe3e6;
-}
-.kiki-vision-review-shell .sp-region-review__header {
-  margin: 0;
-  border: 0;
-  background: #fff;
-  color: #2b313a;
-  padding: 17px 20px;
-  border-bottom: 1px solid #dfe3e6;
-}
-.kiki-vision-review-shell .sp-region-review__header h2 { color: #2b313a; }
-.kiki-vision-review-shell .sp-region-review__header p { color: #74757c; }
-.kiki-vision-review-shell .sp-region-review__eyebrow { color: #e06518; }
-.kiki-vision-review-shell .sp-region-review__brand-icon {
-  background: #fff5ed;
-  border-color: #f4d2ba;
-  color: #dc6318;
-}
-.kiki-vision-review-shell .sp-region-review__status,
-.kiki-vision-review-shell .sp-region-review__status.is-ready,
-.kiki-vision-review-shell .sp-region-review__status.is-manual {
-  background: #f7f8f9;
-  border-color: #dfe3e6;
-  color: #55565a;
-}
-.kiki-vision-review-shell .sp-region-review__instruction {
-  background: #fff9f5;
-  margin: 0;
-}
-.kiki-vision-review-shell .sp-region-review > .sanat-region-picker {
-  margin: 0;
-  border: 0;
-  padding: 12px;
-  border-radius: 0;
-  background: #f5f6f6;
-}
-.kiki-vision-review-shell .sanat-region-picker__canvas {
-  background: #f5f6f6;
-  border: 1px solid #e3e6e7;
-  border-radius: 18px;
-}
-.kiki-vision-review-shell .sanat-region-picker__frame {
-  max-height: min(68dvh, 670px);
-}
-.kiki-vision-review-shell .sanat-region-picker__frame > img {
-  max-height: min(68dvh, 670px);
-  object-fit: contain;
-}
-.kiki-vision-review-shell .sanat-region-picker__side {
-  background: white;
-}
-.kiki-vision-review-shell .sp-region-review__actions {
-  margin: 0;
-  background: #fff;
-  border-color: #dfe3e6;
-}
-.kiki-vision-review-shell .sp-region-review__scanner {
-  grid-column: 1 / -1;
-  padding: 14px;
-}
-.kiki-vision-review-shell .sp-region-review__scanner-stage {
-  max-height: 60dvh;
-  background: #14202c;
-}
-@media (min-width: 1024px) {
-  .kiki-vision-review-shell .sp-region-review:not(:has(.sp-region-review__scanner)) {
-    display: grid;
-    grid-template-columns: minmax(0, 1.65fr) minmax(270px, .65fr);
-    grid-template-rows: auto auto 1fr auto;
-    align-items: start;
-    gap: 0;
-  }
-  .kiki-vision-review-shell .sp-region-review__header { grid-column: 1 / -1; grid-row: 1; }
-  .kiki-vision-review-shell .sp-region-review__instruction {
-    grid-column: 2;
-    grid-row: 2;
-    margin: 16px 14px 10px;
-  }
-  .kiki-vision-review-shell .sp-region-review > .sanat-region-picker {
-    grid-column: 1;
-    grid-row: 2 / span 4;
-    border-left: 1px solid #dfe3e6;
-    min-width: 0;
-  }
-  .kiki-vision-review-shell .sp-region-review__notice,
-  .kiki-vision-review-shell .sp-region-review__error {
-    grid-column: 2;
-    margin: 10px 14px;
-  }
-  .kiki-vision-review-shell .sp-region-review__actions {
-    grid-column: 2;
-    grid-row: 4;
-    flex-direction: column-reverse;
-    align-self: end;
-    border-top: 0;
-    padding: 14px;
-    margin-top: auto;
-  }
-  .kiki-vision-review-shell .sp-region-review__actions button {
-    width: 100%;
-    min-height: 50px;
-  }
-  .kiki-vision-review-shell .sp-region-review .sanat-region-picker__layout {
-    grid-template-columns: minmax(0,1fr);
-  }
-  .kiki-vision-review-shell .sp-region-review .sanat-region-picker__side {
-    display: grid;
-    grid-template-columns: minmax(105px, 160px) minmax(0,1fr);
-    gap: 8px 12px;
-    align-items: center;
-    margin-top: 10px;
-    padding: 10px;
-  }
-  .kiki-vision-review-shell .sp-region-review .sanat-region-picker__crop {
-    grid-row: 1 / span 3;
-    min-height: 84px;
-    max-height: 118px;
-  }
-}
 .fv-catalog-sheet__header {
   display: flex;
   justify-content: space-between;
@@ -578,13 +311,6 @@
   .fv-catalog-sheet__identity img { width: 48px; height: 48px; flex-basis: 48px; }
 }
 @media (max-width: 580px) {
-  .kiki-vision-review-shell { padding: 10px; }
-  .kiki-vision-review-shell__header { margin-bottom: 10px; }
-  .kiki-vision-review-shell .sp-region-review__header {
-    flex-wrap: wrap;
-    padding: 13px;
-  }
-  .kiki-vision-review-shell .sp-region-review > .sanat-region-picker { padding: 8px; }
   .fv-catalog-sheet__new-search { width: 100%; }
 }
 
