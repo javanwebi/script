@@ -15,7 +15,7 @@ The customer browser connects to the same-origin `/api/live` WebSocket. The Expr
 
 ## Required server configuration
 
-Set `GEMINI_API_KEY` in the server's private environment. Do not use a `VITE_` variable and do not commit the key.
+Set one accepted server-side key variable: `ai-forza`, `AI_FORZA_API_KEY`, or `GEMINI_API_KEY`. Prefer `GEMINI_API_KEY` for a dedicated Live project. Do not use a `VITE_` variable and do not commit the key.
 
 Optional settings:
 
@@ -42,7 +42,7 @@ npm run lint
 npm run build
 ```
 
-The gateway tests use a fake provider and verify the WebSocket protocol, PCM forwarding, text forwarding, session greeting, transcription events, audio output chunks, interruption, origin rejection, missing-key behavior, per-IP rate limiting and provider-session cleanup. The browser simulation test covers microphone capture, mute, playback teardown and local barge-in.
+The gateway tests use a fake provider and verify the WebSocket protocol, PCM forwarding, text forwarding, session greeting, transcription events, audio output chunks, interruption, origin rejection, missing-key behavior, per-IP rate limiting and provider-session cleanup. The browser simulation test covers microphone capture, mute, playback teardown and local barge-in; UI assertions verify that both customer entry points use the new live experience.
 
 A green mocked test is not proof of a live provider session. Before opening the feature to customers, run a real browser smoke test against the deployed server with a valid private key:
 
