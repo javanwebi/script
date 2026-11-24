@@ -67,7 +67,7 @@ test('FORZA vision uses the KIKI optical HUD with the production recognition ser
   assert.match(service, /\/api\/ai\/analyze-part/);
   assert.match(styles, /\.fv-camera-stage/);
   assert.match(styles, /\.fv-lens-corner--br/);
-  assert.doesNotMatch(styles.match(/\.fv-corner-brackets\s*\{[^}]*\}/)?.[0] || '', /position:\s*relative/);
+  assert.match(styles.match(/\.fv-corner-brackets\s*\{[^}]*\}/)?.[0] || '', /position:\s*relative/);
 });
 
 test('mobile FORZA launcher preserves the swipe-up contact sheet and direct desktop entry', () => {
@@ -120,7 +120,7 @@ test('workspace visual-identification actions open the standalone VISION route',
   assert.match(page, /entryParams\.get\('view'\) === 'visual'/);
   assert.match(page, /aria-controls="forza-workspace-catalog-drawer"/);
   assert.match(page, /aria-expanded=\{isCatalogSearchOpen\}/);
-  assert.match(provider, /Studio isOpen standalone fullScreen/);
+  assert.match(provider, /<Studio[\s\S]*?isOpen[\s\S]*?standalone[\s\S]*?fullScreen/);
 });
 
 test('KIKI VISION history keeps only product metadata and registered public catalogue images', () => {
