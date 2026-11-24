@@ -24,11 +24,21 @@ test('an explicitly selected but unconfigured AvalAI provider fails closed',()=>
 });
 
 
-test('configured AvalAI is still blocked if the private Nima voice service is not ready',()=>{
+test('configured AvalAI accepts each existing voice engine only when the private voice service is ready',()=>{
+  for (const voice of ['piper-nima-gyro-medium','piper-amir-medium','pocket-farsi-v2']) {
+    assert.equal(forzaVoiceCallReadinessMessage({
+      provider:'avalai',requestedProvider:'avalai',configured:true,
+      voice,voiceReady:true,
+    }),null);
+  }
   assert.match(forzaVoiceCallReadinessMessage({
     provider:'avalai',requestedProvider:'avalai',configured:true,
-    voice:'piper-nima-gyro-medium',voiceReady:false,
-  })||'',/سرویس صدای خصوصی Nima آماده نیست/);
+    voice:'pocket-farsi-v2',voiceReady:false,
+  })||'',/موتور صدای انتخاب‌شده آماده نیست/);
+  assert.match(forzaVoiceCallReadinessMessage({
+    provider:'avalai',requestedProvider:'avalai',configured:true,
+    voice:'unknown-engine',voiceReady:true,
+  })||'',/موتور صدای انتخاب‌شده آماده نیست/);
 });
 
 test('a stale server without provider diagnostics is not treated as ready',()=>{
