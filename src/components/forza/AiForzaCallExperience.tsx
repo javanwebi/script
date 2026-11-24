@@ -32,7 +32,7 @@ import { ForzaPlaybackEchoHistory, forzaTurnIntent, shouldIgnoreForzaSpeakerEcho
 import { getForzaAudioContext } from '../../utils/forzaAudioUnlock';
 import { FORZA_CONVERSATION_HISTORY_LIMIT, prepareForzaConversationTurn } from '../../utils/forzaConversationHistory';
 import { ForzaConversationEngine } from '../../utils/forzaConversationEngine';
-import { forzaAvalaiReadinessMessage, type ForzaVoiceTextStatus } from '../../utils/forzaVoiceReadiness';
+import { forzaVoiceCallReadinessMessage, type ForzaVoiceTextStatus } from '../../utils/forzaVoiceReadiness';
 const AiVisualPartSearchModal = lazy(() => import('../search/AiVisualPartSearchModal').then(module=>({default:module.AiVisualPartSearchModal})));
 type LazyParticleAvatarProps = ParticleAvatarProps & { ref?: React.Ref<ParticleAvatarRef> };
 const ParticleAvatar = lazy(async () => {
@@ -97,6 +97,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           configured:data?.textProviderConfigured,
           reason:data?.textProviderReason,
           model:data?.textModel,
+          voice:data?.voice,
+          voiceReady:data?.ready,
         };
         if(data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true){
           voiceModeRef.current='piper-nima-gyro-medium';
@@ -125,7 +127,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       new Promise<void>(resolve=>{timer=window.setTimeout(resolve,2600);}),
     ]);
     if(timer!==undefined)window.clearTimeout(timer);
-    const readinessError=forzaAvalaiReadinessMessage(voiceTextStatusRef.current);
+    const readinessError=forzaVoiceCallReadinessMessage(voiceTextStatusRef.current);
     if(readinessError)throw new Error(readinessError);
     return voiceModeRef.current;
   },[]);
