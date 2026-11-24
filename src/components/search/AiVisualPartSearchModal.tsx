@@ -653,9 +653,10 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
       }
 
       if (analyzeController.signal.aborted || opts.seq !== pipelineSequenceRef.current) return;
-      // Read the original full-resolution image from the device vault; the normalized region is cropped by the production API.
-      const payloadImage = await customerImageBlobToDataUrl(localRecord.blob);
-      const resolvedPayloadMime = localRecord.mimeType || opts.mime || mimeType;
+      // Keep the original Blob in IndexedDB; send the request-scoped compressed full image and let the production API crop by normalized region.
+      const payloadImage = temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob);
+      const resolvedPayloadMime =
+        payloadImage.match(/^data:([^;]+);base64,/i)?.[1] || localRecord.mimeType || opts.mime || mimeType;
       const croppedDataUrl = previewCutoutUrl || opts.imageSrc;
 
       const result = await aiVisualSearchService.analyzePartWithAi(
