@@ -15,6 +15,28 @@ on:
       - "tests/forzaBrowserRecognitionLifecycle.test.ts"
       - "tests/forzaCallTeardown.test.ts"
       - "tests/forza-diba-queue.test.ts"
+      - "server.ts"
+      - "server/ai/forzaLiveGateway.ts"
+      - "src/pages/AiForzaPage.tsx"
+      - "src/components/search/AiForzaFaceToFaceModal.tsx"
+      - "src/components/layout/RouteIntentPreload.tsx"
+      - "tests/forza-live-gateway.test.ts"
+      - "tests/forza-live-experience.test.ts"
+      - "tests/forza-live-browser-simulation.test.ts"
+      - "tests/forzaVoiceRecoveryUi.test.ts"
+      - "docs/forza/FORZA_LIVE_GATEWAY_REBUILD_20261124.md"
+      - ".env.example"
+      - "server.ts"
+      - "server/ai/forzaLiveGateway.ts"
+      - "src/pages/AiForzaPage.tsx"
+      - "src/components/search/AiForzaFaceToFaceModal.tsx"
+      - "src/components/layout/RouteIntentPreload.tsx"
+      - "tests/forza-live-gateway.test.ts"
+      - "tests/forza-live-experience.test.ts"
+      - "tests/forza-live-browser-simulation.test.ts"
+      - "tests/forzaVoiceRecoveryUi.test.ts"
+      - "docs/forza/FORZA_LIVE_GATEWAY_REBUILD_20261124.md"
+      - ".env.example"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/forza-conversation-engine.yml"
@@ -62,7 +84,10 @@ jobs:
       - name: Install pinned ONNX runtime for visual segmentation typecheck
         run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
 
-      - name: Test conversation engine
+      - name: Test native FORZA Live gateway and browser
+        run: npm run test:forza-live
+
+      - name: Test conversation engine and regression suite
         run: npm run test:forza-engine
 
       - name: TypeScript validation
