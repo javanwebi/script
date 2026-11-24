@@ -58,6 +58,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: Install pinned browser vision runtime for TypeScript
+        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
       - name: TypeScript check
         run: npm run lint
       - name: Official website and FORZA logo placement tests
