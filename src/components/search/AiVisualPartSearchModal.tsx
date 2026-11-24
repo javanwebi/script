@@ -814,6 +814,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     stopCameraStream();
 
     setErrorMessage('');
+    latestImageUrlRef.current = displayUrl;
     setSelectedImage(displayUrl);
     setCroppedPreviewUrl(null);
     setDetectedCandidates([]);
