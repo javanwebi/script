@@ -239,7 +239,8 @@ test("workspace vision entry, split image review and results use KIKI without re
   assert.match(modal, /<ImageRegionReview/);
   assert.match(modal, /data-testid="kiki-vision-results-shell"/);
   assert.doesNotMatch(modal, /sanat-visual-search-hero|sanat-visual-stepper|kiki-vision-review-shell__status/);
-  assert.match(review, /data-testid="kiki-image-workspace"/);
+  assert.match(review, /data-testid="image-region-review"/);
+  assert.match(review, /kiki-image-workspace/);
   assert.match(review, /محصولات مشابه کاتالوگ/);
   assert.match(review, /ثبت سفارش ساخت/);
   assert.match(review, /onCamera/);
