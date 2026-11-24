@@ -116,25 +116,6 @@
   font-size: 11px;
   line-height: 1.9;
 }
-.kiki-region-review__change-top {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 39px;
-  flex: 0 0 auto;
-  padding: 0 12px;
-  border: 1px solid #dfe3e6;
-  border-radius: 11px;
-  color: #55565a;
-  background: #fff;
-  font-size: 10px;
-  font-weight: 850;
-}
-.kiki-region-review__change-top:hover:not(:disabled) {
-  border-color: #e06518;
-  color: #c65312;
-}
 .kiki-region-review__progress {
   display: flex;
   align-items: center;
@@ -247,8 +228,8 @@
   font-size: 10px;
   line-height: 1.85;
 }
+.kiki-region-review .sanat-region-picker__full-image { display: none; }
 .kiki-region-review .sanat-region-picker__search,
-.kiki-region-review .sanat-region-picker__full-image {
   min-height: 36px;
   border-radius: 10px;
   font-size: 10px;
@@ -448,11 +429,6 @@
   }
   .kiki-region-review__intro p {
     font-size: 10px;
-  }
-  .kiki-region-review__change-top {
-    min-height: 35px;
-    padding: 0 8px;
-    font-size: 9px;
   }
   .kiki-region-review__selector {
     padding: 9px;
