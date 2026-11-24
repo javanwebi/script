@@ -1264,3 +1264,10 @@
 .industry-template .ipt-process-map--polymer .ipt-stage-tabs button .ipt-process-node__copy small {
   color: #c3cbd0;
 }
+
+
+.industry-template .ipt-process-map .ipt-stage-tabs button:focus-visible {
+  outline: 3px solid rgba(229, 107, 30, .58);
+  outline-offset: 2px;
+  z-index: 2;
+}

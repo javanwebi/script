@@ -87,10 +87,19 @@ async function installRoutes(page) {
         const nodes = page.locator('.ipt-stage-tabs button[role="tab"]');
         assert.equal(await nodes.count(), industry.stages,
           industry.slug + ' must expose every production stage');
-        const selected = nodes.nth(Math.min(1, industry.stages - 1));
+        const first = nodes.first();
+        await first.focus();
+        await first.press('ArrowLeft');
+        const keyboardSelected = nodes.nth(1);
+        assert.equal(await keyboardSelected.getAttribute('aria-selected'), 'true',
+          industry.slug + ' RTL ArrowLeft must select the next production stage');
+        assert.equal(await keyboardSelected.evaluate(element => document.activeElement === element), true,
+          industry.slug + ' keyboard navigation must move focus to the selected stage');
+
+        const selected = keyboardSelected;
         await selected.click();
         assert.equal(await selected.getAttribute('aria-selected'), 'true',
-          industry.slug + ' stage selection must be accessible');
+          industry.slug + ' click selection must remain accessible');
         assert.equal(
           (await page.locator('#ipt-stage-panel h3').innerText()).trim(),
           await selected.getAttribute('data-stage-title'),
