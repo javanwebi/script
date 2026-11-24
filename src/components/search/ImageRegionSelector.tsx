@@ -218,7 +218,7 @@ export function ImageRegionSelector({
    </aside>}
   </div>
   {viewer&&<div className="sanat-region-picker__viewer-actions">
-   <button type="button" className="sanat-region-picker__search" onClick={onSearch} disabled={disabled || !value}>تأیید برش و جست‌وجوی قطعه</button>
+   <button type="button" className="sanat-region-picker__search" onClick={onSearch} disabled={disabled || !value}>تأیید برش و جست‌وجوی این قطعه</button>
    <button type="button" className="sanat-region-picker__full-image" onClick={()=>onFullImageSearch ? onFullImageSearch() : onChange(undefined)} disabled={disabled}>جست‌وجوی کل تصویر</button>
   </div>}
   {candidates.length > 1 && (
