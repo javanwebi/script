@@ -6,7 +6,7 @@ import {AUTH_REFRESH_COOKIE_PATH,buildRefreshCookie,supabaseAuthAction} from '..
 test('refresh cookie covers portal and sibling admin API routes with secure cookie attributes',()=>{
  assert.equal(AUTH_REFRESH_COOKIE_PATH,'/api');
  const cookie=buildRefreshCookie('test-refresh-token',2592000,true);
- assert.match(cookie,/^sp_refresh=test-refresh-token; Path=\\/api;/);
+ assert.match(cookie,/^sp_refresh=test-refresh-token; Path=\/api;/);
  assert.match(cookie,/HttpOnly; SameSite=Lax; Max-Age=2592000; Secure$/);
  const cleared=buildRefreshCookie('',0,true);
  assert.match(cleared,/Max-Age=0; Secure$/);
