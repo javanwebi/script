@@ -76,11 +76,12 @@ export function ImageRegionSelector({
   if(disabled||!value)return;
   event.preventDefault();
   event.stopPropagation();
-  const frameBounds=frameRef.current?.getBoundingClientRect();
-  if(!frameBounds)return;
+  const frame=frameRef.current;
+  if(!frame)return;
+  const frameBounds=frame.getBoundingClientRect();
   const bounds={left:frameBounds.left,top:frameBounds.top,width:frameBounds.width,height:frameBounds.height};
   interaction.current={mode:'resize',start:point(event,bounds),clientX:event.clientX,clientY:event.clientY,bounds,origin:{...value},handle};
-  frameRef.current.setPointerCapture(event.pointerId);
+  frame.setPointerCapture(event.pointerId);
  };
 
  const finish=(event:PointerEvent<HTMLDivElement>)=>{
