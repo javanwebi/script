@@ -1,7 +1,7 @@
 import test from 'node:test';
 import './private-forza-config.test';
 import assert from 'node:assert/strict';
-import { BaiConsultError, completeXkiroConsult, configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, providerStreamTimeouts, streamAvalaiConsult, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
+import { BaiConsultError, completeXkiroConsult, configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, publicForzaTextProviderStatus, providerStreamTimeouts, resolveForzaTextProvider, streamAvalaiConsult, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
 
 function fakeStream(parts: string[], status = 200, contentType = 'text/event-stream') {
   const chunks = parts.map(p => new TextEncoder().encode(p));
@@ -21,6 +21,68 @@ test('AvalAI is opt-in, requires its own key, and defaults to the economical GLM
   assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai', AVALAI_API_KEY: 'example', AVALAI_MODEL_DESK: 'qwen3.8-flash' }, false), 'qwen3.8-flash');
   assert.equal(configuredAvalaiModel({ FORZA_VOICE_PROVIDER: 'avalai', AVALAI_API_KEY: 'example' }, true), 'glm-5.3-flash');
   assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'xkiro', AVALAI_API_KEY: 'example' }, false), null);
+});
+
+test('FORZA voice provider diagnostics report effective AvalAI model without exposing credentials', () => {
+  const env = {
+    FORZA_VOICE_PROVIDER: 'avalai',
+    AVALAI_API_KEY: 'private-avalai-key',
+    AVALAI_MODEL_VOICE: 'glm-5.3-flash',
+  };
+  const selection = resolveForzaTextProvider(env, true);
+  assert.equal(selection.provider, 'avalai');
+  assert.equal(selection.model, 'glm-5.3-flash');
+  assert.equal(selection.configured, true);
+  assert.equal(selection.apiKey, 'private-avalai-key');
+
+  const status = publicForzaTextProviderStatus(env, false);
+  assert.deepEqual(status, {
+    requestedProvider: 'avalai',
+    provider: 'avalai',
+    model: 'glm-5.3-flash',
+    configured: true,
+    reason: null,
+  });
+  assert.equal(JSON.stringify(status).includes('private-avalai-key'), false);
+});
+
+test('explicit AvalAI selection fails closed when its private key is missing', () => {
+  const env = { FORZA_VOICE_PROVIDER: 'avalai' };
+  const selection = resolveForzaTextProvider(env, true);
+  assert.equal(selection.provider, 'avalai');
+  assert.equal(selection.configured, false);
+  assert.equal(selection.reason, 'missing_api_key');
+
+  const status = publicForzaTextProviderStatus(env, true);
+  assert.equal(status.provider, 'avalai');
+  assert.equal(status.configured, false);
+  assert.equal(status.reason, 'missing_api_key');
+});
+
+test('an unavailable optional provider is reported separately from Gemini fallback', () => {
+  const status = publicForzaTextProviderStatus({
+    FORZA_VOICE_PROVIDER: 'xkiro',
+  }, true);
+  assert.deepEqual(status, {
+    requestedProvider: 'xkiro',
+    provider: 'gemini',
+    model: null,
+    configured: true,
+    reason: 'missing_api_key',
+  });
+});
+
+test('voice runtime diagnostics report no text backend as not ready', () => {
+  const status = publicForzaTextProviderStatus({
+    FORZA_VOICE_PROVIDER: 'gemini',
+  }, false);
+  assert.deepEqual(status, {
+    requestedProvider: 'gemini',
+    provider: 'worker',
+    model: null,
+    configured: false,
+    reason: 'no_text_provider',
+  });
 });
 
 test('AvalAI streams SSE through the shared FORZA contract and uses low reasoning only for GLM Flash', async () => {
