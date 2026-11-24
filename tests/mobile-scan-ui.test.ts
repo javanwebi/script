@@ -98,7 +98,7 @@ test("dock camera opens a full-screen live preview, local review, retake, and ex
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const provider = source("src/components/search/PartIdentificationProvider.tsx");
   const styles = source("src/components/search/industrial-scan.css");
-  assert.match(provider, /<Studio[\s\S]*?initialCamera=\{startWithCamera\}[\s\S]*?fullScreen/);
+  assert.match(provider, /<Studio[\s\S]*?isOpen[\s\S]*?standalone[\s\S]*?fullScreen/);
   assert.match(modal, /screen === 'camera'/);
   assert.match(modal, /screen === 'review'/);
   assert.match(modal, /data-testid="full-screen-camera-experience"/);
@@ -196,7 +196,7 @@ test("standalone identification route uses KIKI entry UI with the existing full-
   const provider = source("src/components/search/PartIdentificationProvider.tsx");
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   assert.match(provider, /export function PartIdentificationPage/);
-  assert.match(provider, /<Studio[\\s\\S]*?isOpen[\\s\\S]*?standalone[\\s\\S]*?fullScreen/);
+  assert.match(provider, /<Studio[\s\S]*?isOpen[\s\S]*?standalone[\s\S]*?fullScreen/);
   const workspace = source("src/pages/AiConsultPage.tsx");
   assert.match(workspace, /navigate\('\/identify-part\?from=workspace'\)/);
   assert.match(workspace, /entryParams\.get\('view'\) === 'visual'/);
