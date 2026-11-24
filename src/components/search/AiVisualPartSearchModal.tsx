@@ -664,6 +664,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     mime?: string;
     stage?: AiAnalysisStage;
     savedLocalImageId?: string | null;
+    imageEventId?: string | null;
     detectionId?: string | null;
   }) => {
     analyzeAbortRef.current?.abort();
@@ -674,6 +675,16 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     setErrorMessage('');
 
     try {
+      const effectiveLocalImageId = opts.savedLocalImageId || localImageId;
+      if (!effectiveLocalImageId) {
+        throw new Error('تصویر در حافظه داخلی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.');
+      }
+      const localRecord = await getCustomerDeviceImage(effectiveLocalImageId);
+      if (!localRecord) {
+        throw new Error('تصویر اصلی در حافظه داخلی دستگاه پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.');
+      }
+      if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
+
       const effectiveAlpha = opts.alphaData !== undefined ? opts.alphaData : null;
       const [cutout] = await Promise.all([
         renderSegmentedVisionCutout(
@@ -689,11 +700,11 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
       const previewCutoutUrl = cutout.previewUrl || cutout.modelInputUrl;
       if (previewCutoutUrl) setCroppedPreviewUrl(previewCutoutUrl);
 
-      let activeImageEventId: string | null = imageEventId;
-      if (currentUser && opts.savedLocalImageId && !activeImageEventId) {
+      let activeImageEventId: string | null =
+        opts.imageEventId !== undefined ? opts.imageEventId : imageEventId;
+      if (currentUser && !activeImageEventId) {
         try {
-          await adoptCustomerDeviceImage(opts.savedLocalImageId, currentUser.id);
-          const meta = await getCustomerDeviceImageMetadata(opts.savedLocalImageId);
+          const meta = await getCustomerDeviceImageMetadata(effectiveLocalImageId);
           if (meta) {
             const ev = await createCustomerImageIdentification({
               deviceImageId: meta.id,
@@ -711,10 +722,10 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
       }
 
       if (analyzeController.signal.aborted || opts.seq !== pipelineSequenceRef.current) return;
-      const payloadImage = opts.imageSrc; // Production engine crops the normalized region itself; cutout is for display only.
-      const resolvedPayloadMime =
-        payloadImage.match(/^data:([^;]+);base64,/i)?.[1] || opts.mime || mimeType;
-      const croppedDataUrl = previewCutoutUrl || payloadImage;
+      // Read the original full-resolution image from the device vault; the normalized region is cropped by the production API.
+      const payloadImage = await customerImageBlobToDataUrl(localRecord.blob);
+      const resolvedPayloadMime = localRecord.mimeType || opts.mime || mimeType;
+      const croppedDataUrl = previewCutoutUrl || opts.imageSrc;
 
       const result = await aiVisualSearchService.analyzePartWithAi(
         {
@@ -904,22 +915,22 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                 return r.blob();
               })
             : source;
-
-        resolvedUrl = await customerImageBlobToDataUrl(blob);
-        void saveCustomerDeviceImage(
+        const saved = await saveCustomerDeviceImage(
           blob,
           currentUser?.id || 'guest',
           opts?.originalName || 'customer-image',
-        )
-          .then((saved) => {
-            if (seq !== pipelineSequenceRef.current) return;
-            savedId = saved.id;
-            setLocalImageId(saved.id);
-            setMimeType(saved.mimeType);
-          })
-          .catch(() => null);
-      } catch {
-        // Fallback to direct displayUrl if blob fetch fails
+        );
+        if (seq !== pipelineSequenceRef.current) return;
+        savedId = saved.id;
+        setLocalImageId(saved.id);
+        setMimeType(saved.mimeType || blob.type || 'image/jpeg');
+        const localRecord = await getCustomerDeviceImage(saved.id);
+        if (!localRecord) throw new Error('تصویر پس از ذخیره‌سازی محلی قابل بازیابی نیست.');
+        resolvedUrl = await customerImageBlobToDataUrl(localRecord.blob);
+      } catch (error) {
+        if (seq !== pipelineSequenceRef.current) return;
+        setErrorMessage(error instanceof Error ? error.message : 'ذخیره امن تصویر روی دستگاه انجام نشد.');
+        throw error;
       }
 
       if (seq !== pipelineSequenceRef.current) return;
@@ -999,6 +1010,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
         originalName: opts?.originalName,
         mime: opts?.mime,
         savedLocalImageId: savedId,
+        imageEventId: null,
       });
     } catch {
       if (seq !== pipelineSequenceRef.current) return;
@@ -1402,22 +1414,29 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
       const detectedName = [summary?.partFamilyFarsi, summary?.detectedPartType]
         .map((v) => String(v || '').trim())
         .find((v) => v.length > 1 && !/قطعه نامشخص|نامشخص/i.test(v));
-      const observedDims = (summary?.observedSpecifications || [])
-        .filter((s) => String(s.value || '').trim())
-        .map((s) => `${s.name || 'مشخصه'}: ${String(s.value).trim()}`)
+      const observedDimensions = (summary?.observedSpecifications || [])
+        .filter((spec) => String(spec.value || '').trim())
+        .map((spec) => `${spec.name || 'مشخصه'}: ${String(spec.value).trim()}`)
         .join('، ')
         .slice(0, 480);
+      const unknownParameters = (summary?.unknownParameters || []).filter(Boolean);
+      const regionNote = queryRegion
+        ? `ناحیه انتخاب‌شده در تصویر: x=${queryRegion.x.toFixed(4)}, y=${queryRegion.y.toFixed(4)}, width=${queryRegion.width.toFixed(4)}, height=${queryRegion.height.toFixed(4)} (مختصات نسبی تصویر).`
+        : 'درخواست بر اساس تصویر کامل ارسالی ثبت شده است.';
+      const visualSummary = String(summary?.visualAnalysis || summary?.whatYouSee || 'در کاتالوگ، تطابق تصویری کافی پیدا نشد.').trim();
 
       setCustomRequestDraft({
         file,
         partName: detectedName || 'قطعه صنعتی برای بررسی و ساخت سفارشی',
         partType: 'سایر قطعات مکانیکی خاص',
-        dimensions: observedDims,
+        dimensions: observedDimensions,
         alloyCondition: String(summary?.material || ''),
         notes: [
           'درخواست ساخت و مهندسی معکوس از جستجوی تصویری FORZA ثبت شده است.',
-          summary?.visualAnalysis ? 'تشخیص بصری: ' + summary.visualAnalysis : '',
-          analysisResult?.technicalAdvice ? 'توصیه مهندسی: ' + analysisResult.technicalAdvice : '',
+          'خلاصه بررسی تصویر: ' + visualSummary,
+          analysisResult?.technicalAdvice ? 'توصیه فنی اولیه: ' + analysisResult.technicalAdvice : '',
+          unknownParameters.length ? 'پارامترهای نیازمند اندازه‌گیری یا تأیید: ' + unknownParameters.join('، ') : '',
+          regionNote,
         ]
           .filter(Boolean)
           .join('\n')
