@@ -23,30 +23,57 @@ async function startServer(options: Parameters<typeof setupForzaLiveGateway>[1])
   };
 }
 
+type MessageWaiter = {
+  predicate: (message: any) => boolean;
+  resolve: (message: any) => void;
+  reject: (error: Error) => void;
+  timer: NodeJS.Timeout;
+};
+const messageState = new WeakMap<WebSocketClient, { messages: any[]; waiters: MessageWaiter[] }>();
+
+function trackMessages(socket: WebSocketClient) {
+  const state = { messages: [] as any[], waiters: [] as MessageWaiter[] };
+  messageState.set(socket, state);
+  socket.on('message', (raw: Buffer) => {
+    let message: any;
+    try { message = JSON.parse(raw.toString('utf8')); } catch { return; }
+    const index = state.waiters.findIndex(waiter => waiter.predicate(message));
+    if (index >= 0) {
+      const [waiter] = state.waiters.splice(index, 1);
+      clearTimeout(waiter.timer);
+      waiter.resolve(message);
+    } else {
+      state.messages.push(message);
+    }
+  });
+}
+
 function waitForMessage(
   socket: WebSocketClient,
   predicate: (message: any) => boolean,
   timeoutMs = 2_000,
 ): Promise<any> {
+  const state = messageState.get(socket);
+  if (!state) return Promise.reject(new Error('Socket message tracking was not initialized'));
+  const index = state.messages.findIndex(predicate);
+  if (index >= 0) return Promise.resolve(state.messages.splice(index, 1)[0]);
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      socket.off('message', onMessage);
-      reject(new Error('Timed out waiting for FORZA Live message'));
-    }, timeoutMs);
-    const onMessage = (raw: Buffer) => {
-      let message: any;
-      try { message = JSON.parse(raw.toString('utf8')); } catch { return; }
-      if (!predicate(message)) return;
-      clearTimeout(timer);
-      socket.off('message', onMessage);
-      resolve(message);
+    const waiter: MessageWaiter = {
+      predicate,
+      resolve,
+      reject,
+      timer: setTimeout(() => {
+        const index = state.waiters.indexOf(waiter);
+        if (index >= 0) state.waiters.splice(index, 1);
+        reject(new Error('Timed out waiting for FORZA Live message'));
+      }, timeoutMs),
     };
-    socket.on('message', onMessage);
+    state.waiters.push(waiter);
   });
 }
-
 async function openClient(url: string, origin: string): Promise<WebSocketClient> {
   const socket = new WebSocket(url, { headers: { Origin: origin } });
+  trackMessages(socket);
   await once(socket, 'open');
   return socket;
 }
@@ -84,8 +111,8 @@ test('FORZA Live gateway connects to Gemini and bridges continuous audio, text, 
     assert.equal(connected.sampleRate, 24000);
     assert.equal(connected.inputSampleRate, 16000);
     assert.equal(connectOptions.config.responseModalities[0], 'AUDIO');
-    assert.equal(connectOptions.config.inputAudioTranscription.constructor, Object);
-    assert.equal(connectOptions.config.outputAudioTranscription.constructor, Object);
+    assert.deepEqual(connectOptions.config.inputAudioTranscription, {});
+    assert.deepEqual(connectOptions.config.outputAudioTranscription, {});
 
     const pcm = Buffer.alloc(1_024);
     const audio = pcm.toString('base64');
