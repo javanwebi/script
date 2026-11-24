@@ -207,24 +207,26 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
   return server;
 }
 
-/** A two-second pause can be a natural breath, not the end of a Persian turn.
- * Keep a continuation grace above two seconds even when ASR adds punctuation;
- * only explicit stop/continue control phrases use a shorter endpoint.
+/** Adaptive acoustic endpointing for natural Persian voice turns.
+ * Clear, final utterances should not wait four seconds before the LLM starts.
+ * Incomplete clauses and technical-code corrections keep a longer continuation
+ * window; the text-only fallback remains conservative when VAD is unavailable.
  */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
   const normalized=normalizePersianTranscript(text);
   // No transcript yet is not proof that the customer stopped speaking. Keep
-  // the recorder open long enough for delayed local/browser ASR hypotheses.
+  // enough time for delayed local/browser ASR hypotheses.
   if(!normalized)return 5200;
-  // Only explicit control commands bypass the natural-pause continuation window.
+  // Explicit stop/continue commands should interrupt without a long endpoint.
   if(/^(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|توقف|بسه|ساکت|ساکت شو|ادامه بده|ادامه بدید|ادامه)$/.test(normalized))
     return 650;
   const analysis = analyzePersianSentenceCompletion(normalized);
-  // A grammatical full stop is not a reliable turn boundary: people pause
-  // mid-thought, breathe, or search for a technical part number.
-  if(analysis.isMidThought)return hasInterim?5600:5200;
-  if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?4600:4200;
-  return hasInterim?5200:4800;
+  // A clear, final answer can dispatch quickly. A provisional hypothesis gets
+  // extra time for a late correction (for example 6202 -> 6203).
+  if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?2100:1350;
+  // Preserve more room for clauses, unfinished requests and industrial codes.
+  if(analysis.isMidThought)return hasInterim?3400:2800;
+  return hasInterim?2800:2100;
 }
 
 /**
