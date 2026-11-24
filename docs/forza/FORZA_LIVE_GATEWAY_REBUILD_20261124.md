@@ -2,7 +2,7 @@
 
 ## What this provides
 
-The customer browser connects to the same-origin `/api/live` WebSocket. The Express server authenticates to Gemini Live with a server-only key and bridges a continuous, bidirectional audio session. The browser never receives the provider key. Gemini 3.8 Live detects the spoken language automatically; Persian is enforced through the system instruction rather than a speechConfig.languageCode override. Both the main `/ai-forza` page and the face-to-face modal now use the new `AiForzaLiveExperience` controller; the old request/response call page is no longer the customer entry point.
+The customer browser connects to the same-origin `/api/live` WebSocket. The Express server authenticates to Gemini Live with a server-only key and bridges a continuous, bidirectional audio session. The browser never receives the provider key. Live calls are disabled unless `FORZA_LIVE_ENABLED=true` is explicitly set on the server. Gemini 3.8 Live detects the spoken language automatically; Persian is enforced through the system instruction rather than a speechConfig.languageCode override. Both the main `/ai-forza` page and the face-to-face modal now use the new `AiForzaLiveExperience` controller; the old request/response call page is no longer the customer entry point.
 
 - Microphone input: mono PCM16 at 16 kHz.
 - Model output: native audio chunks at 24 kHz plus available text transcription.
