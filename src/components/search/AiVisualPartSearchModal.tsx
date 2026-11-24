@@ -49,7 +49,6 @@ import {
   aiVisualSearchService,
   AiPartAnalysisResult,
   AiAnalysisStage,
-  IndustrialPresetSample,
 } from "../../services/aiVisualSearchService";
 import { toPersianDigits, formatPrice } from "../../utils/formatters";
 import { useCart } from "../../context/CartContext";
@@ -464,29 +463,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   // Preset sample loader
-  const loadPreset = (preset: IndustrialPresetSample) => {
-    if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-    setAnalysisResult(null);setMeasurements({});
-    setSelectedImage(preset.imageUrl);
-    setLocalImageId(null);
-    setTemporaryImageDataUrl(null);
-    setImageEventId(null);
-    setMimeType("image/jpeg");
-    setErrorMessage("");
-    setRegionDetectionState('uploading');
-    void uploadAndPrepareImage(preset.imageUrl);
-    setLength(preset.length ? preset.length.toString() : "");
-    setWidth(preset.width ? preset.width.toString() : "");
-    if (preset.pitch) setPitch(preset.pitch.toString());
-    else setPitch("");
-    setApplication(preset.application);
-    setFeatures(preset.features);
-    setErrorMessage("");
-    if (isUsingCamera) stopCamera();
-    // Presets follow the same observation and measurement flow as uploads.
-    setCurrentStep(1);
-  };
-
   // Camera start / stop / capture
   const startCamera = async (facing: "environment" | "user" = cameraFacing) => {
     const request = ++cameraRequestRef.current;
