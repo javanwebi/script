@@ -19,7 +19,7 @@ test('legacy sessions migrate their refresh token to the shared API path',()=>{
  const [current,legacy]=buildRefreshCookieMigrationHeaders('legacy-refresh-token',true);
 
  assert.match(current,/^sp_refresh=legacy-refresh-token; Path=\/api;.*Max-Age=2592000; Secure$/);
- assert.match(legacy,/^sp_refresh=; Path=\/api\\/portal;.*Max-Age=0; Secure$/);
+ assert.match(legacy,/^sp_refresh=; Path=\/api\/portal;.*Max-Age=0; Secure$/);
 });
 
 test('logout expires both current and legacy refresh-cookie paths',()=>{
