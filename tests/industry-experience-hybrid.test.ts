@@ -11,6 +11,7 @@ const page = read("src/pages/IndustryTemplatePage.tsx");
 const directory = read("src/pages/DiscoveryPages.tsx");
 const styles = read("src/industry-experience.css") + read("src/pages/industry-template.css");
 const workflow = read(".github/workflows/verify-vps-build.yml");
+const consumerWorkflow = read(".github/workflows/consumer-portal-responsive.yml");
 
 test("all six industries have distinct process-map art directions", () => {
   const expected = {
@@ -100,6 +101,15 @@ test("station ranking prioritizes stage evidence, keeps industry fallback and ex
     ["CAT-KILN-01", "CAT-HEAT-03", "CAT-BELT-02"],
     "free-text operating conditions must influence matching without admitting unrelated featured products",
   );
+});
+
+test("the consumer responsive workflow stages its pinned ONNX runtime before TypeScript and build", () => {
+  const runtimeInstall = consumerWorkflow.indexOf("onnxruntime-web@1.18.0");
+  const typecheck = consumerWorkflow.indexOf("run: npm run lint");
+  const build = consumerWorkflow.indexOf("run: npm run build");
+  assert.ok(runtimeInstall >= 0 && runtimeInstall < typecheck && typecheck < build,
+    "the responsive workflow must install ONNX before typecheck and production build");
+  assert.match(consumerWorkflow, /cp node_modules\\/onnxruntime-web\\/dist\\/ort-wasm\\*\\.wasm public\\/forza-runtime\\/ort\\//);
 });
 
 test("the VPS workflow runs the new industry tests and all-industry responsive smoke", () => {
