@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { AiForzaCallExperience } from '../forza/AiForzaCallExperience';
+import { AiForzaLiveExperience } from '../forza/AiForzaLiveExperience';
 
 export interface AiForzaFaceToFaceModalProps {
   isOpen: boolean;
@@ -33,9 +33,9 @@ export const AiForzaFaceToFaceModal: React.FC<AiForzaFaceToFaceModalProps> = ({
       className="fixed inset-0 z-50 w-screen h-screen min-h-[100dvh] overflow-hidden bg-gradient-to-b from-[#CBD2D8] via-[#DEE2E5] to-[#F4F4F5]"
       role="dialog"
       aria-modal="true"
-      aria-label="AI FORZA Voice Call Experience"
+      aria-label="FORZA Live voice call"
     >
-      <AiForzaCallExperience onClose={onClose} />
+      <AiForzaLiveExperience onClose={onClose} />
     </div>
   );
 };
