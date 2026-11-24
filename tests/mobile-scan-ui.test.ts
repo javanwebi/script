@@ -196,7 +196,7 @@ test("standalone identification route uses KIKI entry UI with the existing full-
   const provider = source("src/components/search/PartIdentificationProvider.tsx");
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   assert.match(provider, /export function PartIdentificationPage/);
-  assert.match(provider, /<Studio isOpen standalone fullScreen/);
+  assert.match(provider, /<Studio[\\s\\S]*?isOpen[\\s\\S]*?standalone[\\s\\S]*?fullScreen/);
   const workspace = source("src/pages/AiConsultPage.tsx");
   assert.match(workspace, /navigate\('\/identify-part\?from=workspace'\)/);
   assert.match(workspace, /entryParams\.get\('view'\) === 'visual'/);
