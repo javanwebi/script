@@ -121,7 +121,8 @@ test('FORZA Live gateway connects to Gemini and bridges continuous audio, text, 
     client.send(JSON.stringify({ type: 'text', text: 'سلام فورزا' }));
     client.send(JSON.stringify({ type: 'audio_stream_end' }));
     await new Promise(resolve => setTimeout(resolve, 20));
-    assert.deepEqual(receivedInputs.slice(0, 3), [
+    assert.match(receivedInputs[0].text, /خوش‌آمدگویی کوتاه/);
+    assert.deepEqual(receivedInputs.slice(1, 4), [
       { audio: { data: audio, mimeType: 'audio/pcm;rate=16000' } },
       { text: 'سلام فورزا' },
       { audioStreamEnd: true },
