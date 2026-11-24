@@ -65,7 +65,7 @@ export function ImageRegionReview({
           type="button"
           className="kiki-region-review__change-top"
           onClick={onChangeImage}
-          disabled={disabled}
+          disabled={preparing}
         >
           <ImagePlus size={16} aria-hidden="true" />
           <span>تصویر جدید</span>
@@ -103,7 +103,7 @@ export function ImageRegionReview({
               {message || 'ناحیه قطعه را روی تصویر مشخص کنید؛ تصویر اصلی شما محفوظ می‌ماند.'}
             </span>
           </div>
-          <button type="button" onClick={onRetryPreparation} disabled={disabled}>
+          <button type="button" onClick={onRetryPreparation} disabled={preparing}>
             تلاش مجدد
           </button>
         </div>
