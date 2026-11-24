@@ -21,7 +21,7 @@ export function buildAuthCookieHeaders(session:Pick<Session,'access_token'|'refr
 function cookies(req:IncomingMessage,res:ServerResponse,session:Session|null){
  const values=buildAuthCookieHeaders(session,process.env.NODE_ENV==='production');
  res.setHeader('Set-Cookie',values);
- req.headers.cookie=[...(req.headers.cookie || '').split(';').filter(value=>!/^\\s*sp_(access|refresh)=/.test(value)),`sp_access=${session?.access_token || ''}`,`sp_refresh=${session?.refresh_token || ''}`].join(';');
+ req.headers.cookie=[...(req.headers.cookie || '').split(';').filter(value=>!/^\s*sp_(access|refresh)=/.test(value)),`sp_access=${session?.access_token || ''}`,`sp_refresh=${session?.refresh_token || ''}`].join(';');
 }
 function phone(raw:string){const value=String(raw || '').replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\s()-]/g,'').replace(/^(\+98|0098|98)/,'0');if(!/^09\d{9}$/.test(value))throw error(400,'شماره موبایل معتبر وارد کنید.');return {local:value,e164:'+98'+value.slice(1)};}
 // Resolve only the authenticated profile for API authorization; never load all CRM users.
