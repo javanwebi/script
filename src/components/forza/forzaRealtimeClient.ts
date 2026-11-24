@@ -16,7 +16,7 @@ export interface ForzaRealtimeCallbacks {
   onUserText: (text: string, final?: boolean) => void;
   onAiText: (text: string) => void;
   onTurnComplete?: (userText: string, aiText: string) => void;
-  onInterrupted?: (responseId: string) => void;
+  onInterrupted?: (responseId: string, userText: string, aiText: string) => void;
   onLevel: (level: number) => void;
   onError: (error: string) => void;
 }
@@ -167,13 +167,19 @@ export class ForzaRealtimeClient {
           this.callback.onAiText(this.aiTranscript);
         }
         return;
-      case 'interrupted':
-        if (message.responseId) this.ignoreResponse(String(message.responseId));
+      case 'interrupted': {
+        const interruptedId = String(message.responseId || '');
+        if (interruptedId && this.ignoredResponseIds.has(interruptedId)) return;
+        if (interruptedId) this.ignoreResponse(interruptedId);
+        this.callback.onInterrupted?.(interruptedId, this.userTranscript, this.aiTranscript);
+        this.userTranscript = '';
+        this.aiTranscript = '';
         this.stopPlayback();
-        this.callback.onInterrupted?.(String(message.responseId || ''));
         this.callback.onStatus('listening');
         return;
+      }
       case 'turn_complete':
+        if (message.responseId && this.ignoredResponseIds.has(String(message.responseId))) return;
         this.turnCompleted = true;
         this.callback.onTurnComplete?.(this.userTranscript, this.aiTranscript);
         this.userTranscript = '';
@@ -295,8 +301,13 @@ export class ForzaRealtimeClient {
 
   sendText(text: string) {
     if (!text.trim() || !this.nativeConnected || this.disposed) return false;
-    if (this.responseId) this.ignoreResponse(this.responseId);
+    if (this.responseId) {
+      const previousResponseId = this.responseId;
+      this.ignoreResponse(previousResponseId);
+      this.callback.onInterrupted?.(previousResponseId, this.userTranscript, this.aiTranscript);
+    }
     this.stopPlayback();
+    this.aiTranscript = '';
     this.userTranscript = text.trim();
     this.callback.onUserText(this.userTranscript, true);
     this.callback.onStatus('thinking');
