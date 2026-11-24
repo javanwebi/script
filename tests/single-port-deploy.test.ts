@@ -201,12 +201,30 @@ print("NGINX_SPA_GUARD_PARSER_FIXTURES_OK")
   assert.match(result.stdout, /NGINX_SPA_GUARD_PARSER_FIXTURES_OK/);
 });
 
-test("AvalAI private config must be effective in canary before production promotion", () => {
-  const gate = one.indexOf("AVALAI_CANARY_CONFIG_OK desk=avalai voice=avalai key=SET");
+test("AvalAI private config is required for Voice while Desk may retain its independent provider", () => {
+  const gate = one.indexOf("AVALAI_CANARY_CONFIG_OK");
   const promotion = one.indexOf("===== PROMOTE ON SAME FIXED PORT");
   assert.ok(gate >= 0 && promotion > gate);
-  assert.match(one.slice(gate - 900, promotion), /AVALAI_API_KEY_NOT_EFFECTIVE/);
+  const configGate = one.slice(one.indexOf("if [[ -f \"$APP/.env.forza-voice\" ]]"), gate + 300);
+  assert.match(configGate, /FORZA_VOICE_PROVIDER_NOT_AVALAI/);
+  assert.match(configGate, /AVALAI_API_KEY_NOT_EFFECTIVE/);
+  assert.match(configGate, /voiceProvider = String\(process\.env\.FORZA_VOICE_PROVIDER \|\| process\.env\.FORZA_DESK_PROVIDER/);
+  assert.doesNotMatch(configGate, /DESK_PROVIDER_NOT_AVALAI/);
   assert.match(one.slice(gate - 900, promotion), /PRIVATE_FORZA_CONFIG_MOUNT_OK/);
+});
+
+test("the private canary verifies effective AvalAI voice and Nima readiness before promotion", () => {
+  const canary = file("ops/verify-single-port-canary.mjs");
+  const voice = canary.indexOf('"/api/ai/forza-voice-info"');
+  const stt = canary.indexOf('"/api/ai/forza-stt-info"');
+  assert.ok(voice >= 0 && stt > voice);
+  const gate = canary.slice(voice, stt);
+  assert.match(gate, /textProvider, "avalai"/);
+  assert.match(gate, /textProviderConfigured, true/);
+  assert.match(gate, /voice, "piper-nima-gyro-medium"/);
+  assert.match(gate, /incrementalSpeech, true/);
+  assert.match(gate, /FORZA_PRIVATE_VOICE_NOT_READY/);
+  assert.match(gate, /FORZA_VOICE_CANARY_AVALAI_READY_OK/);
 });
 
 test("private FORZA provider credentials are mounted read-only into each release", () => {
