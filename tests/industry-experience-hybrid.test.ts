@@ -33,6 +33,11 @@ test("the process map keeps accessible stage selection and updates the existing 
   assert.match(map, /role="tablist"/);
   assert.match(map, /role="tab"/);
   assert.match(map, /aria-selected=\{selected\}/);
+  assert.match(map, /tabIndex=\{selected \? 0 : -1\}/);
+  assert.match(map, /event\.key === "ArrowRight"/);
+  assert.match(map, /event\.key === "ArrowLeft"/);
+  assert.match(map, /event\.key === "Home"/);
+  assert.match(map, /event\.key === "End"/);
   assert.match(map, /aria-controls="ipt-stage-panel"/);
   assert.match(map, /id=\{"ipt-stage-tab-" \+ index\}/);
   assert.match(page, /aria-labelledby=\{"ipt-stage-tab-" \+ Math\.min\(activeStageIndex, stages\.length - 1\)\}/);

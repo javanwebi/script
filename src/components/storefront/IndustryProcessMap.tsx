@@ -17,6 +17,7 @@ import {
   Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { KeyboardEvent } from "react";
 import { INDUSTRY_EXPERIENCE } from "../../data/industryExperience";
 import type { IndustryPageSlug, IndustryStageContent } from "../../data/industryPageDetails";
 
@@ -74,10 +75,22 @@ export function IndustryProcessMap({ industry, stages, activeIndex, onSelect }: 
                 type="button"
                 role="tab"
                 aria-selected={selected}
+                tabIndex={selected ? 0 : -1}
                 aria-controls="ipt-stage-panel"
                 aria-label={"نمایش جزئیات " + stage.title}
                 data-stage-title={stage.title}
                 onClick={() => onSelect(index)}
+                onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
+                  let nextIndex: number | null = null;
+                  if (event.key === "ArrowRight") nextIndex = index === 0 ? stages.length - 1 : index - 1;
+                  else if (event.key === "ArrowLeft") nextIndex = (index + 1) % stages.length;
+                  else if (event.key === "Home") nextIndex = 0;
+                  else if (event.key === "End") nextIndex = stages.length - 1;
+                  if (nextIndex === null) return;
+                  event.preventDefault();
+                  onSelect(nextIndex);
+                  document.getElementById("ipt-stage-tab-" + nextIndex)?.focus();
+                }}
                 className={"ipt-process-node" + (selected ? " is-active" : "")}
               >
                 <span className="ipt-process-node__top">
