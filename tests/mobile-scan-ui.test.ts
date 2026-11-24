@@ -240,8 +240,8 @@ test("workspace vision entry, image review and results use the KIKI presentation
   assert.match(review, /kiki-region-review/);
   assert.match(review, /جستجوی این قطعه در کاتالوگ/);
   assert.doesNotMatch(review, /تأیید تصویر و شروع تحلیل|تأیید برش و شروع تحلیل|sp-region-review__scanner-steps|دریافت تصویر|یافتن قطعه|آماده‌سازی برش/);
-  assert.match(reviewStyles, /\\.kiki-region-review \\.sanat-region-picker__canvas/);
-  assert.doesNotMatch(reviewStyles, /background:\\s*#172231|background:\\s*#111b27/);
+  assert.match(reviewStyles, /\.kiki-region-review \.sanat-region-picker__canvas/);
+  assert.doesNotMatch(reviewStyles, /background:\s*#172231|background:\s*#111b27/);
 
   assert.match(modal, /بازگشت به میزکار از نتایج شناسایی/);
   assert.doesNotMatch(modal, /sp-vision-journey/);
