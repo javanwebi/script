@@ -212,19 +212,21 @@ test('FORZA Live gateway rate-limits repeated demo sessions from one source IP',
     maxSessionsPerHourPerIp: 1,
   });
   let first: WebSocketClient | undefined;
-  const second = new WebSocket(app.url, { headers: { Origin: app.origin } });
+  let second: WebSocketClient | undefined;
   try {
     first = await openClient(app.url, app.origin);
     await waitForMessage(first, message => message.type === 'connected');
+    const firstClosed = once(first, 'close');
     first.close();
-    await once(first, 'close');
+    await firstClosed;
 
+    second = new WebSocket(app.url, { headers: { Origin: app.origin } });
     const [request, response] = await once(second, 'unexpected-response');
     assert.ok(request);
     assert.equal((response as any).statusCode, 429);
   } finally {
     first?.terminate();
-    second.terminate();
+    second?.terminate();
     await app.close();
   }
 });
