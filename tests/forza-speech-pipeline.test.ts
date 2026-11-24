@@ -24,12 +24,15 @@ test('Persian normalization preserves real product codes and numbers',()=>{
   assert.equal(normalizePersianTranscript('   '),'');
 });
 
-test('Do not cut a customer turn after a two-second hesitation, even if ASR adds punctuation',()=>{
-  assert.ok(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false)>=4200);
-  assert.ok(forzaEndOfTurnPauseMs('مدل 6205',true)>=4600);
-  assert.ok(forzaEndOfTurnPauseMs('سلام',false)>=4200);
-  assert.ok(forzaEndOfTurnPauseMs('ممنون',false)>=4200);
-  assert.ok(forzaEndOfTurnPauseMs('مدل چند است؟',false)>=4200);
+test('Adaptive endpointing speeds up complete turns and protects unfinished industrial phrases',()=>{
+  assert.equal(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false),2800);
+  assert.equal(forzaEndOfTurnPauseMs('مدل 6205',true),3400);
+  assert.equal(forzaEndOfTurnPauseMs('سلام',false),1350);
+  assert.equal(forzaEndOfTurnPauseMs('ممنون',false),1350);
+  assert.equal(forzaEndOfTurnPauseMs('مدل چند است؟',false),1350);
+  assert.ok(forzaTurnRemainingWaitMs('مدل چند است؟',false,1000,1000)>0);
+  assert.equal(forzaTurnRemainingWaitMs('مدل چند است؟',false,1400,1400),0);
+  assert.equal(forzaEndOfTurnPauseMs('',false),5200);
 });
 
 test('Only the spoken copy expands industrial codes, never the underlying SKU',()=>{

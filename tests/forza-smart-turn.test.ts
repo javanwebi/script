@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { analyzePersianSentenceCompletion } from '../src/utils/silenceDetector.ts';
 import { appendForzaSpeechSegment, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs } from '../src/utils/forzaSpeechPipeline.ts';
 
-test('unfinished Persian intent must not be submitted as a complete request', () => {
+test('unfinished Persian intent remains open long enough for a natural continuation', () => {
   for (const phrase of [
     'یه تسمه میخوام',
     'یه تسمه می‌خوام',
@@ -18,11 +18,11 @@ test('unfinished Persian intent must not be submitted as a complete request', ()
   ]) {
     const result = analyzePersianSentenceCompletion(phrase);
     assert.equal(result.isComplete, false, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 4800, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 2000, phrase);
   }
 });
 
-test('a two-second pause never finalizes even a linguistically complete question', () => {
+test('a one-second pause never finalizes even a linguistically complete question', () => {
   for (const phrase of [
     'قیمتش چنده',
     'تسمه SPA 1250 موجود دارید؟',
@@ -32,7 +32,8 @@ test('a two-second pause never finalizes even a linguistically complete question
   ]) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 4200, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 1300, phrase);
+    assert.ok(forzaTurnRemainingWaitMs(phrase, false, 1000, 1000) > 0, phrase);
   }
 });
 
@@ -43,17 +44,17 @@ test('a fixed word count or an unclosed question is NOT proof of completion', ()
   assert.equal(analyzePersianSentenceCompletion('آیا این تسمه مناسب').isComplete, false);
 });
 
-test('only explicit control commands bypass the two-second continuation window', () => {
+test('only explicit control commands bypass the adaptive endpoint', () => {
   for (const phrase of ['وایسا', 'صبر کن', 'بس کن', 'توقف', 'ساکت شو', 'ادامه بده']) {
     assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 850, phrase);
   }
-  for (const phrase of ['سلام', 'درود', 'ممنون', 'اوکی']) {
-    const required = forzaEndOfTurnPauseMs(phrase, false);
-    assert.ok(required > 2000, phrase);
-    assert.ok(forzaTurnRemainingWaitMs(phrase, false, 2100, 2100) > 0, phrase);
+  for (const phrase of ['سلام', 'درود', 'ممنون']) {
+    assert.equal(forzaEndOfTurnPauseMs(phrase, false), 1350);
+    assert.ok(forzaTurnRemainingWaitMs(phrase, false, 1000, 1000) > 0);
   }
+  assert.ok(forzaEndOfTurnPauseMs('اوکی',false)>=2000);
   for(const phrase of ['مدل چند است؟','آیا بلبرینگ 6203 موجود است؟']){
-    assert.ok(forzaEndOfTurnPauseMs(phrase,false)>=4200,phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase,false)<=1600,phrase);
   }
   assert.equal(analyzePersianSentenceCompletion('صبر کن تا').isComplete, false);
 });
@@ -61,15 +62,16 @@ test('only explicit control commands bypass the two-second continuation window',
 test('provisional WebSpeech requires more time than a stable finalized hypothesis', () => {
   const phrase='تسمه SPA 1250 موجود دارید';
   assert.ok(forzaEndOfTurnPauseMs(phrase, true)>forzaEndOfTurnPauseMs(phrase, false));
-  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=4600);
+  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=3300);
 });
 
-test('two-second acoustic pauses leave the customer turn open for more words', () => {
+test('stable complete turns dispatch quickly while unfinished clauses survive a two-second pause', () => {
   const phrase='قیمتش چنده';
   const required=forzaEndOfTurnPauseMs(phrase,false);
-  assert.ok(required>2000);
-  assert.ok(forzaTurnRemainingWaitMs(phrase,false,2100,2100)>0);
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,required+20,required+20),0);
+  assert.equal(required,1350);
+  assert.ok(forzaTurnRemainingWaitMs(phrase,false,1200,1200)>0);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,1400,1400),0);
+  assert.ok(forzaTurnRemainingWaitMs('این تسمه را می‌خواهم چون',false,2000,2000)>0);
 });
 
 test('recognition restarts append the next partial segment without losing or duplicating words', () => {
