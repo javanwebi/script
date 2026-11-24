@@ -23,6 +23,32 @@ test('AvalAI is opt-in, requires its own key, and defaults to the economical GLM
   assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'xkiro', AVALAI_API_KEY: 'example' }, false), null);
 });
 
+test('voice inherits the configured desk AvalAI provider and model when no voice override exists', () => {
+  const env = {
+    FORZA_DESK_PROVIDER: 'avalai',
+    AVALAI_API_KEY: 'private-avalai-key',
+    AVALAI_MODEL_DESK: 'qwen3.8-flash',
+  };
+  assert.equal(configuredAvalaiModel(env, true), 'qwen3.8-flash');
+  const selection = resolveForzaTextProvider(env, true);
+  assert.equal(selection.requestedProvider, 'avalai');
+  assert.equal(selection.provider, 'avalai');
+  assert.equal(selection.model, 'qwen3.8-flash');
+  assert.equal(selection.configured, true);
+});
+
+test('explicit voice provider and model override desk defaults', () => {
+  const env = {
+    FORZA_DESK_PROVIDER: 'avalai',
+    FORZA_VOICE_PROVIDER: 'avalai',
+    AVALAI_API_KEY: 'private-avalai-key',
+    AVALAI_MODEL_DESK: 'qwen3.8-flash',
+    AVALAI_MODEL_VOICE: 'glm-5.3-flash',
+  };
+  assert.equal(configuredAvalaiModel(env, true), 'glm-5.3-flash');
+  assert.equal(resolveForzaTextProvider(env, true).model, 'glm-5.3-flash');
+});
+
 test('FORZA voice provider diagnostics report effective AvalAI model without exposing credentials', () => {
   const env = {
     FORZA_VOICE_PROVIDER: 'avalai',
