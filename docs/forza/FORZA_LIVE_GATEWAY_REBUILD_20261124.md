@@ -11,7 +11,7 @@ The customer browser connects to the same-origin `/api/live` WebSocket. The Expr
 - Session state is in memory only. No audio or transcript is written to disk or logged.
 - WebSocket upgrades require a strict matching same-origin `Origin` header. Forwarded client-IP headers are trusted only when the TCP peer is the local Nginx proxy, preventing direct clients from spoofing their IP to evade rate limits.
 - Default limits: 20 concurrent sessions, 2 per source IP, 60 session starts per source IP per hour, 100 total session starts per hour, 100 WebSocket messages per second, 30 text prompts per session per minute, 4 minutes per session, 15 seconds to establish the provider session.
-- Slow consumers, invalid payloads, excessive audio frame rates, provider failures and missing credentials fail closed. There is no silent switch to the old request/response voice path.
+- Slow consumers, invalid payloads, excessive audio frame rates, provider failures and missing credentials fail closed. There is no silent switch to the old request/response voice path. Quota counters are process-local; if the service is later scaled to multiple simultaneously active replicas, move these counters to a shared Redis/Postgres limiter before relying on them as a global budget.
 
 ## Required server configuration
 
