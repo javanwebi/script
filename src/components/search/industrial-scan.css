@@ -583,6 +583,49 @@
 /* Shared image-region interaction geometry. Keep the frame sized to the
    actual contained image so pointer coordinates and overlays use the same
    normalized image space on desktop and mobile. */
+.sanat-region-picker__header,
+.sanat-region-picker__heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sanat-region-picker__header {
+  justify-content: space-between;
+  margin-bottom: 13px;
+}
+.sanat-region-picker__heading { min-width: 0; }
+.sanat-region-picker__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 14px;
+  background: #fff2e9;
+  color: #d85f16;
+  font-size: 25px;
+  font-weight: 800;
+}
+.sanat-region-picker__heading strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 850;
+}
+.sanat-region-picker__heading p {
+  margin: 4px 0 0;
+  color: #718092;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.sanat-region-picker__status {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f4f6f8;
+  color: #596575;
+  font-size: 10px;
+  font-weight: 750;
+}
 .sanat-region-picker__layout {
   display: grid;
   align-items: stretch;
