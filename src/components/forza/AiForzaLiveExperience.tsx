@@ -369,7 +369,7 @@ export const AiForzaLiveExperience: React.FC<AiForzaLiveExperienceProps> = ({ on
           )}
 
           <div className="text-center text-[10px] leading-5 text-white/35">
-            برای پردازش پاسخ زنده، صدا به سرویس Google ارسال می‌شود؛ اطلاعات محرمانه یا شخصی حساس را مطرح نکنید. دسترسی میکروفون لازم است و پیام متنی هم قابل استفاده است.
+            با شروع مکالمه، صدا برای پردازش زنده به Google Gemini ارسال می‌شود؛ صنعت پیش فایل صدا یا متن مکالمه را در سرور خود ذخیره نمی‌کند. اطلاعات محرمانه یا شخصی حساس را مطرح نکنید.
           </div>
         </div>
       </footer>
