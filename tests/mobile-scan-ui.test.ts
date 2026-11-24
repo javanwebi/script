@@ -238,8 +238,9 @@ test("workspace vision entry, image review and results use the KIKI presentation
   assert.match(modal, /data-testid="kiki-vision-results-shell"/);
   assert.doesNotMatch(modal, /sanat-visual-search-hero|sanat-visual-stepper|kiki-vision-review-shell__status/);
   assert.match(review, /kiki-region-review/);
-  assert.match(review, /جستجوی این قطعه در کاتالوگ/);
+  assert.match(review, /onSearch=\{onConfirm\}/);\n  assert.match(review, /onFullImageSearch=\{onFullImageSearch\}/);
   assert.doesNotMatch(review, /تأیید تصویر و شروع تحلیل|تأیید برش و شروع تحلیل|sp-region-review__scanner-steps|دریافت تصویر|یافتن قطعه|آماده‌سازی برش/);
+  assert.doesNotMatch(review, /kiki-region-review__actions|kiki-region-review__primary/);
   assert.match(reviewStyles, /\.kiki-region-review \.sanat-region-picker__canvas/);
   assert.doesNotMatch(reviewStyles, /background:\s*#172231|background:\s*#111b27/);
 
