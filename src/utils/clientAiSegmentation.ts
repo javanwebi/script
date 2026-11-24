@@ -1,5 +1,4 @@
 import * as ort from 'onnxruntime-web/wasm';
-import { getForegroundRegion, getForegroundRegions } from './foregroundRegion';
 export { getForegroundRegion, getForegroundRegions } from './foregroundRegion';
 export type { ForegroundImageRegion } from './foregroundRegion';
 
