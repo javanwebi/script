@@ -34,6 +34,7 @@ type LiveApiClient = {
 
 export interface ForzaLiveGatewayOptions {
   getApiKey: () => string | undefined;
+  enabled?: boolean;
   createClient?: (apiKey: string) => LiveApiClient;
   model?: string;
   voice?: string;
@@ -142,7 +143,8 @@ export function setupForzaLiveGateway(
 ): () => void {
   const model = (options.model || process.env.FORZA_LIVE_MODEL || 'gemini-3.8-live').trim();
   const voice = (options.voice || process.env.FORZA_LIVE_VOICE || 'Charon').trim();
-  const enabled = process.env.FORZA_LIVE_ENABLED !== 'false';
+  // Public live calls are opt-in. A missing environment variable must fail closed.
+  const enabled = options.enabled ?? process.env.FORZA_LIVE_ENABLED === 'true';
   const maxConnections = boundedInteger(
     options.maxConnections ?? process.env.FORZA_LIVE_MAX_CONNECTIONS, 20, 1, 100,
   );
