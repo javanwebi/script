@@ -172,18 +172,23 @@ test('FORZA Live gateway connects to Gemini and bridges continuous audio, text, 
   assert.equal(providerClosed, true, 'Closing the browser call must close the provider session');
 });
 
-test('FORZA Live gateway rejects cross-origin WebSocket upgrades', async () => {
+test('FORZA Live gateway rejects cross-origin and malformed-origin WebSocket upgrades', async () => {
   const app = await startServer({
     getApiKey: () => 'test-only-key',
     createClient: () => { throw new Error('Provider must not be created for a rejected origin'); },
   });
-  const client = new WebSocket(app.url, { headers: { Origin: 'https://attacker.example' } });
+  const rejectedOrigins = ['https://attacker.example', `${app.origin}/not-an-origin`];
+  const clients: WebSocket[] = [];
   try {
-    const [request, response] = await once(client, 'unexpected-response');
-    assert.ok(request);
-    assert.equal((response as any).statusCode, 403);
+    for (const origin of rejectedOrigins) {
+      const client = new WebSocket(app.url, { headers: { Origin: origin } });
+      clients.push(client);
+      const [request, response] = await once(client, 'unexpected-response');
+      assert.ok(request);
+      assert.equal((response as any).statusCode, 403);
+    }
   } finally {
-    client.terminate();
+    clients.forEach(client => client.terminate());
     await app.close();
   }
 });
