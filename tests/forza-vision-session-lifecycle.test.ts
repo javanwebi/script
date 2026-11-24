@@ -68,6 +68,7 @@ test('vision to FORZA passes selected real code to text and CRM but no photo', (
 test('KIKI image wizard invalidates stale pipeline work, aborts requests and frees local preview URLs', () => {
   const wizard = read('src/components/search/AiVisualPartSearchModal.tsx');
   assert.match(wizard, /pipelineSequenceRef\.current\+\+;/);
+  assert.match(wizard, /analyzeController\.signal\.aborted \|\| opts\.seq !== pipelineSequenceRef\.current/);
   assert.match(wizard, /analyzeAbortRef\.current\?\.abort\(\)/);
   assert.match(wizard, /detectAbortRef\.current\?\.abort\(\)/);
   assert.match(wizard, /URL\.revokeObjectURL\(latest\)/);
