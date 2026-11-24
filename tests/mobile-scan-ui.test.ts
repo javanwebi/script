@@ -149,14 +149,21 @@ test("mobile commerce dock route whitelist excludes checkout, AI, forms and dash
   }
 });
 
-test("KIKI identification progress reports the real catalog-matching state accessibly", () => {
+test("KIKI identification progress preserves the verified responsive analysis stage without invented percentages", () => {
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  const view = source("src/components/search/VisionAnalysisProgress.tsx");
+  const progressCss = source("src/components/search/vision-analysis-progress.css");
   const styles = source("src/components/search/industrial-scan.css");
   assert.match(modal, /data-testid="vision-analyzing-screen"/);
+  assert.match(modal, /data-testid="vision-analysis-progress-overlay"/);
+  assert.match(modal, /<VisionAnalysisProgress/);
+  assert.match(modal, /counts=\{null\}/);
+  assert.match(modal, /progress=\{0\}/);
   assert.match(modal, /role="status"/);
   assert.match(modal, /aria-live="polite"/);
-  assert.match(modal, /isMatching && \(/);
   assert.match(modal, /fv-indeterminate-bar/);
+  assert.match(view, /sp-vision-analysis__viewer/);
+  assert.match(progressCss, /sp-vision-analysis__viewer/);
   assert.doesNotMatch(modal, /۸۶۴ قلمی|بازرگانی اطلس/);
   assert.match(styles, /prefers-reduced-motion/);
 });
