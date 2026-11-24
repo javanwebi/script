@@ -5776,7 +5776,7 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
 let nextVoiceCatalogWarmAt=0;
 app.get('/api/ai/forza-voice-info',async(_req,res)=>{
   // Discovery runs during particle/greeting setup, not on the first customer turn.
-  if(configuredXkiroModel(process.env,true) && Date.now()>=nextVoiceCatalogWarmAt){
+  if(resolveForzaTextProvider(process.env,true).provider==='xkiro' && Date.now()>=nextVoiceCatalogWarmAt){
     nextVoiceCatalogWarmAt=Date.now()+60_000;
     void listVerifiedXkiroFreeChatModels().catch(()=>console.warn('[FORZA] voice_model_catalog_warm_unavailable'));
   }
