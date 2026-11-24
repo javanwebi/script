@@ -1,11 +1,9 @@
-import React from "react";
 import {
   Activity,
   ArrowLeftRight,
   Boxes,
   Cog,
   Droplets,
-  Factory,
   Flame,
   Gauge,
   Layers,
@@ -18,6 +16,7 @@ import {
   Wind,
   Wrench,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { INDUSTRY_EXPERIENCE } from "../../data/industryExperience";
 import type { IndustryPageSlug, IndustryStageContent } from "../../data/industryPageDetails";
 
@@ -28,7 +27,7 @@ type Props = {
   onSelect: (index: number) => void;
 };
 
-const STAGE_ICONS = {
+const STAGE_ICONS: Record<IndustryPageSlug, LucideIcon[]> = {
   ceramic: [Boxes, Settings, Gauge, Wind, Layers, Flame, ScanLine, Package],
   textile: [Layers, Cog, Activity, Wind, Droplets, Package],
   packaging: [Boxes, Settings, Layers, ScanLine, Cog, Package, ArrowLeftRight, Truck],
@@ -47,7 +46,7 @@ export function IndustryProcessMap({ industry, stages, activeIndex, onSelect }: 
   return (
     <section
       className={"ipt-process-map ipt-process-map--" + experience.layout}
-      aria-label={"نقشه مراحل تولید " + industry}
+      aria-label={"نقشه مراحل تولید؛ " + experience.title}
       data-layout={experience.layout}
     >
       <header className="ipt-process-map__header">

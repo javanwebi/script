@@ -9,6 +9,7 @@ on:
       - "src/App.tsx"
       - "src/components/layout/RouteIntentPreload.tsx"
       - "src/pages/IndustryTemplatePage.tsx"
+      - "src/main.tsx"
       - "src/pages/industry-template.css"
       - "src/industry-experience.css"
       - "src/data/industryExperience.ts"
