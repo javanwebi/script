@@ -10,6 +10,12 @@ on:
       - "src/components/layout/RouteIntentPreload.tsx"
       - "src/pages/IndustryTemplatePage.tsx"
       - "src/pages/industry-template.css"
+      - "src/industry-experience.css"
+      - "src/data/industryExperience.ts"
+      - "src/components/storefront/IndustryProcessMap.tsx"
+      - "src/utils/industryCatalog.ts"
+      - "tests/industry-experience-hybrid.test.ts"
+      - "scripts/tests/industry-experience-responsive-smoke.cjs"
       - "src/data/industryPageDetails.ts"
       - "tests/industry-pages-unique-layouts.test.ts"
       - "tests/textile-industry-premium.test.ts"
@@ -152,7 +158,7 @@ jobs:
       - name: Textile industry regression suite
         run: node --import tsx --test tests/textile-industry-premium.test.ts
       - name: Industry page regression suite
-        run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
+        run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts tests/industry-experience-hybrid.test.ts
       - name: Industrial belt manufacturer evidence audit
         run: node --import tsx scripts/audit-belt-catalog.ts && node --import tsx --test tests/belt-catalog-audit.test.ts
       - name: Belt category reference and regression suite
@@ -214,6 +220,8 @@ jobs:
         run: node scripts/tests/excel-menu-category-responsive-smoke.cjs
       - name: Verify textile industry desktop and mobile interactions
         run: node scripts/tests/textile-industry-responsive-smoke.cjs
+      - name: Verify all industry experiences on desktop and mobile
+        run: node scripts/tests/industry-experience-responsive-smoke.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -225,6 +233,7 @@ jobs:
             /tmp/all-categories-*.png
             /tmp/excel-category-*.png
             /tmp/textile-industry-*.png
+            /tmp/industry-experience-*.png
           if-no-files-found: ignore
       - name: Print focused Vite failure
         if: failure()

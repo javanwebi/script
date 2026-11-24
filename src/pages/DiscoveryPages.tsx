@@ -220,7 +220,7 @@ export function IndustriesPage() {
     const q = query.trim().toLocaleLowerCase();
     if (!q) return INDUSTRIES;
     return INDUSTRIES.filter((ind) =>
-      `${ind.title} ${ind.eyebrow} ${ind.description} ${ind.parts.join(" ")}`.toLocaleLowerCase().includes(q),
+      (ind.title + " " + ind.eyebrow + " " + ind.description + " " + ind.parts.join(" ")).toLocaleLowerCase().includes(q),
     );
   }, [query]);
 
@@ -231,9 +231,8 @@ export function IndustriesPage() {
           <span className="company-kicker">صنایع تحت پوشش</span>
           <h1>هر صنعت، نیاز فنی خودش را دارد؛ <em>مسیر تأمین هم باید تخصصی باشد.</em></h1>
           <p>
-            برای شناخت گروه قطعات، کاربردها و اطلاعات لازم جهت بررسی فنی،
-            صنعت موردنظر را انتخاب کنید. هر صفحه به نیازهای همان صنعت و
-            خانواده‌های مرتبط در کاتالوگ متصل است.
+            از شناخت ایستگاه تولید تا بررسی قطعه، مسیر هر صنعت را جداگانه ببینید.
+            اطلاعات فنی و پیشنهادهای محصول به داده‌های واقعی کاتالوگ متصل می‌مانند.
           </p>
           <div className="company-hero-actions">
             <Link to="/ai-consult" className="company-button company-button--primary">
@@ -242,9 +241,14 @@ export function IndustriesPage() {
             <Link to="/products" className="company-button company-button--secondary">
               جستجو در کاتالوگ <Search size={18} />
             </Link>
-            <Link to="/about" className="company-button company-button--secondary">
-              درباره صنعت پیش
+            <Link to="/identify-part" className="company-button company-button--secondary">
+              شناسایی از تصویر <ScanLine size={18} />
             </Link>
+          </div>
+          <div className="industry-directory-proof" aria-label="ویژگی‌های مسیر صنایع">
+            <span><b>۶</b> حوزه صنعتی</span>
+            <span>کاتالوگ متصل به داده واقعی</span>
+            <span>مسیر شناسایی و مشاوره با FORZA</span>
           </div>
         </div>
         <div className="company-hero-visual">
@@ -258,11 +262,45 @@ export function IndustriesPage() {
         </div>
       </section>
 
+      <section className="industry-directory-paths" aria-label="مسیرهای شروع سریع">
+        <div className="industry-directory-paths__heading">
+          <span className="company-kicker">شروع از نیاز واقعی</span>
+          <h2>لازم نیست از قبل نام قطعه را بدانید</h2>
+          <p>می‌توانید از کد، تصویر یا شرح مسئله شروع کنید؛ مسیر مناسب را انتخاب کنید.</p>
+        </div>
+        <div className="industry-directory-paths__grid">
+          <Link to="/products" className="industry-directory-path">
+            <span className="industry-directory-path__icon"><Search size={19} /></span>
+            <span className="industry-directory-path__copy">
+              <strong>کد یا نام قطعه را دارم</strong>
+              <small>جستجو در خانواده‌ها و کالاهای کاتالوگ</small>
+            </span>
+            <ArrowUpLeft size={17} />
+          </Link>
+          <Link to="/identify-part" className="industry-directory-path">
+            <span className="industry-directory-path__icon"><ScanLine size={19} /></span>
+            <span className="industry-directory-path__copy">
+              <strong>فقط تصویر قطعه را دارم</strong>
+              <small>شروع شناسایی تصویری و بررسی گزینه‌ها</small>
+            </span>
+            <ArrowUpLeft size={17} />
+          </Link>
+          <Link to="/ai-consult" className="industry-directory-path">
+            <span className="industry-directory-path__icon"><MessageSquare size={19} /></span>
+            <span className="industry-directory-path__copy">
+              <strong>برای انتخاب فنی کمک می‌خواهم</strong>
+              <small>شرح کاربرد و شرایط کار برای FORZA</small>
+            </span>
+            <ArrowUpLeft size={17} />
+          </Link>
+        </div>
+      </section>
+
       <section className="company-industry-intro">
         <div>
           <span className="company-kicker">انتخاب صنعت</span>
           <h2>صفحه اختصاصی هر صنعت را ببینید</h2>
-          <p>در هر صفحه، گروه‌های قطعه و معیارهای فنی مرتبط با همان حوزه معرفی می‌شوند؛ پیشنهاد محصول نیز از کاتالوگ واقعی و خانواده‌های فعال انتخاب می‌شود.</p>
+          <p>هر صفحه، مسیر فرایند تولید، شرایط کاری و گروه‌های قطعه مرتبط را معرفی می‌کند؛ پیشنهاد محصول فقط از خانواده‌های فعال کاتالوگ می‌آید.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <label className="company-brand-search">
@@ -281,19 +319,25 @@ export function IndustriesPage() {
       </section>
 
       {filteredIndustries.length > 0 ? (
-        <section className="company-industry-grid" aria-live="polite">
-          {filteredIndustries.map((industry) => (
-            <Link to={`/industries/${industry.slug}`} key={industry.slug} className="company-industry-card">
-              <img src={industry.image} alt={`خط تولید ${industry.title}`} loading="lazy" />
+        <section className="company-industry-grid company-industry-grid--editorial" aria-label="فهرست شش صنعت">
+          {filteredIndustries.map((industry, index) => (
+            <Link
+              to={"/industries/" + industry.slug}
+              key={industry.slug}
+              className="company-industry-card"
+              data-industry-index={String(index + 1)}
+            >
+              <img src={industry.image} alt={"خط تولید " + industry.title} loading="lazy" />
               <div className="company-industry-card-shade" />
               <div className="company-industry-card-copy">
                 <span>{industry.eyebrow}</span>
+                <small className="company-industry-card-index">{String(index + 1).padStart(2, "0")}</small>
                 <h2>{industry.title}</h2>
                 <p>{industry.description}</p>
                 <div className="company-industry-tags">
                   {industry.parts.slice(0, 3).map((part) => <small key={part}>{part}</small>)}
                 </div>
-                <b>ورود به صفحه این صنعت <ArrowUpLeft size={18} /></b>
+                <b>ورود به مسیر تخصصی این صنعت <ArrowUpLeft size={18} /></b>
               </div>
             </Link>
           ))}
@@ -309,13 +353,14 @@ export function IndustriesPage() {
         <div>
           <span className="company-kicker">نیاز خط تولید شما</span>
           <h2>اگر صنعت یا کاربرد خود را پیدا نکردید، با ما مطرح کنید.</h2>
-          <p>کارشناسان می‌توانند برای شناسایی نیاز و بررسی قطعه راهنمایی‌تان کنند.</p>
+          <p>برای شناسایی نیاز، بررسی قطعه یا هماهنگی درخواست ساخت با کارشناسان صنعت پیش در ارتباط باشید.</p>
         </div>
         <Link to="/contact" className="company-button company-button--primary">تماس و هماهنگی <ArrowLeft size={18} /></Link>
       </section>
     </main>
   );
 }
+
 export function BrandsPage() {
   const [query, setQuery] = useState("");
   const [specialty, setSpecialty] = useState("");
