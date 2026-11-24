@@ -104,7 +104,12 @@ export const AiForzaLiveExperience: React.FC<AiForzaLiveExperienceProps> = ({ on
       setLiveUserText('');
       setLiveAiText('');
     },
-    onInterrupted: () => {
+    onInterrupted: (_responseId, userText, aiText) => {
+      commitTurn(userText || userTextRef.current, aiText || aiTextRef.current);
+      userTextRef.current = '';
+      aiTextRef.current = '';
+      setLiveUserText('');
+      setLiveAiText('');
       setStatus('listening');
     },
     onLevel: setLevel,
