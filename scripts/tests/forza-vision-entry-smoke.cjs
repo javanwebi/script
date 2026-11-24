@@ -213,6 +213,10 @@ async function testCameraEntry(browser) {
     permissions: ["camera"],
   });
   const page = await context.newPage();
+  let analysisRequests = 0;
+  page.on("request", request => {
+    if (new URL(request.url()).pathname === "/api/ai/analyze-part") analysisRequests++;
+  });
   try {
     await page.goto(base + "/identify-part", { waitUntil: "domcontentloaded" });
     await page.getByTestId("forza-vision-entry").waitFor({ timeout: 30000 });
@@ -221,7 +225,15 @@ async function testCameraEntry(browser) {
     await camera.waitFor({ timeout: 15000 });
     assert.ok(await camera.isVisible(), "Camera action did not enter the full-screen camera/review flow");
     assert.ok(await camera.locator(".sanat-camera-experience__stage").count() > 0);
-    console.log("PASS FORZA VISION camera action enters the existing full-screen camera flow");
+    await page.waitForFunction(() => {
+      const shutter = document.querySelector('button[aria-label="ثبت تصویر قطعه"]');
+      return !!shutter && !shutter.disabled;
+    }, null, { timeout: 30000 });
+    await page.getByRole("button", { name: "ثبت تصویر قطعه" }).click();
+    await page.getByTestId("kiki-vision-review-shell").waitFor({ timeout: 15000 });
+    await page.getByRole("button", { name: "تأیید و شناسایی قطعه" }).waitFor();
+    assert.equal(analysisRequests, 0, "Camera frames must not be analyzed before explicit customer confirmation");
+    console.log("PASS FORZA VISION camera frame enters review and waits for explicit confirmation");
   } finally {
     await context.close();
   }
