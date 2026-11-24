@@ -1972,7 +1972,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                 onClick={retakeCameraPhoto}
                 className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 text-sm font-bold text-white hover:bg-white/10"
               >
-                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />
                 عکس‌برداری مجدد
               </button>
               <button
@@ -1980,7 +1980,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                 onClick={confirmCameraPhoto}
                 className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#E06518] px-5 text-sm font-black text-white hover:bg-[#C95210]"
               >
-                <ScanLine className="h-4 w-4" aria-hidden="true" />
+                <Search className="h-4 w-4" aria-hidden="true" />
                 تأیید و شناسایی قطعه
               </button>
             </div>
