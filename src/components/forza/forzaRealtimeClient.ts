@@ -65,6 +65,9 @@ export class ForzaRealtimeClient {
     if (this.started) return;
     this.started = true;
     this.disposed = false;
+    this.nativeConnected = false;
+    this.userTranscript = '';
+    this.aiTranscript = '';
     this.callback.onMode('connecting');
 
     try {
@@ -83,7 +86,7 @@ export class ForzaRealtimeClient {
       const ws = new WebSocket(address.href);
       this.socket = ws;
       this.lastPongAt = Date.now();
-      this.connectTimeout = window.setTimeout(() => this.fallback('اتصال زنده FORZA به‌موقع برقرار نشد.'), 12000);
+      this.connectTimeout = window.setTimeout(() => this.fallback('اتصال زنده FORZA به‌موقع برقرار نشد.', false), 20000);
 
       ws.onmessage = (event: MessageEvent) => {
         if (this.disposed) return;
@@ -92,13 +95,13 @@ export class ForzaRealtimeClient {
         this.acceptMessage(message);
       };
       ws.onerror = () => {
-        if (!this.disposed) this.fallback('اتصال صوت زنده با اختلال مواجه شد.');
+        if (!this.disposed) this.fallback('اتصال صوت زنده با اختلال مواجه شد.', false);
       };
       ws.onclose = () => {
-        if (!this.disposed) this.fallback('ارتباط تماس زنده قطع شد؛ حالت جایگزین فعال شد.');
+        if (!this.disposed) this.fallback('ارتباط تماس زنده قطع شد. برای ادامه، دوباره مکالمه را شروع کنید.', false);
       };
     } catch (e: any) {
-      this.fallback(e?.message || 'مرورگر نتوانست تماس زنده را آغاز کند.');
+      this.fallback(e?.message || 'مرورگر نتوانست تماس زنده را آغاز کند.', false);
     }
   }
 
@@ -134,10 +137,10 @@ export class ForzaRealtimeClient {
           this.switchToLegacy();
           return;
         }
-        this.fallback(message.reason || message.error || 'حالت صوت زنده در دسترس نیست.', message.reasonCode !== 'missing_key');
+        this.fallback(message.reason || message.error || 'حالت صوت زنده در دسترس نیست.', false);
         return;
       case 'session_closed':
-        this.fallback('نشست صوتی پایان یافته است.');
+        this.fallback(message.reason || 'نشست صوتی پایان یافته است.', false);
         return;
       case 'user_transcript':
         if (message.text) {
@@ -317,7 +320,7 @@ export class ForzaRealtimeClient {
     this.callback.onMode('legacy');
   }
 
-  private fallback(reason: string, allowLegacy = true) {
+  private fallback(reason: string, allowLegacy = false) {
     if (this.disposed) return;
     this.stop();
     this.callback.onError(reason);
@@ -341,5 +344,6 @@ export class ForzaRealtimeClient {
     void this.context?.close().catch(() => {});
     this.context = null;
     this.started = false;
+    this.nativeConnected = false;
   }
 }
