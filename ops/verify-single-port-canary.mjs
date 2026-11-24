@@ -21,6 +21,25 @@ async function json(base, route) {
 const health = await json(candidate, "/api/health");
 assert.equal(health.database, "ok");
 
+// The voice-info endpoint resolves the exact provider used by a voice turn
+// and verifies the private Nima runtime. Do not promote a canary whose UI
+// would accept a call but cannot produce an AvalAI-backed incremental reply.
+let voiceInfo;
+for (let attempt = 1; attempt <= 20; attempt++) {
+  voiceInfo = await json(candidate, "/api/ai/forza-voice-info");
+  assert.equal(voiceInfo.textProvider, "avalai", "FORZA_VOICE_TEXT_PROVIDER_NOT_AVALAI");
+  assert.equal(voiceInfo.textProviderConfigured, true, "FORZA_VOICE_TEXT_PROVIDER_NOT_CONFIGURED");
+  assert.ok(typeof voiceInfo.textModel === "string" && voiceInfo.textModel.trim(),
+    "FORZA_VOICE_TEXT_MODEL_MISSING");
+  assert.equal(voiceInfo.voice, "piper-nima-gyro-medium", "FORZA_PRIVATE_VOICE_NOT_NIMA");
+  assert.equal(voiceInfo.incrementalSpeech, true, "FORZA_NIMA_INCREMENTAL_SPEECH_DISABLED");
+  if (voiceInfo.ready === true) break;
+  await new Promise(resolve => setTimeout(resolve, 500));
+}
+assert.equal(voiceInfo?.ready, true, "FORZA_PRIVATE_VOICE_NOT_READY");
+console.log("FORZA_VOICE_CANARY_AVALAI_READY_OK model=" + voiceInfo.textModel +
+  " voice=" + voiceInfo.voice);
+
 const sttResponse = await get(candidate, "/api/ai/forza-stt-info");
 assert.ok(sttResponse.headers.get("content-type")?.includes("application/json"));
 const stt = await sttResponse.json();
