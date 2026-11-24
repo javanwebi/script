@@ -198,8 +198,8 @@ test("standalone identification route uses KIKI entry UI with the existing full-
   assert.match(provider, /export function PartIdentificationPage/);
   assert.match(provider, /<Studio isOpen standalone fullScreen/);
   const workspace = source("src/pages/AiConsultPage.tsx");
-  assert.match(workspace, /navigate\\('\/identify-part\\?from=workspace'\\)/);
-  assert.match(workspace, /entryParams\\.get\\('view'\\) === 'visual'/);
+  assert.match(workspace, /navigate\('\/identify-part\?from=workspace'\)/);
+  assert.match(workspace, /entryParams\.get\('view'\) === 'visual'/);
   assert.match(modal, /data-testid="forza-vision-entry"/);
   assert.match(modal, /data-testid="forza-vision-upload-panel"/);
   assert.match(modal, /onClick=\{\(\) => void startCamera\(\)\}/);
