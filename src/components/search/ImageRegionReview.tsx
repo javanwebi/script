@@ -2,7 +2,6 @@ import React from 'react';
 import {
   AlertCircle,
   Camera,
-  ImagePlus,
   LoaderCircle,
   Phone,
   RefreshCw,
