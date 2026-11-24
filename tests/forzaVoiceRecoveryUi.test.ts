@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 
 const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const liveUi=readFileSync(new URL('../src/components/forza/AiForzaLiveExperience.tsx',import.meta.url),'utf8');
+const realtimeClient=readFileSync(new URL('../src/components/forza/forzaRealtimeClient.ts',import.meta.url),'utf8');
 const faceToFace=readFileSync(new URL('../src/components/search/AiForzaFaceToFaceModal.tsx',import.meta.url),'utf8');
 const audio=readFileSync(new URL('../src/utils/forzaContinuousWav.ts',import.meta.url),'utf8');
 const speechPipeline=readFileSync(new URL('../src/utils/forzaSpeechPipeline.ts',import.meta.url),'utf8');
@@ -110,7 +111,7 @@ test('FORZA live call streams through the native client without loading the lega
   assert.match(liveUi,/new ForzaRealtimeClient\(/);
   assert.match(liveUi,/onTurnComplete/);
   assert.match(liveUi,/client\.sendText\(text\)/);
-  assert.match(liveUi,/getUserMedia/);
+  assert.match(realtimeClient,/getUserMedia/);
   assert.doesNotMatch(liveUi,/ParticleAvatar|THREE|three\.js/i);
   assert.doesNotMatch(routePreload,/ParticleAvatar/);
   assert.match(routePreload,/const warmForza=\(\)=>Promise\.all/);
