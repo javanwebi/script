@@ -63,6 +63,8 @@ const MAX_CLIENT_BUFFERED_BYTES = 1_500_000;
 const MAX_AUDIO_BASE64_CHARS = 70_000;
 const MAX_TEXT_CHARS = 3_000;
 const MAX_AUDIO_FRAMES_PER_SECOND = 60;
+const MAX_CLIENT_MESSAGES_PER_SECOND = 100;
+const MAX_TEXT_MESSAGES_PER_MINUTE = 30;
 
 function boundedInteger(value: unknown, fallback: number, min: number, max: number): number {
   const parsed = Number(value);
@@ -259,6 +261,10 @@ export function setupForzaLiveGateway(
     let lastClientActivityAt = Date.now();
     let frameWindowStartedAt = Date.now();
     let framesInWindow = 0;
+    let messageWindowStartedAt = Date.now();
+    let messagesInWindow = 0;
+    let textWindowStartedAt = Date.now();
+    let textMessagesInWindow = 0;
     let sessionTimer: ReturnType<typeof setTimeout> | null = null;
     let connectTimer: ReturnType<typeof setTimeout> | null = null;
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -316,7 +322,17 @@ export function setupForzaLiveGateway(
 
     client.on('message', (raw, isBinary) => {
       if (isClosed) return;
-      lastClientActivityAt = Date.now();
+      const messageNow = Date.now();
+      lastClientActivityAt = messageNow;
+      if (messageNow - messageWindowStartedAt >= 1_000) {
+        messageWindowStartedAt = messageNow;
+        messagesInWindow = 0;
+      }
+      messagesInWindow += 1;
+      if (messagesInWindow > MAX_CLIENT_MESSAGES_PER_SECOND) {
+        fail('rate_limited', 'تعداد پیام‌های ارسالی بیش از حد مجاز است.');
+        return;
+      }
       if (isBinary) {
         fail('invalid_protocol', 'قالب داده ارسالی معتبر نیست.');
         return;
@@ -379,6 +395,16 @@ export function setupForzaLiveGateway(
         const text = typeof message.text === 'string' ? message.text.trim() : '';
         if (!text || text.length > MAX_TEXT_CHARS) {
           fail('invalid_text', 'متن ارسالی خالی یا بیش از اندازه طولانی است.');
+          return;
+        }
+        const textNow = Date.now();
+        if (textNow - textWindowStartedAt >= 60_000) {
+          textWindowStartedAt = textNow;
+          textMessagesInWindow = 0;
+        }
+        textMessagesInWindow += 1;
+        if (textMessagesInWindow > MAX_TEXT_MESSAGES_PER_MINUTE) {
+          fail('rate_limited', 'تعداد پیام‌های متنی در این مکالمه به سقف مجاز رسیده است.');
           return;
         }
         if (!liveSession) return;
