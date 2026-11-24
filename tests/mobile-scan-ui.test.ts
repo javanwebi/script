@@ -110,6 +110,7 @@ test("dock camera opens a full-screen live preview, local review, retake, and ex
   assert.match(modal, /عکس‌برداری مجدد/);
   assert.match(modal, /setCameraReview\(true\)/);
   assert.match(modal, /onConfirm=\{confirmRegionAndAnalyze\}/);
+  assert.match(modal, /onFullImageSearch=\{confirmFullImageAndAnalyze\}/);
   assert.match(modal, /void uploadAndPrepareImage\(selectedImage\)/);
   assert.match(styles, /height: 100dvh/);
   assert.match(styles, /env\(safe-area-inset-bottom\)/);
