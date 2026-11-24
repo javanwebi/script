@@ -19,6 +19,21 @@ test('KIKI entry, camera, crop review and results share one real identification 
   assert.ok(modal.includes('aiVisualSearchService.analyzePartWithAi'));
 });
 
+test('local segmenter preserves aspect ratio and exposes ranked object candidates', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const segmentation = source('src/utils/clientAiSegmentation.ts');
+  const foreground = source('src/utils/foregroundRegion.ts');
+  assert.ok(modal.includes('getForegroundRegions(segmented)'));
+  assert.ok(modal.includes('setCandidateRegions(detectedRegions.length ? detectedRegions : [region])'));
+  assert.ok(segmentation.includes('const modelScale = Math.min(INPUT_SIZE / width, INPUT_SIZE / height)'));
+  assert.ok(segmentation.includes('modelLeft'));
+  assert.ok(segmentation.includes('modelTop'));
+  assert.ok(segmentation.includes('modelRect'));
+  assert.ok(foreground.includes('componentsAtThreshold'));
+  assert.ok(foreground.includes('new Int32Array(total)'));
+  assert.ok(foreground.includes('Eight-way connectivity'));
+});
+
 test('local segmenter is warmed and can win without serial server crop detection', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const fast = modal.slice(
