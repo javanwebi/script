@@ -19,7 +19,7 @@ const {chromium}=require('playwright');
   const source='data:image/svg+xml;base64,'+Buffer.from(svg).toString('base64');
   const portraitSource='data:image/svg+xml;base64,'+Buffer.from(portraitSvg).toString('base64');
   const entryPath=path.join(fixture,'entry.tsx');
-  const entry=(imageSource)=>`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {ImageRegionSelector} from '/src/components/search/ImageRegionSelector.tsx';import '/src/index.css';import '/src/components/search/industrial-scan.css';function App(){const [region,setRegion]=useState();window.__searchCount=window.__searchCount||0;return <ImageRegionSelector src={${JSON.stringify(imageSource)}} value={region} candidateRegions={[{x:0.53,y:0.36,width:0.14,height:0.28},{x:0.15,y:0.3,width:0.14,height:0.28}]} onChange={r=>{window.lastRegion=r || null;setRegion(r)}} onSearch={()=>{window.__searchCount++}}/>}createRoot(document.getElementById('root')).render(<App/>);`;
+  const entry=(imageSource)=>`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {ImageRegionSelector} from '/src/components/search/ImageRegionSelector.tsx';import '/src/index.css';import '/src/components/search/industrial-scan.css';function App(){const [region,setRegion]=useState();const [disabled,setDisabled]=useState(false);window.setSelectorDisabled=setDisabled;window.__searchCount=window.__searchCount||0;return <ImageRegionSelector disabled={disabled} src={${JSON.stringify(imageSource)}} value={region} candidateRegions={[{x:0.53,y:0.36,width:0.14,height:0.28},{x:0.15,y:0.3,width:0.14,height:0.28}]} onChange={r=>{window.lastRegion=r || null;setRegion(r)}} onSearch={()=>{window.__searchCount++}}/>}createRoot(document.getElementById('root')).render(<App/>);`;
   await fs.writeFile(entryPath,entry(source));
   await fs.writeFile(path.join(fixture,'auth.ts'),"export const useAuth=()=>({currentUser:null,openAuthModal:()=>{},activeRole:'guest',priceLayer:'retail'});");
   await fs.writeFile(path.join(fixture,'cart.ts'),"export const useCart=()=>({addItem:()=>{}});");
@@ -51,6 +51,33 @@ const {chromium}=require('playwright');
     const dragBox=await frame.boundingBox();await page.mouse.move(dragBox.x+dragBox.width*0.12,dragBox.y+dragBox.height*0.2);await page.mouse.down();await page.mouse.move(dragBox.x+dragBox.width*0.32,dragBox.y+dragBox.height*0.7,{steps:8});await page.mouse.up();
     r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.width-0.2)<0.01,JSON.stringify(r));assert.ok(Math.abs(r.height-0.5)<0.01,JSON.stringify(r));
     await page.getByRole('group',{name:'انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت'}).press('ArrowRight');assert.ok((await page.evaluate(()=>window.lastRegion)).x>r.x);
+    const selectorFrame=page.getByRole('group',{name:'انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت'});
+    await selectorFrame.focus();
+    const beforeDisabled=await page.evaluate(()=>window.lastRegion);
+    await page.evaluate(()=>window.setSelectorDisabled(true));
+    // Wait for React to commit the busy state before asserting keyboard blocking.
+    await page.waitForFunction(()=>{
+     const frame=document.querySelector('.sanat-region-picker__frame');
+     return frame?.getAttribute('tabindex')==='-1' && frame.getAttribute('aria-disabled')==='true';
+    });
+    await page.keyboard.press('ArrowRight');
+    assert.deepEqual(await page.evaluate(()=>window.lastRegion),beforeDisabled,'keyboard must not change the selected region while busy');
+    assert.equal(await selectorFrame.getAttribute('tabindex'),'-1');
+    assert.equal(await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).isDisabled(),true);
+    assert.equal(await page.getByRole('button',{name:'جست‌وجوی کل تصویر'}).isDisabled(),true);
+    assert.equal(await page.getByRole('button',{name:'قطعه ۲'}).isDisabled(),true);
+    await page.evaluate(()=>window.setSelectorDisabled(false));
+    // React commits updates scheduled from page.evaluate asynchronously; wait
+    // until the selector is actually re-enabled before restoring keyboard focus.
+    await page.waitForFunction(()=>{
+     const frame=document.querySelector('.sanat-region-picker__frame');
+     return frame?.getAttribute('tabindex')==='0' && frame.getAttribute('aria-disabled')!=='true';
+    });
+    await selectorFrame.focus();
+    await page.waitForFunction(()=>document.activeElement?.classList.contains('sanat-region-picker__frame'));
+    await page.keyboard.press('ArrowRight');
+    await page.waitForFunction(previous=>window.lastRegion?.x>previous.x,beforeDisabled);
+    assert.ok((await page.evaluate(()=>window.lastRegion)).x>beforeDisabled.x,'keyboard selection must resume when ready');
     await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
     assert.equal(await page.evaluate(()=>window.__searchCount),1);
    }
@@ -85,16 +112,16 @@ const {chromium}=require('playwright');
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/modal.html`);
   await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
   await page.getByTestId('image-region-review').waitFor();
-  await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).waitFor();
+  await page.locator('.sanat-region-picker__search').waitFor();
   await page.screenshot({
    path:path.join(os.tmpdir(),'sanat-forza-vision-entry-review-desktop.png'),
    fullPage:true,
   });
-  // A warm local U²-NetP model may find the crop without a server detect call.
-  // Wait for crop readiness rather than assuming a mandatory network roundtrip.
+  // Wait until the image is ready for manual selection; automatic detection may
+  // or may not have supplied a region before the customer touches the image.
   await page.waitForFunction(() => {
-   const confirm=document.querySelector('.sp-region-review__confirm');
-   return confirm && !confirm.disabled;
+   const review=document.querySelector('[data-testid="image-region-review"]');
+   return review && review.getAttribute('aria-busy') === 'false';
   },null,{timeout:30000});
   assert.equal(uploads,0);
   assert.ok(detections.length<=1,'no duplicate server-detection request');
@@ -103,7 +130,11 @@ const {chromium}=require('playwright');
   const modalFrame=page.locator('.sanat-region-picker__frame');const bounds=await modalFrame.boundingBox();
   await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
   await page.waitForTimeout(350);assert.equal(queries.length,0);
-  await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).click();
+  await page.waitForFunction(() => {
+   const search=document.querySelector('.sanat-region-picker__search');
+   return search && !search.disabled;
+  },null,{timeout:10000});
+  await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
   await page.getByTestId('analysis-approved-crop').waitFor();
   await page.getByTestId('kiki-vision-results-shell').waitFor();
   const hierarchy=await page.evaluate(() => {
@@ -152,8 +183,36 @@ const {chromium}=require('playwright');
   await page.screenshot({
    path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-mobile.png'),
    fullPage:true,
-  });assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.deepEqual(errors,[]);
-  await page.close();console.log('UPLOAD_DETECT_CONFIRM_CROP_ANALYSIS_FULL_IMAGE_FALLBACK_AND_MOBILE_LAYOUT_OK');
+  });
+  assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+
+  // Re-enter the review screen and verify its full-image action uses the same
+  // production analysis endpoint without inventing a crop region.
+  await page.getByRole('button',{name:'عکس یا قطعه دیگر'}).click();
+  await page.getByTestId('forza-vision-entry').waitFor();
+  await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
+  await page.getByTestId('image-region-review').waitFor();
+  await page.waitForFunction(() => {
+   const review=document.querySelector('[data-testid="image-region-review"]');
+   return review && review.getAttribute('aria-busy') === 'false';
+  },null,{timeout:30000});
+  await page.screenshot({
+   path:path.join(os.tmpdir(),'sanat-forza-vision-entry-review-mobile.png'),
+   fullPage:true,
+  });
+  await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();
+  await page.getByTestId('vision-analyzing-screen').waitFor();
+  await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
+  await page.getByTestId('kiki-vision-results-shell').waitFor();
+  assert.equal(queries.length,4);
+  assert.match(queries[3].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
+  assert.equal(queries[3].region,undefined);
+  assert.equal(queries[3].fullImage,true);
+  assert.equal(uploads,0);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+  assert.deepEqual(errors,[]);
+  await page.close();console.log('UPLOAD_DETECT_CONFIRM_CROP_AND_FULL_IMAGE_REVIEW_RESULTS_MOBILE_OK');
 
  }finally{await browser?.close();await server?.close();await fs.rm(fixture,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
