@@ -116,6 +116,7 @@ export function setupForzaLiveGateway(
 ): () => void {
   const model = (options.model || process.env.FORZA_LIVE_MODEL || 'gemini-3.8-live').trim();
   const voice = (options.voice || process.env.FORZA_LIVE_VOICE || 'Charon').trim();
+  const enabled = process.env.FORZA_LIVE_ENABLED !== 'false';
   const maxConnections = boundedInteger(
     options.maxConnections ?? process.env.FORZA_LIVE_MAX_CONNECTIONS, 20, 1, 100,
   );
@@ -334,6 +335,11 @@ export function setupForzaLiveGateway(
         cleanup(1001, 'Client heartbeat timeout');
       }
     }, 15_000);
+
+    if (!enabled) {
+      fail('disabled', 'تماس زنده فورزا موقتاً غیرفعال است.');
+      return;
+    }
 
     let apiKey: string | undefined;
     try { apiKey = options.getApiKey()?.trim(); } catch {}
