@@ -62,8 +62,16 @@ const {chromium}=require('playwright');
     assert.equal(await page.getByRole('button',{name:'جست‌وجوی کل تصویر'}).isDisabled(),true);
     assert.equal(await page.getByRole('button',{name:'قطعه ۲'}).isDisabled(),true);
     await page.evaluate(()=>window.setSelectorDisabled(false));
+    // React commits updates scheduled from page.evaluate asynchronously; wait
+    // until the selector is actually re-enabled before restoring keyboard focus.
+    await page.waitForFunction(()=>{
+     const frame=document.querySelector('.sanat-region-picker__frame');
+     return frame?.getAttribute('tabindex')==='0' && frame.getAttribute('aria-disabled')!=='true';
+    });
     await selectorFrame.focus();
+    await page.waitForFunction(()=>document.activeElement?.classList.contains('sanat-region-picker__frame'));
     await page.keyboard.press('ArrowRight');
+    await page.waitForFunction(previous=>window.lastRegion?.x>previous.x,beforeDisabled);
     assert.ok((await page.evaluate(()=>window.lastRegion)).x>beforeDisabled.x,'keyboard selection must resume when ready');
     await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
     assert.equal(await page.evaluate(()=>window.__searchCount),1);
