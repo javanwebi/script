@@ -13,8 +13,10 @@ export type ForzaVoiceStatus = 'listening' | 'thinking' | 'speaking';
 export interface ForzaRealtimeCallbacks {
   onMode: (mode: ForzaVoicePhase) => void;
   onStatus: (state: ForzaVoiceStatus) => void;
-  onUserText: (text: string) => void;
+  onUserText: (text: string, final?: boolean) => void;
   onAiText: (text: string) => void;
+  onTurnComplete?: (userText: string, aiText: string) => void;
+  onInterrupted?: (responseId: string) => void;
   onLevel: (level: number) => void;
   onError: (error: string) => void;
 }
@@ -145,7 +147,8 @@ export class ForzaRealtimeClient {
       case 'user_transcript':
         if (message.text) {
           this.userTranscript = appendLiveTranscript(this.userTranscript, String(message.text));
-          this.callback.onUserText(this.userTranscript);
+          this.callback.onUserText(this.userTranscript, Boolean(message.final));
+          if (message.final) this.callback.onStatus('thinking');
         }
         return;
       case 'audio_chunk':
@@ -167,10 +170,12 @@ export class ForzaRealtimeClient {
       case 'interrupted':
         if (message.responseId) this.ignoreResponse(String(message.responseId));
         this.stopPlayback();
+        this.callback.onInterrupted?.(String(message.responseId || ''));
         this.callback.onStatus('listening');
         return;
       case 'turn_complete':
         this.turnCompleted = true;
+        this.callback.onTurnComplete?.(this.userTranscript, this.aiTranscript);
         this.userTranscript = '';
         if (this.sources.size === 0) this.callback.onStatus('listening');
         return;
@@ -293,7 +298,7 @@ export class ForzaRealtimeClient {
     if (this.responseId) this.ignoreResponse(this.responseId);
     this.stopPlayback();
     this.userTranscript = text.trim();
-    this.callback.onUserText(this.userTranscript);
+    this.callback.onUserText(this.userTranscript, true);
     this.callback.onStatus('thinking');
     return this.send({ type: 'text', text: text.trim() });
   }
