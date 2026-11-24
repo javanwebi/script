@@ -286,6 +286,7 @@
 }
 
 .kiki-image-workspace__manufacture-actions {
+  direction: ltr;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -294,6 +295,7 @@
 
 .kiki-image-workspace__manufacture-actions a,
 .kiki-image-workspace__manufacture-actions button {
+  direction: rtl;
   min-height: 39px;
   display: inline-flex;
   align-items: center;
@@ -340,6 +342,7 @@
 }
 
 .kiki-image-workspace__toolbar {
+  direction: ltr;
   min-height: 48px;
   flex: 0 0 auto;
   display: flex;
@@ -350,6 +353,7 @@
 }
 
 .kiki-image-workspace__toolbar-actions {
+  direction: ltr;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -357,6 +361,7 @@
 
 .kiki-image-workspace__toolbar-actions button,
 .kiki-image-workspace__close {
+  direction: rtl;
   min-height: 41px;
   display: inline-flex;
   align-items: center;
