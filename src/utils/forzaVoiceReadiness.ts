@@ -5,6 +5,8 @@ export type ForzaVoiceTextStatus = {
   configured?: unknown;
   reason?: unknown;
   model?: unknown;
+  voice?: unknown;
+  voiceReady?: unknown;
 };
 
 /**
@@ -12,7 +14,7 @@ export type ForzaVoiceTextStatus = {
  * text path. Never silently permit Gemini/worker fallback or a stale server
  * that does not expose the provider readiness contract.
  */
-export function forzaAvalaiReadinessMessage(
+export function forzaVoiceCallReadinessMessage(
   status: ForzaVoiceTextStatus | null | undefined,
 ): string | null {
   if (!status) {
@@ -23,6 +25,9 @@ export function forzaAvalaiReadinessMessage(
   }
   if (status.configured !== true) {
     return 'اتصال AvalAI آماده نیست؛ کلید خصوصی و مدل متنی را در تنظیمات سرور بررسی کنید.';
+  }
+  if (status.voice !== 'piper-nima-gyro-medium' || status.voiceReady !== true) {
+    return 'سرویس صدای خصوصی Nima آماده نیست؛ وضعیت موتور صوتی سرور را بررسی کنید.';
   }
   return null;
 }
