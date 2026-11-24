@@ -15,8 +15,8 @@ test('refresh cookie covers portal and sibling admin API routes with secure cook
  assert.match(legacyClear,/HttpOnly; SameSite=Lax; Max-Age=0; Secure$/);
  const migration=buildRefreshCookieMigration('existing-refresh-token',true);
  assert.equal(migration.length,2);
- assert.match(migration[0],/^sp_refresh=existing-refresh-token; Path=\\/api;/);
- assert.match(migration[1],/^sp_refresh=; Path=\\/api\\/portal;/);
+ assert.match(migration[0],/^sp_refresh=existing-refresh-token; Path=\/api;/);
+ assert.match(migration[1],/^sp_refresh=; Path=\/api\/portal;/);
 });
 
 test('registration fails closed without SMS; credentials require a verified server session; malformed OTP is rejected',async()=>{
