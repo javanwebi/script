@@ -78,6 +78,7 @@ import { useOnnxPartSegmentation } from './PartIdentificationProvider';
 import { memberPath } from '../storefront/MemberAccess';
 import { CatalogResultImage } from './CatalogResultImage';
 import { LocalModelResults } from './LocalModelResults';
+import { VisionAnalysisProgress } from './VisionAnalysisProgress';
 import {
   formatVisionRecentTime,
   loadVisionRecentSearches,
@@ -93,6 +94,12 @@ const LazyCustomPartRequestModal = lazy(() =>
     default: module.CustomPartRequestModal,
   })),
 );
+
+const VISION_ANALYSIS_PHASES = [
+  { title: 'آماده‌سازی تصویر', tag: 'آماده‌سازی', detail: 'نسخه فشرده تصویر از حافظه محلی دستگاه آماده شده است.' },
+  { title: 'تحلیل ناحیه قطعه', tag: 'تحلیل ناحیه', detail: 'مرزها و ویژگی‌های قابل مشاهده قطعه بررسی می‌شوند.' },
+  { title: 'تطبیق با کاتالوگ', tag: 'تطبیق کاتالوگ', detail: 'نتایج واقعی کاتالوگ صنعت پیش در حال بررسی هستند.' },
+];
 
 const MAX_MANUFACTURING_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -1680,7 +1687,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
           {/* Camera-only Pinch Zoom Viewfinder Stage */}
           <div
             ref={cameraStageRef}
-            className="fv-camera-stage relative flex-1 flex items-center justify-center overflow-hidden bg-[#07090D] p-3 sm:p-6"
+            className="sanat-camera-experience__stage fv-camera-stage relative flex-1 flex items-center justify-center overflow-hidden bg-[#07090D] p-3 sm:p-6"
           >
             <video
               ref={videoRef}
@@ -2651,6 +2658,24 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
       )}
 
       {/* Lazy Custom Manufacturing Modal */}
+      {(isMatching || isDetectingParts || isAiSegmenting) && (
+        <div
+          className="fixed inset-0 z-[140] overflow-y-auto bg-[#F5F6F8]"
+          data-testid="vision-analysis-progress-overlay"
+        >
+          <VisionAnalysisProgress
+            image={selectedImage}
+            region={queryRegion || undefined}
+            progress={0}
+            phaseIndex={isDetectingParts ? 0 : isAiSegmenting ? 1 : 2}
+            phases={VISION_ANALYSIS_PHASES}
+            counts={null}
+            quickMode={scanMode === 'quick'}
+            onClose={handleCloseAction}
+          />
+        </div>
+      )}
+
       {customRequestOpen && customRequestDraft && (
         <Suspense fallback={null}>
           <LazyCustomPartRequestModal
