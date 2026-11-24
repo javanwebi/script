@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, Server } from 'node:http';
+import type { Duplex } from 'node:stream';
 import {
   ActivityHandling,
   EndSensitivity,
@@ -87,7 +88,7 @@ function isSameOrigin(request: IncomingMessage): boolean {
   }
 }
 
-function rejectUpgrade(socket: import('node:net').Socket, status: 403 | 429 | 503): void {
+function rejectUpgrade(socket: Duplex, status: 403 | 429 | 503): void {
   const labels: Record<number, string> = {
     403: 'Forbidden',
     429: 'Too Many Requests',
@@ -151,7 +152,7 @@ export function setupForzaLiveGateway(
     else activeByIp.set(ip, count - 1);
   };
 
-  const onUpgrade = (request: IncomingMessage, socket: import('node:net').Socket, head: Buffer) => {
+  const onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) => {
     let pathname = '';
     try {
       pathname = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`).pathname;
@@ -341,13 +342,18 @@ export function setupForzaLiveGateway(
       return;
     }
 
-    const ai = createClient(apiKey);
+    let ai: LiveApiClient;
+    try { ai = createClient(apiKey); }
+    catch {
+      fail('provider_unavailable', 'موتور مکالمه زنده در دسترس نیست.');
+      return;
+    }
     connectTimer = setTimeout(() => {
       connectAbort.abort();
       fail('connect_timeout', 'اتصال به هوش مصنوعی بیش از حد طول کشید. دوباره تلاش کنید.');
     }, connectTimeoutMs);
 
-    void ai.live.connect({
+    void Promise.resolve().then(() => ai.live.connect({
       model,
       abortSignal: connectAbort.signal,
       config: {
@@ -440,7 +446,7 @@ export function setupForzaLiveGateway(
           }
         },
       },
-    }).then(session => {
+    })).then(session => {
       if (connectTimer) clearTimeout(connectTimer);
       connectTimer = null;
       if (isClosed) {
