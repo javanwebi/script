@@ -124,7 +124,9 @@ export function publicForzaTextProviderStatus(
     provider: selection.provider || (geminiConfigured ? 'gemini' : 'worker'),
     model: selection.provider ? selection.model : null,
     configured: selection.provider ? selection.configured : geminiConfigured,
-    reason: selection.reason || (geminiConfigured ? null : 'no_text_provider'),
+    reason: selection.provider
+      ? selection.reason
+      : selection.reason || (geminiConfigured ? null : 'no_text_provider'),
   };
 }
 
