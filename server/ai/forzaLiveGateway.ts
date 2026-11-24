@@ -222,9 +222,9 @@ export function setupForzaLiveGateway(
     let lastClientActivityAt = Date.now();
     let frameWindowStartedAt = Date.now();
     let framesInWindow = 0;
-    let sessionTimer: NodeJS.Timeout | null = null;
-    let connectTimer: NodeJS.Timeout | null = null;
-    let heartbeatTimer: NodeJS.Timeout | null = null;
+    let sessionTimer: ReturnType<typeof setTimeout> | null = null;
+    let connectTimer: ReturnType<typeof setTimeout> | null = null;
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
     const connectAbort = new AbortController();
 
     const release = () => {
@@ -305,6 +305,11 @@ export function setupForzaLiveGateway(
         if (typeof audio !== 'string' || audio.length > MAX_AUDIO_BASE64_CHARS ||
             !/^[A-Za-z0-9+/]+={0,2}$/.test(audio) || audio.length === 0) {
           fail('invalid_audio', 'داده صوتی معتبر نیست.');
+          return;
+        }
+        const pcmBytes = Buffer.from(audio, 'base64');
+        if (pcmBytes.length === 0 || pcmBytes.length % 2 !== 0 || pcmBytes.length > 48_000) {
+          fail('invalid_audio', 'قالب صدای ارسالی معتبر نیست.');
           return;
         }
         const now = Date.now();
