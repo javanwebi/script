@@ -8,7 +8,21 @@ import {sanitizeStaffPermissions} from './staffPermissions';
 const error=(status:number,message:string)=>Object.assign(new Error(message),{status});
 function client(){const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;if(!url || !key)throw error(503,'اتصال Supabase Auth هنوز کامل نشده است.');return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});}
 const cookie=(req:IncomingMessage,name:string)=>(req.headers.cookie || '').split(';').map(value=>value.trim()).find(value=>value.startsWith(name+'='))?.slice(name.length+1);
-function cookies(req:IncomingMessage,res:ServerResponse,session:Session|null){const secure=process.env.NODE_ENV==='production'?'; Secure':'';const values=[`sp_access=${session?.access_token || ''}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${session?.expires_in || 0}${secure}`,`sp_refresh=${session?.refresh_token || ''}; Path=/api/portal; HttpOnly; SameSite=Lax; Max-Age=${session?2592000:0}${secure}`];res.setHeader('Set-Cookie',values);req.headers.cookie=[...(req.headers.cookie || '').split(';').filter(value=>!/^\s*sp_(access|refresh)=/.test(value)),`sp_access=${session?.access_token || ''}`,`sp_refresh=${session?.refresh_token || ''}`].join(';');}
+export function buildAuthCookieHeaders(session:Pick<Session,'access_token'|'refresh_token'|'expires_in'>|null,secure:boolean){
+ const suffix=secure?'; Secure':'';
+ const active=Boolean(session);
+ return [
+  `sp_access=${session?.access_token || ''}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${session?.expires_in || 0}${suffix}`,
+  `sp_refresh=${session?.refresh_token || ''}; Path=/api; HttpOnly; SameSite=Lax; Max-Age=${active?2592000:0}${suffix}`,
+  // Remove the previous portal-only cookie so duplicate names cannot shadow the new API-wide cookie.
+  `sp_refresh=; Path=/api/portal; HttpOnly; SameSite=Lax; Max-Age=0${suffix}`
+ ];
+}
+function cookies(req:IncomingMessage,res:ServerResponse,session:Session|null){
+ const values=buildAuthCookieHeaders(session,process.env.NODE_ENV==='production');
+ res.setHeader('Set-Cookie',values);
+ req.headers.cookie=[...(req.headers.cookie || '').split(';').filter(value=>!/^\\s*sp_(access|refresh)=/.test(value)),`sp_access=${session?.access_token || ''}`,`sp_refresh=${session?.refresh_token || ''}`].join(';');
+}
 function phone(raw:string){const value=String(raw || '').replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\s()-]/g,'').replace(/^(\+98|0098|98)/,'0');if(!/^09\d{9}$/.test(value))throw error(400,'شماره موبایل معتبر وارد کنید.');return {local:value,e164:'+98'+value.slice(1)};}
 // Resolve only the authenticated profile for API authorization; never load all CRM users.
 async function identityProfile(authUserId:string){
@@ -51,7 +65,29 @@ export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
  return {admin,staff,permissions,user:user?.active===false||!user?undefined:{...user,mustChangePassword:result.data.user.app_metadata?.crm_password_change_required===true}};
 
 }
-export async function refreshAuth(req:IncomingMessage,res:ServerResponse){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
+export async function refreshAuth(req:IncomingMessage,res:ServerResponse){
+ const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');
+ if(!refresh)return;
+ const auth=client();
+ if(token){
+  const result=await auth.auth.getUser(token);
+  if(!result.error){
+   // Existing sessions may still carry the legacy Path=/api/portal refresh cookie.
+   // Re-scope it during portal hydration, then expire the old path-specific cookie.
+   const pathname=String(req.url || '').split('?',1)[0];
+   if(pathname==='/api/portal' || pathname.startsWith('/api/portal/')){
+    const suffix=process.env.NODE_ENV==='production'?'; Secure':'';
+    res.setHeader('Set-Cookie',[
+     `sp_refresh=${refresh}; Path=/api; HttpOnly; SameSite=Lax; Max-Age=2592000${suffix}`,
+     `sp_refresh=; Path=/api/portal; HttpOnly; SameSite=Lax; Max-Age=0${suffix}`
+    ]);
+   }
+   return;
+  }
+ }
+ const result=await auth.auth.refreshSession({refresh_token:refresh});
+ if(!result.error && result.data.session)cookies(req,res,result.data.session);
+}
 export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,body:any,safe:(value:any)=>any):Promise<boolean>{
  if(handleDevelopmentOtp(req,res,body))return true;
  if(!['register','login','admin_login','otp_request','otp_verify','registration_credentials','initial_password_change','logout'].includes(body.action))return false;
