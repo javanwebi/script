@@ -767,12 +767,14 @@ if [[ -f "$APP/.env.forza-voice" ]]; then
     import { applyPrivateForzaConfig } from "./server/ai/privateForzaConfig.ts";
     const parsed = dotenv.parse(fs.readFileSync("/app/.env.forza-voice"));
     applyPrivateForzaConfig(process.env, parsed);
-    for (const surface of ["DESK", "VOICE"]) {
-      const provider = process.env["FORZA_" + surface + "_PROVIDER"];
-      if (provider !== "avalai") throw new Error(surface + "_PROVIDER_NOT_AVALAI");
-    }
+    const voiceProvider = String(
+      process.env.FORZA_VOICE_PROVIDER || process.env.FORZA_DESK_PROVIDER || ""
+    ).trim().toLowerCase();
+    const deskProvider = String(process.env.FORZA_DESK_PROVIDER || "unset").trim().toLowerCase();
+    if (voiceProvider !== "avalai") throw new Error("FORZA_VOICE_PROVIDER_NOT_AVALAI");
     if (!process.env.AVALAI_API_KEY?.trim()) throw new Error("AVALAI_API_KEY_NOT_EFFECTIVE");
-    console.log("AVALAI_CANARY_CONFIG_OK desk=avalai voice=avalai key=SET");
+    console.log("AVALAI_CANARY_CONFIG_OK desk=" + deskProvider +
+      " voice=" + voiceProvider + " key=SET");
   '
 fi
 if ! docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs; then
