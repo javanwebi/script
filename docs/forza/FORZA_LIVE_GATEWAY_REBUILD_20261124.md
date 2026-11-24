@@ -21,6 +21,7 @@ Optional settings:
 
 | Variable | Default | Purpose |
 |---|---:|---|
+| `FORZA_LIVE_API_KEY` | not set | Dedicated server-side key; falls back to the existing Gemini key when blank |
 | `FORZA_LIVE_ENABLED` | `true` | Emergency on/off switch |
 | `FORZA_LIVE_MODEL` | `gemini-3.8-live` | Gemini Live model |
 | `FORZA_LIVE_VOICE` | `Charon` | Native output voice |
@@ -42,6 +43,7 @@ The gateway does not persist audio or transcripts to the Sanat Pish database or 
 Run:
 
 ```bash
+npm run test:forza-live
 npm run test:forza-engine
 npm run lint
 npm run build
