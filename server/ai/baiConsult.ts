@@ -52,6 +52,82 @@ export function configuredXkiroModel(env: NodeJS.ProcessEnv, voice: boolean): st
   return 'qwen/qwen3.5-flash:free';
 }
 
+export type ForzaTextProviderName = 'avalai' | 'xkiro' | 'bai';
+export type ForzaTextProviderResolution = {
+  requestedProvider: string;
+  provider: ForzaTextProviderName | null;
+  model: string | null;
+  apiKey: string | null;
+  configured: boolean;
+  reason: string | null;
+};
+
+/**
+ * Resolve the exact text provider used by a FORZA turn.
+ * AvalAI is fail-closed when explicitly selected: missing credentials or an
+ * invalid model must not silently send customer traffic to another provider.
+ */
+export function resolveForzaTextProvider(
+  env: NodeJS.ProcessEnv,
+  voice: boolean,
+): ForzaTextProviderResolution {
+  const requestedProvider = String(
+    (voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER) || '',
+  ).trim().toLowerCase() || 'auto';
+  const avalaiModel = configuredAvalaiModel(env, voice);
+  const xkiroModel = configuredXkiroModel(env, voice);
+  const baiModel = configuredBaiModel(env, voice);
+
+  const provider: ForzaTextProviderName | null =
+    requestedProvider === 'avalai' ? 'avalai'
+      : xkiroModel ? 'xkiro'
+      : baiModel ? 'bai'
+      : null;
+  const model = provider === 'avalai' ? avalaiModel
+    : provider === 'xkiro' ? xkiroModel
+    : provider === 'bai' ? baiModel
+    : null;
+  const apiKey = provider === 'avalai' ? env.AVALAI_API_KEY?.trim() || null
+    : provider === 'xkiro' ? env.XKIRO_API_KEY?.trim() || null
+    : provider === 'bai' ? env.BAI_API_KEY?.trim() || null
+    : null;
+
+  let reason: string | null = null;
+  if (provider === 'avalai') {
+    if (!apiKey) reason = 'missing_api_key';
+    else if (!model) reason = 'invalid_model';
+  } else if (requestedProvider === 'xkiro' || requestedProvider === 'bai') {
+    const selectedKey = requestedProvider === 'xkiro' ? env.XKIRO_API_KEY : env.BAI_API_KEY;
+    reason = selectedKey?.trim() ? 'invalid_model' : 'missing_api_key';
+  } else if (!['auto', 'gemini'].includes(requestedProvider)) {
+    reason = 'unsupported_provider';
+  }
+
+  return {
+    requestedProvider,
+    provider,
+    model,
+    apiKey,
+    configured: Boolean(provider && model && apiKey),
+    reason,
+  };
+}
+
+/** Safe public diagnostics: never return provider credentials or key fragments. */
+export function publicForzaTextProviderStatus(
+  env: NodeJS.ProcessEnv,
+  geminiConfigured: boolean,
+) {
+  const selection = resolveForzaTextProvider(env, true);
+  return {
+    requestedProvider: selection.requestedProvider,
+    provider: selection.provider || (geminiConfigured ? 'gemini' : 'worker'),
+    model: selection.provider ? selection.model : null,
+    configured: selection.provider ? selection.configured : geminiConfigured,
+    reason: selection.reason || (geminiConfigured ? null : 'no_text_provider'),
+  };
+}
+
 /**
  * xKiro's free gateway has exhibited >10s time-to-first-token on the VPS.
  * Keep B.AI budgets unchanged. xKiro uses a short stream budget followed by
