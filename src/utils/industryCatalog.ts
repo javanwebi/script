@@ -105,9 +105,9 @@ export function rankIndustryProducts(
 }
 
 /**
- * Rank catalogue families for one production station. Stage wording and any
- * customer-entered operating context carry more weight than broad industry
- * keywords, while industry terms remain a controlled fallback.
+ * Rank catalogue families for one production station. A stage or industry
+ * match is required for admission; customer-entered operating conditions only
+ * refine the ranking of anchored candidates and cannot create a match alone.
  */
 export function rankIndustryStageProducts(
   products: readonly Product[],
@@ -116,10 +116,18 @@ export function rankIndustryStageProducts(
   limit = 3,
   extraTerms: readonly string[] = [],
 ): Product[] {
-  const stageTerms = [...new Set([
-    ...[stage.title, stage.subtitle || ""].flatMap(term => [term, ...tokenizeTechnicalTerms(term)]),
-    ...extraTerms.flatMap(term => [term, ...tokenizeTechnicalTerms(term)]),
-  ].map(normalize).filter(Boolean))];
+  const stageTerms = [...new Set(
+    [stage.title, stage.subtitle || ""]
+      .flatMap(term => [term, ...tokenizeTechnicalTerms(term)])
+      .map(normalize)
+      .filter(Boolean),
+  )];
+  const contextTerms = [...new Set(
+    extraTerms
+      .flatMap(term => [term, ...tokenizeTechnicalTerms(term)])
+      .map(normalize)
+      .filter(Boolean),
+  )];
   const industryTerms = [...new Set((industry.terms || []).map(normalize).filter(Boolean))];
   const broadTerms = INDUSTRY_KEYWORDS[industry.slug] || [];
   const seen = new Set<string>();
@@ -128,13 +136,18 @@ export function rankIndustryStageProducts(
     .filter(product => product.active !== false && Boolean(product.code && product.name))
     .map(product => {
       const stageScore = productRelevance(product, stageTerms);
+      const contextScore = productRelevance(product, contextTerms);
       const industryScore = productRelevance(product, industryTerms);
       const broadScore = productRelevance(product, broadTerms);
       return {
         product,
         stageScore,
         industryScore,
-        score: stageScore * 4 + industryScore * 2 + Math.min(broadScore, 8) * 0.25,
+        score:
+          stageScore * 4 +
+          industryScore * 2 +
+          Math.min(contextScore, 18) * 1.5 +
+          Math.min(broadScore, 8) * 0.25,
       };
     })
     .filter(item => item.stageScore > 0 || item.industryScore > 0)
