@@ -753,7 +753,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
     setDetectedCandidates([]);
     setActiveCandidateId(null);
     setActivePolygon([]);
-    setCroppedPreviewUrl(null);
+    setCroppedPreviewUrl('');
     setMobileSheetExpanded(false);
     const fullRegion: ImageRegion = { x: 0, y: 0, width: 1, height: 1 };
     setQueryRegion(fullRegion);
