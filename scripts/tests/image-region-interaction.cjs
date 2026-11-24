@@ -90,11 +90,11 @@ const {chromium}=require('playwright');
    path:path.join(os.tmpdir(),'sanat-forza-vision-entry-review-desktop.png'),
    fullPage:true,
   });
-  // A warm local U²-NetP model may find the crop without a server detect call.
-  // Wait for crop readiness rather than assuming a mandatory network roundtrip.
+  // Wait until the image is ready for manual selection; automatic detection may
+  // or may not have supplied a region before the customer touches the image.
   await page.waitForFunction(() => {
-   const confirm=document.querySelector('.sanat-region-picker__search');
-   return confirm && !confirm.disabled;
+   const review=document.querySelector('[data-testid="image-region-review"]');
+   return review && review.getAttribute('aria-busy') === 'false';
   },null,{timeout:30000});
   assert.equal(uploads,0);
   assert.ok(detections.length<=1,'no duplicate server-detection request');
@@ -103,6 +103,10 @@ const {chromium}=require('playwright');
   const modalFrame=page.locator('.sanat-region-picker__frame');const bounds=await modalFrame.boundingBox();
   await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
   await page.waitForTimeout(350);assert.equal(queries.length,0);
+  await page.waitForFunction(() => {
+   const search=document.querySelector('.sanat-region-picker__search');
+   return search && !search.disabled;
+  },null,{timeout:10000});
   await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
   await page.getByTestId('analysis-approved-crop').waitFor();
   await page.getByTestId('kiki-vision-results-shell').waitFor();
