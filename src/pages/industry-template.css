@@ -1208,3 +1208,59 @@
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Process nodes intentionally outrank the canonical tab defaults above. */
+.industry-template .ipt-process-map .ipt-stage-tabs button > .ipt-process-node__top {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+.industry-template .ipt-process-map .ipt-stage-tabs button > .ipt-process-node__copy {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-content: start;
+  gap: 4px;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+.industry-template .ipt-process-map .ipt-stage-tabs button > .ipt-process-node__state {
+  display: block;
+  min-width: 0;
+  flex: 0 0 auto;
+  margin-top: auto;
+  color: #9aa3ab;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+.industry-template .ipt-process-map .ipt-stage-tabs button .ipt-process-node__copy strong {
+  color: #2e3942;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.7;
+}
+.industry-template .ipt-process-map .ipt-stage-tabs button .ipt-process-node__copy small {
+  display: block;
+  margin-top: 0;
+  color: #7a858e;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+.industry-template .ipt-process-map--polymer .ipt-stage-tabs button .ipt-process-node__copy strong {
+  color: #fff;
+}
+.industry-template .ipt-process-map--polymer .ipt-stage-tabs button .ipt-process-node__copy small {
+  color: #c3cbd0;
+}
