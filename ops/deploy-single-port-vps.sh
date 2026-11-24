@@ -652,8 +652,11 @@ for surface in ('DESK','VOICE'):
  provider=values.get('FORZA_'+surface+'_PROVIDER','').lower()
  if provider=='avalai' and not values.get('AVALAI_API_KEY','').strip():
   raise SystemExit('AVALAI_PROVIDER_SELECTED_BUT_PRIVATE_KEY_MISSING')
+voice_provider=(values.get('FORZA_VOICE_PROVIDER') or values.get('FORZA_DESK_PROVIDER') or '').strip().lower()
+if voice_provider!='avalai':
+ raise SystemExit('FORZA_VOICE_PROVIDER_NOT_AVALAI')
 print('PRIVATE_FORZA_CONFIG_PRESENT desk='+values.get('FORZA_DESK_PROVIDER','unset')+
-      ' voice='+values.get('FORZA_VOICE_PROVIDER','unset')+
+      ' voice='+voice_provider+
       ' avalai_key='+('SET' if values.get('AVALAI_API_KEY','').strip() else 'EMPTY'))
 PYFORZACONFIG
 fi
