@@ -25,6 +25,8 @@ test('live experience exposes microphone, speaker, hangup and same-session text 
   assert.match(liveUi, /aria-live="polite"/);
   assert.match(liveUi, /Google Gemini/);
   assert.match(liveUi, /صدا یا متن مکالمه را در سرور خود ذخیره نمی‌کند/);
+  assert.match(liveUi, /طرح Free/);
+  assert.match(liveUi, /Paid/);
 });
 
 test('live client preserves completed turns and handles barge-in callbacks', () => {
