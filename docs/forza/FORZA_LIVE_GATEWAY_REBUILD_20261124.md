@@ -2,11 +2,11 @@
 
 ## What this provides
 
-The customer browser connects to the same-origin `/api/live` WebSocket. The Express server authenticates to Gemini Live with a server-only key and bridges a continuous, bidirectional audio session. The browser never receives the provider key.
+The customer browser connects to the same-origin `/api/live` WebSocket. The Express server authenticates to Gemini Live with a server-only key and bridges a continuous, bidirectional audio session. The browser never receives the provider key. Both the main `/ai-forza` page and the face-to-face modal now use the new `AiForzaLiveExperience` controller; the old request/response call page is no longer the customer entry point.
 
 - Microphone input: mono PCM16 at 16 kHz.
 - Model output: native audio chunks at 24 kHz plus available text transcription.
-- Turn-taking: provider VAD; model output is interrupted when the customer starts speaking.
+- Turn-taking: provider VAD plus a short local near-field speech detector; queued browser audio is stopped immediately on barge-in, including the case where the model has already finished generating.
 - Text input remains supported over the same socket.
 - Session state is in memory only. No audio or transcript is written to disk or logged.
 - WebSocket upgrades require a matching same-origin `Origin` header.
@@ -42,7 +42,7 @@ npm run lint
 npm run build
 ```
 
-The gateway tests use a fake provider and verify the WebSocket protocol, PCM forwarding, text forwarding, transcription events, audio output chunks, interruption, origin rejection, missing-key behavior and provider-session cleanup.
+The gateway tests use a fake provider and verify the WebSocket protocol, PCM forwarding, text forwarding, session greeting, transcription events, audio output chunks, interruption, origin rejection, missing-key behavior, per-IP rate limiting and provider-session cleanup. The browser simulation test covers microphone capture, mute, playback teardown and local barge-in.
 
 A green mocked test is not proof of a live provider session. Before opening the feature to customers, run a real browser smoke test against the deployed server with a valid private key:
 
