@@ -1289,7 +1289,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
       }
     } catch {
       setIsCameraReady(false);
-      setCameraNotice('دوربین متصل نیست؛ می‌توانید عکس گالری را باز کنید یا میز نور آزمایشی را ثبت نمایید.');
+      setCameraNotice('دوربین متصل نیست؛ می‌توانید تصویر قطعه را از گالری انتخاب کنید.');
     }
   };
 
