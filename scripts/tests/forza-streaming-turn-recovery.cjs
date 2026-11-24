@@ -34,7 +34,7 @@ const documentText=value=>String(value||'').replace(/\\s+/g,' ').slice(-1800);
    body:'window.Vosk={createModel:async()=>({KaldiRecognizer:class{on(){} acceptWaveform(){} remove(){}}})};',
   }));
   await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({
-    json:{voice:'piper-nima-gyro-medium',incrementalSpeech:true}
+    json:{textProvider:'avalai',textProviderRequested:'avalai',textProviderConfigured:true,textModel:'glm-5.3-flash',voice:'piper-nima-gyro-medium',incrementalSpeech:true,ready:true}
   }));
   await page.route('**/api/ai/forza-speech',async route=>{
    const req=route.request().postDataJSON();

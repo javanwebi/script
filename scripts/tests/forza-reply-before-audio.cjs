@@ -34,7 +34,7 @@ function wav(){
     body:frames.map(v=>'data: '+JSON.stringify(v)+'\n\n').join('')});
   });
   await page.route('**/api/ai/forza-voice-info',r=>r.fulfill({
-   json:{voice:'piper-nima-gyro-medium',incrementalSpeech:true}
+   json:{textProvider:'avalai',textProviderRequested:'avalai',textProviderConfigured:true,textModel:'glm-5.3-flash',voice:'piper-nima-gyro-medium',incrementalSpeech:true,ready:true}
   }));
   await page.route('**/api/ai/forza-speech',async r=>{
    speechCalls++;

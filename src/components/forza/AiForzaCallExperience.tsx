@@ -32,6 +32,7 @@ import { ForzaPlaybackEchoHistory, forzaTurnIntent, shouldIgnoreForzaSpeakerEcho
 import { getForzaAudioContext } from '../../utils/forzaAudioUnlock';
 import { FORZA_CONVERSATION_HISTORY_LIMIT, prepareForzaConversationTurn } from '../../utils/forzaConversationHistory';
 import { ForzaConversationEngine } from '../../utils/forzaConversationEngine';
+import { forzaVoiceCallReadinessMessage, type ForzaVoiceTextStatus } from '../../utils/forzaVoiceReadiness';
 const AiVisualPartSearchModal = lazy(() => import('../search/AiVisualPartSearchModal').then(module=>({default:module.AiVisualPartSearchModal})));
 type LazyParticleAvatarProps = ParticleAvatarProps & { ref?: React.Ref<ParticleAvatarRef> };
 const ParticleAvatar = lazy(async () => {
@@ -77,6 +78,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const callClosedRef = useRef(false);
   const stopAcknowledgementRef=useRef<ForzaStopAcknowledgement|null>(null);
   const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'|'piper-amir-medium'>('pocket-farsi-v2');
+  const voiceTextStatusRef=useRef<ForzaVoiceTextStatus|null>(null);
   const voiceInfoPromiseRef=useRef<Promise<void>>(Promise.resolve());
   const [activeVoiceLabel,setActiveVoiceLabel]=useState('در حال بررسی موتور صوتی');
   useEffect(()=>{
@@ -89,6 +91,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(!response.ok)throw new Error('voice_info_http_'+response.status);
         const data=await response.json();
         if(!mounted)return;
+        voiceTextStatusRef.current={
+          provider:data?.textProvider,
+          requestedProvider:data?.textProviderRequested,
+          configured:data?.textProviderConfigured,
+          reason:data?.textProviderReason,
+          model:data?.textModel,
+          voice:data?.voice,
+          voiceReady:data?.ready,
+        };
         if(data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true){
           voiceModeRef.current='piper-nima-gyro-medium';
           setActiveVoiceLabel('نیما (Piper فارسی)');
@@ -113,9 +124,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     let timer:number|undefined;
     await Promise.race([
       voiceInfoPromiseRef.current,
-      new Promise<void>(resolve=>{timer=window.setTimeout(resolve,2200);}),
+      new Promise<void>(resolve=>{timer=window.setTimeout(resolve,2600);}),
     ]);
     if(timer!==undefined)window.clearTimeout(timer);
+    const readinessError=forzaVoiceCallReadinessMessage(voiceTextStatusRef.current);
+    if(readinessError)throw new Error(readinessError);
     return voiceModeRef.current;
   },[]);
   useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; }; }, []);

@@ -61,7 +61,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
-import {avalaiFailureMessage, buildForzaConsultSystemMessage, configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, streamAvalaiConsult, streamBaiConsult} from './server/ai/baiConsult';
+import {avalaiFailureMessage, buildForzaConsultSystemMessage, publicForzaTextProviderStatus, resolveForzaTextProvider, streamAvalaiConsult, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmForzaDibaStt} from './server/ai/forzaDibaStt';
@@ -5776,7 +5776,7 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
 let nextVoiceCatalogWarmAt=0;
 app.get('/api/ai/forza-voice-info',async(_req,res)=>{
   // Discovery runs during particle/greeting setup, not on the first customer turn.
-  if(configuredXkiroModel(process.env,true) && Date.now()>=nextVoiceCatalogWarmAt){
+  if(resolveForzaTextProvider(process.env,true).provider==='xkiro' && Date.now()>=nextVoiceCatalogWarmAt){
     nextVoiceCatalogWarmAt=Date.now()+60_000;
     void listVerifiedXkiroFreeChatModels().catch(()=>console.warn('[FORZA] voice_model_catalog_warm_unavailable'));
   }
@@ -5790,7 +5790,17 @@ app.get('/api/ai/forza-voice-info',async(_req,res)=>{
       .catch(()=>console.warn('[FORZA greeting] warm=deferred voice='+voice));
   }
   res.setHeader('Cache-Control','no-store');
-  res.json({voice,incrementalSpeech:voice==='piper-nima-gyro-medium',ready});
+  const textStatus=publicForzaTextProviderStatus(process.env,Boolean(getGeminiKey()));
+  res.json({
+    voice,
+    incrementalSpeech:voice==='piper-nima-gyro-medium',
+    ready,
+    textProvider:textStatus.provider,
+    textModel:textStatus.model,
+    textProviderConfigured:textStatus.configured,
+    textProviderRequested:textStatus.requestedProvider,
+    textProviderReason:textStatus.reason,
+  });
 });
 
 const voiceTtsLimits=forzaTtsLimits(process.env);
@@ -6027,22 +6037,17 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   // AvalAI is an explicitly selected paid provider; its key remains server-only.
   // xKiro free models use vendor-qualified IDs such as qwen/qwen3.7-flash:free.
   // B.AI remains available as an alternative. Gemini/Worker below is the existing fallback.
-  const selectedTextProvider = String((lowLatencyVoice ? process.env.FORZA_VOICE_PROVIDER : process.env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
-  const avalaiModel = configuredAvalaiModel(process.env, lowLatencyVoice);
-  const xkiroModel = configuredXkiroModel(process.env, lowLatencyVoice);
-  const baiModel = configuredBaiModel(process.env, lowLatencyVoice);
-  const textProvider = selectedTextProvider === 'avalai' ? 'avalai' : xkiroModel ? 'xkiro' : baiModel ? 'bai' : null;
-  const textModel = avalaiModel || xkiroModel || baiModel;
+  const textSelection=resolveForzaTextProvider(process.env,lowLatencyVoice);
+  const textProvider=textSelection.provider;
+  const textModel=textSelection.model;
+  const textApiKey=textSelection.apiKey;
   if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
     ' phase=provider_selected provider='+(textProvider|| (getGeminiKey()?'gemini':'worker'))+
     ' model='+(textModel||'default')+
+    ' requested='+textSelection.requestedProvider+
+    ' configured='+Number(textSelection.configured)+
     ' elapsedMs='+(Date.now()-startedAt));
-  const textApiKey = textProvider === 'avalai'
-    ? process.env.AVALAI_API_KEY
-    : textProvider === 'xkiro'
-      ? process.env.XKIRO_API_KEY
-      : textProvider === 'bai' ? process.env.BAI_API_KEY : undefined;
-  if (textProvider === 'avalai' && (!avalaiModel || !textApiKey?.trim())) {
+  if (textProvider === 'avalai' && !textSelection.configured) {
     sendEvent({type:'error',responseId,errorCode:'avalai_not_configured',
       message:'اتصال AvalAI برای این بخش کامل تنظیم نشده است. کلید و شناسه مدل را بررسی کنید.'});
     return res.end();

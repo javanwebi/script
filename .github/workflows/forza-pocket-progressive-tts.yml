@@ -52,6 +52,8 @@ jobs:
         with:
           python-version: '3.11'
       - run: npm ci --no-audit --no-fund
+      - name: Install pinned ONNX runtime types for shared app typecheck
+        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
       - name: TypeScript check
         run: npm run lint
       - name: Progressive WAV framing and voice path tests

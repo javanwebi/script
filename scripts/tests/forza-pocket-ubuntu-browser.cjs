@@ -29,7 +29,11 @@ function wav(durationMs=180){
   await page.route('**/api/runtime',route=>route.fulfill({status:200,contentType:'application/json',
     body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})}));
   await page.route('**/api/portal',route=>route.fulfill({status:200,contentType:'application/json',body:'{"success":true,"user":null}'}));
-  await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({voice:'pocket-farsi-v2',incrementalSpeech:false,ready:true})}));
+  await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+      textProvider:'avalai',textProviderRequested:'avalai',
+      textProviderConfigured:true,textModel:'glm-5.3-flash',
+      voice:'pocket-farsi-v2',incrementalSpeech:false,ready:true
+    })}));
   await page.route('**/forza-greeting-bootstrap.wav',route=>route.fulfill({status:200,contentType:'audio/wav',body:wav()}));
   await page.route('**/api/ai/consult-stream',route=>{
     streamCalls.push(route.request().postDataJSON().query);

@@ -37,7 +37,7 @@ function wav(seconds){
   await page.route('**/huggingface.co/Dibachain/**',r=>r.abort());
   await page.route('**/forza-greeting-bootstrap.wav',r=>r.fulfill({contentType:'audio/wav',body:wav(0.2)}));
   await page.route('**/api/ai/forza-stt-info',r=>r.fulfill({json:{serverSttConfigured:false,serverSttReady:false}}));
-  await page.route('**/api/ai/forza-voice-info',r=>r.fulfill({json:{voice:'piper-nima-gyro-medium',incrementalSpeech:true}}));
+  await page.route('**/api/ai/forza-voice-info',r=>r.fulfill({json:{textProvider:'avalai',textProviderRequested:'avalai',textProviderConfigured:true,textModel:'glm-5.3-flash',voice:'piper-nima-gyro-medium',incrementalSpeech:true,ready:true}}));
   await page.route('**/api/ai/forza-speech',r=>{phrases.push(r.request().postDataJSON().text);return r.fulfill({contentType:'audio/wav',headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav(r.request().postDataJSON().text==='بله، بفرما.'?0.2:queries.length>1?0.3:12)});});
   await page.route('**/api/ai/consult-stream',r=>{
    queries.push(r.request().postDataJSON().query);
