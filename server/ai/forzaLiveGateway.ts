@@ -13,11 +13,16 @@ import { WebSocket, WebSocketServer } from 'ws';
 type LiveInput = {
   audio?: { data: string; mimeType: string };
   audioStreamEnd?: boolean;
-  text?: string;
+};
+
+type LiveTextInput = {
+  turns: Array<{ role: 'user'; parts: Array<{ text: string }> }>;
+  turnComplete: boolean;
 };
 
 type LiveSession = {
   sendRealtimeInput(input: LiveInput): void;
+  sendClientContent(input: LiveTextInput): void;
   close(): void;
 };
 
@@ -363,8 +368,14 @@ export function setupForzaLiveGateway(
           return;
         }
         if (!liveSession) return;
-        try { liveSession.sendRealtimeInput({ text }); }
-        catch { fail('provider_send_failed', 'ارسال پیام به هوش مصنوعی با مشکل روبه‌رو شد.'); }
+        try {
+          liveSession.sendClientContent({
+            turns: [{ role: 'user', parts: [{ text }] }],
+            turnComplete: true,
+          });
+        } catch {
+          fail('provider_send_failed', 'ارسال پیام به هوش مصنوعی با مشکل روبه‌رو شد.');
+        }
       }
     });
 
@@ -515,8 +526,14 @@ export function setupForzaLiveGateway(
       });
       if (!connected || isClosed) return;
       try {
-        session.sendRealtimeInput({
-          text: 'مکالمه تازه آغاز شده است. به فارسی یک خوش‌آمدگویی کوتاه بگو، خودت را فورزا معرفی کن و مشتری را دعوت کن سؤالش را مطرح کند. سپس منتظر صحبت او بمان.',
+        session.sendClientContent({
+          turns: [{
+            role: 'user',
+            parts: [{
+              text: 'مکالمه تازه آغاز شده است. به فارسی یک خوش‌آمدگویی کوتاه بگو، خودت را فورزا معرفی کن و مشتری را دعوت کن سؤالش را مطرح کند. سپس منتظر صحبت او بمان.',
+            }],
+          }],
+          turnComplete: true,
         });
       } catch {
         fail('provider_send_failed', 'شروع مکالمه زنده با مشکل روبه‌رو شد.');
