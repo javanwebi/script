@@ -6,8 +6,7 @@ import { useEffect } from 'react';
  */
 const warmForza=()=>Promise.all([
   import('../../pages/AiForzaPage'),
-  import('../forza/AiForzaCallExperience'),
-  import('../forza/ParticleAvatar'),
+  import('../forza/AiForzaLiveExperience'),
 ]);
 const loaders: Record<string, () => Promise<unknown>> = {
   '/ai-forza': warmForza,
