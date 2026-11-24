@@ -26,8 +26,13 @@ export function forzaVoiceCallReadinessMessage(
   if (status.configured !== true) {
     return 'اتصال AvalAI آماده نیست؛ کلید خصوصی و مدل متنی را در تنظیمات سرور بررسی کنید.';
   }
-  if (status.voice !== 'piper-nima-gyro-medium' || status.voiceReady !== true) {
-    return 'سرویس صدای خصوصی Nima آماده نیست؛ وضعیت موتور صوتی سرور را بررسی کنید.';
+  const supportedVoice = [
+    'piper-nima-gyro-medium',
+    'piper-amir-medium',
+    'pocket-farsi-v2',
+  ].includes(String(status.voice || ''));
+  if (!supportedVoice || status.voiceReady !== true) {
+    return 'موتور صدای انتخاب‌شده آماده نیست؛ وضعیت سرویس صوتی سرور را بررسی کنید.';
   }
   return null;
 }
