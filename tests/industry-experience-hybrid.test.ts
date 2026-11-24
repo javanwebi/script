@@ -109,7 +109,7 @@ test("the consumer responsive workflow stages its pinned ONNX runtime before Typ
   const build = consumerWorkflow.indexOf("run: npm run build");
   assert.ok(runtimeInstall >= 0 && runtimeInstall < typecheck && typecheck < build,
     "the responsive workflow must install ONNX before typecheck and production build");
-  assert.match(consumerWorkflow, /cp node_modules\\/onnxruntime-web\\/dist\\/ort-wasm\\*\\.wasm public\\/forza-runtime\\/ort\\//);
+  assert.ok(consumerWorkflow.includes("cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/"));
 });
 
 test("the VPS workflow runs the new industry tests and all-industry responsive smoke", () => {
