@@ -64,6 +64,7 @@ import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import {avalaiFailureMessage, buildForzaConsultSystemMessage, publicForzaTextProviderStatus, resolveForzaTextProvider, streamAvalaiConsult, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
+import {ForzaAvalaiSttError,transcribeForzaAvalaiAudio} from './server/ai/forzaAvalaiStt';
 import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmForzaDibaStt} from './server/ai/forzaDibaStt';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
@@ -7193,6 +7194,29 @@ app.post('/api/ai/transcribe', async (req, res) => {
 
     const sttSelection=selectForzaSttProvider(process.env);
     const cleanAudioData = extractForzaAudioBase64(audioBase64);
+    if(sttSelection.provider==='avalai'){
+      const abort=new AbortController();
+      const onClose=()=>abort.abort();
+      res.once('close',onClose);
+      try{
+        const result=await transcribeForzaAvalaiAudio(cleanAudioData,{
+          apiKey:sttSelection.key,model:sttSelection.model,audioMimeType,
+          signal:abort.signal,timeoutMs:18_000,
+        });
+        return res.json({success:true,text:result.text,provider:'avalai-gpt-transcribe',
+          timings:{sttMs:result.elapsedMs}});
+      }catch(error:any){
+        if(abort.signal.aborted)return;
+        const code=error instanceof ForzaAvalaiSttError?error.code:'avalai_stt_failed';
+        const status=error instanceof ForzaAvalaiSttError?error.status:undefined;
+        console.warn('[STT] provider=avalai failure code='+code);
+        return res.status(status===429?429:503).json({
+          success:false,errorCode:code,
+          error:status===429?'سهمیه سرویس تشخیص گفتار موقتاً تکمیل شده است.':
+            'سرویس تشخیص گفتار هوشمند موقتاً پاسخ نداد؛ لطفاً دوباره تلاش کنید.',
+        });
+      }finally{res.off('close',onClose);}
+    }
     if(sttSelection.provider==='diba'){
       const abort=new AbortController();
       const onClose=()=>abort.abort();
@@ -7256,13 +7280,18 @@ app.post('/api/ai/transcribe', async (req, res) => {
 app.get('/api/ai/forza-stt-info',async(_req,res)=>{
   res.setHeader('Cache-Control','no-store');
   const choice=selectForzaSttProvider(process.env);
-  const dibaConfigured=choice.provider==='diba'&&hasForzaDibaSttModel();
-  // Keep diagnostics non-blocking. Workers warm during server startup;
-  // transcription requests can also trigger recovery if a worker is cold.
+  const dibaConfigured=hasForzaDibaSttModel();
+  // AvalAI credentials are private server configuration; never return key data.
+  // Diba remains bundled as a no-cost fallback, but is not the primary recognizer.
   res.json({
-    serverSttConfigured:choice.provider==='gemini'||dibaConfigured,
+    serverSttConfigured:choice.provider==='avalai'||choice.provider==='gemini'||
+      (choice.provider==='diba'&&dibaConfigured),
     serverSttProvider:choice.provider,
-    serverSttReady:choice.provider==='diba'?isForzaDibaSttReady():choice.provider==='gemini',
+    serverSttModel:choice.provider==='avalai'?choice.model:null,
+    serverSttReady:choice.provider==='avalai'||choice.provider==='gemini'||
+      (choice.provider==='diba'?isForzaDibaSttReady():false),
+    serverSttFallbackProvider:choice.provider==='avalai'&&dibaConfigured?'diba':null,
+    serverSttFallbackReady:choice.provider==='avalai'&&isForzaDibaSttReady(),
     reason:choice.provider==='diba'&&!dibaConfigured?'model_missing':choice.reason,
   });
 });
@@ -7308,8 +7337,32 @@ app.post('/api/ai/forza-live', async (req, res) => {
     let sttProviderError = false;
     let sttProviderStatus = 0;
 
-    // Local Diba/Vosk is the default server recognizer. It is independent from
-    // AvalAI/XKIRO and keeps the model warm in a bounded CPU worker pool.
+    // AvalAI GPT-Transcribe is the high-accuracy final recognizer. The browser
+    // continues to display live partial words; this bounded upload corrects the
+    // completed utterance before it is sent to the conversational model.
+    if(!userQuery&&audioBase64&&sttSelection.provider==='avalai'){
+      const abort=new AbortController();
+      const onClose=()=>abort.abort();
+      res.once('close',onClose);
+      try{
+        const result=await transcribeForzaAvalaiAudio(audioBase64,{
+          apiKey:sttSelection.key,model:sttSelection.model,audioMimeType,
+          signal:abort.signal,timeoutMs:18_000,
+        });
+        userQuery=normalizePersianTranscript(result.text);
+        console.info('[AI FORZA STT] provider=avalai-gpt-transcribe transcript_chars='+userQuery.length+
+          ' elapsed_ms='+result.elapsedMs);
+      }catch(sttErr:any){
+        if(abort.signal.aborted)return;
+        sttProviderError=true;
+        sttProviderStatus=sttErr instanceof ForzaAvalaiSttError
+          ? Number(sttErr.status||0) : 503;
+        console.warn('[AI FORZA STT] provider=avalai failure code='+
+          String(sttErr?.code||'avalai_stt_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+      }finally{res.off('close',onClose);}
+    }
+
+    // Local Diba/Vosk remains the free fallback for installations that select it.
     if(!userQuery&&audioBase64&&sttSelection.provider==='diba'){
       const abort=new AbortController();
       const onClose=()=>abort.abort();
