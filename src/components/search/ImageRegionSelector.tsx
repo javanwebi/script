@@ -9,12 +9,14 @@ function sameRegion(a?:ImageRegion,b?:ImageRegion){
 function toPersianNumber(value:number){return String(value).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[Number(d)]);}
 
 type ImagePoint={x:number;y:number};
+type ImageBounds={left:number;top:number;width:number;height:number};
 type ResizeHandle='nw'|'ne'|'sw'|'se';
 type Interaction={
  mode:'draw'|'move'|'resize';
  start:ImagePoint;
  clientX:number;
  clientY:number;
+ bounds:ImageBounds;
  origin?:ImageRegion;
  handle?:ResizeHandle;
 };
@@ -42,8 +44,8 @@ export function ImageRegionSelector({
  const selected=draft || value;
  const viewer=variant==='viewer';
 
- const point=(event:PointerEvent<HTMLElement>):ImagePoint=>{
-  const box=frameRef.current?.getBoundingClientRect() || imageRef.current?.getBoundingClientRect();
+ const point=(event:PointerEvent<HTMLElement>,bounds?:ImageBounds):ImagePoint=>{
+  const box=bounds || frameRef.current?.getBoundingClientRect() || imageRef.current?.getBoundingClientRect();
   if(!box||!box.width||!box.height)return {x:0.5,y:0.5};
   return {
    x:Math.max(0,Math.min(1,(event.clientX-box.left)/box.width)),
@@ -74,8 +76,11 @@ export function ImageRegionSelector({
   if(disabled||!value)return;
   event.preventDefault();
   event.stopPropagation();
-  interaction.current={mode:'resize',start:point(event),clientX:event.clientX,clientY:event.clientY,origin:{...value},handle};
-  frameRef.current?.setPointerCapture(event.pointerId);
+  const frameBounds=frameRef.current?.getBoundingClientRect();
+  if(!frameBounds)return;
+  const bounds={left:frameBounds.left,top:frameBounds.top,width:frameBounds.width,height:frameBounds.height};
+  interaction.current={mode:'resize',start:point(event,bounds),clientX:event.clientX,clientY:event.clientY,bounds,origin:{...value},handle};
+  frameRef.current.setPointerCapture(event.pointerId);
  };
 
  const finish=(event:PointerEvent<HTMLDivElement>)=>{
@@ -83,7 +88,7 @@ export function ImageRegionSelector({
   if(!state)return;
   interaction.current=null;
   if(disabled){setDraft(undefined);return;}
-  const p=point(event);
+  const p=point(event,state.bounds);
   const moved=Math.hypot(event.clientX-state.clientX,event.clientY-state.clientY);
   const next=makeDraft(state,p);
   if(state.mode==='draw'&&moved<=8){
@@ -132,15 +137,17 @@ export function ImageRegionSelector({
      dir="ltr"
      onPointerDown={event=>{
       if(disabled||event.button!==0||!event.isPrimary)return;
-      const p=point(event);
+      const frameBounds=event.currentTarget.getBoundingClientRect();
+      const bounds={left:frameBounds.left,top:frameBounds.top,width:frameBounds.width,height:frameBounds.height};
+      const p=point(event,bounds);
       const inside=Boolean(value&&p.x>=value.x&&p.x<=value.x+value.width&&p.y>=value.y&&p.y<=value.y+value.height);
-      interaction.current={mode:inside?'move':'draw',start:p,clientX:event.clientX,clientY:event.clientY,origin:inside&&value?{...value}:undefined};
+      interaction.current={mode:inside?'move':'draw',start:p,clientX:event.clientX,clientY:event.clientY,bounds,origin:inside&&value?{...value}:undefined};
       event.currentTarget.setPointerCapture(event.pointerId);
       setDraft(undefined);
      }}
      onPointerMove={event=>{
       if(disabled||!interaction.current)return;
-      setDraft(makeDraft(interaction.current,point(event)));
+      setDraft(makeDraft(interaction.current,point(event,interaction.current.bounds)));
      }}
      onPointerUp={finish}
      onPointerCancel={()=>{interaction.current=null;setDraft(undefined);}}
