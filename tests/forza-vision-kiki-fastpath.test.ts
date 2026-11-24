@@ -20,6 +20,10 @@ test('KIKI entry, real camera, explicit review and catalog results share one ide
   assert.ok(modal.includes('counts={null}'));
   assert.ok(modal.includes('className="sanat-camera-experience__stage fv-camera-stage'));
   assert.ok(modal.includes('onClick={confirmCameraPhoto}'));
+  assert.ok(modal.includes('const runFullImageVisualMatch = () =>'));
+  assert.ok(modal.includes('data-testid="forza-vision-full-image-search"'));
+  assert.ok(modal.includes('region: opts.fullImage ? undefined : opts.region'));
+  assert.ok(modal.includes('fullImage: opts.fullImage === true'));
   assert.ok(modal.includes('aiVisualSearchService.analyzePartWithAi'));
   assert.ok(!modal.includes('OPTICAL_BENCH_ART'));
 });
