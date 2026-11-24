@@ -1,0 +1,579 @@
+/* Hybrid industrial experience — scoped to industry directory and detail routes. */
+.company-page--industries .company-hero {
+  min-height: clamp(470px, 42vw, 590px);
+  border-radius: 4px 30px 4px 30px;
+  background:
+    radial-gradient(circle at 8% 90%, rgba(229,107,30,.13), transparent 34%),
+    linear-gradient(125deg, #fff 0%, #f6f7f6 54%, #e9eef0 100%);
+}
+.company-page--industries .company-hero-visual {
+  min-height: 390px;
+  border-radius: 4px 26px 4px 26px;
+  background: #26343d;
+}
+.company-page--industries .company-hero-visual img {
+  filter: saturate(.9) contrast(1.08);
+}
+.company-page--industries .company-hero-visual-shade {
+  background: linear-gradient(0deg, rgba(16,27,36,.82), rgba(16,27,36,.04) 70%);
+}
+.company-page--industries .company-hero-visual-caption {
+  right: 24px;
+  bottom: 24px;
+}
+.industry-directory-proof {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 18px;
+  margin-top: 25px;
+  padding-top: 17px;
+  border-top: 1px solid #e4e8eb;
+}
+.industry-directory-proof span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #596572;
+  font-size: 11px;
+  font-weight: 750;
+}
+.industry-directory-proof b {
+  color: #c85a17;
+  font-size: 17px;
+  font-weight: 950;
+}
+.industry-directory-paths {
+  display: grid;
+  grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: 24px;
+  margin: clamp(32px, 4vw, 54px) 0;
+  padding: clamp(18px, 2.5vw, 30px);
+  border: 1px solid #e4e8eb;
+  border-radius: 20px;
+  background: linear-gradient(120deg, #fff 0%, #f8f8f6 100%);
+}
+.industry-directory-paths__heading h2 {
+  margin: 8px 0 7px;
+  color: #202833;
+  font-size: clamp(20px, 2.1vw, 28px);
+  font-weight: 950;
+  line-height: 1.55;
+}
+.industry-directory-paths__heading p {
+  margin: 0;
+  color: #6a7480;
+  font-size: 12px;
+  line-height: 2;
+}
+.industry-directory-paths__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.industry-directory-path {
+  display: flex;
+  min-width: 0;
+  min-height: 112px;
+  align-items: center;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #e4e8eb;
+  border-radius: 13px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.industry-directory-path:hover {
+  transform: translateY(-2px);
+  border-color: #e7b08d;
+  box-shadow: 0 10px 24px rgba(28,40,52,.07);
+}
+.industry-directory-path__icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: 11px;
+  background: #fff2e8;
+  color: #c85a17;
+}
+.industry-directory-path__copy { display: grid; min-width: 0; gap: 5px; }
+.industry-directory-path__copy strong { color: #2a333c; font-size: 11px; font-weight: 900; line-height: 1.6; }
+.industry-directory-path__copy small { color: #7b858e; font-size: 9px; line-height: 1.7; }
+.industry-directory-path > svg { flex: 0 0 auto; margin-inline-start: auto; color: #c85a17; }
+
+.company-page--industries .company-industry-grid--editorial {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: minmax(155px, auto);
+  gap: 14px;
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card {
+  min-height: 285px;
+  border: 0;
+  border-radius: 3px 20px 3px 20px;
+  box-shadow: 0 14px 34px rgba(22,34,48,.09);
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(1) {
+  grid-column: span 7;
+  grid-row: span 2;
+  min-height: 570px;
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(2),
+.company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(3) {
+  grid-column: span 5;
+  min-height: 278px;
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(n+4) {
+  grid-column: span 4;
+  min-height: 305px;
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card > img {
+  filter: saturate(.91) contrast(1.06);
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card-shade {
+  background: linear-gradient(0deg, rgba(9,18,29,.96), rgba(9,18,29,.32) 62%, rgba(9,18,29,.04));
+}
+.company-industry-card-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 28px;
+  margin-top: 10px;
+  border: 1px solid rgba(255,255,255,.42);
+  border-radius: 5px;
+  color: #fff;
+  background: rgba(17,29,39,.36);
+  font-size: 10px;
+  font-weight: 900;
+  direction: ltr;
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card-copy h2 {
+  font-size: clamp(20px, 2vw, 29px);
+}
+.company-page--industries .company-industry-grid--editorial .company-industry-card-copy b {
+  margin-top: 3px;
+}
+.company-page--industries .company-industry-intro {
+  margin: clamp(28px, 4vw, 48px) 0 18px;
+  padding: 10px 4px;
+}
+.company-page--industries .company-bottom-cta {
+  margin-top: 42px;
+}
+
+.industry-template .ipt-hero {
+  position: relative;
+  isolation: isolate;
+}
+.industry-template .ipt-hero-visual {
+  min-height: 390px;
+  border: 1px solid rgba(255,255,255,.7);
+  box-shadow: 0 18px 42px rgba(30,39,47,.12);
+}
+.industry-template .ipt-hero-visual-shade {
+  background: linear-gradient(180deg, rgba(15,23,30,.04), rgba(15,23,30,.58));
+}
+.industry-template--ceramic .ipt-hero-visual {
+  border-radius: 12px 30px 12px 92px;
+}
+.industry-template--ceramic .ipt-hero-copy {
+  padding-right: 19px;
+  border-right: 4px solid #e56b1e;
+}
+.industry-template--textile .ipt-hero {
+  background:
+    repeating-linear-gradient(90deg, rgba(79,111,130,.035) 0 1px, transparent 1px 19px),
+    linear-gradient(120deg, #f5f8f9, #edf2f4);
+}
+.industry-template--textile .ipt-hero-visual {
+  border-radius: 86px 14px 86px 14px;
+}
+.industry-template--textile .ipt-hero-copy {
+  padding: 20px;
+  border: 1px solid #e0e8ec;
+  border-radius: 14px;
+  background: rgba(255,255,255,.82);
+}
+.industry-template--packaging .ipt-hero-visual {
+  border-radius: 5px;
+  border-bottom: 7px solid #26333d;
+}
+.industry-template--packaging .ipt-hero-visual::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 7px;
+  background: repeating-linear-gradient(90deg, #e56b1e 0 22px, #26333d 22px 44px);
+}
+.industry-template--food .ipt-hero {
+  background: linear-gradient(125deg, #f7faf7, #eef4f0);
+  border-radius: 22px;
+}
+.industry-template--food .ipt-hero-visual {
+  border-radius: 22px 86px 22px 22px;
+}
+.industry-template--machinery .ipt-hero-copy {
+  padding: 23px;
+  border: 1px solid #dfe6eb;
+  border-radius: 14px;
+  background:
+    linear-gradient(rgba(83,108,128,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(83,108,128,.055) 1px, transparent 1px),
+    #fff;
+  background-size: 22px 22px;
+}
+.industry-template--machinery .ipt-hero-visual {
+  border-radius: 8px;
+  border-left: 6px solid #e56b1e;
+}
+.industry-template--rubber .ipt-hero-visual {
+  border-radius: 58px 8px 58px 8px;
+  border: 6px solid #29343d;
+}
+.industry-template--rubber .ipt-hero-copy {
+  padding-right: 20px;
+  border-right: 4px solid #e56b1e;
+}
+
+/* The process map is an honest schematic: no invented factory plan or machine image. */
+.industry-template .ipt-production-shell {
+  display: grid;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.ipt-process-map {
+  --ipt-map-accent: #e56b1e;
+  position: relative;
+  overflow: hidden;
+  padding: clamp(17px, 2.2vw, 28px);
+  border: 1px solid #e2e7eb;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(28,40,52,.055);
+}
+.ipt-process-map__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.ipt-process-map__heading { min-width: 0; }
+.ipt-process-map__eyebrow {
+  display: inline-flex;
+  color: var(--ipt-map-accent);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .04em;
+}
+.ipt-process-map__heading h3 {
+  margin: 7px 0 6px;
+  color: #26313b;
+  font-size: clamp(17px, 1.8vw, 23px);
+  font-weight: 950;
+  line-height: 1.55;
+}
+.ipt-process-map__heading p {
+  max-width: 720px;
+  margin: 0;
+  color: #75818b;
+  font-size: 11px;
+  line-height: 1.9;
+}
+.ipt-process-map__count {
+  display: grid;
+  min-width: 68px;
+  flex: 0 0 auto;
+  justify-items: center;
+  gap: 1px;
+  padding: 8px 10px;
+  border: 1px solid #e8e9e7;
+  border-radius: 12px;
+  background: #fafaf8;
+}
+.ipt-process-map__count strong {
+  color: var(--ipt-map-accent);
+  font-size: 24px;
+  font-weight: 950;
+  line-height: 1.2;
+}
+.ipt-process-map__count span { color: #7b858e; font-size: 9px; font-weight: 800; }
+.ipt-process-map__canvas {
+  position: relative;
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid #eceff1;
+  border-radius: 15px;
+  background: #f7f8f8;
+}
+.ipt-process-map__guide {
+  position: absolute;
+  z-index: 0;
+  inset: 50% 4% auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(229,107,30,.34), rgba(229,107,30,.34), transparent);
+  pointer-events: none;
+}
+.ipt-process-map .ipt-stage-tabs {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin: 0;
+}
+.ipt-process-map .ipt-stage-tabs button {
+  display: flex;
+  min-width: 0;
+  min-height: 146px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e2e7eb;
+  border-radius: 13px;
+  background: rgba(255,255,255,.96);
+  color: #36424c;
+  text-align: right;
+  box-shadow: 0 4px 13px rgba(28,40,52,.035);
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.ipt-process-map .ipt-stage-tabs button:hover {
+  transform: translateY(-2px);
+  border-color: #e8b08c;
+  box-shadow: 0 9px 19px rgba(28,40,52,.075);
+}
+.ipt-process-map .ipt-stage-tabs button[aria-selected="true"] {
+  border-color: var(--ipt-map-accent);
+  background: #fff8f2;
+  box-shadow: 0 0 0 2px rgba(229,107,30,.09), 0 9px 19px rgba(28,40,52,.055);
+}
+.ipt-process-node__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ipt-process-node__index {
+  color: #9aa4ad;
+  font-size: 10px;
+  font-weight: 950;
+  direction: ltr;
+}
+.ipt-process-node__icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: #fff0e5;
+  color: var(--ipt-map-accent);
+}
+.ipt-process-node__copy { display: grid; min-width: 0; gap: 4px; }
+.ipt-process-node__copy strong {
+  color: #2e3942;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.7;
+}
+.ipt-process-node__copy small {
+  color: #7a858e;
+  font-size: 9px;
+  line-height: 1.7;
+}
+.ipt-process-node__state {
+  margin-top: auto;
+  color: #9aa3ab;
+  font-size: 8px;
+  font-weight: 800;
+}
+.ipt-process-map__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 11px;
+  color: #89939c;
+  font-size: 9px;
+  line-height: 1.7;
+}
+.ipt-process-map__footer strong { color: #5d6872; font-size: 10px; font-weight: 850; }
+
+.ipt-process-map--thermal { --ipt-map-accent: #d66a20; }
+.ipt-process-map--thermal .ipt-process-map__canvas {
+  background:
+    linear-gradient(180deg, rgba(255,248,240,.95), rgba(247,242,235,.95)),
+    repeating-linear-gradient(90deg, transparent 0 40px, rgba(221,126,61,.07) 40px 41px);
+}
+.ipt-process-map--thermal .ipt-process-map__guide {
+  background: linear-gradient(90deg, transparent, #e6a46d, #d66a20, #e6a46d, transparent);
+  box-shadow: 0 0 12px rgba(214,106,32,.2);
+}
+.ipt-process-map--woven { --ipt-map-accent: #54758a; }
+.ipt-process-map--woven .ipt-process-map__canvas {
+  background:
+    repeating-linear-gradient(90deg, rgba(82,117,138,.075) 0 1px, transparent 1px 19px),
+    repeating-linear-gradient(0deg, rgba(82,117,138,.045) 0 1px, transparent 1px 19px),
+    #f3f7f8;
+}
+.ipt-process-map--woven .ipt-process-map__guide {
+  background: repeating-linear-gradient(90deg, rgba(82,117,138,.34) 0 2px, transparent 2px 25px);
+  height: 100%;
+  inset: 0 auto 0 50%;
+  width: 1px;
+}
+.ipt-process-map--woven .ipt-stage-tabs button { border-radius: 4px 14px 4px 14px; }
+.ipt-process-map--conveyor { --ipt-map-accent: #c85a17; }
+.ipt-process-map--conveyor .ipt-process-map__canvas {
+  background: linear-gradient(180deg, #f1f3f4, #e8ecef);
+}
+.ipt-process-map--conveyor .ipt-stage-tabs {
+  display: flex;
+  overflow-x: auto;
+  padding: 2px 2px 9px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: #c8d0d6 transparent;
+}
+.ipt-process-map--conveyor .ipt-stage-tabs button {
+  flex: 0 0 190px;
+  scroll-snap-align: start;
+  border-radius: 7px;
+}
+.ipt-process-map--conveyor .ipt-process-map__guide {
+  inset: 50% 20px auto;
+  height: 7px;
+  border-radius: 99px;
+  background: repeating-linear-gradient(90deg, #59656f 0 20px, #a8b2b9 20px 24px);
+}
+.ipt-process-map--hygiene { --ipt-map-accent: #4f8170; }
+.ipt-process-map--hygiene .ipt-process-map__canvas {
+  background: linear-gradient(135deg, #f1f8f4, #f6f8f5);
+}
+.ipt-process-map--hygiene .ipt-stage-tabs button { border-radius: 20px; }
+.ipt-process-map--hygiene .ipt-process-node__icon {
+  border-radius: 50%;
+  background: #e7f2eb;
+}
+.ipt-process-map--blueprint { --ipt-map-accent: #4f718b; }
+.ipt-process-map--blueprint .ipt-process-map__canvas {
+  background:
+    linear-gradient(rgba(77,111,137,.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77,111,137,.09) 1px, transparent 1px),
+    #f2f6f8;
+  background-size: 22px 22px;
+}
+.ipt-process-map--blueprint .ipt-stage-tabs button {
+  border-style: dashed;
+  border-radius: 5px;
+}
+.ipt-process-map--polymer { --ipt-map-accent: #f28a45; }
+.ipt-process-map--polymer .ipt-process-map__canvas {
+  border-color: #313e48;
+  background:
+    radial-gradient(circle at 88% 18%, rgba(229,107,30,.17), transparent 34%),
+    linear-gradient(125deg, #26343e, #18252e);
+}
+.ipt-process-map--polymer .ipt-process-map__guide {
+  background: linear-gradient(90deg, transparent, rgba(242,138,69,.6), rgba(242,138,69,.6), transparent);
+}
+.ipt-process-map--polymer .ipt-stage-tabs button {
+  border-color: #47545e;
+  background: rgba(255,255,255,.06);
+  color: #fff;
+}
+.ipt-process-map--polymer .ipt-stage-tabs button[aria-selected="true"] {
+  border-color: #f28a45;
+  background: rgba(229,107,30,.18);
+}
+.ipt-process-map--polymer .ipt-process-node__copy strong { color: #fff; }
+.ipt-process-map--polymer .ipt-process-node__copy small { color: #c3cbd0; }
+.ipt-process-map--polymer .ipt-process-node__index,
+.ipt-process-map--polymer .ipt-process-node__state { color: #b5c0c7; }
+
+.industry-template--machinery .ipt-stage-panel {
+  background:
+    linear-gradient(rgba(77,111,137,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77,111,137,.045) 1px, transparent 1px),
+    #f8fafb;
+  background-size: 20px 20px;
+}
+.industry-template--food .ipt-stage-panel { background: #f4f8f5; }
+.industry-template--rubber .ipt-stage-panel { border-right: 4px solid #e56b1e; }
+
+@media (max-width: 1050px) {
+  .ipt-process-map .ipt-stage-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .company-page--industries .company-hero { min-height: 0; padding: 18px; }
+  .company-page--industries .company-hero-visual { min-height: 230px; }
+  .industry-directory-paths { grid-template-columns: 1fr; gap: 15px; }
+  .industry-directory-paths__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .company-page--industries .company-industry-grid--editorial {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: auto;
+  }
+  .company-page--industries .company-industry-grid--editorial .company-industry-card,
+  .company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(n) {
+    grid-column: span 1;
+    grid-row: auto;
+    min-height: 300px;
+  }
+  .company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(1) {
+    grid-column: 1 / -1;
+    min-height: 360px;
+  }
+  .industry-template .ipt-hero { padding-block: 24px; }
+  .industry-template .ipt-hero-visual { min-height: 245px; }
+  .industry-template .ipt-process-map { padding: 14px; border-radius: 15px; }
+  .ipt-process-map__header { gap: 10px; }
+  .ipt-process-map__heading p { font-size: 10px; }
+  .ipt-process-map .ipt-stage-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .ipt-process-map--conveyor .ipt-stage-tabs { display: flex; }
+  .ipt-process-map--conveyor .ipt-stage-tabs button { flex-basis: 176px; }
+  .ipt-process-map .ipt-stage-tabs button { min-height: 132px; padding: 10px; }
+  .ipt-process-map__footer { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 480px) {
+  .industry-directory-paths__grid { grid-template-columns: 1fr; }
+  .company-page--industries .company-industry-grid--editorial {
+    grid-template-columns: 1fr;
+  }
+  .company-page--industries .company-industry-grid--editorial .company-industry-card,
+  .company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(n),
+  .company-page--industries .company-industry-grid--editorial .company-industry-card:nth-child(1) {
+    grid-column: 1;
+    min-height: 315px;
+  }
+  .industry-template .ipt-hero { width: min(100% - 22px, 430px); }
+  .industry-template--textile .ipt-hero-copy,
+  .industry-template--machinery .ipt-hero-copy { padding: 14px; }
+  .ipt-process-map__header { align-items: flex-start; }
+  .ipt-process-map__count { min-width: 54px; padding: 7px; }
+  .ipt-process-map__count strong { font-size: 20px; }
+  .ipt-process-map .ipt-stage-tabs button { min-height: 122px; padding: 9px; }
+  .ipt-process-node__copy strong { font-size: 10px; }
+  .ipt-process-node__copy small { font-size: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .industry-directory-path *,
+  .industry-template .ipt-process-map *,
+  .industry-template .ipt-hero-visual img {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

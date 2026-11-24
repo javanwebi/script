@@ -41,7 +41,7 @@ test("catalog cards and stage recommendations come only from the live catalog ra
   assert.doesNotMatch(page, /databaseStorageEnabled\(\)/);
   assert.match(page, /subscribeCatalogChanges/);
   assert.match(page, /rankIndustryProducts\(products, industry, 6\)/);
-  assert.match(page, /rankIndustryProducts\(products, \{ \.\.\.industry, terms:/);
+  assert.match(page, /rankIndustryStageProducts\(products, industry, activeStage, 3\)/);
   assert.match(page, /<ProductCard/);
   assert.match(page, /نتیجه ساختگی ارائه نمی‌شود/);
   assert.match(page, /کالای تأییدشده‌ای برای پیشنهاد مستقیم پیدا نشد/);

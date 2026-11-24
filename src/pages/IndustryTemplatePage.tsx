@@ -24,7 +24,8 @@ import { INDUSTRIES, ARTICLES } from "../data/siteContent";
 import { INDUSTRY_PAGE_DETAILS, type IndustryPageSlug } from "../data/industryPageDetails";
 import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 import { isDatabaseCatalogHydrated } from "../services/durableStorage";
-import { rankIndustryProducts } from "../utils/industryCatalog";
+import { rankIndustryProducts, rankIndustryStageProducts } from "../utils/industryCatalog";
+import { IndustryProcessMap } from "../components/storefront/IndustryProcessMap";
 import { ProductCard } from "../components/product/ProductCard";
 import { PartIdentificationLink } from "../components/search/PartIdentificationProvider";
 import { CustomPartRequestModal } from "../components/home/CustomPartRequestModal";
@@ -162,21 +163,14 @@ export function IndustryTemplatePage() {
   );
   const stageProducts = useMemo(
     () => industry && activeStage
-      ? rankIndustryProducts(products, { ...industry, terms: [...industry.terms, activeStage.title, activeStage.subtitle] }, 3)
+      ? rankIndustryStageProducts(products, industry, activeStage, 3)
       : [],
     [products, industry, activeStage],
   );
   const recommendationProducts = useMemo(() => {
     if (!showRecommendations || !industry || !activeStage) return [];
-    const terms = [
-      ...industry.terms,
-      activeStage.title,
-      activeStage.subtitle,
-      equipment,
-      condition,
-      operatingNote,
-    ].filter(Boolean);
-    return rankIndustryProducts(products, { ...industry, terms }, 4);
+    const extraTerms = [equipment, condition, operatingNote].filter(Boolean);
+    return rankIndustryStageProducts(products, industry, activeStage, 4, extraTerms);
   }, [showRecommendations, products, industry, activeStage, equipment, condition, operatingNote]);
 
   if (!slug || !industry || !detail) return <Navigate to="/industries" replace />;
@@ -295,26 +289,13 @@ export function IndustryTemplatePage() {
           <h2>در هر مرحله از خط، چه قطعاتی اهمیت دارند؟</h2>
           <p>ایستگاه را انتخاب کنید تا ملاحظات فنی و خانواده‌های مرتبط از کاتالوگ فعال نمایش داده شوند.</p>
         </div>
-        <div className="ipt-production-shell">
-          <div className="ipt-production-visual">
-            <img src={industry.image} alt={"نمای خط تولید " + industry.title} loading="lazy" />
-            <div className="ipt-production-overlay" />
-            <div className="ipt-stage-hotspots" style={{ "--ipt-stage-count": stages.length } as React.CSSProperties}>
-              {stages.map((stage, index) => (
-                <button type="button" key={stage.title} aria-pressed={activeStageIndex === index} onClick={() => setActiveStageIndex(index)} aria-label={"انتخاب مرحله " + stage.title}>
-                  <span>{String(index + 1).padStart(2, "0")}</span><small>{stage.title}</small>
-                </button>
-              ))}
-            </div>
-            <div className="ipt-production-caption"><span>مرحله انتخاب‌شده</span><strong>{activeStage?.title}</strong></div>
-          </div>
-          <div className="ipt-stage-tabs" role="tablist" aria-label="مراحل خط تولید">
-            {stages.map((stage, index) => (
-              <button type="button" key={stage.title} role="tab" aria-selected={activeStageIndex === index} aria-controls="ipt-stage-panel" onClick={() => setActiveStageIndex(index)}>
-                <b>{String(index + 1).padStart(2, "0")}</b><span>{stage.title}<small>{stage.subtitle}</small></span><ChevronLeft size={15} />
-              </button>
-            ))}
-          </div>
+        <div className={"ipt-production-shell ipt-production-shell--" + slug}>
+          <IndustryProcessMap
+            industry={slug}
+            stages={stages}
+            activeIndex={activeStageIndex}
+            onSelect={setActiveStageIndex}
+          />
           <div className="ipt-stage-panel" id="ipt-stage-panel" role="tabpanel">
             <div className="ipt-stage-copy">
               <span className="ipt-section-kicker">بررسی ایستگاه {String(activeStageIndex + 1).padStart(2, "0")}</span>
@@ -323,7 +304,7 @@ export function IndustryTemplatePage() {
               <Link to={catalogSearchUrl(industry.terms.join(" ") + " " + (activeStage?.title || ""))} className="ipt-text-link">جست‌وجوی قطعات این مرحله <ArrowLeft size={15} /></Link>
             </div>
             <div className="ipt-stage-products">
-              <div className="ipt-mini-heading"><strong>کالاهای مرتبط در کاتالوگ</strong><span>{stageProducts.length.toLocaleString("fa-IR")} نتیجه</span></div>
+              <div className="ipt-mini-heading"><strong>خانواده‌های نزدیک‌تر در کاتالوگ</strong><span>{stageProducts.length.toLocaleString("fa-IR")} نتیجه</span></div>
               {stageProducts.length ? stageProducts.map(product => (
                 <Link key={product.code} to={"/product/" + encodeURIComponent(product.code)} className="ipt-stage-product">
                   <span><PackageSearch size={17} /></span><div><strong>{product.name}</strong><small>{product.categoryName} · {product.subcategory}</small></div><ArrowUpLeft size={16} />

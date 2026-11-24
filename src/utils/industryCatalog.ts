@@ -88,3 +88,53 @@ export function rankIndustryProducts(
     .slice(0, Math.max(0, limit))
     .map(item => item.product);
 }
+
+/**
+ * Rank catalogue families for one production station. Stage wording and any
+ * customer-entered operating context carry more weight than broad industry
+ * keywords, while industry terms remain a controlled fallback.
+ */
+export function rankIndustryStageProducts(
+  products: readonly Product[],
+  industry: IndustryCatalogDefinition,
+  stage: { title: string; subtitle?: string },
+  limit = 3,
+  extraTerms: readonly string[] = [],
+): Product[] {
+  const stageTerms = [...new Set([
+    stage.title,
+    stage.subtitle || "",
+    ...extraTerms,
+  ].map(normalize).filter(Boolean))];
+  const industryTerms = [...new Set((industry.terms || []).map(normalize).filter(Boolean))];
+  const broadTerms = INDUSTRY_KEYWORDS[industry.slug] || [];
+  const seen = new Set<string>();
+
+  return products
+    .filter(product => product.active !== false && Boolean(product.code && product.name))
+    .map(product => {
+      const stageScore = productRelevance(product, stageTerms);
+      const industryScore = productRelevance(product, industryTerms);
+      const broadScore = productRelevance(product, broadTerms);
+      return {
+        product,
+        stageScore,
+        industryScore,
+        score: stageScore * 4 + industryScore * 2 + Math.min(broadScore, 8) * 0.25,
+      };
+    })
+    .filter(item => item.stageScore > 0 || item.industryScore > 0)
+    .sort((a, b) =>
+      b.score - a.score ||
+      Number(Boolean(b.product.featured)) - Number(Boolean(a.product.featured)) ||
+      a.product.name.localeCompare(b.product.name, "fa"),
+    )
+    .filter(item => {
+      const code = normalize(item.product.code);
+      if (!code || seen.has(code)) return false;
+      seen.add(code);
+      return true;
+    })
+    .slice(0, Math.max(0, limit))
+    .map(item => item.product);
+}
