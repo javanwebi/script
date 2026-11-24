@@ -369,7 +369,7 @@ export const AiForzaLiveExperience: React.FC<AiForzaLiveExperienceProps> = ({ on
           )}
 
           <div className="text-center text-[10px] leading-5 text-white/35">
-            برای مکالمه صوتی، دسترسی میکروفون مرورگر لازم است. در صورت نیاز می‌توانید از پیام متنی استفاده کنید.
+            برای پردازش پاسخ زنده، صدا به سرویس Google ارسال می‌شود؛ اطلاعات محرمانه یا شخصی حساس را مطرح نکنید. دسترسی میکروفون لازم است و پیام متنی هم قابل استفاده است.
           </div>
         </div>
       </footer>
