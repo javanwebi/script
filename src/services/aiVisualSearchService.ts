@@ -1,4 +1,5 @@
 import type {PartMeasurement} from '../utils/partMeasurements';
+import { validImageRegion, type ImageRegion } from '../utils/imageRegion';
 import { Product } from '../types';
 import { getProductByCode } from '../data/mockGenerator';
 import { getProductImageUrl } from '../assets/imagesproducts';
@@ -223,9 +224,10 @@ export const aiVisualSearchService = {
       const error = new Error(data?.error?.message || "تشخیص خودکار ناحیه کامل نشد.") as Error & { status?: number; code?: string };
       error.status = response?.status; error.code = data?.error?.code; throw error;
     }
-    const validRegion = (region: any) => region && [region.x, region.y, region.width, region.height].every((n: unknown) => typeof n === "number" && Number.isFinite(n)) && region.x >= 0 && region.y >= 0 && region.width >= 0.03 && region.height >= 0.03 && region.x + region.width <= 1.000001 && region.y + region.height <= 1.000001;
-    const queryRegions = Array.isArray(data.queryRegions) ? data.queryRegions.filter(validRegion).slice(0, 4) : [];
-    const queryRegion = validRegion(data.queryRegion) ? data.queryRegion : undefined;
+    const queryRegions: ImageRegion[] = Array.isArray(data.queryRegions)
+      ? data.queryRegions.filter(validImageRegion).slice(0, 4)
+      : [];
+    const queryRegion = validImageRegion(data.queryRegion) ? data.queryRegion : undefined;
     const detectedParts = queryRegions.map((region, i) => ({ id: `server-${i}`, region, center: { x: region.x + region.width / 2, y: region.y + region.height / 2 } }));
     return { success: true, detectionId: data.detectionId, queryRegion, queryRegions, detectedParts, autoDetected: Boolean(queryRegion), pipeline: String(data.pipeline || ""), model: String(data.model || ""), elapsedMs: Number.isFinite(data.elapsedMs) ? data.elapsedMs : 0 };
   },
