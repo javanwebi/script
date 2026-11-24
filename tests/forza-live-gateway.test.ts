@@ -73,8 +73,8 @@ function waitForMessage(
     state.waiters.push(waiter);
   });
 }
-async function openClient(url: string, origin: string): Promise<WebSocketClient> {
-  const socket = new WebSocket(url, { headers: { Origin: origin } });
+async function openClient(url: string, origin: string, extraHeaders: Record<string, string> = {}): Promise<WebSocketClient> {
+  const socket = new WebSocket(url, { headers: { Origin: origin, ...extraHeaders } });
   trackMessages(socket);
   await once(socket, 'open');
   return socket;
@@ -226,6 +226,39 @@ test('FORZA Live gateway rate-limits repeated demo sessions from one source IP',
     await firstClosed;
 
     second = new WebSocket(app.url, { headers: { Origin: app.origin } });
+    const [request, response] = await once(second, 'unexpected-response');
+    assert.ok(request);
+    assert.equal((response as any).statusCode, 429);
+  } finally {
+    first?.terminate();
+    second?.terminate();
+    await app.close();
+  }
+});
+
+test('FORZA Live gateway enforces the global hourly session budget across different IPs', async () => {
+  const fakeSession = { sendRealtimeInput() {}, close() {} };
+  const fakeClient: any = {
+    live: { async connect() { return fakeSession; } },
+  };
+  const app = await startServer({
+    getApiKey: () => 'test-only-key',
+    createClient: () => fakeClient,
+    maxSessionsPerHour: 1,
+    maxSessionsPerHourPerIp: 60,
+  });
+  let first: WebSocketClient | undefined;
+  let second: WebSocketClient | undefined;
+  try {
+    first = await openClient(app.url, app.origin, { 'X-Real-IP': '203.0.113.10' });
+    await waitForMessage(first, message => message.type === 'connected');
+    const firstClosed = once(first, 'close');
+    first.close();
+    await firstClosed;
+
+    second = new WebSocket(app.url, {
+      headers: { Origin: app.origin, 'X-Real-IP': '203.0.113.11' },
+    });
     const [request, response] = await once(second, 'unexpected-response');
     assert.ok(request);
     assert.equal((response as any).statusCode, 429);
