@@ -208,7 +208,7 @@ test("AvalAI private config is required for Voice while Desk may retain its inde
   const configGate = one.slice(one.indexOf("if [[ -f \"$APP/.env.forza-voice\" ]]"), gate + 300);
   assert.match(configGate, /FORZA_VOICE_PROVIDER_NOT_AVALAI/);
   assert.match(configGate, /AVALAI_API_KEY_NOT_EFFECTIVE/);
-  assert.match(configGate, /voiceProvider = String\(process\.env\.FORZA_VOICE_PROVIDER \|\| process\.env\.FORZA_DESK_PROVIDER/);
+  assert.match(configGate, /voiceProvider = String\(\s*process\.env\.FORZA_VOICE_PROVIDER \|\| process\.env\.FORZA_DESK_PROVIDER/);
   assert.doesNotMatch(configGate, /DESK_PROVIDER_NOT_AVALAI/);
   assert.match(one.slice(gate - 900, promotion), /PRIVATE_FORZA_CONFIG_MOUNT_OK/);
 });
