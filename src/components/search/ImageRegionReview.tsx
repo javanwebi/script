@@ -42,7 +42,6 @@ export function ImageRegionReview({
   onChangeImage,
 }: Props) {
   const preparing = status === 'uploading' || status === 'detecting';
-  const disabled = preparing || Boolean(busy);
   const detected = Boolean(selectedRegion);
 
   return (
