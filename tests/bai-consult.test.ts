@@ -163,7 +163,7 @@ test('B.AI is opt-in and cannot run without a key', () => {
   assert.equal(configuredBaiModel({ FORZA_DESK_PROVIDER: 'bai' }, false), null);
   assert.equal(configuredBaiModel({ FORZA_DESK_PROVIDER: 'bai', BAI_API_KEY: 'example' }, false), 'qwen3.7-flash');
   assert.equal(configuredBaiModel({ FORZA_DESK_PROVIDER: 'bai', BAI_API_KEY: 'example', BAI_MODEL_DESK: 'mimo-v2.5' }, false), 'mimo-v2.5');
-  assert.equal(configuredBaiModel({ FORZA_DESK_PROVIDER: 'bai', BAI_API_KEY: 'example' }, true), null);
+  assert.equal(configuredBaiModel({ FORZA_DESK_PROVIDER: 'bai', BAI_API_KEY: 'example' }, true), 'qwen3.7-flash');
   assert.equal(configuredBaiModel({ FORZA_VOICE_PROVIDER: 'bai', BAI_API_KEY: 'example' }, true), 'qwen3.7-flash');
 });
 
