@@ -104,6 +104,12 @@ function getGeminiKey(): string | undefined {
   return recognitionApiKey(process.env);
 }
 
+function getForzaLiveApiKey(): string | undefined {
+  const dedicated = String(process.env.FORZA_LIVE_API_KEY || '').trim().replace(/^['"]|['"]$/g, '');
+  if (dedicated && !/^(MY_|YOUR_|PASTE_|SET_)/.test(dedicated)) return dedicated;
+  return getGeminiKey();
+}
+
 // Reliable model cascade: prioritize stable high-quota models
 const GEMINI_MODELS = [
   'gemini-3.1-flash-lite',
@@ -7651,7 +7657,7 @@ app.get('/api/ai/forza-live-status', (_req, res) => {
   const maxSessionMs = Number(process.env.FORZA_LIVE_MAX_SESSION_MS) || 240_000;
   res.json({
     enabled,
-    configured: Boolean(getGeminiKey()),
+    configured: Boolean(getForzaLiveApiKey()),
     model: (process.env.FORZA_LIVE_MODEL || 'gemini-3.8-live').trim(),
     transport: 'websocket',
     maxSessionMs,
@@ -7660,7 +7666,7 @@ app.get('/api/ai/forza-live-status', (_req, res) => {
 });
 
 function setupGeminiLiveWebSocket(server: http.Server) {
-  setupForzaLiveGateway(server, { getApiKey: getGeminiKey });
+  setupForzaLiveGateway(server, { getApiKey: getForzaLiveApiKey });
 }
 
 // Vite middleware setup
