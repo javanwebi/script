@@ -15,6 +15,10 @@ test('KIKI entry, real camera, explicit review and catalog results share one ide
   assert.ok(modal.includes('data-testid="kiki-vision-review-shell"'));
   assert.ok(modal.includes('data-testid="kiki-vision-results-shell"'));
   assert.ok(modal.includes('data-testid="forza-vision-catalog-results"'));
+  assert.ok(modal.includes('data-testid="vision-analysis-progress-overlay"'));
+  assert.ok(modal.includes('<VisionAnalysisProgress'));
+  assert.ok(modal.includes('counts={null}'));
+  assert.ok(modal.includes('className="sanat-camera-experience__stage fv-camera-stage'));
   assert.ok(modal.includes('onClick={confirmCameraPhoto}'));
   assert.ok(modal.includes('aiVisualSearchService.analyzePartWithAi'));
   assert.ok(!modal.includes('OPTICAL_BENCH_ART'));
