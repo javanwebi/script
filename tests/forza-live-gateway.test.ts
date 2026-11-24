@@ -8,7 +8,7 @@ import { setupForzaLiveGateway } from '../server/ai/forzaLiveGateway.ts';
 
 async function startServer(options: Parameters<typeof setupForzaLiveGateway>[1]) {
   const server = createServer();
-  const dispose = setupForzaLiveGateway(server, options);
+  const dispose = setupForzaLiveGateway(server, { enabled: true, ...options });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as AddressInfo;
   const origin = `http://127.0.0.1:${address.port}`;
@@ -189,6 +189,25 @@ test('FORZA Live gateway rejects cross-origin and malformed-origin WebSocket upg
     }
   } finally {
     clients.forEach(client => client.terminate());
+    await app.close();
+  }
+});
+
+test('FORZA Live gateway fails closed unless explicitly enabled', async () => {
+  let providerCreated = false;
+  const app = await startServer({
+    enabled: false,
+    getApiKey: () => 'test-only-key',
+    createClient: () => { providerCreated = true; throw new Error('must not run'); },
+  });
+  let client: WebSocketClient | undefined;
+  try {
+    client = await openClient(app.url, app.origin);
+    const fallback = await waitForMessage(client, message => message.type === 'fallback_required');
+    assert.equal(fallback.reasonCode, 'disabled');
+    assert.equal(providerCreated, false);
+  } finally {
+    client?.terminate();
     await app.close();
   }
 });
