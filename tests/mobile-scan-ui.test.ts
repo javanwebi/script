@@ -189,7 +189,7 @@ test("KIKI scanner uses a real camera, gallery, torch, switch-camera and honest 
   assert.match(css, /\.fv-camera-stage\s*\{/);
   assert.match(css, /\.fv-corner-brackets\s*\{/);
   assert.match(css, /\.fv-scan-laser\s*\{/);
-  assert.match(css, /env\(safe-area-inset-bottom\)/);
+  assert.match(modal, /env\(safe-area-inset-bottom\)/);
 });
 
 test("standalone identification route uses KIKI entry UI with the existing full-screen route", () => {
