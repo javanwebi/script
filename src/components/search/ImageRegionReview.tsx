@@ -58,15 +58,6 @@ export function ImageRegionReview({
             روی قطعه موردنظر بزنید یا کادر نارنجی را تنظیم کنید؛ فقط همان ناحیه برای جست‌وجو استفاده می‌شود.
           </p>
         </div>
-        <button
-          type="button"
-          className="kiki-region-review__change-top"
-          onClick={onChangeImage}
-          disabled={preparing}
-        >
-          <ImagePlus size={16} aria-hidden="true" />
-          <span>تصویر جدید</span>
-        </button>
       </div>
 
       {preparing && (
