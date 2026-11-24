@@ -43,7 +43,7 @@ export function ImageRegionSelector({
  const viewer=variant==='viewer';
 
  const point=(event:PointerEvent<HTMLElement>):ImagePoint=>{
-  const box=imageRef.current?.getBoundingClientRect() || frameRef.current?.getBoundingClientRect();
+  const box=frameRef.current?.getBoundingClientRect() || imageRef.current?.getBoundingClientRect();
   if(!box||!box.width||!box.height)return {x:0.5,y:0.5};
   return {
    x:Math.max(0,Math.min(1,(event.clientX-box.left)/box.width)),
