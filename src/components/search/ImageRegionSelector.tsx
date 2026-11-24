@@ -134,7 +134,7 @@ export function ImageRegionSelector({
       if(disabled||event.button!==0||!event.isPrimary)return;
       const p=point(event);
       const inside=Boolean(value&&p.x>=value.x&&p.x<=value.x+value.width&&p.y>=value.y&&p.y<=value.y+value.height);
-      interaction.current={mode:inside?'move':'draw',start:p,clientX:event.clientX,clientY:event.clientY,origin:inside?{...value}:undefined};
+      interaction.current={mode:inside?'move':'draw',start:p,clientX:event.clientX,clientY:event.clientY,origin:inside&&value?{...value}:undefined};
       event.currentTarget.setPointerCapture(event.pointerId);
       setDraft(undefined);
      }}
