@@ -499,10 +499,10 @@
   cursor: nwse-resize;
 }
 
-.sanat-region-picker__handle.is-nw { top: 0; left: 0; transform: translate(-50%,-50%); }
-.sanat-region-picker__handle.is-ne { top: 0; right: 0; transform: translate(50%,-50%); }
-.sanat-region-picker__handle.is-sw { bottom: 0; left: 0; transform: translate(-50%,50%); }
-.sanat-region-picker__handle.is-se { bottom: 0; right: 0; transform: translate(50%,50%); }
+.sanat-region-picker__handle.is-nw { top: 0; left: 0; transform: translate(1px,1px); }
+.sanat-region-picker__handle.is-ne { top: 0; right: 0; transform: translate(-1px,1px); }
+.sanat-region-picker__handle.is-sw { bottom: 0; left: 0; transform: translate(1px,-1px); }
+.sanat-region-picker__handle.is-se { bottom: 0; right: 0; transform: translate(-1px,-1px); }
 .sanat-region-picker__handle:focus-visible {
   outline: 3px solid rgba(224,101,24,.35);
   outline-offset: 3px;
