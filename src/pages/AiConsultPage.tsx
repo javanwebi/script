@@ -213,7 +213,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   }, [identificationOnly, entryParams, navigate]);
 
   // Mode: Engineering Chat OR Visual Part Identification Studio
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'chat' | 'visual_studio'>(() => identificationOnly ? 'visual_studio' : 'chat');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'chat' | 'visual_studio'>(() =>
+    identificationOnly || entryParams.get('view') === 'visual' ? 'visual_studio' : 'chat',
+  );
 
   // Chat sessions state
   const [sessions, setSessions] = useState<ChatSession[]>([]);
