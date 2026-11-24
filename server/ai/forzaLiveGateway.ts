@@ -246,7 +246,6 @@ export function setupForzaLiveGateway(
     let sessionTimer: ReturnType<typeof setTimeout> | null = null;
     let connectTimer: ReturnType<typeof setTimeout> | null = null;
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-    const connectAbort = new AbortController();
 
     const release = () => {
       if (released) return;
@@ -260,7 +259,6 @@ export function setupForzaLiveGateway(
       if (sessionTimer) clearTimeout(sessionTimer);
       if (connectTimer) clearTimeout(connectTimer);
       if (heartbeatTimer) clearInterval(heartbeatTimer);
-      connectAbort.abort();
       try { liveSession?.close(); } catch {}
       release();
       if (client.readyState === WebSocket.OPEN || client.readyState === WebSocket.CONNECTING) {
@@ -408,13 +406,11 @@ export function setupForzaLiveGateway(
       return;
     }
     connectTimer = setTimeout(() => {
-      connectAbort.abort();
       fail('connect_timeout', 'اتصال به هوش مصنوعی بیش از حد طول کشید. دوباره تلاش کنید.');
     }, connectTimeoutMs);
 
     void Promise.resolve().then(() => ai.live.connect({
       model,
-      abortSignal: connectAbort.signal,
       config: {
         responseModalities: [Modality.AUDIO],
         realtimeInputConfig: {
