@@ -72,7 +72,7 @@ export function ImageRegionReview({
       dir="ltr"
       aria-label="میزکار شناسایی تصویری FORZA"
       aria-busy={preparing || Boolean(busy)}
-      data-testid="kiki-image-workspace"
+      data-testid="image-region-review"
     >
       <section className="kiki-image-workspace__catalog" dir="rtl" aria-label="محصولات مشابه کاتالوگ">
         <header className="kiki-image-workspace__catalog-header">
