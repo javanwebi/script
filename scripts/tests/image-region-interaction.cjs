@@ -85,7 +85,7 @@ const {chromium}=require('playwright');
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/modal.html`);
   await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
   await page.getByTestId('image-region-review').waitFor();
-  await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).waitFor();
+  await page.getByTestId('image-region-review').getByRole('button',{name:/جستجوی .* در کاتالوگ/}).waitFor();
   await page.screenshot({
    path:path.join(os.tmpdir(),'sanat-forza-vision-entry-review-desktop.png'),
    fullPage:true,
@@ -93,7 +93,7 @@ const {chromium}=require('playwright');
   // A warm local U²-NetP model may find the crop without a server detect call.
   // Wait for crop readiness rather than assuming a mandatory network roundtrip.
   await page.waitForFunction(() => {
-   const confirm=document.querySelector('.sp-region-review__confirm');
+   const confirm=document.querySelector('.kiki-region-review__primary');
    return confirm && !confirm.disabled;
   },null,{timeout:30000});
   assert.equal(uploads,0);
@@ -103,7 +103,7 @@ const {chromium}=require('playwright');
   const modalFrame=page.locator('.sanat-region-picker__frame');const bounds=await modalFrame.boundingBox();
   await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
   await page.waitForTimeout(350);assert.equal(queries.length,0);
-  await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).click();
+  await page.getByRole('button',{name:'جستجوی این قطعه در کاتالوگ'}).click();
   await page.getByTestId('analysis-approved-crop').waitFor();
   await page.getByTestId('kiki-vision-results-shell').waitFor();
   const hierarchy=await page.evaluate(() => {
