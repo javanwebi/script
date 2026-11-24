@@ -39,9 +39,9 @@ const STAGE_ICONS: Record<IndustryPageSlug, LucideIcon[]> = {
 export function IndustryProcessMap({ industry, stages, activeIndex, onSelect }: Props) {
   const experience = INDUSTRY_EXPERIENCE[industry];
   const icons = STAGE_ICONS[industry];
-  const activeStage = stages[activeIndex] || stages[0];
-
   if (!stages.length) return null;
+  const selectedIndex = Math.min(Math.max(activeIndex, 0), stages.length - 1);
+  const activeStage = stages[selectedIndex];
 
   return (
     <section
@@ -66,10 +66,11 @@ export function IndustryProcessMap({ industry, stages, activeIndex, onSelect }: 
         <div className="ipt-stage-tabs" role="tablist" aria-label="انتخاب ایستگاه خط تولید">
           {stages.map((stage, index) => {
             const Icon = icons[index % icons.length];
-            const selected = activeIndex === index;
+            const selected = selectedIndex === index;
             return (
               <button
                 key={stage.title}
+                id={"ipt-stage-tab-" + index}
                 type="button"
                 role="tab"
                 aria-selected={selected}
@@ -98,7 +99,7 @@ export function IndustryProcessMap({ industry, stages, activeIndex, onSelect }: 
         <span>نمای شماتیک مسیر فرایند؛ نه نقشه اجرایی کارخانه</span>
         {activeStage && (
           <strong>
-            ایستگاه {String(activeIndex + 1).padStart(2, "0")} / {stages.length.toLocaleString("fa-IR")} · {activeStage.title}
+            ایستگاه {String(selectedIndex + 1).padStart(2, "0")} / {stages.length.toLocaleString("fa-IR")} · {activeStage.title}
           </strong>
         )}
       </footer>

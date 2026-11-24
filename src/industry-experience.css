@@ -434,6 +434,7 @@
   inset: 0 auto 0 50%;
   width: 1px;
 }
+.ipt-process-map--woven .ipt-stage-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ipt-process-map--woven .ipt-stage-tabs button { border-radius: 4px 14px 4px 14px; }
 .ipt-process-map--conveyor { --ipt-map-accent: #c85a17; }
 .ipt-process-map--conveyor .ipt-process-map__canvas {
@@ -462,6 +463,7 @@
 .ipt-process-map--hygiene .ipt-process-map__canvas {
   background: linear-gradient(135deg, #f1f8f4, #f6f8f5);
 }
+.ipt-process-map--hygiene .ipt-stage-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ipt-process-map--hygiene .ipt-stage-tabs button { border-radius: 20px; }
 .ipt-process-map--hygiene .ipt-process-node__icon {
   border-radius: 50%;
@@ -489,6 +491,7 @@
 .ipt-process-map--polymer .ipt-process-map__guide {
   background: linear-gradient(90deg, transparent, rgba(242,138,69,.6), rgba(242,138,69,.6), transparent);
 }
+.ipt-process-map--polymer .ipt-stage-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ipt-process-map--polymer .ipt-stage-tabs button {
   border-color: #47545e;
   background: rgba(255,255,255,.06);

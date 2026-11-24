@@ -34,6 +34,8 @@ test("the process map keeps accessible stage selection and updates the existing 
   assert.match(map, /role="tab"/);
   assert.match(map, /aria-selected=\{selected\}/);
   assert.match(map, /aria-controls="ipt-stage-panel"/);
+  assert.match(map, /id=\{"ipt-stage-tab-" \+ index\}/);
+  assert.match(page, /aria-labelledby=\{"ipt-stage-tab-" \+ activeStageIndex\}/);
   assert.match(map, /data-stage-title=\{stage\.title\}/);
   assert.match(map, /نمای شماتیک مسیر فرایند؛ نه نقشه اجرایی کارخانه/);
 });

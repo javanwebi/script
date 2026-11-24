@@ -296,8 +296,8 @@ export function IndustryTemplatePage() {
             activeIndex={activeStageIndex}
             onSelect={setActiveStageIndex}
           />
-          <div className="ipt-stage-panel" id="ipt-stage-panel" role="tabpanel">
-            <div className="ipt-stage-copy">
+          <div className="ipt-stage-panel" id="ipt-stage-panel" role="tabpanel" aria-labelledby={"ipt-stage-tab-" + activeStageIndex}>
+            <div className="ipt-stage-copy" aria-live="polite">
               <span className="ipt-section-kicker">بررسی ایستگاه {String(activeStageIndex + 1).padStart(2, "0")}</span>
               <h3>{activeStage?.title}</h3>
               <p>{activeStage?.description}</p>
