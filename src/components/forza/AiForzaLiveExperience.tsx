@@ -208,11 +208,9 @@ export const AiForzaLiveExperience: React.FC<AiForzaLiveExperienceProps> = ({ on
     ? 'در حال اتصال امن به هوش مصنوعی زنده…'
     : phase === 'unavailable'
       ? 'اتصال زنده برقرار نشد'
-      : phase === 'legacy'
-        ? 'مسیر مکالمه زنده در دسترس نیست'
-        : connected
-          ? STATUS_LABEL[status]
-          : 'برای شروع، دکمه مکالمه را بزنید';
+      : connected
+      ? STATUS_LABEL[status]
+      : 'برای شروع، دکمه مکالمه را بزنید';
 
   return (
     <div className="relative flex h-full min-h-[100svh] w-full flex-col overflow-hidden bg-[#101114] text-white" dir="rtl">
@@ -366,7 +364,7 @@ export const AiForzaLiveExperience: React.FC<AiForzaLiveExperienceProps> = ({ on
               className="flex min-h-14 w-full max-w-md items-center justify-center gap-3 rounded-2xl bg-[#E56B1E] px-6 py-4 text-sm font-bold text-white shadow-xl shadow-orange-950/25 transition hover:bg-[#f17c31] disabled:cursor-wait disabled:opacity-70"
             >
               {connecting ? <Loader2 size={19} className="animate-spin" /> : <Mic size={19} />}
-              {connecting ? 'در حال اتصال به هوش مصنوعی…' : phase === 'unavailable' || phase === 'legacy' ? 'تلاش دوباره برای اتصال زنده' : 'شروع مکالمه زنده'}
+              {connecting ? 'در حال اتصال به هوش مصنوعی…' : phase === 'unavailable' ? 'تلاش دوباره برای اتصال زنده' : 'شروع مکالمه زنده'}
             </button>
           )}
 
