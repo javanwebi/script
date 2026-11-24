@@ -2202,7 +2202,7 @@ export const AiVisualPartSearchModal: React.FC<AiVisualPartSearchModalProps> = (
                             }`}
                       </p>
                       <p className="mt-1 text-[10px] leading-5 text-[#74757C]">
-                        تطبیق تصویری پیشنهادی است؛ کد فنی، ابعاد و سازگاری قطعه باید پیش از سفارش تأیید شوند.
+                        این تطبیق تصویری پیشنهادی و نیازمند تأیید فنی کد، ابعاد و سازگاری قطعه پیش از سفارش است.
                       </p>
                     </div>
                   </div>
