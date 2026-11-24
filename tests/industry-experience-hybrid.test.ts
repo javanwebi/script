@@ -80,16 +80,24 @@ test("station ranking prioritizes stage evidence, keeps industry fallback and ex
   const contextual = catalogProduct("CAT-KILN-01", "رولر نسوز کوره", {
     technicalSpecs: [{ key: "کاربرد", value: "کوره پخت" }],
   });
+  const operatingContextMatch = catalogProduct("CAT-HEAT-03", "بلبرینگ صنعتی", {
+    description: "مناسب دمای بالا و فشار کاری مداوم",
+  });
   const industryFallback = catalogProduct("CAT-BELT-02", "تسمه صنعتی");
   const inactive = catalogProduct("CAT-OLD-03", "تسمه نسوز", { active: false });
   const unrelated = catalogProduct("CAT-OTHER-04", "دستکش ایمنی", { featured: true, hasCatalogueImage: true });
   const ranked = rankIndustryStageProducts(
-    [industryFallback, inactive, unrelated, contextual],
+    [industryFallback, inactive, unrelated, operatingContextMatch, contextual],
     ceramic,
     stage,
     4,
+    ["دمای بالا، فشار ۱۲ بار"],
   );
-  assert.deepEqual(ranked.map(product => product.code), ["CAT-KILN-01", "CAT-BELT-02"]);
+  assert.deepEqual(
+    ranked.map(product => product.code),
+    ["CAT-KILN-01", "CAT-HEAT-03", "CAT-BELT-02"],
+    "free-text operating conditions must influence matching without admitting unrelated featured products",
+  );
 });
 
 test("the VPS workflow runs the new industry tests and all-industry responsive smoke", () => {

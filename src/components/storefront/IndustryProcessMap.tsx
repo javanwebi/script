@@ -76,6 +76,8 @@ export function IndustryProcessMap({ industry, stages, activeIndex, onSelect }: 
                 role="tab"
                 aria-selected={selected}
                 tabIndex={selected ? 0 : -1}
+                aria-posinset={index + 1}
+                aria-setsize={stages.length}
                 aria-controls="ipt-stage-panel"
                 aria-label={"نمایش جزئیات " + stage.title}
                 data-stage-title={stage.title}

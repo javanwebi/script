@@ -26,6 +26,18 @@ function normalize(value: unknown): string {
     .trim();
 }
 
+const CONTEXT_STOPWORDS = new Set([
+  "و", "از", "در", "برای", "با", "به", "تا", "یا", "که", "این", "آن",
+  "را", "روی", "زیر", "یک", "نوع", "خط", "کار", "مورد", "است", "باشد",
+  "شود", "می", "هم", "هر", "بین", "بعد", "قبل", "نیاز",
+]);
+
+function tokenizeOperatingContext(value: string): string[] {
+  return normalize(value)
+    .split(/[\\s,،;؛|/\\\\()[\\]{}:._-]+/)
+    .filter(token => token.length >= 3 && !CONTEXT_STOPWORDS.has(token));
+}
+
 function productRelevance(product: Product, terms: readonly string[]): number {
   const name = normalize(product.name);
   const taxonomy = normalize([
@@ -106,7 +118,7 @@ export function rankIndustryStageProducts(
   const stageTerms = [...new Set([
     stage.title,
     stage.subtitle || "",
-    ...extraTerms,
+    ...extraTerms.flatMap(term => [term, ...tokenizeOperatingContext(term)]),
   ].map(normalize).filter(Boolean))];
   const industryTerms = [...new Set((industry.terms || []).map(normalize).filter(Boolean))];
   const broadTerms = INDUSTRY_KEYWORDS[industry.slug] || [];

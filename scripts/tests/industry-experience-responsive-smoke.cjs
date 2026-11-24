@@ -94,7 +94,27 @@ async function installRoutes(page) {
         assert.equal(await keyboardSelected.getAttribute('aria-selected'), 'true',
           industry.slug + ' RTL ArrowLeft must select the next production stage');
         assert.equal(await keyboardSelected.evaluate(element => document.activeElement === element), true,
-          industry.slug + ' keyboard navigation must move focus to the selected stage');
+          industry.slug + ' ArrowLeft must move focus with selection');
+
+        await keyboardSelected.press('End');
+        const last = nodes.nth(industry.stages - 1);
+        assert.equal(await last.getAttribute('aria-selected'), 'true',
+          industry.slug + ' End must select the last production stage');
+        assert.equal(await last.evaluate(element => document.activeElement === element), true,
+          industry.slug + ' End must move focus to the last stage');
+
+        await last.press('Home');
+        assert.equal(await first.getAttribute('aria-selected'), 'true',
+          industry.slug + ' Home must select the first production stage');
+        assert.equal(await first.evaluate(element => document.activeElement === element), true,
+          industry.slug + ' Home must move focus to the first stage');
+
+        await first.press('ArrowRight');
+        const rtlPrevious = nodes.nth(industry.stages - 1);
+        assert.equal(await rtlPrevious.getAttribute('aria-selected'), 'true',
+          industry.slug + ' RTL ArrowRight must select the previous production stage');
+        assert.equal(await rtlPrevious.evaluate(element => document.activeElement === element), true,
+          industry.slug + ' ArrowRight must move focus with selection');
 
         const selected = keyboardSelected;
         await selected.click();
