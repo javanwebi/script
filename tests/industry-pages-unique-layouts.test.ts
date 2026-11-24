@@ -15,6 +15,12 @@ test("all six industry routes use one lazy-loaded canonical page template", () =
   assert.match(app, /path="\/industries\/:slug"[\s\S]*?element=\{<IndustryTemplatePage \/>\}/);
   assert.match(app, /path="\/industry\/:slug"[\s\S]*?element=\{<IndustryTemplatePage \/>\}/);
   assert.match(app, /Navigate to="\/industries\/ceramic"/);
+  assert.doesNotMatch(app, /path="\\/industries\\/ceramic"/,
+    "the canonical ceramic page must receive its slug from the shared dynamic route");
+  assert.doesNotMatch(app, /path="\\/industries\\/tile-ceramic"/);
+  assert.doesNotMatch(app, /path="\\/industry\\/ceramic-tile"/);
+  assert.match(page, /"tile-ceramic": "ceramic"/);
+  assert.match(page, /"ceramic-tile": "ceramic"/);
   for (const slug of ["ceramic", "textile", "packaging", "food", "machinery", "rubber"]) {
     assert.ok(details.includes(slug + ": {"), "missing content for " + slug);
     assert.ok(page.includes("industry.title"), "industry content must come from the canonical registry");

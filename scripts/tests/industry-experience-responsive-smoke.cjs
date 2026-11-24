@@ -150,6 +150,19 @@ async function installRoutes(page) {
         }
         console.log('INDUSTRY_EXPERIENCE_OK', industry.slug, viewport.width);
       }
+      if (viewport.width === 1440) {
+        for (const legacyPath of [
+          '/industries/tile-ceramic',
+          '/industry/ceramic-tile',
+          '/category/ceramic-tiles',
+        ]) {
+          await page.goto(baseUrl + legacyPath, { waitUntil: 'domcontentloaded' });
+          await page.locator('.industry-template--ceramic').waitFor();
+          assert.equal(new URL(page.url()).pathname, '/industries/ceramic',
+            legacyPath + ' must resolve to the canonical ceramic industry route');
+        }
+        assert.deepEqual(pageErrors, [], 'legacy ceramic route aliases must not cause browser errors');
+      }
       await page.close();
     }
   } finally {
