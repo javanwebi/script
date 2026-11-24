@@ -10,6 +10,7 @@ on:
       - "src/components/layout/RouteIntentPreload.tsx"
       - "src/pages/IndustryTemplatePage.tsx"
       - "src/main.tsx"
+      - "package.json"
       - "src/pages/industry-template.css"
       - "src/industry-experience.css"
       - "src/data/industryExperience.ts"
