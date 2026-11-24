@@ -35,9 +35,10 @@ const messageState = new WeakMap<WebSocketClient, { messages: any[]; waiters: Me
 function trackMessages(socket: WebSocketClient) {
   const state = { messages: [] as any[], waiters: [] as MessageWaiter[] };
   messageState.set(socket, state);
-  socket.on('message', (raw: Buffer) => {
+  socket.on('message', (raw: Buffer | ArrayBuffer | Buffer[]) => {
     let message: any;
-    try { message = JSON.parse(raw.toString('utf8')); } catch { return; }
+    const text = Buffer.isBuffer(raw) ? raw.toString('utf8') : Array.isArray(raw) ? Buffer.concat(raw).toString('utf8') : Buffer.from(raw).toString('utf8');
+    try { message = JSON.parse(text); } catch { return; }
     const index = state.waiters.findIndex(waiter => waiter.predicate(message));
     if (index >= 0) {
       const [waiter] = state.waiters.splice(index, 1);
