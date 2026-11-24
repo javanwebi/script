@@ -116,6 +116,35 @@
   font-size: 11px;
   line-height: 1.9;
 }
+.kiki-region-review__change-top {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 39px;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border: 1px solid #dfe3e6;
+  border-radius: 11px;
+  color: #55565a;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 850;
+}
+.kiki-region-review__change-top:hover:not(:disabled) {
+  border-color: #e06518;
+  color: #c65312;
+}
+.kiki-region-review__change-top:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.kiki-region-review__change-top:focus-visible,
+.kiki-region-review__notice button:focus-visible,
+.kiki-region-review__error button:focus-visible {
+  outline: 3px solid rgba(224, 101, 24, .28);
+  outline-offset: 3px;
+}
 .kiki-region-review__progress {
   display: flex;
   align-items: center;
@@ -229,23 +258,40 @@
   font-size: 10px;
   line-height: 1.85;
 }
-.kiki-region-review .sanat-region-picker__full-image { display: none; }
-.kiki-region-review .sanat-region-picker__search {
-  min-height: 36px;
-  border-radius: 10px;
+.kiki-region-review .sanat-region-picker__search,
+.kiki-region-review .sanat-region-picker__full-image {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 11px;
   font-size: 10px;
   font-weight: 850;
 }
-.kiki-region-review.is-preparing .sanat-region-picker {
+.kiki-region-review .sanat-region-picker__search {
+  border: 1px solid #e06518;
+  color: #fff;
+  background: #e06518;
+}
+.kiki-region-review .sanat-region-picker__search:hover:not(:disabled) {
+  border-color: #c95210;
+  background: #c95210;
+}
+.kiki-region-review .sanat-region-picker__search:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.kiki-region-review .sanat-region-picker__full-image {
+  border: 1px solid #dfe3e6;
+  color: #55565a;
+  background: #fff;
+}
+.kiki-region-review.is-preparing .sanat-region-picker,
+.kiki-region-review.is-busy .sanat-region-picker {
   pointer-events: none;
   opacity: .68;
-}
-.kiki-region-review.is-preparing .sanat-region-picker__frame,
-.kiki-region-review.is-preparing .sanat-region-picker__side {
-  pointer-events: none;
-}
-.kiki-region-review.is-preparing .sanat-region-picker__side {
-  opacity: .58;
 }
 .kiki-region-review__notice,
 .kiki-region-review__error {
@@ -316,61 +362,6 @@
 .kiki-region-review__error button {
   border-color: #efc3bf;
   color: #a3312a;
-}
-.kiki-region-review__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
-  border-top: 1px solid #dfe3e6;
-  background: #fff;
-}
-.kiki-region-review__actions button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 43px;
-  border-radius: 12px;
-  font-size: 10px;
-  font-weight: 900;
-  transition: background .16s ease, border-color .16s ease, transform .16s ease;
-}
-.kiki-region-review__secondary {
-  padding: 0 14px;
-  border: 1px solid #dfe3e6;
-  color: #55565a;
-  background: #fff;
-}
-.kiki-region-review__secondary:hover:not(:disabled) {
-  border-color: #e06518;
-  color: #c65312;
-}
-.kiki-region-review__primary {
-  min-width: min(100%, 255px);
-  padding: 0 15px;
-  border: 1px solid #e06518;
-  color: #fff;
-  background: #e06518;
-  box-shadow: none;
-}
-.kiki-region-review__primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: #c95210;
-  background: #c95210;
-}
-.kiki-region-review__actions button:disabled,
-.kiki-region-review__change-top:disabled {
-  opacity: .55;
-  cursor: not-allowed;
-}
-.kiki-region-review__actions button:focus-visible,
-.kiki-region-review__change-top:focus-visible,
-.kiki-region-review__notice button:focus-visible,
-.kiki-region-review__error button:focus-visible {
-  outline: 3px solid rgba(224, 101, 24, .28);
-  outline-offset: 3px;
 }
 @media (max-width: 900px) {
   .kiki-region-review .sanat-region-picker__layout {
@@ -466,23 +457,14 @@
     padding: 5px 7px;
     font-size: 9px;
   }
-  .kiki-region-review__actions {
-    flex-direction: column-reverse;
-    align-items: stretch;
-    padding: 10px 9px calc(10px + env(safe-area-inset-bottom));
-  }
-  .kiki-region-review__actions button {
-    width: 100%;
-    min-height: 44px;
-  }
-  .kiki-region-review__primary {
-    min-width: 0;
+  .kiki-region-review__change-top {
+    min-height: 35px;
+    padding: 0 8px;
+    font-size: 9px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .kiki-region-review *,
-  .kiki-region-review__progress svg,
-  .kiki-region-review__actions button {
+  .kiki-region-review * {
     scroll-behavior: auto !important;
     animation: none !important;
     transition: none !important;
