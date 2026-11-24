@@ -131,3 +131,10 @@ test('KIKI results header remains sticky inside the independently scrollable cat
   assert.ok(modal.includes('lg:overflow-y-auto'));
   assert.ok(modal.includes('sticky top-0'));
 });
+
+test("region selection keeps the pointer frame stable while the crop preview updates after commit", () => {
+  const selector = source("src/components/search/ImageRegionSelector.tsx");
+  assert.match(selector, /const previewRegion=draft \? value : selected/);
+  assert.match(selector, /\{previewRegion\?/);
+  assert.match(selector, /sanat-region-picker__crop/);
+});
