@@ -407,8 +407,21 @@ export const ProductDetailPage: React.FC = () => {
         wholesale: activeUnitPrice,
         dealer: activeUnitPrice,
       },
-      images: activeImageUrl ? [activeImageUrl] : [],
-      image: activeImageUrl || undefined,
+      // A family reference photo must never be attached to an individual SKU in the cart.
+      // Only an image audited for the exact selected variant code is eligible here.
+      images: (() => {
+        const exactSkuImage = galleryImages.find(
+          (image) =>
+            image.scope === 'variant' &&
+            String(image.variantCode || '').toLowerCase() === activeSkuCode.toLowerCase(),
+        )?.url;
+        return exactSkuImage ? [exactSkuImage] : [];
+      })(),
+      image: galleryImages.find(
+        (image) =>
+          image.scope === 'variant' &&
+          String(image.variantCode || '').toLowerCase() === activeSkuCode.toLowerCase(),
+      )?.url || undefined,
       inquiryOnly: isSelectedInquiryOnly || activeUnitPrice <= 0,
     };
     addToCart(cartProduct, quantity);
