@@ -167,6 +167,14 @@ export function ImageRegionSelector({
      onLostPointerCapture={()=>{interaction.current=null;setDraft(undefined);}}
      onKeyDown={event=>{
       if(disabled)return;
+      if(autoSelect){
+       if(event.key==='Enter'||event.key===' '){
+        event.preventDefault();
+        const next=candidates.find(region=>!sameRegion(region,value))||candidates[0];
+        if(next)onChange(next);
+       }
+       return;
+      }
       if(event.key==='Escape'){onChange(undefined);return;}
       if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
       event.preventDefault();
