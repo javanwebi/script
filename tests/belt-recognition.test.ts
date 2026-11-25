@@ -13,12 +13,40 @@ function resultFor(familyCode:string,code:string):AiPartAnalysisResult{
  return {success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه صنعتی',detectedProfile:'نامشخص',visualAnalysis:'نتیجه اولیه',confidence:0,exactVisualMatch:false,catalogAvailability:{status:'similar_in_catalog',statusFarsiTitle:'مشابه',statusFarsiMessage:'بررسی شود'}},matchedProducts:[],technicalAdvice:'بررسی اولیه؛ سازگاری نهایی باید با اندازه‌گیری تأیید شود.',
  modelSuggestions:[{code,name:family.variants![0].name,familyCode,familyName:family.name,imageScope:'variant',matchBasis:'visual',specs:[],reason:'شباهت تصویری'},{code:'6202ZZ',name:'بلبرینگ',familyCode:'bearing-family',familyName:'بلبرینگ',imageScope:'variant',matchBasis:'visual',specs:[],reason:'نامرتبط'}],
  similarCandidates:[{code,name:family.variants![0].name,brand:family.brand,type:family.name,similarityScore:91,matchReason:'شباهت تصویر',specs:[],matchType:'visual',isVisualMatch:true},{code:'6202ZZ',name:'بلبرینگ',brand:'SKF',type:'بلبرینگ',similarityScore:90,matchReason:'نامرتبط',specs:[],matchType:'visual',isVisualMatch:true}],
- catalogImageMatches:[{imageId:'photo-'+familyCode,image:'/storage/belt.webp',label:family.name,score:91,reason:'تصویر نزدیک',familyNames:[family.name,'بلبرینگ'],bindings:[{familyCode,code,verified:true},{familyCode:'bearing-family',code:'6202ZZ',verified:true}]}]};
+ catalogImageMatches:[{imageId:'photo-'+familyCode,image:'/storage/belt.webp',label:family.name,score:91,reason:'تصویر نزدیک',familyNames:[family.name,'بلبرینگ'],bindings:[{familyCode,code,verified:true}]}]};
 }
 test('Persian digits and V-belt profile are read without inventing pitch',()=>{const parsed=parseBeltMarkings([{text:'SWR SPB ۲۰۰۰',confidence:97}]);assert.equal(parsed?.profile,'SPB');assert.equal(parsed?.kind,'v-belt');assert.equal(parsed?.lengthMarking,'2000');assert.equal(parsed?.nominalPitchMm,undefined);});
 test('timing profile pitch is separated from printed length marking',()=>{const parsed=parseBeltMarkings([{text:'GATES HTD 8M 1200',confidence:96}]);assert.equal(parsed?.profile,'8M');assert.equal(parsed?.kind,'timing');assert.equal(parsed?.nominalPitchMm,8);assert.equal(parsed?.lengthMarking,'1200');});
 test('lone letters and low-confidence OCR do not create a profile',()=>{assert.equal(parseBeltMarkings([{text:'INDUSTRIAL PART A',confidence:98}]),undefined);assert.equal(parseBeltMarkings([{text:'SPB 2000',confidence:84}]),undefined);});
 test('belt scope filters non-belt candidates and ranks matching profile evidence',()=>{const result=applyBeltRecognition(resultFor('belt-family','SPB-2000'),products,[{text:'SPB 2000',confidence:97}]);assert.equal(result.summary.detectedPartType,'تسمه V شکل');assert.equal(result.summary.detectedProfile,'SPB');assert.equal(result.beltAnalysis?.profileMatchStatus,'matched');assert.deepEqual(result.beltAnalysis?.codeMatches,['SPB-2000']);assert.deepEqual(result.modelSuggestions?.map(item=>item.familyCode),['belt-family']);assert.deepEqual(result.similarCandidates?.map(item=>item.code),['SPB-2000']);assert.deepEqual(result.catalogImageMatches?.[0].bindings.map(item=>item.familyCode),['belt-family']);});
+test('a cross-family shared photo cannot confirm a belt even when one binding is a belt family',()=>{
+ const base=resultFor('belt-family','SPB-2000');
+ base.catalogImageMatches?.[0].bindings.push({familyCode:'bearing-family',code:'6202ZZ',verified:false});
+ const result=applyBeltRecognition(base,products,[{text:'SPB 2000',confidence:97}]);
+ assert.equal(result.beltAnalysis?.visualBeltConfirmed,false);
+ assert.equal(result.beltAnalysis?.profileMatchStatus,'unverified');
+ assert.deepEqual(result.beltAnalysis?.candidateFamilies,[]);
+ assert.deepEqual(result.modelSuggestions,[]);
+ assert.deepEqual(result.similarCandidates,[]);
+ assert.deepEqual(result.catalogImageMatches,[]);
+});
+
+test('a shared photo across two SKUs confirms only the belt family, not either SKU visually',()=>{
+ const extendedProducts=products.map(family=>family.code==='belt-family'
+  ? {...family,variants:[...(family.variants||[]),{code:'SPB-2100',name:'SPB 2100',active:true,identitySpecs:{profile:'SPB'}}]}
+  : family) as Product[];
+ const base=resultFor('belt-family','SPB-2000');
+ base.catalogImageMatches?.[0].bindings.push({familyCode:'belt-family',code:'SPB-2100',verified:false});
+ base.modelSuggestions=[{name:'تسمه V شکل صنعتی',familyCode:'belt-family',familyName:'تسمه V شکل صنعتی',imageScope:'family',matchBasis:'visual',specs:[],reason:'تصویر مشترک خانواده'}];
+ base.similarCandidates=[];
+ const result=applyBeltRecognition(base,extendedProducts,[{text:'SPB 2000',confidence:97}]);
+ assert.equal(result.beltAnalysis?.visualBeltConfirmed,true);
+ assert.deepEqual(result.beltAnalysis?.candidateFamilies.map(item=>item.familyCode),['belt-family']);
+ assert.deepEqual(result.similarCandidates,[]);
+ assert.equal(result.modelSuggestions?.some(item=>Boolean(item.code)),false);
+ assert.deepEqual(result.beltAnalysis?.codeMatches,['SPB-2000']);
+});
+
 test('nonvisual SKU siblings are not promoted by a visually matched family',()=>{
  const extendedProducts=products.map(family=>family.code==='belt-family'
   ? {...family,variants:[...(family.variants||[]),{code:'SPB-2100',name:'SPB 2100',active:true,identitySpecs:{profile:'SPB'}}]}
