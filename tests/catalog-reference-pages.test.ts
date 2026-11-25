@@ -75,9 +75,13 @@ test('POPD e869 SKU images are attached by exact SKU code while family artwork s
   assert.match(detail, /disableFallback=\{true\}/);
   assert.match(detail, /image\.scope === 'variant'/);
   assert.match(detail, /String\(image\.variantCode \|\| ''\)\.toLowerCase\(\) === activeSkuCode\.toLowerCase\(\)/);
-  assert.match(media, /hasVerifiedRealPhoto: Boolean\(dbImg\)/);
-  assert.match(media, /familyPhotos: \['', '', ''\]/);
-  assert.doesNotMatch(media, /familyMedia\.familyPhotos\.forEach/);
+  // Family artwork is sourced from the pinned POPD media manifest, never a DB thumbnail.
+  assert.match(media, /popdMedia\.families\[clean\]/);
+  assert.match(media, /const hasVerifiedRealPhoto = familyPhotos\.length > 0/);
+  assert.match(media, /existingDbImage: null/);
+  assert.match(media, /familyPhotos,/);
+  assert.match(media, /hasVerifiedSpecSheet: hasVerifiedRealPhoto/);
+  assert.match(media, /familyMedia\.familyPhotos\.forEach/);
   assert.match(media, /activeSkuMedia\?\.realProductImage && activeSkuMedia\.profileDrawingWebp/);
   const nonBelt = read('src/components/product/NonBeltFamilyGrid.tsx');
   assert.match(nonBelt, /images: uniqueImageUrl \? \[uniqueImageUrl\] : \[\]/);
