@@ -8,6 +8,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { ImageRegionSelector } from './ImageRegionSelector';
 import type { ImageRegion } from '../../utils/imageRegion';
 import './image-region-review.css';
@@ -49,7 +50,6 @@ interface Props {
   selectedProductId?: string;
   onRegionChange: (region: ImageRegion | undefined) => void;
   onSelectProduct: (id: string) => void;
-  onOpenProduct: (id: string) => void;
   onRetryAnalysis: () => void;
   onChangeImage: () => void;
   onCamera: () => void;
@@ -74,7 +74,6 @@ export function ImageRegionReview({
   selectedProductId,
   onRegionChange,
   onSelectProduct,
-  onOpenProduct,
   onRetryAnalysis,
   onChangeImage,
   onCamera,
@@ -157,17 +156,28 @@ export function ImageRegionReview({
                 const score = typeof item.similarityScore === 'number'
                   ? Math.round(item.similarityScore <= 1 ? item.similarityScore * 100 : item.similarityScore)
                   : undefined;
+                const idCode = item.id.startsWith('sku:')
+                  ? item.id.slice(4)
+                  : item.id.startsWith('family:')
+                    ? item.id.slice(7).split(':', 1)[0]
+                    : '';
+                const productCode = (item.code || item.familyCode || idCode).trim();
+                const productHref = '/product/' + encodeURIComponent(productCode);
                 return (
                   <article className={'kiki-image-workspace__result-card' + (selected ? ' is-selected' : '')}
                     key={item.id} data-selected={selected || undefined}>
-                    <button type="button" className="kiki-image-workspace__result-select"
-                      onClick={() => { onSelectProduct(item.id); onOpenProduct(item.id); }}
-                      disabled={selectorDisabled}
-                      aria-pressed={selected}
+                    <Link to={productHref} className="kiki-image-workspace__result-select"
+                      onClick={event => {
+                        if(selectorDisabled || !productCode){event.preventDefault();return;}
+                        onSelectProduct(item.id);
+                      }}
+                      aria-disabled={selectorDisabled || !productCode}
+                      aria-current={selected ? 'page' : undefined}
+                      tabIndex={selectorDisabled || !productCode ? -1 : 0}
                       aria-label={'مشاهده صفحه محصول ' + item.name}>
                       <span className="kiki-image-workspace__result-image">
                         {item.image
-                          ? <img src={item.image} alt={item.name} loading={index < 3 ? 'eager' : 'lazy'} />
+                          ? <img src={item.image} alt={item.name} loading={index < 3 ? 'eager' : 'lazy'} decoding="async" />
                           : <span aria-hidden="true">FORZA</span>}
                       </span>
                       <span className="kiki-image-workspace__result-copy">
@@ -200,7 +210,7 @@ export function ImageRegionReview({
                         )}
                         <span className="kiki-image-workspace__result-action">مشاهده صفحه محصول و مشخصات</span>
                       </span>
-                    </button>
+                    </Link>
                   </article>
                 );
               })}
