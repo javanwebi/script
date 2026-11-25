@@ -155,9 +155,11 @@ The query path now has these bounded stages:
    candidates. Ambiguous normalized codes never select an arbitrary SKU. Code and
    geometry bonuses cannot rescue a photo below the base visual threshold.
 8. The raw photo gallery is diversified to at most two photos per family grouping.
-   The product/model list is generated independently from all retrieved eligible
-   hits, so this photo-gallery limit cannot hide additional matching models in
-   the same family. Close top family scores remain explicitly ambiguous.
+   A SKU-level visual result requires one independently bound catalogue photograph.
+   If a photograph is shared by multiple SKU codes, it produces one family-level result;
+   unscored sibling SKUs are never expanded into separate product cards. A unique OCR
+   code may still appear as an explicitly unconfirmed SKU suggestion. Close top family
+   scores remain explicitly ambiguous.
 
 Current active image bindings determine the photo/family links. Family photos do
 not choose an arbitrary size. Similarity and OCR candidates never enter the exact
