@@ -35,5 +35,8 @@ export function isIndustrialBeltDirectSku(item: {
 }): boolean {
   const label = [item.name, item.subcategory, item.submenu].filter(Boolean).join(' ');
   if (NON_BELT_TERMS.test(label)) return false;
-  return BELT_TERMS.test(label) || BELT_PROFILE_MARKING.test([item.skuCode, item.name].filter(Boolean).join(' '));
+  const marking=[item.skuCode,item.name].filter(Boolean).join(' ')
+    .replace(/[۰-۹]/g,digit=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(/[٠-٩]/g,digit=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
+  return BELT_TERMS.test(label) || BELT_PROFILE_MARKING.test(marking);
 }

@@ -29,6 +29,7 @@ test('pulleys, welding equipment and unrelated product families are excluded', (
 test('direct belt SKU search recognizes belt markings and rejects unrelated codes', () => {
   assert.equal(isIndustrialBeltDirectSku({ skuCode: 'SPB-2000', name: 'SPB 2000' }), true);
   assert.equal(isIndustrialBeltDirectSku({ skuCode: 'HTD-8M-1200', name: 'HTD 8M 1200' }), true);
+  assert.equal(isIndustrialBeltDirectSku({ skuCode: '8M-1200', name: '8M ۱۲۰۰' }), true);
   assert.equal(isIndustrialBeltDirectSku({ skuCode: '6202ZZ', name: '6202ZZ', subcategory: 'بلبرینگ' }), false);
   assert.equal(isIndustrialBeltDirectSku({ skuCode: 'PULLEY-200', name: 'پولی ۲۰۰' }), false);
 });
@@ -38,4 +39,5 @@ test('belt-selection code and catalogue links carry the belt-only search scope',
   const searchPage = readFileSync(new URL('../src/pages/SearchPage.tsx', import.meta.url), 'utf8');
   assert.match(source, /scope=industrial-belt/);
   assert.match(searchPage, /identify-part\?from=belt-selection/);
+  assert.match(searchPage, /normalizedQuery/);
 });

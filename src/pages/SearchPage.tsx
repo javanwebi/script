@@ -110,8 +110,12 @@ export const SearchPage: React.FC = () => {
         item.skuCode, item.name, item.categoryName, item.submenu,
         item.subcategory, item.brand, specText,
       ].filter(Boolean).join(' ').toLowerCase();
-      const normalizedQuery=q.replace(/[^a-z0-9]/g,'');
-      const normalizedHaystack=haystack.replace(/[^a-z0-9]/g,'');
+      const normalizeCode=(value:string)=>value
+        .replace(/[۰-۹]/g,digit=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+        .replace(/[٠-٩]/g,digit=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+        .toLowerCase().replace(/[^a-z0-9]/g,'');
+      const normalizedQuery=normalizeCode(q);
+      const normalizedHaystack=normalizeCode(haystack);
       return haystack.includes(q)||(normalizedQuery.length>=3&&normalizedHaystack.includes(normalizedQuery));
     }).slice(0, 24);
   }, [directSkus, queryParam, selectedCategory, onlyWithImage, onlyInStock, beltScoped]);
