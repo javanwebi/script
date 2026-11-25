@@ -15,7 +15,17 @@ export const productStorageDirectory = () =>
   process.env.PRODUCT_STORAGE_DIR ||
   (process.env.NODE_ENV==='production' ? '/data/storage/products' : path.join(process.cwd(),'storage','products'));
 
-async function activeCatalogDirectory(root:string){
+export async function activeCatalogDirectory(root:string){
+ const override=String(process.env.CATALOG_IMAGE_READ_DIR||"").trim();
+ if(override){
+  const resolvedRoot=path.resolve(root);
+  const resolved=path.resolve(override);
+  if(resolved!==resolvedRoot && !resolved.startsWith(resolvedRoot+path.sep))
+   throw new Error("CATALOG_IMAGE_READ_DIR_OUTSIDE_PRODUCT_STORAGE");
+  const ready=await fs.stat(resolved).then(info=>info.isDirectory()).catch(()=>false);
+  if(!ready)throw new Error("CATALOG_IMAGE_READ_DIR_MISSING");
+  return resolved;
+ }
  const current=path.join(root,"catalog-current");
  const currentIsDirectory=await fs.stat(current).then(info=>info.isDirectory()).catch(()=>false);
  return currentIsDirectory?current:path.join(root,"catalog");

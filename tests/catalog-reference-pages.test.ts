@@ -122,3 +122,19 @@ test('reference catalog reports only attached artwork and preserves legacy produ
   assert.match(detail, /LegacyProductDetailPage/);
   assert.match(detail, /status === 'not-found'/);
 });
+
+
+test('POPD 869-image release is staged for canary and used by both product and vision image readers', () => {
+  const storage = read('server/productImageStorage.ts');
+  const server = read('server.ts');
+  const sync = read('scripts/sync-popd-catalog-images.mjs');
+  const deploy = read('ops/deploy-single-port-vps.sh');
+  assert.match(storage, /CATALOG_IMAGE_READ_DIR/);
+  assert.match(storage, /CATALOG_IMAGE_READ_DIR_MISSING/);
+  assert.match(server, /activeCatalogDirectory\\(productStorageDirectory\\(\\)\\)/);
+  assert.match(sync, /CATALOG_IMAGE_RELEASE_ID/);
+  assert.match(sync, /CATALOG_IMAGE_ACTIVATE !== "false"/);
+  assert.match(deploy, /node scripts\\/sync-popd-catalog-images\\.mjs/);
+  assert.match(deploy, /CATALOG_IMAGE_READ_DIR=\\$POPD_CATALOG_IMAGE_RELEASE_DIR/);
+  assert.match(deploy, /CATALOG_IMAGE_ACTIVATE=false/);
+});

@@ -2,7 +2,7 @@ import {visionPublicOrigin} from './src/utils/visionPublicOrigin';
 import {loadLocalVisionConfig} from './server/localVisionConfig';
 import {prepareLocalQuery,validImageRegion} from './src/services/localQueryImage';
 import {adminReportsApi} from './server/db/adminReports';
-import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
+import {registerProductImageStorage,prepareProductStorage,productStorageDirectory,activeCatalogDirectory} from './server/productImageStorage';
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import { registerCatalogReferenceApi } from './server/catalogReferenceApi';
@@ -1245,10 +1245,12 @@ async function getCatalogImageBuffer(image?:string, revision=''):Promise<Buffer|
   if(catalogFile){
     // Database URLs resolve to our own app. The verified original exists either
     // on the Railway volume or as a tracked asset in this exact site revision.
-    for(const directory of [
-      path.join(productStorageDirectory(),'catalog'),
-      path.join(process.cwd(),'storage','products','catalog')
-    ]){
+    const directories=[await activeCatalogDirectory(productStorageDirectory())];
+    // Tracked source-tree images are a development-only fallback. Production must
+    // use the pinned persistent-volume release, never stale checked-in originals.
+    if(process.env.NODE_ENV!=='production')
+      directories.push(path.join(process.cwd(),'storage','products','catalog'));
+    for(const directory of directories){
       try{return await fs.promises.readFile(path.join(directory,catalogFile));}catch{}
     }
     return null; // Never make a GitHub network request for official product images.

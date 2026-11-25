@@ -144,15 +144,22 @@ async function main() {
     files.some(file => !Number.isInteger(file.size) || file.size <= 1000 || !/^[a-f0-9]{40}$/.test(file.sha))
   ) throw new Error("POPD_E869_SOURCE_TREE_INVALID");
 
-  let releaseDir = path.join(RELEASES_DIR, POPD_COMMIT);
+  const releaseId = String(process.env.CATALOG_IMAGE_RELEASE_ID || POPD_COMMIT).trim();
+  if (!/^[a-f0-9]{40}(?:-[a-f0-9]{40})?$/.test(releaseId)) {
+    throw new Error("POPD_CATALOG_RELEASE_ID_INVALID");
+  }
+  const activateCurrent = process.env.CATALOG_IMAGE_ACTIVATE !== "false";
+  const releaseDir = path.join(RELEASES_DIR, releaseId);
   if (await validateExistingRelease(releaseDir, files)) {
-    await switchCurrentLink(releaseDir);
-    console.log("POPD_CATALOG_IMAGE_SYNC_OK", `sourceCommit=${POPD_COMMIT}`, "images=869", "downloaded=0", "reused=869");
+    if (activateCurrent) await switchCurrentLink(releaseDir);
+    console.log("POPD_CATALOG_IMAGE_SYNC_OK", `sourceCommit=${POPD_COMMIT}`, `releaseId=${releaseId}`, `releaseDir=${releaseDir}`, "images=869", "downloaded=0", "reused=869", `activated=${activateCurrent}`);
     return;
   }
 
   const existingRelease = await fs.lstat(releaseDir).catch(() => null);
-  if (existingRelease) releaseDir = path.join(RELEASES_DIR, `${POPD_COMMIT}-${Date.now()}`);
+  if (existingRelease) {
+    throw new Error("POPD_CATALOG_EXISTING_RELEASE_INVALID: " + releaseId);
+  }
   const stageDir = await fs.mkdtemp(path.join(RELEASES_DIR, ".staging-"));
   let downloaded = 0;
   try {
@@ -167,14 +174,17 @@ async function main() {
     }
 
     await fs.rename(stageDir, releaseDir);
-    await switchCurrentLink(releaseDir);
+    if (activateCurrent) await switchCurrentLink(releaseDir);
     console.log(
       "POPD_CATALOG_IMAGE_SYNC_OK",
       `sourceCommit=${POPD_COMMIT}`,
+      `releaseId=${releaseId}`,
+      `releaseDir=${releaseDir}`,
       `images=${files.length}`,
       `bytes=${files.reduce((sum, file) => sum + file.size, 0)}`,
       `downloaded=${downloaded}`,
       `uniqueSkuLinks=${skuCodes.size}`,
+      `activated=${activateCurrent}`,
     );
   } catch (error) {
     await fs.rm(stageDir, { recursive: true, force: true }).catch(() => {});
