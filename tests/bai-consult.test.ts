@@ -1,7 +1,7 @@
 import test from 'node:test';
 import './private-forza-config.test';
 import assert from 'node:assert/strict';
-import { BaiConsultError, completeXkiroConsult, configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, publicForzaTextProviderStatus, providerStreamTimeouts, resolveForzaTextProvider, streamAvalaiConsult, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
+import { BaiConsultError, buildForzaVoiceSystemMessage, completeXkiroConsult, configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, publicForzaTextProviderStatus, providerStreamTimeouts, resolveForzaTextProvider, streamAvalaiConsult, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
 
 function fakeStream(parts: string[], status = 200, contentType = 'text/event-stream') {
   const chunks = parts.map(p => new TextEncoder().encode(p));
@@ -19,34 +19,37 @@ test('AvalAI is opt-in, requires its own key, and defaults to the economical GLM
   assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai' }, false), null);
   assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai', AVALAI_API_KEY: 'example' }, false), 'glm-5.3-flash');
   assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai', AVALAI_API_KEY: 'example', AVALAI_MODEL_DESK: 'qwen3.8-flash' }, false), 'qwen3.8-flash');
-  assert.equal(configuredAvalaiModel({ FORZA_VOICE_PROVIDER: 'avalai', AVALAI_API_KEY: 'example' }, true), 'glm-5.3-flash');
+  assert.equal(configuredAvalaiModel({ FORZA_VOICE_PROVIDER: 'avalai', AVALAI_API_KEY: 'example' }, true), 'cf.phonellm-mini-alpha-2');
+  // A stale legacy voice-model value must not override the temporary PhoneLLM call model.
+  assert.equal(configuredAvalaiModel({ FORZA_VOICE_PROVIDER: 'avalai', AVALAI_API_KEY: 'example', AVALAI_MODEL_VOICE: 'glm-5.3-flash' }, true), 'cf.phonellm-mini-alpha-2');
   assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'xkiro', AVALAI_API_KEY: 'example' }, false), null);
 });
 
-test('voice inherits the configured desk AvalAI provider and model when no voice override exists', () => {
+test('voice uses the dedicated low-cost PhoneLLM model independently of the desk model', () => {
   const env = {
     FORZA_DESK_PROVIDER: 'avalai',
     AVALAI_API_KEY: 'private-avalai-key',
     AVALAI_MODEL_DESK: 'qwen3.8-flash',
   };
-  assert.equal(configuredAvalaiModel(env, true), 'qwen3.8-flash');
+  assert.equal(configuredAvalaiModel(env, true), 'cf.phonellm-mini-alpha-2');
   const selection = resolveForzaTextProvider(env, true);
   assert.equal(selection.requestedProvider, 'avalai');
   assert.equal(selection.provider, 'avalai');
-  assert.equal(selection.model, 'qwen3.8-flash');
+  assert.equal(selection.model, 'cf.phonellm-mini-alpha-2');
   assert.equal(selection.configured, true);
 });
 
-test('explicit voice provider and model override desk defaults', () => {
+test('explicit FORZA voice model override takes precedence over the desk and legacy voice settings', () => {
   const env = {
     FORZA_DESK_PROVIDER: 'avalai',
     FORZA_VOICE_PROVIDER: 'avalai',
     AVALAI_API_KEY: 'private-avalai-key',
     AVALAI_MODEL_DESK: 'qwen3.8-flash',
     AVALAI_MODEL_VOICE: 'glm-5.3-flash',
+    FORZA_AVALAI_VOICE_MODEL: 'cf.phonellm-mini-alpha-2',
   };
-  assert.equal(configuredAvalaiModel(env, true), 'glm-5.3-flash');
-  assert.equal(resolveForzaTextProvider(env, true).model, 'glm-5.3-flash');
+  assert.equal(configuredAvalaiModel(env, true), 'cf.phonellm-mini-alpha-2');
+  assert.equal(resolveForzaTextProvider(env, true).model, 'cf.phonellm-mini-alpha-2');
 });
 
 test('FORZA voice provider diagnostics report effective AvalAI model without exposing credentials', () => {
@@ -54,10 +57,11 @@ test('FORZA voice provider diagnostics report effective AvalAI model without exp
     FORZA_VOICE_PROVIDER: 'avalai',
     AVALAI_API_KEY: 'private-avalai-key',
     AVALAI_MODEL_VOICE: 'glm-5.3-flash',
+    FORZA_AVALAI_VOICE_MODEL: 'cf.phonellm-mini-alpha-2',
   };
   const selection = resolveForzaTextProvider(env, true);
   assert.equal(selection.provider, 'avalai');
-  assert.equal(selection.model, 'glm-5.3-flash');
+  assert.equal(selection.model, 'cf.phonellm-mini-alpha-2');
   assert.equal(selection.configured, true);
   assert.equal(selection.apiKey, 'private-avalai-key');
 
@@ -139,6 +143,46 @@ test('AvalAI streams SSE through the shared FORZA contract and uses low reasonin
   assert.equal(requestBody.reasoning_effort, 'low');
   assert.equal(requestBody.max_tokens, 256);
   assert.equal(requestBody.messages[0].role, 'system');
+});
+
+test('PhoneLLM voice requests stay compact while preserving the latest conversation turns', async () => {
+  const history = Array.from({length: 20}, (_, index) => ({
+    role: index % 2 === 0 ? 'user' as const : 'model' as const,
+    text: String(index).padEnd(1400, 'م'),
+  }));
+  let requestBody: any;
+  const model = configuredAvalaiModel({
+    FORZA_VOICE_PROVIDER: 'avalai',
+    AVALAI_API_KEY: 'secret-placeholder',
+  }, true);
+  assert.equal(model, 'cf.phonellm-mini-alpha-2');
+  assert.ok(buildForzaVoiceSystemMessage().length < 1200);
+
+  await streamAvalaiConsult({
+    apiKey: 'secret-placeholder',
+    model: model!,
+    query: 'برای خط بسته‌بندی چه تسمه‌ای مناسب است؟',
+    history,
+    voice: true,
+    catalogContext: 'ک'.repeat(3000),
+    fetchImpl: (async (_url: string | URL | Request, options?: RequestInit) => {
+      requestBody = JSON.parse(String(options?.body));
+      return fakeStream([
+        'data: {"choices":[{"delta":{"content":"برای انتخاب دقیق، عرض تسمه را بفرمایید."}}]}\\n\\n',
+        'data: [DONE]\\n\\n',
+      ]);
+    }) as typeof fetch,
+    onDelta: () => {},
+  });
+
+  assert.equal(requestBody.model, 'cf.phonellm-mini-alpha-2');
+  assert.equal(requestBody.stream, true);
+  assert.equal(requestBody.max_tokens, 192);
+  assert.equal(Object.hasOwn(requestBody, 'reasoning_effort'), false);
+  assert.equal(requestBody.messages.length, 10); // system + 8 recent messages + current user turn
+  assert.ok(requestBody.messages[1].content.length <= 1000);
+  assert.ok(requestBody.messages[0].content.length <= buildForzaVoiceSystemMessage().length + 2200);
+  assert.equal(requestBody.messages.at(-1).role, 'user');
 });
 
 test('AvalAI Qwen Flash route does not receive GLM-specific reasoning parameters', async () => {
