@@ -37,3 +37,20 @@ test('mobile account dialog uses one scroll surface and keeps separate auth imag
   assert.match(css, /\.account-dialog \.account-access-form\s*\{[^}]*overflow: visible/s);
   assert.match(css, /-webkit-overflow-scrolling: touch/);
 });
+
+test('all dedicated auth URLs and the shared dialog use the same two-mode account design', () => {
+  const app = read('src/App.tsx');
+  const modal = read('src/components/auth/AuthModal.tsx');
+  const auth = read('src/components/auth/AccountAccess.tsx');
+  const css = read('src/storefront.css');
+  assert.match(app, /path="\\/login" element={<LoginPage \/>}/);
+  assert.match(app, /path="\\/register" element={<RegisterPage \/>}/);
+  assert.match(modal, /<AccountAccess[\\s\\S]*initial={authModalInitialView}/);
+  assert.match(auth, /data-mode={mode}/);
+  assert.match(auth, /bannerAuthLogin/);
+  assert.match(auth, /bannerAuthRegister/);
+  assert.match(auth, /همکاری صنعتی را هوشمندانه شروع کنید/);
+  assert.match(auth, /قطعات، استعلام‌ها و سفارش‌هایتان یک‌جا در دسترس است/);
+  assert.match(css, /grid-template-columns: minmax\\(0, \\.9fr\\) minmax\\(0, 1\\.1fr\\)/);
+  assert.match(css, /@media \\(max-width: 767px\\)[\\s\\S]*?\\.account-access-story/);
+});
