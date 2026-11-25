@@ -54,6 +54,7 @@ test('family and SKU artwork only use identity-verified matches and never generi
 
   assert.match(api, /matchedGallery[\s\S]*filter\(\(image\) => image\.scope === 'family' && image\.identityVerified === true/);
   assert.match(api, /product\.image = familyImages\[0\] \|\| ''/);
+  assert.match(api, /image\.scope === 'variant'/);
   assert.doesNotMatch(api, /product\.image = familyImages\[0\] \|\| product\.image/);
   assert.doesNotMatch(category, /resolveSiteProductImage/);
   assert.match(category, /تصویر معتبر ثبت نشده/);
