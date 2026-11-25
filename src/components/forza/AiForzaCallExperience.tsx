@@ -1398,7 +1398,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Every rotated WebM segment is transcribed with at most two requests
           // in flight. Scale the deadline with segment count instead of imposing
           // a fixed total recording-duration ceiling.
-          const sttBudgetMs=Math.max(45_000,Math.ceil(audioBlobs.length/2)*42_000+8_000);
+          const sttBudgetMs=Math.max(55_000,Math.ceil(audioBlobs.length/2)*52_000+8_000);
           const sttTimer=window.setTimeout(
             ()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید.')),
             sttBudgetMs,
