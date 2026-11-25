@@ -908,6 +908,43 @@ const catalogVisualIndex=new CatalogVisualIndex(
  localVisionEnabled ? {model:localProfile.model,dimensions:localProfile.dimensions,batchSize:1,concurrency:1,imageSize:512} : undefined
 );
 const localImagePublisher:ImagePublisher=async()=>{throw new Error('Local vision does not publish images');};
+
+type LocalVisionStatusSnapshot = {
+ total:number;
+ indexed:number;
+ ready:boolean;
+ storedEntries:number;
+ missing:number;
+ signatureChanged:number;
+};
+let localVisionStatusSnapshot:LocalVisionStatusSnapshot|null=null;
+let localVisionStatusRefresh:Promise<void>|null=null;
+let localVisionStatusLastRefreshAt=0;
+
+function refreshLocalVisionStatusSnapshot():Promise<void>{
+ if(!localVisionEnabled)return Promise.resolve();
+ if(localVisionStatusRefresh)return localVisionStatusRefresh;
+ if(localVisionStatusSnapshot && Date.now()-localVisionStatusLastRefreshAt<15000)return Promise.resolve();
+ const pending=new Promise<void>(resolve=>setImmediate(resolve)).then(async()=>{
+  await catalogVisualIndex.load();
+  refreshRecognitionCatalog();
+  const images=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
+  const coverage=catalogVisualIndex.coverage(images);
+  localVisionStatusSnapshot={...coverage,ready:images.length>0 && coverage.ready};
+  localVisionStatusLastRefreshAt=Date.now();
+ }).catch(error=>{
+  const reason=error instanceof Error?error.message:'status_refresh_failed';
+  console.warn('[Local vision status] Refresh deferred:',reason.slice(0,120));
+  if(!localVisionStatusSnapshot){
+   localVisionStatusSnapshot={total:0,indexed:0,ready:false,storedEntries:0,missing:0,signatureChanged:0};
+  }
+  localVisionStatusLastRefreshAt=Date.now();
+ }).finally(()=>{
+  if(localVisionStatusRefresh===pending)localVisionStatusRefresh=null;
+ });
+ localVisionStatusRefresh=pending;
+ return pending;
+}
 let nextVisualIndexBuild=0;
 let nextEmbeddingSlot=0;
 async function embedCatalogImages(buffers:Buffer[],publishImage:ImagePublisher):Promise<number[][]>{
@@ -937,6 +974,8 @@ function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus
  void catalogVisualIndex.update(corpus,row=>getCatalogImageBuffer(row.url,row.revision),buffers=>embedCatalogImages(buffers,publishImage))
  .then(()=>{
   const coverage=catalogVisualIndex.coverage(corpus);
+  localVisionStatusSnapshot={...coverage,ready:corpus.length>0 && coverage.ready};
+  localVisionStatusLastRefreshAt=Date.now();
   console.log('[Visual index]',JSON.stringify(coverage));
   // Retry only missing/unreadable catalogue rows; do not report ready until all are indexed.
   if(!coverage.ready)setTimeout(()=>warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),publishImage),65000).unref();
@@ -944,6 +983,7 @@ function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus
  .catch((error)=>{
    const reason=error instanceof RecognitionServiceError ? error.code : String(error?.message || 'index_unavailable').slice(0,120);
    console.warn('[Visual index] Incomplete:',reason);
+   void refreshLocalVisionStatusSnapshot();
    // Resume persisted batches after transient failures or provider rate limits.
    setTimeout(()=>warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),publishImage),65000).unref();
  });
@@ -4625,12 +4665,24 @@ app.get('/api/ai/recognition-jobs/:id',(req,res)=>{
 // stage: 'quick'   = image-only instant identification (step 1)
 //        'refined' = image + dimensions + application (steps 2-3)
 let localVisionQueries=0;
-// Keep the browser capability probe cheap. Warm the in-memory index in the
-// background, while the detect/analyze endpoints remain responsible for readiness.
+// Return the last verified coverage immediately; refresh it asynchronously so
+// the browser never waits for PostgreSQL/catalogue enumeration on modal open.
+// Deployment gates keep the full readiness contract (namespace, persistence,
+// stored rows and signature coverage) and continue polling until ready is true.
 app.get('/api/ai/local-vision-status', (_req,res)=>{
  if(!localVisionEnabled)return res.json({enabled:false});
- void catalogVisualIndex.load().catch(()=>undefined);
- return res.json({enabled:true,model:localProfile.model,pipeline:localProfile.pipeline});
+ void refreshLocalVisionStatusSnapshot();
+ const snapshot=localVisionStatusSnapshot || {
+  total:0,indexed:0,ready:false,storedEntries:0,missing:0,signatureChanged:0
+ };
+ return res.json({
+  enabled:true,
+  model:localProfile.model,
+  pipeline:localProfile.pipeline,
+  namespace:VISUAL_INDEX_NAMESPACE,
+  persistence:databaseEnabled()?'postgres':'file',
+  ...snapshot,
+ });
 });
 
 const localVisionDetectionCache = new LocalVisionDetectionCache();
