@@ -1077,7 +1077,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           candidateRegions={candidateRegions}
           message={[regionDetectionMessage, localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
           analysisError={errorMessage}
-          busy={isUploadingImage || !temporaryImageDataUrl}
+          busy={isUploadingImage}
           onRegionChange={handleRegionSelection}
           analysisBusy={inlineAnalysisBusy}
           progress={analysisProgress}
@@ -1093,6 +1093,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           }}
           onRetryAnalysis={() => {
             setErrorMessage('');
+            if(!localImageId&&selectedImage){void uploadAndPrepareImage(selectedImage,'camera-capture.jpg');return;}
             const region=fullImageSelected?null:(queryRegion||candidateRegions[0]||null);
             const key=localImageId+':'+(region?[region.x,region.y,region.width,region.height].map(value=>value.toFixed(4)).join(':'):'full-image');
             autoAnalysisKeyRef.current=key;
