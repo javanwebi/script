@@ -186,11 +186,18 @@ export async function mapForzaSegmentsInOrder<T,R>(
  * Keep browser-recognized industrial part codes when the acoustic model drops
  * them, but otherwise prefer the server transcript as the final authority.
  */
-export function chooseForzaFinalTranscript(browserValue:string,serverValue:string):string{
+export function chooseForzaFinalTranscript(browserValue:string,serverValue:string,preferServer=false):string{
   const browser=normalizePersianTranscript(browserValue);
   const server=normalizePersianTranscript(serverValue);
   if(!server)return browser;
   if(!browser)return server;
+  // AvalAI GPT-Transcribe is the high-accuracy final verifier. Prefer its
+  // complete transcript over a plausible-looking but incorrect browser code;
+  // only keep browser text when the server clearly returned a tiny fragment.
+  if(preferServer){
+    if(browser.length>=12&&server.length<Math.max(6,browser.length*0.45))return browser;
+    return server;
+  }
   const toAsciiDigits=(value:string)=>value.replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
   const technicalTokens=(value:string)=>{
     const normalized=toAsciiDigits(value).toUpperCase();
