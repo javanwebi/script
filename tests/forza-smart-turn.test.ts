@@ -48,12 +48,18 @@ test('only explicit control commands bypass the adaptive endpoint', () => {
   for (const phrase of ['وایسا', 'صبر کن', 'بس کن', 'توقف', 'ساکت شو', 'ادامه بده']) {
     assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 850, phrase);
   }
+  assert.equal(forzaTurnRemainingWaitMs('صبر کن',false,700,null),0,
+    'explicit stop commands must not inherit the long no-VAD fallback');
   for (const phrase of ['سلام', 'درود', 'ممنون']) {
     assert.equal(forzaEndOfTurnPauseMs(phrase, false), 1350);
     assert.ok(forzaTurnRemainingWaitMs(phrase, false, 1000, 1000) > 0);
   }
-  assert.ok(forzaEndOfTurnPauseMs('اوکی',false)>=2000);
+  assert.equal(forzaEndOfTurnPauseMs('اوکی',false),1350);
   for(const phrase of ['مدل چند است؟','آیا بلبرینگ 6203 موجود است؟']){
+    assert.ok(forzaEndOfTurnPauseMs(phrase,false)<=1600,phrase);
+  }
+  for(const phrase of ['بله','آره','نه','همونه','همون قبلی','دومی','باشه','اوکی','درسته']){
+    assert.equal(analyzePersianSentenceCompletion(phrase).isComplete,true,phrase);
     assert.ok(forzaEndOfTurnPauseMs(phrase,false)<=1600,phrase);
   }
   assert.equal(analyzePersianSentenceCompletion('صبر کن تا').isComplete, false);
@@ -104,7 +110,8 @@ test('missing VAD analyser uses a longer text-only guard without blocking foreve
   const pause=forzaEndOfTurnPauseMs(phrase,false);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,pause+50,null)>0,
     'a browser interim stall must not be mistaken for acoustic silence');
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,6050,null),0);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,6050,null),450);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,6500,null),0);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,0,null)>0);
 });
 

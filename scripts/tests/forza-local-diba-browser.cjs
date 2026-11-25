@@ -29,12 +29,10 @@ function wav(seconds=0.2){
    const analyser=window.AnalyserNode?.prototype;
    if(analyser?.getFloatTimeDomainData)
     analyser.getFloatTimeDomainData=function(samples){samples.fill(window.__forzaMicSample);};
-   class FakeBrowserRecognition{
-    start(){window.__forzaBrowserStarts=(window.__forzaBrowserStarts||0)+1;this.onstart?.();}
-    stop(){this.onend?.();}
-    abort(){this.onend?.();}
-   }
-   window.SpeechRecognition=window.webkitSpeechRecognition=FakeBrowserRecognition;
+   // This regression intentionally exercises the local Diba fallback,
+   // not Chrome's browser recognizer. The separate live-STT browser test
+   // covers the native Web Speech path.
+   window.SpeechRecognition=window.webkitSpeechRecognition=undefined;
   });
   await page.route('**/forza-runtime/stt/vosk.js',route=>route.fulfill({
    status:200,contentType:'application/javascript',

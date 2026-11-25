@@ -85,7 +85,7 @@ test('local Diba streams partial and final hypotheses and falls back to browser 
  assert.match(ui,/recognizer\.on\('result'/);
  assert.match(ui,/recognizer\.on\('error'/);
  assert.match(ui,/recognitionStartRef\.current\(\)/);
- assert.match(ui,/const localReady=startDibaTurn\(\)/);
+ assert.match(ui,/const localReady=browserReady\?false:startDibaTurn\(\)/);
  assert.match(ui,/دایبا محلی آماده است · تشخیص زنده/);
 });
 
@@ -107,18 +107,22 @@ test('the browser keeps one Diba recognizer alive across listen/monitor transiti
   'final Vosk segments must append to the same customer turn');
 });
 
-test('server Diba status is non-blocking and browser retains configured fallback while warming',()=>{
+test('server STT status is non-blocking and browser retains live fallback while warming',()=>{
  const server=readFileSync('server.ts','utf8');
  const status=server.split("app.get('/api/ai/forza-stt-info'")[1].split("// POST: /api/ai/forza-live")[0];
- assert.match(status,/serverSttConfigured:choice\.provider==='gemini'\|\|dibaConfigured/);
- assert.match(status,/serverSttReady:choice\.provider==='diba'\?isForzaDibaSttReady\(\)/);
+ assert.match(status,/serverSttConfigured:choice\.provider==='avalai'\|\|choice\.provider==='gemini'\|\|/);
+ assert.match(status,/\(choice\.provider==='diba'&&dibaConfigured\)/);
+ assert.match(status,/serverSttReady:choice\.provider==='avalai'\|\|choice\.provider==='gemini'\|\|/);
+ assert.match(status,/\(choice\.provider==='diba'\?isForzaDibaSttReady\(\):false\)/);
+
  assert.doesNotMatch(status,/await warmForzaDibaStt\(\)/,
   'readiness diagnostics must not block while workers warm');
  assert.match(server,/void warmForzaDibaStt\(\)\.then/,
   'the local worker pool must warm independently of status requests');
  const ui=readFileSync('src/components/forza/AiForzaCallExperience.tsx','utf8');
- assert.match(ui,/const dibaConfigured=info\.serverSttProvider==='diba'&&info\.serverSttConfigured===true/);
- assert.match(ui,/serverSttConfiguredRef\.current=dibaConfigured/);
+ assert.match(ui,/const configured=info\.serverSttConfigured===true&&/);
+ assert.match(ui,/provider==='avalai'\|\|provider==='diba'\|\|provider==='gemini'/);
+ assert.match(ui,/serverSttConfiguredRef\.current=configured/);
  assert.match(ui,/attempts<12/,
   'the browser should poll a configured but cold worker instead of permanently disabling fallback');
 });

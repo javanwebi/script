@@ -58,7 +58,7 @@ test('FORZA keeps a call-wide transcript and continuation-aware model context',(
   assert.match(ui,/sessionTranscriptRef\.current=appendForzaSessionTurn\(sessionTranscriptRef\.current,candidate\)/);
   assert.match(ui,/setUserText\(composeForzaSessionTranscript\(sessionTranscriptRef\.current,mergedSpeech\)\)/);
   assert.match(ui,/mapForzaSegmentsInOrder\(audioBlobs,2/);
-  assert.match(ui,/Math\.ceil\(audioBlobs\.length\/2\)\*22_000/);
+  assert.match(ui,/Math\.ceil\(audioBlobs\.length\/2\)\*52_000/);
   assert.doesNotMatch(ui,/audioSegmentsRef\.current\.length>4/,
     'no earlier audio segment may be shifted out of a long recording');
   assert.match(server,/گفتار تازه ادامه، تکمیل، اصلاح یا جزئیاتِ صحبت قبلی است/);

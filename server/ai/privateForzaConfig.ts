@@ -15,9 +15,10 @@ export function applyPrivateForzaConfig(
     'FORZA_STT_WORKERS',
   ]);
   for (const [key, value] of Object.entries(config)) {
-    // When the pinned VPS image includes Diba, its provider and runtime paths
-    // are authoritative. A stale private-file value must not disable it or
-    // point the worker at a Python/model path absent from the live container.
+    // When the pinned VPS image includes Diba, the container-selected STT
+    // provider and its local runtime paths are authoritative. AvalAI can be the
+    // primary recognizer while this image-owned Diba model remains its fallback;
+    // a stale private file must not replace the provider or break those paths.
     if (hasBundledDibaRuntime && imageOwnedSttKeys.has(key)) continue;
     if ((key.startsWith('FORZA_') || key.startsWith('AVALAI_')) && typeof value === 'string') {
       env[key] = value;

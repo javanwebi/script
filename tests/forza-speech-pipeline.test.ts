@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   appendForzaSpeechSegment, checkpointForzaRecognition, extractPersianSpeechRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs,
-  normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64,
+  normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64, chooseForzaFinalTranscript,
+  canUseForzaServerFinalTranscript,
 } from '../src/utils/forzaSpeechPipeline.ts';
 
 function result(value:string, isFinal:boolean) {
@@ -25,14 +26,14 @@ test('Persian normalization preserves real product codes and numbers',()=>{
 });
 
 test('Adaptive endpointing speeds up complete turns and protects unfinished industrial phrases',()=>{
-  assert.equal(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false),2800);
-  assert.equal(forzaEndOfTurnPauseMs('مدل 6205',true),3400);
+  assert.equal(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false),4300);
+  assert.equal(forzaEndOfTurnPauseMs('مدل 6205',true),5200);
   assert.equal(forzaEndOfTurnPauseMs('سلام',false),1350);
   assert.equal(forzaEndOfTurnPauseMs('ممنون',false),1350);
   assert.equal(forzaEndOfTurnPauseMs('مدل چند است؟',false),1350);
   assert.ok(forzaTurnRemainingWaitMs('مدل چند است؟',false,1000,1000)>0);
-  assert.equal(forzaTurnRemainingWaitMs('مدل چند است؟',false,1400,1400),0);
-  assert.equal(forzaEndOfTurnPauseMs('',false),5200);
+  assert.equal(forzaTurnRemainingWaitMs('مدل چند است؟',false,2200,2200),0);
+  assert.equal(forzaEndOfTurnPauseMs('',false),6500);
 });
 
 test('Only the spoken copy expands industrial codes, never the underlying SKU',()=>{
@@ -106,4 +107,31 @@ test('FORZA response stream has no fixed total-duration cutoff',()=>{
   const source=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
   assert.doesNotMatch(source,/totalTimer|120000|بیش از دو دقیقه/);
   assert.match(source,/ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند/);
+});
+
+test('a partial server transcript never replaces the complete browser utterance after any segment fails',()=>{
+  assert.equal(canUseForzaServerFinalTranscript('تمام متن گفتار',0),true);
+  assert.equal(canUseForzaServerFinalTranscript('فقط بخش دوم گفتار',1),false);
+  assert.equal(canUseForzaServerFinalTranscript('فقط بخش سوم گفتار',2),false);
+  assert.equal(canUseForzaServerFinalTranscript('',0),false);
+  assert.equal(canUseForzaServerFinalTranscript('متن ناقص',Number.NaN),false);
+  const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
+  assert.match(ui,/canUseForzaServerFinalTranscript\(serverTranscript,failedSegments\)/);
+});
+
+test('AvalAI final transcript corrects a plausible but wrong browser product code',()=>{
+  const browser='برای خط تولید بلبرینگ 6303 ZZ می‌خواهم';
+  const avalai='برای خط تولید بلبرینگ 6203 ZZ می‌خواهم';
+  assert.equal(chooseForzaFinalTranscript(browser,avalai,true),avalai);
+});
+
+test('AvalAI final transcript does not replace a complete browser turn with a tiny fragment',()=>{
+  const browser='برای خط بسته‌بندی تسمه تایمینگ با عرض بیست میلی‌متر می‌خواهم';
+  assert.equal(chooseForzaFinalTranscript(browser,'تسمه',true),browser);
+});
+
+test('Diba fallback keeps the existing technical-code preservation heuristic',()=>{
+  const browser='بلبرینگ 6203 ZZ برای خط تولید';
+  const diba='بلبرینگ برای خط تولید';
+  assert.equal(chooseForzaFinalTranscript(browser,diba,false),browser);
 });
