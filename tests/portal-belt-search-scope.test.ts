@@ -1,0 +1,39 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import type { Product } from '../src/types';
+import { isIndustrialBeltDirectSku, isIndustrialBeltProduct } from '../src/utils/industrialBeltScope';
+
+test('industrial belt family is recognized from its product identity and belt division metadata', () => {
+  const family = {
+    code: 'belt-family',
+    name: 'SPB industrial family',
+    nameEn: 'V belt',
+    brand: 'SWR',
+    categorySlug: 'excel-v2-1-3',
+    categoryName: 'تسمه و انتقال نیرو',
+    subcategory: 'SPB',
+    active: true,
+    variants: [{ code: 'SPB-2000', variableSpecs: { beltDivision: 'vbelt-wedge' } }]
+  } as Product;
+  assert.equal(isIndustrialBeltProduct(family), true);
+});
+
+test('pulleys, welding equipment and unrelated product families are excluded', () => {
+  const base = { brand: 'Generic', categorySlug: 'excel-v2-1-1', categoryName: 'تسمه و انتقال نیرو', active: true, variants: [] };
+  assert.equal(isIndustrialBeltProduct({ ...base, code: 'pulley', name: 'پولی تایمینگ', subcategory: 'پولی' } as Product), false);
+  assert.equal(isIndustrialBeltProduct({ ...base, code: 'welding-tool', name: 'دستگاه جوش تسمه', subcategory: 'تجهیزات جوش' } as Product), false);
+  assert.equal(isIndustrialBeltProduct({ ...base, code: 'bearing', name: 'بلبرینگ شیار عمیق', categorySlug: 'bearings', categoryName: 'قطعات مکانیکی', subcategory: 'بلبرینگ' } as Product), false);
+});
+
+test('direct belt SKU search recognizes belt markings and rejects unrelated codes', () => {
+  assert.equal(isIndustrialBeltDirectSku({ skuCode: 'SPB-2000', name: 'SPB 2000' }), true);
+  assert.equal(isIndustrialBeltDirectSku({ skuCode: 'HTD-8M-1200', name: 'HTD 8M 1200' }), true);
+  assert.equal(isIndustrialBeltDirectSku({ skuCode: '6202ZZ', name: '6202ZZ', subcategory: 'بلبرینگ' }), false);
+  assert.equal(isIndustrialBeltDirectSku({ skuCode: 'PULLEY-200', name: 'پولی ۲۰۰' }), false);
+});
+
+test('belt-selection code and catalogue links carry the belt-only search scope', () => {
+  const source = readFileSync(new URL('../src/pages/BeltSelectionPage.tsx', import.meta.url), 'utf8');
+  assert.match(source, /scope=industrial-belt/);
+});
