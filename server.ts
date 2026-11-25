@@ -26,7 +26,7 @@ import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
 import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
-import {LocalVisionDetectionCache} from './src/services/localVisionDetectionCache';
+import {canReuseLocalVisionQuery,LocalVisionDetectionCache} from './src/services/localVisionDetectionCache';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
@@ -4625,13 +4625,11 @@ app.get('/api/ai/recognition-jobs/:id',(req,res)=>{
 // stage: 'quick'   = image-only instant identification (step 1)
 //        'refined' = image + dimensions + application (steps 2-3)
 let localVisionQueries=0;
-app.get('/api/ai/local-vision-status', async (_req,res)=>{
+// This is a lightweight configuration probe for the browser. Do not load the
+// catalogue index or scan image bindings here; detect/analyze endpoints own readiness checks.
+app.get('/api/ai/local-vision-status', (_req,res)=>{
  if(!localVisionEnabled)return res.json({enabled:false});
- try{
-  await catalogVisualIndex.load();
-  const images=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
-  return res.json({enabled:true,model:localProfile.model,pipeline:localProfile.pipeline,namespace:VISUAL_INDEX_NAMESPACE,persistence:databaseEnabled()?'postgres':'file',...catalogVisualIndex.coverage(images),ready:images.length>0 && catalogVisualIndex.coverage(images).ready});
- }catch{return res.status(503).json({enabled:true,ready:false});}
+ return res.json({enabled:true,model:localProfile.model,pipeline:localProfile.pipeline});
 });
 
 const localVisionDetectionCache = new LocalVisionDetectionCache();
@@ -4729,11 +4727,8 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const cachedDetection=typeof body.detectionId==='string'
         ? localVisionDetectionCache.get(body.detectionId,imageFingerprint,localProfile.model)
         : undefined;
-      const cachedRegionMatches=!body.region || Boolean(cachedDetection?.queryRegions.some(region=>
-        Math.abs(region.x-body.region.x)<0.002 && Math.abs(region.y-body.region.y)<0.002 &&
-        Math.abs(region.width-body.region.width)<0.002 && Math.abs(region.height-body.region.height)<0.002
-      ));
-      const query=cachedDetection && cachedRegionMatches
+      const reuseCachedQuery=canReuseLocalVisionQuery(cachedDetection,body.region,body.fullImage===true);
+      const query=cachedDetection && reuseCachedQuery
         ? cachedDetection.query
         : await describeLocalQuery(queryImage);
       const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
@@ -4761,7 +4756,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || String(localProfile.minSimilarity));
       const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : localProfile.minSimilarity;
       const result=localVisionResult(hits,products,coverage,'',threshold,query,body.includeNearest===true);
-      const queryRegions=body.region ? [body.region] : cachedDetection?.queryRegions || (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
+      const queryRegions=body.fullImage===true ? [] : body.region ? [body.region] : cachedDetection?.queryRegions || (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
       const responsePayload=publicCatalog({...result,customerImageUrl:undefined,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")});
       if(typeof body.detectionId==='string')localVisionDetectionCache.delete(body.detectionId);
       return res.json(responsePayload);
