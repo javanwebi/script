@@ -54,8 +54,12 @@ test('only explicit control commands bypass the adaptive endpoint', () => {
     assert.equal(forzaEndOfTurnPauseMs(phrase, false), 1350);
     assert.ok(forzaTurnRemainingWaitMs(phrase, false, 1000, 1000) > 0);
   }
-  assert.ok(forzaEndOfTurnPauseMs('اوکی',false)>=2000);
+  assert.equal(forzaEndOfTurnPauseMs('اوکی',false),1350);
   for(const phrase of ['مدل چند است؟','آیا بلبرینگ 6203 موجود است؟']){
+    assert.ok(forzaEndOfTurnPauseMs(phrase,false)<=1600,phrase);
+  }
+  for(const phrase of ['بله','آره','نه','همونه','همون قبلی','دومی','باشه','اوکی','درسته']){
+    assert.equal(analyzePersianSentenceCompletion(phrase).isComplete,true,phrase);
     assert.ok(forzaEndOfTurnPauseMs(phrase,false)<=1600,phrase);
   }
   assert.equal(analyzePersianSentenceCompletion('صبر کن تا').isComplete, false);
