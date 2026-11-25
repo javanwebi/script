@@ -228,11 +228,11 @@ test('each completed utterance is a separate request while the previous user and
   assert.match(consult,/historyMessages = history\.slice\(-FORZA_CONVERSATION_HISTORY_LIMIT\)/);
 });
 
-test('full assistant replies are retained in context after successful playback or text-only fallback',()=>{
-  assert.match(ui,/const commitAssistantReply=\(text:string,playbackComplete:boolean\)=>/);
-  assert.match(ui,/commitAssistantReply\(reply,true\)/);
-  assert.match(ui,/commitAssistantReply\(reply,false\)/);
-  assert.match(ui,/متن کامل پاسخ در زیرنویس نمایش داده شد؛ پخش صوت کامل نشد/);
+test('the actual full assistant reply is retained in context regardless of TTS playback status',()=>{
+  assert.match(ui,/const commitAssistantReply=\(text:string\)=>/);
+  assert.match(ui,/commitAssistantReply\(reply\)/);
+  assert.match(ui,/if\(heardEntry\)heardEntry\.text=clean/);
+  assert.match(ui,/historyRef\.current\.push\(heardEntry\)/);
 });
 
 test('turn ownership prevents duplicate dispatch but a real interruption releases the next turn',()=>{
