@@ -225,7 +225,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const statusRef = useRef<ForzaStatus>('idle');
   const historyRef = useRef<Turn[]>([]);
-  const activeTurnRef = useRef<{generation:number; abort:AbortController; query?:string; markInterrupted?:()=>void}|null>(null);
+  const activeTurnRef = useRef<{generation:number; abort:AbortController; query?:string; startedAt:number; markInterrupted?:()=>void}|null>(null);
   const generationRef = useRef(0);
   // Not an authentication credential; a per-page correlation label used for
   // fair rate limits and debugging. No speech, audio or identity is stored.
@@ -1358,7 +1358,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       const pocketAbort=new AbortController();
       const generation=++generationRef.current;
-      activeTurnRef.current={generation,abort:pocketAbort,query:q};
+      activeTurnRef.current={generation,abort:pocketAbort,query:q,startedAt:Date.now()};
       console.info('[FORZA_TURN] turn='+generation+
         ' phase=request_preparation_end_to_turn_ms='+
         (detectedSpeechEndAtRef.current?Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
@@ -2108,10 +2108,26 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setMicrophoneError(null);
         setErrorNotice(null);
         if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current){
+          // Chrome can deliver a delayed FINAL for the exact utterance that
+          // just triggered this request. It is not a new barge-in. Ignore that
+          // duplicate briefly unless fresh near-field VAD evidence proves the
+          // customer has started speaking again.
+          const activeTurn=activeTurnRef.current;
+          const recentLateFinal=Boolean(activeTurn&&
+            Date.now()-activeTurn.startedAt<2500&&
+            !vadRef.current.heardSpeech&&
+            (!activeTurn.query||
+              normalizePersianTranscript(currentSpeech)===normalizePersianTranscript(activeTurn.query)));
+          if(recentLateFinal){
+            let cursor=recognitionConsumedCountRef.current;
+            while(cursor<total&&event.results[cursor]?.isFinal)cursor++;
+            recognitionConsumedCountRef.current=cursor;
+            console.info('[FORZA_STT] source=browser late_final_for_active_turn_ignored=1');
+            return;
+          }
           // RMS alone cannot distinguish the loudspeaker from a person.
           // Require actual STT words and reject likely self-echo.
-          // Recent near-field VAD evidence was checked above. Keep the short
-          // timestamp grace because final STT can arrive after VAD resets.
+          // Recent near-field VAD evidence was checked above.
           if(likelySpeakerEcho(currentSpeech)){
             // Retire finalized echo so it cannot contaminate the next user
             // utterance after playback finishes. Keep interim slots revisable.
