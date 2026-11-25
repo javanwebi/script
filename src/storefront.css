@@ -4978,3 +4978,386 @@ select {
     animation: none !important;
   }
 }
+
+
+/* Unified login / registration interior design.
+   The existing page and dialog containers intentionally keep their dimensions. */
+.account-access {
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+}
+.account-access-story {
+  order: 1;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  min-width: 0;
+  min-height: 560px;
+  padding: clamp(28px, 3.6vw, 46px);
+  overflow: hidden;
+  color: #fff;
+  background: #252d34;
+}
+.account-access-story > img {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(.92) brightness(.82);
+}
+.account-access-story[data-mode="login"] > img {
+  object-position: 45% center;
+}
+.account-access-story[data-mode="register"] > img {
+  object-position: 52% center;
+}
+.account-access-story::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: linear-gradient(270deg, rgba(15, 21, 28, .94) 0%, rgba(15, 21, 28, .72) 43%, rgba(15, 21, 28, .14) 100%);
+}
+.account-access-story-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 13px;
+  width: 100%;
+  max-width: 440px;
+  direction: rtl;
+}
+.account-access-story-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 122px;
+  height: 42px;
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .96);
+}
+.account-access-story-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 11px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 999px;
+  color: #ffd0ad;
+  background: rgba(255, 255, 255, .09);
+  font-size: 11px;
+  font-weight: 700;
+}
+.account-access-story h2 {
+  max-width: 430px;
+  margin: 0;
+  color: #fff;
+  font-size: clamp(24px, 2.25vw, 30px);
+  font-weight: 800;
+  line-height: 1.65;
+}
+.account-access-story p {
+  max-width: 420px;
+  margin: 0;
+  color: rgba(255, 255, 255, .88);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 2;
+}
+.account-access-story ul,
+.account-access-story a,
+.account-access-story .account-symbol {
+  display: none !important;
+}
+.account-access-form {
+  order: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 38px clamp(24px, 3vw, 42px) 30px;
+  background: #fff;
+}
+.account-form-heading {
+  margin-bottom: 4px;
+}
+.account-form-heading .store-eyebrow {
+  color: #c76527;
+  font-size: 11px;
+  font-weight: 700;
+}
+.account-form-heading h1 {
+  margin: 7px 0 5px;
+  color: #292d31;
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+.account-form-heading p {
+  color: #777a7d;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.account-tabs {
+  gap: 4px;
+  margin: 18px 0 17px;
+  padding: 4px;
+  border: 1px solid #eee8e1;
+  border-radius: 13px;
+  background: #f7f5f2;
+}
+.account-tabs button {
+  min-height: 42px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: #686b70;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background-color .16s ease, color .16s ease, box-shadow .16s ease;
+}
+.account-tabs button[aria-pressed="true"] {
+  color: #fff;
+  background: #e56b1e;
+  box-shadow: 0 4px 12px rgba(229, 107, 30, .2);
+}
+.login-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0 0 15px;
+  padding: 4px;
+  border: 1px solid #eee8e1;
+  border-radius: 12px;
+  background: #faf8f5;
+}
+.login-methods button {
+  min-height: 39px;
+  border-radius: 9px;
+  color: #6d7074;
+  font-size: 12px;
+  font-weight: 650;
+}
+.login-methods button[aria-pressed="true"] {
+  color: #c65f1d;
+  background: #fff;
+  box-shadow: 0 1px 5px rgba(35, 38, 42, .08);
+}
+.account-fields {
+  display: grid;
+  gap: 14px;
+}
+.account-fields label {
+  gap: 6px;
+  color: #4f5358;
+  font-size: 12px;
+  font-weight: 700;
+}
+.account-fields input,
+.account-fields select {
+  min-height: 48px;
+  padding: 10px 13px;
+  border: 1px solid #e4e1dc;
+  border-radius: 11px;
+  background: #fff;
+  color: #30343a;
+  font-size: 14px;
+  transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+.account-fields input::placeholder {
+  color: #a0a0a0;
+}
+.account-fields input:focus,
+.account-fields select:focus {
+  outline: none;
+  border-color: #e99a65;
+  box-shadow: 0 0 0 3px rgba(229, 107, 30, .11);
+  background: #fff;
+}
+.account-field-pair {
+  gap: 12px;
+}
+.account-submit {
+  min-height: 50px;
+  margin-top: 5px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 800;
+}
+.account-privacy {
+  align-items: flex-start;
+  margin-top: 17px;
+  padding: 11px 13px;
+  border: 1px solid #f0ece6;
+  border-radius: 11px;
+  background: #faf8f5;
+  color: #777a7d;
+  font-size: 10.5px;
+}
+.account-privacy svg {
+  color: #c16a31;
+}
+.registration-progress {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 4px;
+  color: #898b8e;
+  font-size: 10px;
+}
+.registration-progress span {
+  flex: 0 0 auto;
+  padding: 5px 7px;
+  border-radius: 999px;
+  background: #f5f3f0;
+}
+.registration-progress span[data-active="true"] {
+  color: #c65f1d;
+  background: #fff0e5;
+  font-weight: 800;
+}
+.registration-progress i {
+  flex: 1 1 auto;
+  min-width: 7px;
+  height: 1px;
+  background: #e7e1da;
+}
+@media (max-width: 767px) {
+  .account-access {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .account-access-story {
+    order: 1;
+    flex: 0 0 auto;
+    align-items: flex-end;
+    min-height: 0;
+    height: clamp(184px, 27vw, 212px);
+    padding: 17px 18px 16px;
+    border-radius: 0;
+  }
+  .account-access-story::after {
+    background: linear-gradient(270deg, rgba(15, 21, 28, .94) 0%, rgba(15, 21, 28, .73) 48%, rgba(15, 21, 28, .2) 100%);
+  }
+  .account-access-story-content {
+    gap: 7px;
+    max-width: 78%;
+  }
+  .account-access-story-brand {
+    width: 102px;
+    height: 34px;
+    padding: 4px 8px;
+    border-radius: 8px;
+  }
+  .account-access-story-eyebrow {
+    padding: 3px 8px;
+    font-size: 9px;
+  }
+  .account-access-story h2 {
+    font-size: clamp(17px, 4.7vw, 20px);
+    line-height: 1.5;
+  }
+  .account-access-story p {
+    font-size: 10.5px;
+    line-height: 1.75;
+  }
+  .account-access-form {
+    order: 2;
+    min-width: 0;
+    padding: 20px 18px calc(22px + env(safe-area-inset-bottom));
+  }
+  .account-form-heading h1 {
+    font-size: 22px;
+  }
+  .account-form-heading p {
+    font-size: 11.5px;
+  }
+  .account-tabs {
+    margin: 15px 0;
+  }
+  .account-tabs button {
+    min-height: 43px;
+  }
+  .account-fields {
+    gap: 12px;
+  }
+  .account-fields input,
+  .account-fields select {
+    min-height: 47px;
+    font-size: 16px;
+  }
+  .account-submit {
+    min-height: 49px;
+  }
+  .account-privacy {
+    margin-top: 14px;
+  }
+  .account-dialog {
+    width: 100%;
+    max-width: 560px;
+  }
+  .account-dialog .account-access {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .account-dialog .account-access-story {
+    order: 1;
+    flex: 0 0 auto;
+    height: clamp(184px, 24dvh, 208px);
+    min-height: 184px;
+    border-radius: 28px 28px 0 0;
+  }
+  .account-dialog .account-access-form {
+    order: 2;
+    flex: 0 0 auto;
+    min-height: auto;
+    overflow: visible;
+    padding: 17px 18px calc(25px + env(safe-area-inset-bottom));
+  }
+  .account-dialog .account-close {
+    top: 12px;
+    left: 12px;
+  }
+  .registration-progress {
+    gap: 5px;
+    font-size: 9px;
+  }
+  .registration-progress span {
+    padding: 4px 5px;
+  }
+}
+@media (max-width: 390px) {
+  .account-access-story-content {
+    max-width: 84%;
+  }
+  .account-access-story h2 {
+    font-size: 17px;
+  }
+  .account-access-form {
+    padding-inline: 15px;
+  }
+  .account-field-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .registration-progress {
+    gap: 3px;
+    font-size: 8.5px;
+  }
+}
+@media (min-width: 768px) {
+  .account-access-story {
+    border-radius: 0;
+  }
+}
