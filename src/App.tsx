@@ -29,8 +29,8 @@ const CategoryPage = lazy(() =>
     default: module.CategoryPage,
   })),
 );
-const AllCategoriesPage = lazy(() => import('./pages/PopdAllCategoriesPage').then(m => ({default:m.AllCategoriesPage})));
-const DirectSkuDetailPage = lazy(() => import('./pages/PopdProductDetailPage').then((module) => ({ default: module.ProductDetailPage })));
+const AllCategoriesPage = lazy(() => import("./pages/AllCategoriesPage").then(m => ({default:m.AllCategoriesPage})));
+const DirectSkuDetailPage = lazy(() => import("./pages/DirectSkuDetailPage"));
 const ProductDetailPage = lazy(() =>
   import('./pages/PopdProductDetailPage').then((module) => ({
     default: module.ProductDetailPage,
