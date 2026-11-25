@@ -33,6 +33,9 @@ test('mobile account dialog uses one scroll surface and keeps separate auth imag
   assert.match(auth, /A\.bannerAuthLogin/);
   assert.match(images, /bannerAuthLoginImg/);
   assert.match(images, /bannerAuthRegisterImg/);
+  assert.match(images, /auth-login-banner\\.svg/);
+  assert.match(images, /auth-register-banner\\.svg/);
+  assert.doesNotMatch(read('scripts/optimize-images.mjs'), /banner_auth_login_1791194148886\\.jpg|banner_auth_register_1791194168672\\.jpg/);
   assert.match(css, /\.account-dialog \.account-access\s*\{[^}]*overflow-y: auto/s);
   assert.match(css, /\.account-dialog \.account-access-form\s*\{[^}]*overflow: visible/s);
   assert.match(css, /-webkit-overflow-scrolling: touch/);
