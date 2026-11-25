@@ -805,14 +805,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     void handleAnalyze('quick',region,localImageId,true);
   },[isOpen,currentStep,selectedImage,temporaryImageDataUrl,localImageId,isUploadingImage,regionDetectionState,fullImageSelected,queryRegion,candidateRegions,inlineAnalysisBusy]);
   
-  const confirmRegionAndAnalyze = () => {
-    if (!temporaryImageDataUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
-    setErrorMessage('');
-    void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
-  };
-
   const goToStep2 = () => {
-    if(selectedImage && !analysisResult?.requiredMeasurements){confirmRegionAndAnalyze();return;}
+    if(selectedImage && !analysisResult?.requiredMeasurements){setCurrentStep(1);return;}
     setErrorMessage("");
     setCurrentStep(2);
   };
