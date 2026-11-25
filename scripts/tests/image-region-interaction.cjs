@@ -124,7 +124,7 @@ const {chromium}=require('playwright');
   assert.equal(queries.length,1,'catalog analysis must start automatically after image detection');
   assert.match(queries[0].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
   assert.ok(queries[0].region||queries[0].fullImage,'automatic analysis must use a detected region or the safe full-image fallback');
-  assert.equal(queries[0].includeNearest,false);
+  assert.equal(queries[0].includeNearest,true,'weak image evidence must expose explicitly unconfirmed nearest catalog options');
   assert.equal(uploads,0,'customer image must remain in the browser-local vault');
   assert.equal(await page.locator('.sanat-region-picker__search').count(),0,'manual crop-confirm action must be removed');
   assert.equal(await page.locator('.sanat-region-picker__full-image').count(),0,'manual full-image action must be removed');
@@ -147,8 +147,12 @@ const {chromium}=require('playwright');
    await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='true',null,{timeout:10000});
    await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
    assert.equal(queries.length,2,'selecting another detected object must automatically run a new search');
-   assert.ok(queries[1].region,'second object search must use its own detected region');
-   assert.notDeepEqual(queries[1].region,previousRegion,'selecting another detected object must change the analyzed region');
+   if(queries[1].region){
+    assert.notDeepEqual(queries[1].region,previousRegion,'server-detected candidates must send the newly selected crop');
+   }else{
+    assert.equal(queries[1].fullImage,true,'client-side detection fallback must send the cropped image as the request frame');
+    assert.notEqual(queries[1].imageBase64,queries[0].imageBase64,'selecting another client-detected object must change the actual uploaded crop');
+   }
   }
 
   await page.setViewportSize({width:390,height:844});
@@ -176,6 +180,45 @@ const {chromium}=require('playwright');
   assert.ok(Math.abs(mobileFit.displayRatio-mobileFit.naturalRatio)<0.03,'mobile viewer must show the entire image without cropping or stretching');
   await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-mobile.png'),fullPage:true});
   assert.equal(await page.getByTestId('kiki-inline-catalog-results').count(),1,'results stay beside the selected image without a separate results page');
+
+  // The result list is a true overlay sheet: drag it over the photo and return it.
+  const sheetHandle=page.getByTestId('kiki-mobile-results-sheet-handle');
+  await sheetHandle.waitFor({state:'visible'});
+  assert.equal(await sheetHandle.getAttribute('aria-expanded'),'false');
+  const handleBox=await sheetHandle.boundingBox();assert.ok(handleBox);
+  await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y+handleBox.height/2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y+handleBox.height/2-180,{steps:8});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="kiki-mobile-results-sheet-handle"]')?.getAttribute('aria-expanded')==='true');
+  assert.equal(await page.getByTestId('image-region-review').getAttribute('data-sheet-expanded'),'true');
+  const expandedHandleBox=await sheetHandle.boundingBox();assert.ok(expandedHandleBox);
+  await page.mouse.move(expandedHandleBox.x+expandedHandleBox.width/2,expandedHandleBox.y+expandedHandleBox.height/2);
+  await page.mouse.down();
+  await page.mouse.move(expandedHandleBox.x+expandedHandleBox.width/2,expandedHandleBox.y+expandedHandleBox.height/2+180,{steps:8});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="kiki-mobile-results-sheet-handle"]')?.getAttribute('aria-expanded')==='false');
+
+  // Drag directly around an undetected object: the viewer must submit a real crop
+  // and automatically rerun matching without a separate confirmation button.
+  const beforeManualCrop=queries.length;
+  const cropFrame=page.locator('.sanat-region-picker--viewer .sanat-region-picker__frame');
+  const cropFrameBox=await cropFrame.boundingBox();assert.ok(cropFrameBox);
+  const cropStart={x:cropFrameBox.x+cropFrameBox.width*0.18,y:cropFrameBox.y+cropFrameBox.height*0.16};
+  const cropEnd={x:cropFrameBox.x+cropFrameBox.width*0.46,y:cropFrameBox.y+cropFrameBox.height*0.55};
+  await page.mouse.move(cropStart.x,cropStart.y);
+  await page.mouse.down();
+  await page.mouse.move(cropEnd.x,cropEnd.y,{steps:10});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='true',null,{timeout:10000});
+  await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
+  assert.equal(queries.length,beforeManualCrop+1,'manual crop must trigger a fresh catalogue analysis');
+  const manualCropRequest=queries[queries.length-1];
+  assert.ok(manualCropRequest.region||manualCropRequest.fullImage,'manual crop must reach the backend as region coordinates or an actual cropped image');
+  if(!manualCropRequest.region){
+   assert.equal(manualCropRequest.fullImage,true);
+   assert.notEqual(manualCropRequest.imageBase64,queries[beforeManualCrop-1].imageBase64,'manual client crop must change the submitted image bytes');
+  }
   assert.equal(uploads,0);
   assert.deepEqual(errors,[]);
   await page.close();
