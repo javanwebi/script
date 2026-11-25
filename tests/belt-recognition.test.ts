@@ -10,7 +10,7 @@ const products=[
 ] as Product[];
 function resultFor(familyCode:string,code:string):AiPartAnalysisResult{
  const family=products.find(item=>item.code===familyCode)!;
- return {success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه صنعتی',detectedProfile:'نامشخص',visualAnalysis:'نتیجه اولیه',confidence:0,exactVisualMatch:false,catalogAvailability:{status:'similar_in_catalog',statusFarsiTitle:'مشابه',statusFarsiMessage:'بررسی شود'}},matchedProducts:[],
+ return {success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه صنعتی',detectedProfile:'نامشخص',visualAnalysis:'نتیجه اولیه',confidence:0,exactVisualMatch:false,catalogAvailability:{status:'similar_in_catalog',statusFarsiTitle:'مشابه',statusFarsiMessage:'بررسی شود'}},matchedProducts:[],technicalAdvice:'بررسی اولیه؛ سازگاری نهایی باید با اندازه‌گیری تأیید شود.',
  modelSuggestions:[{code,name:family.variants![0].name,familyCode,familyName:family.name,imageScope:'variant',matchBasis:'visual',specs:[],reason:'شباهت تصویری'},{code:'6202ZZ',name:'بلبرینگ',familyCode:'bearing-family',familyName:'بلبرینگ',imageScope:'variant',matchBasis:'visual',specs:[],reason:'نامرتبط'}],
  similarCandidates:[{code,name:family.variants![0].name,brand:family.brand,type:family.name,similarityScore:91,matchReason:'شباهت تصویر',specs:[],matchType:'visual',isVisualMatch:true},{code:'6202ZZ',name:'بلبرینگ',brand:'SKF',type:'بلبرینگ',similarityScore:90,matchReason:'نامرتبط',specs:[],matchType:'visual',isVisualMatch:true}],
  catalogImageMatches:[{imageId:'photo-'+familyCode,image:'/storage/belt.webp',label:family.name,score:91,reason:'تصویر نزدیک',familyNames:[family.name,'بلبرینگ'],bindings:[{familyCode,code,verified:true},{familyCode:'bearing-family',code:'6202ZZ',verified:true}]}]};
