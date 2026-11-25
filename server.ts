@@ -925,20 +925,25 @@ function refreshLocalVisionStatusSnapshot():Promise<void>{
  if(!localVisionEnabled)return Promise.resolve();
  if(localVisionStatusRefresh)return localVisionStatusRefresh;
  if(localVisionStatusSnapshot && Date.now()-localVisionStatusLastRefreshAt<15000)return Promise.resolve();
+ const refreshStartedAt=Date.now();
  const pending=new Promise<void>(resolve=>setImmediate(resolve)).then(async()=>{
   await catalogVisualIndex.load();
   refreshRecognitionCatalog();
   const images=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
   const coverage=catalogVisualIndex.coverage(images);
-  localVisionStatusSnapshot={...coverage,ready:images.length>0 && coverage.ready};
-  localVisionStatusLastRefreshAt=Date.now();
+  // A completed warm-up may have published a newer snapshot while this
+  // background read was in flight; never replace it with an older observation.
+  if(localVisionStatusLastRefreshAt<=refreshStartedAt){
+   localVisionStatusSnapshot={...coverage,ready:images.length>0 && coverage.ready};
+   localVisionStatusLastRefreshAt=Date.now();
+  }
  }).catch(error=>{
   const reason=error instanceof Error?error.message:'status_refresh_failed';
   console.warn('[Local vision status] Refresh deferred:',reason.slice(0,120));
-  if(!localVisionStatusSnapshot){
+  if(!localVisionStatusSnapshot && localVisionStatusLastRefreshAt<=refreshStartedAt){
    localVisionStatusSnapshot={total:0,indexed:0,ready:false,storedEntries:0,missing:0,signatureChanged:0};
   }
-  localVisionStatusLastRefreshAt=Date.now();
+  if(localVisionStatusLastRefreshAt<=refreshStartedAt)localVisionStatusLastRefreshAt=Date.now();
  }).finally(()=>{
   if(localVisionStatusRefresh===pending)localVisionStatusRefresh=null;
  });
