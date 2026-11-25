@@ -307,7 +307,10 @@ async function loadSnapshot(): Promise<Snapshot> {
       const variantKey = normalizeCode(variant.code);
       const commercial = commercialByVariant.get(variantKey);
       const variantGallery = (galleryByVariant.get(variantKey) || []).filter(
-        (image) => image.identityVerified === true && normalizeCode(image.variantCode) === variantKey,
+        (image) =>
+          image.scope === 'variant' &&
+          image.identityVerified === true &&
+          normalizeCode(image.variantCode) === variantKey,
       );
       attachGallery(variantGallery);
       // Variant images from the engineered archive are not SKU-proof. Only exact-SKU audited gallery rows are public.
