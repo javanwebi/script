@@ -6,6 +6,8 @@ on:
       - 'server.ts'
       - 'src/components/search/AiVisualPartSearchModal.tsx'
       - 'src/utils/clientAiSegmentation.ts'
+      - 'src/utils/clientAiSegmentation.worker.ts'
+      - 'src/utils/foregroundRegion.ts'
       - 'scripts/prepare-vision-assets.mjs'
       - 'scripts/tests/client-ai-segmentation-browser.cjs'
       - 'tests/client-ai-segmentation.test.ts'
