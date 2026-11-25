@@ -11,7 +11,7 @@ export interface ClientAiSegmentationResult {
 
 const MODEL_URL = '/models/u2netp.onnx';
 const INPUT_SIZE = 320;
-const MAX_IMAGE_DIMENSION = 860;
+const MAX_IMAGE_DIMENSION = 720;
 const INFERENCE_TIMEOUT_MS = 28_000;
 const MEAN = [0.485, 0.456, 0.406] as const;
 const STD = [0.229, 0.224, 0.225] as const;
@@ -23,7 +23,9 @@ function configureRuntime() {
   if (runtimeConfigured) return;
   ort.env.wasm.wasmPaths = '/forza-runtime/ort/';
   ort.env.wasm.numThreads = 1;
-  ort.env.wasm.proxy = false;
+  // Run WASM inference in ORT's worker proxy so model execution does not block touch/scroll/render.
+  // If a browser cannot create the worker, segmentation fails closed and the server fallback remains available.
+  ort.env.wasm.proxy = true;
   runtimeConfigured = true;
 }
 
