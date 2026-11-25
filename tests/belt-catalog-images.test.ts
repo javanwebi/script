@@ -122,7 +122,7 @@ test("belt gallery includes only exact POPD family and SKU photos", () => {
 
   assert.equal(familyGallery.length, familyPhotos.length + 1); // POPD family photos + technical spec sheet
   assert.equal(
-    familyGallery.filter(image => image.url.includes("/families/")).length,
+    familyGallery.filter(image => /family-image-\\d+\\.webp$/.test(image.url)).length,
     familyPhotos.length,
   );
   assert.equal(
