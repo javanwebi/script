@@ -185,7 +185,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{localSegmentationRef.current=null;autoAnalysisKeyRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);setSelectedProductId(undefined);setInlineAnalysisBusy(false);setAnalysisResult(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){regionDetectionSequenceRef.current++;localSegmentationRef.current=null;analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
   React.useEffect(() => {
     if (!isOpen) {
@@ -265,6 +264,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [analysisResult, setAnalysisResult] =
     useState<AiPartAnalysisResult | null>(null);
   const [selectedProductId,setSelectedProductId]=useState<string>();
+  React.useEffect(()=>{localSegmentationRef.current=null;autoAnalysisKeyRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);setSelectedProductId(undefined);setInlineAnalysisBusy(false);setAnalysisResult(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
   const [customRequestDraft, setCustomRequestDraft] = useState<ManufacturingRequestDraft | null>(null);
   const [customRequestOpen, setCustomRequestOpen] = useState(false);
   const [isPreparingCustomRequest, setIsPreparingCustomRequest] = useState(false);
@@ -465,8 +465,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setErrorMessage('');
   };
 
-  // Upload first, then ask the local vision engine only for a crop proposal.
-  // The full catalogue analysis is deliberately deferred until customer confirmation.
+  // Upload once, detect object regions automatically, then start catalogue analysis without a crop-confirmation step.
   const handleFile = (file: File) => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     const fileMime = (file.type || '').toLowerCase();
