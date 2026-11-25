@@ -224,7 +224,7 @@ docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memor
  -e npm_config_maxsockets=4 \
  -e npm_config_fetch_retries=2 \
  -e npm_config_fetch_retry_maxtimeout=60000 \
- node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8 onnxruntime-web@1.18.0 && mkdir -p public/forza-runtime/stt public/forza-runtime/ort && cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js && cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/ && node scripts/prepare-vision-assets.mjs && npm run lint && npm run test:portal && node --import tsx --test tests/admin-catalog-image-workflow.test.ts tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/image-assignments.test.ts tests/catalog-menu-assignment-audit.test.ts tests/catalog-menu-semantic-guard.test.ts tests/belt-category-experience.test.ts tests/database/belt-family-taxonomy-followup.test.ts tests/database/belt-family-engineering-corrections.test.ts && npm run build && test -s dist/forza-runtime/stt/vosk.js && test -s dist/models/u2netp.onnx && test -s dist/forza-runtime/ort/ort-wasm-simd.wasm' 2>&1 | tee "$BUILD_LOG"
+ node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8 onnxruntime-web@1.18.0 && mkdir -p public/forza-runtime/stt public/forza-runtime/ort && cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js && cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/ && node scripts/prepare-vision-assets.mjs && npm run lint && npm run test:portal && node --import tsx --test tests/admin-catalog-image-workflow.test.ts tests/mobile-scan-ui.test.ts tests/forza-vision-kiki-fastpath.test.ts tests/forza-mobile-contact-sheet.test.ts tests/image-assignments.test.ts tests/catalog-menu-assignment-audit.test.ts tests/catalog-menu-semantic-guard.test.ts tests/belt-category-experience.test.ts tests/database/belt-family-taxonomy-followup.test.ts tests/database/belt-family-engineering-corrections.test.ts && npm run build && test -s dist/forza-runtime/stt/vosk.js && test -s dist/models/u2netp.onnx && test -s dist/forza-runtime/ort/ort-wasm-simd.wasm' 2>&1 | tee "$BUILD_LOG"
 test -s "$STAGE/dist/index.html"
 test -s "$STAGE/dist/forza-runtime/stt/vosk.js"
 
@@ -265,13 +265,13 @@ docker run --rm --pull=never "$STT_IMAGE" sh -ec '
 '
 echo "FORZA_STT_RUNTIME_IMAGE_READY=$STT_IMAGE"
 
+# The current camera flow starts private image preparation immediately; the old retake/confirm copy is intentionally absent.
+# Verify the full-screen capture entry and the new automatic KIKI inline catalogue results.
 grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'عکس‌برداری مجدد' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'تأیید و جستجوی قطعه' "$STAGE/dist/assets" --include='*.js' >/dev/null
+grep -RlF 'kiki-inline-catalog-results' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'vision-analyzing-screen' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'sanat-identification-open' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'forza-mobile-contact-sheet' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'forza-swipe-instruction' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'forza-swipe-instruction' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'store-scan-action' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'home-category-group' "$STAGE/dist/assets" --include='*.js' >/dev/null
