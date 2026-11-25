@@ -52,3 +52,13 @@ test("FORZA supports belt selector deep links without changing default chat beha
   assert.match(consult, /entryParams\.get\('tool'\)[\s\S]*?setShowCalculatorModal\(true\)/);
   assert.match(consult, /entryParams\.get\('prompt'\)[\s\S]*?setInputQuery/);
 });
+
+test("image identification returns customers to the belt selection flow", () => {
+  const provider = read("src/components/search/PartIdentificationProvider.tsx");
+  const layout = read("src/components/layout/Layout.tsx");
+  const dock = read("src/components/layout/storefrontBottomNavVisibility.ts");
+
+  assert.match(provider, /entrySource === 'belt-selection'[\s\S]*?returnPath[\s\S]*?\/belt-selection/);
+  assert.match(layout, /"\/belt-selection"/);
+  assert.match(dock, /"\/belt-selection"/);
+});
