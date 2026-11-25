@@ -264,6 +264,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [analysisResult, setAnalysisResult] =
     useState<AiPartAnalysisResult | null>(null);
   const [selectedProductId,setSelectedProductId]=useState<string>();
+  const [regionSelectionVersion,setRegionSelectionVersion]=useState(0);
   React.useEffect(()=>{localSegmentationRef.current=null;autoAnalysisKeyRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);setSelectedProductId(undefined);setInlineAnalysisBusy(false);setAnalysisResult(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
   const [customRequestDraft, setCustomRequestDraft] = useState<ManufacturingRequestDraft | null>(null);
   const [customRequestOpen, setCustomRequestOpen] = useState(false);
@@ -459,6 +460,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
 
   const handleRegionSelection = (region: ImageRegion | undefined) => {
     autoAnalysisKeyRef.current=null;
+    setRegionSelectionVersion(version=>version+1);
     setQueryRegion(region);
     setFullImageSelected(!region);
     setSelectedProductId(undefined);
@@ -803,7 +805,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     if(autoAnalysisKeyRef.current===key||inlineAnalysisBusy||analysisBusyRef.current)return;
     autoAnalysisKeyRef.current=key;
     void handleAnalyze('quick',region,localImageId,true);
-  },[isOpen,currentStep,selectedImage,temporaryImageDataUrl,localImageId,isUploadingImage,regionDetectionState,fullImageSelected,queryRegion,candidateRegions,inlineAnalysisBusy]);
+  },[isOpen,currentStep,selectedImage,temporaryImageDataUrl,localImageId,isUploadingImage,regionDetectionState,fullImageSelected,queryRegion,candidateRegions,inlineAnalysisBusy,regionSelectionVersion]);
   
   const goToStep2 = () => {
     if(selectedImage && !analysisResult?.requiredMeasurements){setCurrentStep(1);return;}
