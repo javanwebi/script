@@ -74,6 +74,7 @@ export interface MatchedPartItem {
   forzaCode?: string;
   cataloguePage?: number;
   image?: string;
+  imageScope?: 'variant' | 'family' | 'none';
 }
 
 export interface ImageScanProgress {stage:'preparing'|'scanning'|'verifying'|'complete';total:number;compared:number;failed:number;}
