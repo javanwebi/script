@@ -266,8 +266,8 @@ docker run --rm --pull=never "$STT_IMAGE" sh -ec '
 echo "FORZA_STT_RUNTIME_IMAGE_READY=$STT_IMAGE"
 
 grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'عکس‌برداری مجدد' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'تأیید و جستجوی قطعه' "$STAGE/dist/assets" --include='*.js' >/dev/null
+grep -RlF 'شناسایی قطعه با دوربین' "$STAGE/dist/assets" --include='*.js' >/dev/null
+grep -RlF 'ثبت عکس قطعه' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'vision-analyzing-screen' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'sanat-identification-open' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'forza-mobile-contact-sheet' "$STAGE/dist/assets" --include='*.js' >/dev/null
