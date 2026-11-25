@@ -235,7 +235,6 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const [isVisualSearchModalOpen, setIsVisualSearchModalOpen] = useState(false);
   const [isCatalogSearchOpen, setIsCatalogSearchOpen] = useState(false);
   const [isComposerToolsOpen, setIsComposerToolsOpen] = useState(false);
-  const [showEntrySplash, setShowEntrySplash] = useState(() => !identificationOnly);
 
   // Settings State
   const [selectedIndustry, setSelectedIndustry] = useState(()=>entryParams.get('industry')||'general');
@@ -295,15 +294,6 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerToolsRef = useRef<HTMLDivElement>(null);
   const productContextAddedRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!showEntrySplash) return;
-    const prefersReduced =
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const timer = window.setTimeout(() => setShowEntrySplash(false), prefersReduced ? 120 : 950);
-    return () => window.clearTimeout(timer);
-  }, [showEntrySplash]);
 
   useEffect(() => {
     if (!isComposerToolsOpen) return;
@@ -429,7 +419,6 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   // The calculator remains the existing tested modal; no second formula engine is introduced.
   useEffect(() => {
     if (entryParams.get('tool') === 'belt-calculator') {
-      setShowEntrySplash(false);
       setShowCalculatorModal(true);
     }
     const initialPrompt = entryParams.get('prompt')?.trim();
@@ -1498,61 +1487,6 @@ summary,
       className="h-[100dvh] max-h-[100dvh] w-full flex flex-col bg-[#FFFFFF] text-[#2B313A] overflow-hidden select-none relative"
       dir="rtl"
     >
-      {/* Top-to-Bottom FORZA Logo Entry Transition Curtain */}
-      <AnimatePresence>
-        {showEntrySplash && (
-          <motion.div
-            key="forza-entry-curtain"
-            initial={{ opacity: 1 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: 24, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } }}
-            onClick={() => setShowEntrySplash(false)}
-            className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-[#FFFFFF] cursor-pointer select-none px-6"
-            aria-label="ورود به میزکار هوشمند FORZA"
-          >
-            {/* Architectural drafting grid consistent with website hero */}
-            <div
-              className="pointer-events-none absolute inset-0 opacity-45"
-              style={{
-                backgroundImage:
-                  'linear-gradient(#dfe3e6 1px, transparent 1px), linear-gradient(90deg, #dfe3e6 1px, transparent 1px)',
-                backgroundSize: '44px 44px',
-maskImage: 'radial-gradient(circle at center, #000 18%, transparent 72%)',
-              }}
-            />
-
-            <motion.div
-              initial={{ y: -56, opacity: 0, clipPath: 'inset(0 0 100% 0)' }}
-              animate={{ y: 0, opacity: 1, clipPath: 'inset(0 0 0% 0)' }}
-              transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
-              className="relative flex flex-col items-center"
-            >
-              <img
-                src="/images/brand/logo-forza.webp"
-                alt="لوگوی FORZA"
-                className="w-64 sm:w-80 md:w-[360px] h-auto object-contain drop-shadow-[0_12px_32px_rgba(224,101,24,0.18)]"
-              />
-
-              <motion.div
-                initial={{ scaleX: 0, opacity: 0 }}
-                animate={{ scaleX: 1, opacity: 1 }}
-                transition={{ delay: 0.25, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                className="mt-5 h-[2.5px] w-36 rounded-full bg-gradient-to-r from-transparent via-[#E06518] to-transparent origin-center"
-              />
-
-              <motion.p
-                initial={{ y: -12, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.32, duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
-                className="mt-3 text-xs sm:text-sm font-bold text-[#55565A] tracking-tight"
-              >
-                میزکار مهندسی صنعت پیش · کاتالوگ اطلس و SWR
-              </motion.p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className="flex-1 flex overflow-hidden relative">
         {/* 1. DESKTOP SIDEBAR (Website Toned #F5F6F6 Rail) */}
         <aside
