@@ -283,7 +283,8 @@ for (const category of referenceCategories) {
     familyCodes.add(product.code);
     if (!sampleFamilyCode) sampleFamilyCode = product.code;
     for (const url of product.images || []) {
-      assert.ok(typeof url === "string" && url.startsWith("/storage/products/"),
+      assert.ok(typeof url === "string" &&
+        (url.startsWith("/storage/products/") || url.startsWith("/images/")),
         "POPD_REFERENCE_FAMILY_IMAGE_URL_INVALID: " + product.code);
       familyImageUrls.add(url);
     }

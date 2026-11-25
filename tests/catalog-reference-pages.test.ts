@@ -143,3 +143,16 @@ test('POPD 869-image release is staged for canary and used by both product and v
   assert.ok(imageStage.includes('PRODUCT_STORAGE_DIR=$POPD_CATALOG_STORAGE_ROOT'));
   assert.ok(!imageStage.includes('--env-file "$ENV_FILE"'), 'image-only staging must not receive application secrets');
 });
+
+
+test('missing verified POPD family photos are synced from the pinned source before builds', () => {
+  const pkg = JSON.parse(read('package.json'));
+  const sync = read('scripts/sync-popd-family-images.mjs');
+  assert.ok(pkg.scripts.prebuild.includes('scripts/sync-popd-family-images.mjs'));
+  assert.ok(pkg.scripts.predev.includes('scripts/sync-popd-family-images.mjs'));
+  assert.ok(pkg.scripts['pretest:portal'].includes('scripts/sync-popd-family-images.mjs'));
+  assert.match(sync, /e81218f2a248f1db9a72349a67e46af55c7977ee/);
+  assert.match(sync, /images=\\$\\{ASSETS.length\\}/);
+  assert.match(sync, /gitBlobSha/);
+  assert.match(sync, /POPD_FAMILY_IMAGE_SHA_MISMATCH/);
+});

@@ -479,6 +479,7 @@ test("the production canary verifies the POPD reference archive and every approv
     "POPD_REFERENCE_CATEGORY_MUST_BELONG_TO_EXACTLY_ONE_GROUP",
     "POPD_REFERENCE_STORAGE_IMAGES_MISSING",
     "POPD_REFERENCE_FAMILY_SKU_IMAGE_OVERLAP",
+    "POPD_REFERENCE_FAMILY_IMAGE_URL_INVALID",
     "POPD_REFERENCE_STORAGE_IMAGES_OK",
     'method: "HEAD"',
   ]) {
@@ -490,6 +491,7 @@ test("the production canary verifies the POPD reference archive and every approv
   const referenceGate = canary.slice(start, end);
   assert.ok(referenceGate.includes("referenceStatus.verifiedFamilyImageCount >= 28"));
   assert.ok(referenceGate.includes("sharedFamilySkuImageUrls"));
+  assert.ok(referenceGate.includes('url.startsWith("/images/")'));
   assert.ok(referenceGate.indexOf("POPD_REFERENCE_STORAGE_IMAGES_OK") <
     referenceGate.indexOf("POPD_REFERENCE_CATEGORY_FAMILY_SKU_ROUTES_OK"));
   assert.ok(one.indexOf("node ops/verify-single-port-canary.mjs") <

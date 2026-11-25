@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "optimize:images": "node scripts/optimize-images.mjs",
-    "predev": "node scripts/optimize-images.mjs && node scripts/sync-popd-belt-assets.mjs",
+    "predev": "node scripts/optimize-images.mjs && node scripts/sync-popd-belt-assets.mjs && node scripts/sync-popd-family-images.mjs",
     "dev": "node --import tsx server.ts",
-    "prebuild": "node scripts/optimize-images.mjs && node scripts/sync-popd-belt-assets.mjs",
+    "prebuild": "node scripts/optimize-images.mjs && node scripts/sync-popd-belt-assets.mjs && node scripts/sync-popd-family-images.mjs",
     "build": "vite build",
     "start": "node --import tsx server.ts",
     "preview": "vite preview",
@@ -32,7 +32,8 @@
     "db:migrate:adopted": "node --import tsx scripts/database/migrateAdopted.ts apply",
     "catalog:sync-popd-belt-assets": "node scripts/sync-popd-belt-assets.mjs",
     "catalog:sync-popd-images": "node scripts/sync-popd-catalog-images.mjs",
-    "pretest:portal": "node --check scripts/sync-popd-belt-assets.mjs && node --check scripts/sync-popd-catalog-images.mjs && node scripts/sync-popd-belt-assets.mjs"
+    "pretest:portal": "node --check scripts/sync-popd-belt-assets.mjs && node --check scripts/sync-popd-family-images.mjs && node --check scripts/sync-popd-catalog-images.mjs && node scripts/sync-popd-belt-assets.mjs && node scripts/sync-popd-family-images.mjs",
+    "catalog:sync-popd-family-images": "node scripts/sync-popd-family-images.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
