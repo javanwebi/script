@@ -97,28 +97,25 @@ test('VISION entry uses original KIKI portal layout while retaining real image h
   assert.ok(!entry.includes('/src/assets/'));
 });
 
-test('real multi-part lens exposes KIKI quick-select buttons without auto-running analysis', () => {
+test('multi-part lens auto-selects a detected object and starts catalog search without manual crop confirmation', () => {
   const picker = source('src/components/search/ImageRegionSelector.tsx');
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
-  const optical = source('src/components/search/vision-camera-design.css');
-  const review = source('src/components/search/image-region-review.css');
-  const styles = source('src/components/search/industrial-scan.css');
-  assert.ok(picker.includes('data-testid="vision-region-candidates"'));
-  assert.ok(picker.includes('candidates.length > 1'));
-  assert.ok(picker.includes('onClick={() => { setDraft(undefined); onChange(region); }}'));
-  assert.ok(picker.includes('aria-pressed={sameRegion(selected,region)}'));
+  const review = source('src/components/search/ImageRegionReview.tsx');
+  const styles = source('src/components/search/image-region-review.css');
+  assert.ok(picker.includes('autoSelect?:boolean;'));
+  assert.ok(picker.includes('onClick={selectCandidateAtPoint}'));
+  assert.ok(picker.includes('findImageRegionAtPoint(p,candidates)'));
   assert.ok(picker.includes("variant?:'default'|'viewer';"));
   assert.ok(picker.includes('sanat-region-picker--viewer'));
-  assert.ok(picker.includes('mode:\'resize\''));
-  assert.ok(modal.includes('data-testid="forza-vision-optical-toolbar"'));
-  assert.ok(modal.includes('setMobileResultsExpanded(false); resetForm();'));
-  assert.ok(modal.includes('resetForm(); setCameraFlowActive(true); void startCamera();'));
-  assert.ok(optical.includes('.fv-kiki-optical-toolbar'));
-  assert.ok(review.includes('.kiki-vision-review-shell.kiki-image-workspace'));
-  assert.ok(review.includes('.sanat-region-picker__canvas'));
-  assert.ok(review.includes('.sanat-region-picker__search'));
-  assert.ok(review.includes('.sanat-region-picker__full-image'));
-  assert.ok(styles.includes('.fv-region-candidates__item.is-active'));
+  assert.ok(modal.includes('autoAnalysisKeyRef.current===key'));
+  assert.ok(modal.includes("void handleAnalyze('quick',region,localImageId,true)"));
+  assert.ok(modal.includes('setCandidateRegions(detectedRegions.length?detectedRegions:(primaryRegion?[primaryRegion]:[]))'));
+  assert.ok(modal.includes('setSelectedProductId(undefined)'));
+  assert.ok(review.includes('data-testid="kiki-inline-catalog-results"'));
+  assert.ok(review.includes('onSelectProduct'));
+  assert.ok(styles.includes('.kiki-image-workspace__result-card.is-selected'));
+  assert.ok(styles.includes('.sanat-region-picker--viewer .sanat-region-picker__handles'));
+  assert.ok(styles.includes('display: none !important'));
 });
 
 test('no-match catalogue view uses real custom-request actions and truthful privacy language', () => {
