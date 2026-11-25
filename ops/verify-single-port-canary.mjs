@@ -202,7 +202,12 @@ assert.ok(Number.isInteger(referenceStatus.quarantinedSkuCount) && referenceStat
 assert.ok(referenceStatus.rawDirectSkuCount >= 678, "POPD_REFERENCE_DIRECT_AUDIT_COUNT_BELOW_AUDITED_BASELINE");
 assert.equal(referenceStatus.standaloneDirectSkuRows, 0, "POPD_REFERENCE_DUPLICATE_DIRECT_SKU_ROWS");
 assert.ok(referenceStatus.verifiedFamilyImageCount >= 479, "POPD_REFERENCE_FAMILY_IMAGE_COUNT_BELOW_AUDITED_BASELINE");
-assert.ok(referenceStatus.verifiedVariantImageCount >= 137, "POPD_REFERENCE_SKU_IMAGE_COUNT_BELOW_AUDITED_BASELINE");
+assert.equal(referenceStatus.e869SourcePath, "github/javanwebi/POPD/deliverables/catalog-869-audit/e869_linked_catalog.json",
+  "POPD_E869_IMAGE_SOURCE_MISMATCH");
+assert.equal(referenceStatus.linkedE869ImageCount, 869, "POPD_E869_SKU_IMAGE_LINK_COUNT_MISMATCH");
+assert.equal(referenceStatus.verifiedVariantImageCount, 869, "POPD_REFERENCE_SKU_IMAGE_COUNT_MISMATCH");
+assert.ok(typeof referenceStatus.e869SourceSha256 === "string" && referenceStatus.e869SourceSha256.length >= 32,
+  "POPD_E869_IMAGE_ARCHIVE_SHA_MISSING");
 assert.ok(typeof referenceStatus.sourceSha256 === "string" && referenceStatus.sourceSha256.length >= 32,
   "POPD_REFERENCE_ARCHIVE_SHA_MISSING");
 console.log("POPD_REFERENCE_STATUS_OK",
