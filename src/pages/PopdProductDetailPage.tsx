@@ -440,7 +440,7 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[75vh] bg-[#F8FAFC] pt-3 sm:pt-7 pb-28 lg:pb-10" dir="rtl">
+    <div data-testid="popd-product-detail" className="min-h-[75vh] bg-[#F8FAFC] pt-3 sm:pt-7 pb-28 lg:pb-10" dir="rtl">
       <div className="mx-auto max-w-[1320px] px-3.5 sm:px-6 space-y-4 sm:space-y-6">
         {/* MOBILE (< sm): Single-Line Native Context & Action Strip */}
         <div
@@ -636,9 +636,9 @@ export const ProductDetailPage: React.FC = () => {
         {/* Main 2-Column Workspace: Right = Sticky Image & Purchase Card | Left = Clean SKU Selector */}
         <section className="grid grid-cols-1 lg:grid-cols-[430px_minmax(0,1fr)] gap-4 sm:gap-6 items-start">
           {/* Column 1 (Right in RTL): Sticky Studio Showcase + Purchase Box */}
-          <div className="lg:sticky lg:top-24 space-y-4">
+          <div data-testid="product-detail-gallery-sticky" className="lg:sticky lg:top-24 space-y-4">
             {/* Pure White Studio Image Card (Zero broken thumbnails, zero cluttered overlays) */}
-            <div className="rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs">
+            <div data-testid="product-detail-image" className="rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs">
               <div className="relative aspect-[16/10] sm:aspect-[4/3] w-full bg-white flex items-center justify-center p-4 sm:p-6 overflow-hidden">
                 <button
                   type="button"
@@ -692,7 +692,11 @@ export const ProductDetailPage: React.FC = () => {
                         key={img.id || `${img.url}-${idx}`}
                         type="button"
                         aria-pressed={isCurrent}
-                        aria-label={`نمای ${toPersianDigits(idx + 1)}`}
+                        aria-label={
+                          img.scope === 'variant' && img.variantCode
+                            ? `انتخاب تصویر کد ${img.variantCode}`
+                            : `نمایش تصویر عمومی خانواده ${product.name}`
+                        }
                         onClick={() => handleSelectImage(idx)}
                         className={`w-14 h-12 sm:w-16 sm:h-14 rounded-xl border bg-white p-1.5 shrink-0 snap-start flex items-center justify-center overflow-hidden transition-all cursor-pointer ${
                           isCurrent
@@ -753,7 +757,7 @@ export const ProductDetailPage: React.FC = () => {
                 <div className="space-y-1 min-w-0">
                   <div className="text-[11px] font-semibold text-slate-500">
                     کد انتخاب‌شده:{' '}
-                    <strong className="font-mono text-slate-900 tabular-nums" dir="ltr">
+                    <strong data-testid="active-sku-code" className="font-mono text-slate-900 tabular-nums" dir="ltr">
                       {activeSkuCode}
                     </strong>
                     {selectedVariant?.size && (
@@ -901,6 +905,7 @@ export const ProductDetailPage: React.FC = () => {
                   type="button"
                   role="tab"
                   aria-selected={isActive}
+                  aria-label={tab.label}
                   onClick={() => setActiveTab(tab.id)}
                   className={`min-h-[46px] flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-5 py-3 text-xs font-black border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
                     isActive
