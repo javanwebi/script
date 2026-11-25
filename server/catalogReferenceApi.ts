@@ -96,7 +96,7 @@ async function loadSnapshot(): Promise<Snapshot> {
   if (!databaseEnabled()) throw new Error('PostgreSQL catalog backend is not enabled');
 
   const db = database();
-  const [archiveRes, groupRes, categoryRes, commercialRes, galleryRes, familyImageRes, aliasRes] = await Promise.all([
+  const [archiveRes, groupRes, categoryRes, commercialRes, galleryRes, aliasRes] = await Promise.all([
     db.query(
       'select payload, sha256, imported_at from app_private.source_archives where source_path = $1 order by imported_at desc limit 1',
       [ENGINEERED_SOURCE_PATH],
@@ -111,10 +111,35 @@ async function loadSnapshot(): Promise<Snapshot> {
       'select variant_code, price, base_price, retail_price, wholesale_price, dealer_price, stock, stock_reserved, stock_known, inquiry_only, currency from public.variant_commercial_specs',
     ),
     db.query(
-      'select id, family_code, variant_code, file_name, url, scope, title, sort_order, identity_verified from public.catalog_gallery_images order by sort_order, id',
-    ),
-    db.query(
-      'select code, images from public.catalog_families where is_active = true and is_deleted = false',
+      `select
+        gi.id,
+        gi.family_code,
+        gi.variant_code,
+        gi.file_name,
+        gi.url,
+        gi.scope,
+        gi.title,
+        gi.sort_order,
+        gi.identity_verified
+      from public.catalog_gallery_images gi
+      inner join public.catalog_image_audits ia
+        on lower(ia.image_url) = lower(gi.url)
+      where gi.identity_verified = true
+        and ia.review_status = 'approved'
+        and ia.identity_status = 'verified'
+        and (
+          (
+            gi.scope = 'family-example'
+            and ia.sku_verified = false
+            and upper(ia.family_code) = upper(gi.family_code)
+          )
+          or (
+            gi.scope = 'variant'
+            and ia.sku_verified = true
+            and upper(ia.exact_sku) = upper(gi.variant_code)
+          )
+        )
+      order by gi.sort_order, gi.id`,
     ),
     db.query(
       'select old_family_code, new_family_code, direct_sku_code from public.catalog_family_aliases',
@@ -227,12 +252,6 @@ async function loadSnapshot(): Promise<Snapshot> {
     }
   }
 
-  const familyImagesByCode = new Map<string, string[]>();
-  for (const row of familyImageRes.rows) {
-    const images = asArray<string>(row.images).filter(Boolean);
-    if (images.length && row.code) familyImagesByCode.set(String(row.code), images);
-  }
-
   const galleryByFamily = new Map<string, ProductGalleryImage[]>();
   const galleryByVariant = new Map<string, ProductGalleryImage[]>();
   for (const row of galleryRes.rows) {
@@ -251,7 +270,12 @@ async function loadSnapshot(): Promise<Snapshot> {
   for (const product of products) {
     const isBelt = isAuditedBeltProduct(product);
     const matchedGallery: ProductGalleryImage[] = (product.galleryImages || []).filter(
-      (image) => Boolean(image.url) && !isLegacyCatalogEUrl(image.url),
+      (image) =>
+        !isBelt &&
+        image.scope === 'family' &&
+        image.identityVerified === true &&
+        Boolean(image.url) &&
+        !isLegacyCatalogEUrl(image.url),
     );
     const seenUrls = new Set(matchedGallery.map((image) => image.url));
     const dbFamilyImages = new Set<string>();
@@ -259,7 +283,6 @@ async function loadSnapshot(): Promise<Snapshot> {
     const attachGallery = (items?: ProductGalleryImage[]) => {
       for (const image of items || []) {
         if (!image.url || seenUrls.has(image.url)) continue;
-        if (isLegacyCatalogEUrl(image.url)) continue;
         if (!image.identityVerified) continue;
         if (isBelt && image.scope === 'family') continue;
         seenUrls.add(image.url);
@@ -274,9 +297,6 @@ async function loadSnapshot(): Promise<Snapshot> {
         const directKey = normalizeCode(candidate);
         const dbFamilyCode = familyByOldCode.get(directKey) || String(candidate);
         attachGallery(galleryByFamily.get(normalizeCode(dbFamilyCode)));
-        for (const url of familyImagesByCode.get(dbFamilyCode) || []) {
-          if (!isLegacyCatalogEUrl(url)) dbFamilyImages.add(url);
-        }
       }
     }
 
@@ -284,11 +304,11 @@ async function loadSnapshot(): Promise<Snapshot> {
       const variantKey = normalizeCode(variant.code);
       const commercial = commercialByVariant.get(variantKey);
       const variantGallery = (galleryByVariant.get(variantKey) || []).filter(
-        (image) => !isLegacyCatalogEUrl(image.url) && image.identityVerified === true,
+        (image) => image.identityVerified === true && normalizeCode(image.variantCode) === variantKey,
       );
       attachGallery(variantGallery);
-      const sourceImages = (variant.images || []).filter((url) => !isLegacyCatalogEUrl(url));
-      const images = Array.from(new Set([...sourceImages, ...variantGallery.map((image) => image.url)]));
+      // Variant images from the engineered archive are not SKU-proof. Only exact-SKU audited gallery rows are public.
+      const images = Array.from(new Set(variantGallery.map((image) => image.url)));
       return {
         ...variant,
         ...(commercial ? {
