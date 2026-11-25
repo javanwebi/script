@@ -386,12 +386,16 @@ async function loadSnapshot(): Promise<Snapshot> {
     const updatedVariants = (product.variants || []).map((variant) => {
       const variantKey = normalizeCode(variant.code);
       const commercial = commercialByVariant.get(variantKey);
-      const variantGallery = (galleryByVariant.get(variantKey) || []).filter(
-        (image) =>
+      const variantGallery = (galleryByVariant.get(variantKey) || []).filter((image) => {
+        const auditedFamilyCode = normalizeCode(image.familyCode);
+        const auditedCanonicalOwner = canonicalFamilyByCode.get(auditedFamilyCode);
+        return (
           image.scope === 'variant' &&
           image.identityVerified === true &&
-          normalizeCode(image.variantCode) === variantKey,
-      );
+          normalizeCode(image.variantCode) === variantKey &&
+          auditedCanonicalOwner === canonicalCode
+        );
+      });
       attachGallery(variantGallery);
       // Variant images from the engineered archive are not SKU-proof. Only exact-SKU audited gallery rows are public.
       const images = Array.from(new Set(variantGallery.map((image) => image.url)));
