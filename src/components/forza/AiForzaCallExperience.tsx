@@ -1222,7 +1222,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const q = (textToSend || '').trim();
       if(callClosedRef.current)return;
       const activeQuery=String(activeTurnRef.current?.query||'').trim();
-      const duplicateActiveTurn=Boolean(q&&activeQuery&&
+      const activeTurn=activeTurnRef.current;
+      // The same final transcript can arrive twice from competing recognizers.
+      // Suppress it only during the short late-final window when no new near-field
+      // speech has been heard. A genuinely repeated customer utterance is a new turn.
+      const duplicateActiveTurn=Boolean(q&&activeQuery&&activeTurn?.startedAt&&
+        Date.now()-activeTurn.startedAt<2500&&
+        !vadRef.current.heardSpeech&&
         normalizePersianTranscript(q)===normalizePersianTranscript(activeQuery));
       if(duplicateActiveTurn)return;
       const canInterruptPendingTurn=Boolean(q&&(
