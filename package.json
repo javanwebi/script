@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "optimize:images": "node scripts/optimize-images.mjs",
-    "predev": "node scripts/optimize-images.mjs",
+    "predev": "node scripts/optimize-images.mjs && node scripts/sync-popd-belt-assets.mjs",
     "dev": "node --import tsx server.ts",
-    "prebuild": "node scripts/optimize-images.mjs",
+    "prebuild": "node scripts/optimize-images.mjs && node scripts/sync-popd-belt-assets.mjs",
     "build": "vite build",
     "start": "node --import tsx server.ts",
     "preview": "vite preview",
@@ -29,7 +29,9 @@
     "db:verify:adopted": "node --import tsx scripts/database/verifyAdopted.ts",
     "db:smoke:online": "node --import tsx scripts/database/smokeAdopted.ts",
     "db:plan:adopted": "node --import tsx scripts/database/migrateAdopted.ts plan",
-    "db:migrate:adopted": "node --import tsx scripts/database/migrateAdopted.ts apply"
+    "db:migrate:adopted": "node --import tsx scripts/database/migrateAdopted.ts apply",
+    "catalog:sync-popd-belt-assets": "node scripts/sync-popd-belt-assets.mjs",
+    "catalog:sync-popd-images": "node scripts/sync-popd-catalog-images.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
