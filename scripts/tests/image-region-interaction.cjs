@@ -92,7 +92,7 @@ const {chromium}=require('playwright');
   }
   // Mount the actual modal and verify the new automatic detect -> search -> inline results flow.
   await fs.writeFile(path.join(fixture,'modal.html'),'<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="./modal.tsx"></script>');
-  await fs.writeFile(path.join(fixture,'modal.tsx'),`import React from 'react';import {createRoot} from 'react-dom/client';import {MemoryRouter} from 'react-router-dom';import {AiVisualPartSearchModal} from '/src/components/search/AiVisualPartSearchModal.tsx';import '/src/index.css';createRoot(document.getElementById('root')).render(<MemoryRouter><AiVisualPartSearchModal isOpen={true} onClose={()=>{}}/></MemoryRouter>);`);
+  await fs.writeFile(path.join(fixture,'modal.tsx'),`import React from 'react';import {createRoot} from 'react-dom/client';import {MemoryRouter,useLocation} from 'react-router-dom';import {AiVisualPartSearchModal} from '/src/components/search/AiVisualPartSearchModal.tsx';import '/src/index.css';function RouteProbe(){const location=useLocation();window.__kikiPath=location.pathname;return null;}createRoot(document.getElementById('root')).render(<MemoryRouter><RouteProbe/><AiVisualPartSearchModal isOpen={true} onClose={()=>{}}/></MemoryRouter>);`);
   const page=await browser.newPage({viewport:{width:1280,height:960}});
   let uploads=0;
   const detections=[],queries=[],errors=[];
@@ -130,7 +130,9 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('.sanat-region-picker__full-image').count(),0,'manual full-image action must be removed');
   const selectedProduct=page.getByRole('button',{name:/تسمه وی شکل A-49/});
   await selectedProduct.click();
-  assert.equal(await selectedProduct.getAttribute('aria-pressed'),'true','catalog result must be selectable in the same workspace');
+  assert.equal(await selectedProduct.getAttribute('aria-pressed'),'true','catalog result must remain accessible as selected');
+  await page.waitForFunction(()=>window.__kikiPath==='/product/TEST-A49');
+  assert.equal(await page.evaluate(()=>window.__kikiPath),'/product/TEST-A49','catalog result must open its own product detail page');
   await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-desktop.png'),fullPage:true});
 
   const candidateButtons=page.getByTestId('vision-region-candidates').getByRole('button');
