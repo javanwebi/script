@@ -24,7 +24,7 @@ test('nonvisual SKU siblings are not promoted by a visually matched family',()=>
   ? {...family,variants:[...(family.variants||[]),{code:'SPB-2100',name:'SPB 2100',active:true,identitySpecs:{profile:'SPB'}}]}
   : family) as Product[];
  const base=resultFor('belt-family','SPB-2000');
- base.similarCandidates?.push({code:'SPB-2100',name:'SPB 2100',brand:'SWR',type:'تسمه V شکل صنعتی',similarityScore:80,matchReason:'family-only candidate',specs:[],matchType:'similar',isVisualMatch:false});
+ base.similarCandidates?.push({code:'SPB-2100',name:'SPB 2100',brand:'SWR',type:'تسمه V شکل صنعتی',similarityScore:80,matchReason:'family-only candidate',specs:[],matchType:'technical',isVisualMatch:false});
  const result=applyBeltRecognition(base,extendedProducts,[{text:'SPB 2000',confidence:97}]);
  assert.deepEqual(result.similarCandidates?.map(item=>item.code),['SPB-2000']);
 });
