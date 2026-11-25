@@ -1256,6 +1256,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // A pure stop command should not trigger an extra AI response.
         sessionTranscriptRef.current=appendForzaSessionTurn(sessionTranscriptRef.current,q);
         setUserText(sessionTranscriptRef.current);
+        const stopReply='بله، بفرما.';
+        historyRef.current=[
+          ...historyRef.current.slice(-FORZA_CONVERSATION_HISTORY_LIMIT),
+          {role:'user',text:q},
+          {role:'model',text:stopReply},
+        ];
         setIsUserSpeaking(false);
         setStatus('listening');
         setTurn('user');
@@ -1270,7 +1276,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         lastTranscriptChangedAtRef.current=0;
         turnDispatchPendingRef.current=false;
         vadRef.current.reset();
-        setAiText('بله، بفرما.');setDisplayedAi('بله، بفرما.');
+        setAiText(stopReply);setDisplayedAi(stopReply);
         stopAcknowledgementRef.current?.request(async(bytes,controller)=>{
           if(callClosedRef.current||activeTranscriptRef.current.trim()||isProcessingTurnRef.current||speakerMutedRef.current)return;
           manualReplayAbortRef.current=controller;
