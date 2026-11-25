@@ -205,8 +205,8 @@ async function loadSnapshot(): Promise<Snapshot> {
       throw new Error('A canonical POPD family is missing a valid resolved category assignment: ' + String(product.code || 'unknown'));
     }
     product.categorySlug = slug;
-    const category = fallbackCategories.find((item) => item.slug === slug);
-    if (category) product.categoryName = category.name;
+    const category = categoryRowsBySlug.get(slug);
+    if (category?.name) product.categoryName = String(category.name);
     product.submenu = assignment.submenuName || product.submenu;
     product.subcategory = assignment.leafName || product.subcategory;
     assignmentsByFamily.set(product.code, {
@@ -452,17 +452,19 @@ async function loadSnapshot(): Promise<Snapshot> {
     const metadata = dbCategory.metadata && typeof dbCategory.metadata === 'object'
       ? dbCategory.metadata as Record<string, unknown>
       : {};
-    const metadataChildren = Array.isArray(metadata.children)
+    const hasMetadataChildren = Array.isArray(metadata.children);
+    const metadataChildren = hasMetadataChildren
       ? metadata.children as Category['children']
       : [];
-    const children = fallback?.children?.length ? fallback.children : metadataChildren;
-    const metadataSubcategories = Array.isArray(metadata.subcategories)
+    const children = hasMetadataChildren ? metadataChildren : (fallback?.children || []);
+    const hasMetadataSubcategories = Array.isArray(metadata.subcategories);
+    const metadataSubcategories = hasMetadataSubcategories
       ? metadata.subcategories.map((value) => String(value))
       : [];
-    const subcategories = fallback?.subcategories?.length
-      ? fallback.subcategories
-      : metadataSubcategories.length
-        ? metadataSubcategories
+    const subcategories = hasMetadataSubcategories
+      ? metadataSubcategories
+      : fallback?.subcategories?.length
+        ? fallback.subcategories
         : (children || []).map((node) => node.name);
     const stats = menuStats.get(slug) || { familyCount: 0, skuCount: 0 };
     const directSkuCount = directSkuCounts.get(slug) || 0;
@@ -478,7 +480,7 @@ async function loadSnapshot(): Promise<Snapshot> {
       icon: dbCategory.icon || fallback?.icon || 'Package',
       image: dbCategory.image || fallback?.image || undefined,
       children,
-      menuSource: fallback?.menuSource || (typeof metadata.source === 'string' ? metadata.source : undefined),
+      menuSource: (typeof metadata.source === 'string' ? metadata.source : undefined) || fallback?.menuSource,
       sortOrder: Number(dbCategory.sortOrder ?? fallback?.sortOrder ?? 0),
       count: stats.familyCount,
       familyCount: stats.familyCount,
