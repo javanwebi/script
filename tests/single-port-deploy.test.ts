@@ -457,8 +457,8 @@ test("deployment camera asset gates match the current full-screen scanner UI ins
     assert.doesNotMatch(script, /grep -RlF 'عکس‌برداری مجدد'/);
     assert.doesNotMatch(script, /grep -RlF 'تأیید و جستجوی قطعه'/);
   }
-  assert.match(mobileScan, /assert\.doesNotMatch\(modal, \/cameraReview\|confirmCameraPhoto\|retakeCameraPhoto\|تأیید و جستجوی قطعه\//);
-  assert.match(launcher, /grep -qF 'شناسایی قطعه با دوربین' \/tmp\/sanatpish-fullscreen-camera-canary\.js/);
-  assert.match(launcher, /grep -qF 'ثبت عکس قطعه' \/tmp\/sanatpish-fullscreen-camera-canary\.js/);
+  assert.ok(mobileScan.includes("assert.doesNotMatch(modal, /cameraReview|confirmCameraPhoto|retakeCameraPhoto|تأیید و جستجوی قطعه/)"));
+  assert.ok(launcher.includes("grep -qF 'شناسایی قطعه با دوربین' /tmp/sanatpish-fullscreen-camera-canary.js"));
+  assert.ok(launcher.includes("grep -qF 'ثبت عکس قطعه' /tmp/sanatpish-fullscreen-camera-canary.js"));
   assert.doesNotMatch(launcher, /grep -qF 'عکس‌برداری مجدد'/);
 });
