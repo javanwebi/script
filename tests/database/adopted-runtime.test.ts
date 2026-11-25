@@ -493,6 +493,8 @@ test('adopted runtime exposes belt identity metadata without widening unrelated 
  assert.deepEqual(belt.variants[0].variableSpecs,{beltDivision:'vbelt-wedge'});
  assert.equal(bearing.variants[0].identitySpecs,undefined);
  assert.equal(bearing.variants[0].variableSpecs,undefined);
+ assert.equal(bearing.profiles,undefined);
+ assert.equal(bearing.sizesSummary,undefined);
 }finally{await db.close();}});
 
 test('adopted runtime excludes belt-category false positives and belt-welding tools from identity hydration',async()=>{const db=await adoptedDatabase();const sql=db as unknown as SqlClient;try{
