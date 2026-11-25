@@ -155,7 +155,7 @@ test('native browser transcripts use a microphone-sensitive near-field gate whil
   assert.match(admission,/speechAdmissionRef\.current\.decide\(words,final,playback,Date\.now\(\)\)/);
   assert.doesNotMatch(admission,/if\(!playback\)return 'accept';/);
   const gate=readFileSync(new URL('../src/utils/forzaSpeechAdmission.ts',import.meta.url),'utf8');
-  assert.match(gate,/playback\?0\.004:0\.0009/);
+  assert.match(gate,/playback\?0\.004:0\.0015/);
   assert.match(gate,/playback&&intent!=='stop'\?280:160/);
 });
 
