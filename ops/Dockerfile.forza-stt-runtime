@@ -64,7 +64,7 @@ RUN set -eux; \
     test -s /opt/diba-stt/diba-stt-fa-small.tar.gz; \
     rm -f /tmp/diba-stt-fa-small.tar.gz
 
-ENV FORZA_STT_PROVIDER=diba \
+ENV FORZA_STT_PROVIDER=avalai \
     FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model \
     FORZA_STT_DIBA_BROWSER_ARCHIVE=/opt/diba-stt/diba-stt-fa-small.tar.gz \
     FORZA_STT_PYTHON=/opt/forza-pocket/bin/python \

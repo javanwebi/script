@@ -186,11 +186,18 @@ export async function mapForzaSegmentsInOrder<T,R>(
  * Keep browser-recognized industrial part codes when the acoustic model drops
  * them, but otherwise prefer the server transcript as the final authority.
  */
-export function chooseForzaFinalTranscript(browserValue:string,serverValue:string):string{
+export function chooseForzaFinalTranscript(browserValue:string,serverValue:string,preferServer=false):string{
   const browser=normalizePersianTranscript(browserValue);
   const server=normalizePersianTranscript(serverValue);
   if(!server)return browser;
   if(!browser)return server;
+  // AvalAI GPT-Transcribe is the high-accuracy final verifier. Prefer its
+  // complete transcript over a plausible-looking but incorrect browser code;
+  // only keep browser text when the server clearly returned a tiny fragment.
+  if(preferServer){
+    if(browser.length>=12&&server.length<Math.max(6,browser.length*0.45))return browser;
+    return server;
+  }
   const toAsciiDigits=(value:string)=>value.replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
   const technicalTokens=(value:string)=>{
     const normalized=toAsciiDigits(value).toUpperCase();
@@ -207,6 +214,14 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
   return server;
 }
 
+/** Use a server final transcript only when every recording segment completed.
+ * A partial AvalAI/Diba result must never overwrite a complete browser utterance.
+ */
+export function canUseForzaServerFinalTranscript(serverValue: string, failedSegments: number): boolean {
+  return normalizePersianTranscript(serverValue).length > 0 &&
+    Number.isInteger(failedSegments) && failedSegments === 0;
+}
+
 /** Adaptive acoustic endpointing for natural Persian voice turns.
  * Clear, final utterances should not wait four seconds before the LLM starts.
  * Incomplete clauses and technical-code corrections keep a longer continuation
@@ -216,17 +231,17 @@ export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number
   const normalized=normalizePersianTranscript(text);
   // No transcript yet is not proof that the customer stopped speaking. Keep
   // enough time for delayed local/browser ASR hypotheses.
-  if(!normalized)return 5200;
+  if(!normalized)return 6500;
   // Explicit stop/continue commands should interrupt without a long endpoint.
   if(/^(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|توقف|بسه|ساکت|ساکت شو|ادامه بده|ادامه بدید|ادامه)$/.test(normalized))
     return 650;
   const analysis = analyzePersianSentenceCompletion(normalized);
   // A clear, final answer can dispatch quickly. A provisional hypothesis gets
   // extra time for a late correction (for example 6202 -> 6203).
-  if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?2100:1350;
+  if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?3200:1350;
   // Preserve more room for clauses, unfinished requests and industrial codes.
-  if(analysis.isMidThought)return hasInterim?3400:2800;
-  return hasInterim?2800:2100;
+  if(analysis.isMidThought)return hasInterim?5200:4300;
+  return hasInterim?3800:3000;
 }
 
 /**
@@ -247,7 +262,9 @@ export function forzaTurnRemainingWaitMs(
   // emitting interim hypotheses while the customer is still speaking. A
   // longer text-only guard is safer than treating that transport stall as
   // acoustic silence. When VAD is available, retain the normal fast endpoint.
-  const requiredMs = vadSilenceMs === null ? Math.max(baseRequiredMs, 6000) : baseRequiredMs;
+  const requiredMs = baseRequiredMs <= 650
+    ? baseRequiredMs
+    : vadSilenceMs === null ? Math.max(baseRequiredMs, 6500) : baseRequiredMs;
   // Late final ASR hypotheses must not restart the entire acoustic endpoint
   // window. Preserve the full pause for unfinished thoughts and when no VAD
   // is available; allow a short revision guard only for completed final text.

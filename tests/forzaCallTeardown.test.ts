@@ -32,7 +32,7 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
   historyRef:ref(['private']),audioChunksRef:ref(['audio']),audioSegmentsRef:ref(['audio-segment']),isProcessingTurnRef:ref(true),
   stopAudio:()=>calls.push('playback'),cancelAnimationFrame:()=>calls.push('animation'),
  };
- for(const name of ['localSttNodeRef','localSttSinkRef','micSourceNodeRef','micAnalyserRef','audioSourceNodeRef','analyserRef','gainNodeRef'])values[name]=ref({disconnect(){calls.push('disconnect');}});
+ for(const name of ['localSttNodeRef','localSttSinkRef','micSourceNodeRef','micAnalyserRef','micAnalyserSinkRef','audioSourceNodeRef','analyserRef','gainNodeRef'])values[name]=ref({disconnect(){calls.push('disconnect');}});
  const teardown=new Function(...Object.keys(values),body).bind(null,...Object.values(values));
  teardown();teardown();await Promise.resolve();
  for(const resource of ['recognition','recorder','track','request','context','local-stt','local-stt-model','animation','audio-evidence','conversation-engine'])assert.equal(calls.filter(x=>x===resource).length,1,resource);
