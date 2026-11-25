@@ -90,12 +90,18 @@ const {chromium}=require('playwright');
    await page.getByRole('button',{name:'جست‌وجوی کل تصویر'}).click();assert.equal(await page.evaluate(()=>window.lastRegion),null);
    assert.deepEqual(errors,[]);await context.close();console.log(mobile?'TOUCH_SELECTION_OK':'POINTER_DRAG_KEYBOARD_OK');
   }
-  // Mount the actual modal with isolated identity/cart hooks and mock only HTTP.
+  // Mount the actual modal and verify the new automatic detect -> search -> inline results flow.
   await fs.writeFile(path.join(fixture,'modal.html'),'<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="./modal.tsx"></script>');
   await fs.writeFile(path.join(fixture,'modal.tsx'),`import React from 'react';import {createRoot} from 'react-dom/client';import {MemoryRouter} from 'react-router-dom';import {AiVisualPartSearchModal} from '/src/components/search/AiVisualPartSearchModal.tsx';import '/src/index.css';createRoot(document.getElementById('root')).render(<MemoryRouter><AiVisualPartSearchModal isOpen={true} onClose={()=>{}}/></MemoryRouter>);`);
-  const page=await browser.newPage({viewport:{width:1000,height:1000}});let uploads=0;const detections=[],queries=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const page=await browser.newPage({viewport:{width:1280,height:960}});
+  let uploads=0;
+  const detections=[],queries=[],errors=[];
+  const catalogSvg='<svg xmlns="http://www.w3.org/2000/svg" width="500" height="300"><rect width="500" height="300" fill="#f6f7f8"/><path d="M70 155 C80 35 420 35 430 155 C420 260 80 260 70 155Z" fill="#24272b"/><text x="250" y="170" font-size="54" text-anchor="middle" fill="white">A-49</text></svg>';
+  const catalogImage='data:image/svg+xml;base64,'+Buffer.from(catalogSvg).toString('base64');
+  page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',async route=>{
-   const pathname=new URL(route.request().url()).pathname;let body={success:true,values:{},products:[]};
+   const pathname=new URL(route.request().url()).pathname;
+   let body={success:true,values:{},products:[]};
    if(pathname==='/api/ai/local-vision-status')body={enabled:true,pipeline:'local-lens-v2',ready:true,total:869,indexed:869};
    if(pathname==='/api/ai/customer-images'){uploads++;body={imageUrl:'/api/ai/customer-images/isolated-test.png'};}
    if(pathname==='/api/ai/detect-regions'){
@@ -104,115 +110,48 @@ const {chromium}=require('playwright');
    }
    if(pathname==='/api/ai/analyze-part'){
     const request=route.request().postDataJSON();queries.push(request);
-    await new Promise(resolve=>setTimeout(resolve,260));
-    body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه',detectedProfile:'',visualAnalysis:'',confidence:0},matchedProducts:[],modelSuggestions:[],nearestCatalogSuggestions:[{code:'unrelated-test',name:'محصول نامرتبط نباید نمایش داده شود',familyCode:'unrelated',familyName:'نامرتبط',imageScope:'variant',matchBasis:'explore',specs:[],reason:'test'}],technicalAdvice:'',customerImageUrl:undefined,queryRegion:request.fullImage?undefined:request.region || {x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:0}};
+    await new Promise(resolve=>setTimeout(resolve,180));
+    body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'تسمه وی شکل',detectedProfile:'A',visualAnalysis:'تسمه مشکی با نوشته A-49',confidence:94},matchedProducts:[{code:'TEST-A49',name:'تسمه وی شکل A-49',brand:'FORZA',image:catalogImage,imageScope:'variant',similarityScore:94,visualVerdictFarsi:'تطبیق تصویری قوی',specs:[{key:'سری',value:'A'},{key:'طول',value:'49 اینچ'}],catalogProduct:{image:catalogImage,imageScope:'sku-verified',categoryName:'تسمه صنعتی'}}],similarCandidates:[],modelSuggestions:[],technicalAdvice:'',queryRegion:request.fullImage?undefined:request.region||{x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:1}};
    }
    await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
   });
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/modal.html`);
   await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
   await page.getByTestId('image-region-review').waitFor();
-  await page.locator('.sanat-region-picker__search').waitFor();
-  await page.screenshot({
-   path:path.join(os.tmpdir(),'sanat-forza-vision-entry-review-desktop.png'),
-   fullPage:true,
-  });
-  // Wait until the image is ready for manual selection; automatic detection may
-  // or may not have supplied a region before the customer touches the image.
-  await page.waitForFunction(() => {
-   const review=document.querySelector('[data-testid="image-region-review"]');
-   return review && review.getAttribute('aria-busy') === 'false';
-  },null,{timeout:30000});
-  assert.equal(uploads,0);
-  assert.ok(detections.length<=1,'no duplicate server-detection request');
-  if(detections.length)assert.ok(typeof detections[0].imageBase64==='string'&&detections[0].imageBase64.startsWith('data:image/'));
-  assert.equal(queries.length,0);
-  const modalFrame=page.locator('.sanat-region-picker__frame');const bounds=await modalFrame.boundingBox();
-  await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
-  await page.waitForTimeout(350);assert.equal(queries.length,0);
-  await page.waitForFunction(() => {
-   const search=document.querySelector('.sanat-region-picker__search');
-   return search && !search.disabled;
-  },null,{timeout:10000});
-  await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
-  await page.getByTestId('analysis-approved-crop').waitFor();
-  await page.getByTestId('kiki-vision-results-shell').waitFor();
-  const hierarchy=await page.evaluate(() => {
-    const sheet=document.querySelector('.fv-catalog-sheet__results');
-    const header=document.querySelector('[data-testid="forza-vision-catalog-sheet-header"]');
-    const lens=document.querySelector('.fv-catalog-sheet__lens');
-    const body=document.querySelector('[data-testid="forza-vision-two-panel-layout"]');
-    if(!sheet||!header||!lens||!body)return null;
-    const a=lens.getBoundingClientRect(),b=sheet.getBoundingClientRect();
-    return {headerInsideResults:sheet.contains(header),lensRight:a.left>b.left,columnsVisible:a.width>100&&b.width>100};
-  });
-  assert.ok(hierarchy&&hierarchy.headerInsideResults&&hierarchy.lensRight&&hierarchy.columnsVisible,JSON.stringify(hierarchy));
-  await page.getByTestId('forza-vision-optical-toolbar').waitFor();
-  await page.getByTestId('vision-kiki-no-match').waitFor();
-  await page.screenshot({
-   path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-desktop.png'),
-   fullPage:true,
-  });
-  assert.equal(queries.length,1);
-  assert.ok(queries[0].imageBase64?.startsWith('data:image/'));
-  // The locally segmented white-background crop can be a JPEG derived from
-  // the same original PNG; exact base64 equality is not an image-identity test.
-  if(detections.length)assert.match(detections[0].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
-  assert.ok(queries[0].region,'confirmed search must use an approved crop');
-  assert.ok(0.75>=queries[0].region.x&&0.75<=queries[0].region.x+queries[0].region.width);
-  assert.ok(0.45>=queries[0].region.y&&0.45<=queries[0].region.y+queries[0].region.height);
-  if(queries[0].detectionId)assert.equal(queries[0].detectionId,'test-detection-id');
-  assert.equal(queries[0].fullImage,false);assert.equal(queries[0].includeNearest,false);
-  assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);assert.equal(uploads,0);
-  const resultFrame=page.locator('.sanat-region-picker__frame').last();const resultBounds=await resultFrame.boundingBox();
-  await page.mouse.click(resultBounds.x+resultBounds.width*0.25,resultBounds.y+resultBounds.height*0.75);
-  await page.waitForTimeout(80);assert.equal(queries.length,1);
-  await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
-  await page.getByTestId('vision-analyzing-screen').waitFor();
-  await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
-  assert.equal(queries.length,2);assert.match(queries[1].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);assert.ok(queries[1].region);assert.ok(0.25>=queries[1].region.x&&0.25<=queries[1].region.x+queries[1].region.width);assert.ok(0.75>=queries[1].region.y&&0.75<=queries[1].region.y+queries[1].region.height);assert.equal(queries[1].fullImage,false);
-  await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();
-  await page.getByTestId('vision-analyzing-screen').waitFor();
-  await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
-  assert.equal(queries.length,3);assert.match(queries[2].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);assert.equal(queries[2].region,undefined);assert.equal(queries[2].fullImage,true);assert.equal(uploads,0);
-  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);
-  await page.getByRole('button',{name:'نمایش همه نتایج'}).click();
-  assert.equal(await page.getByTestId('kiki-vision-results-shell').getAttribute('data-sheet-expanded'),'true');
-  await page.getByRole('button',{name:'نمایش تصویر قطعه'}).click();
-  assert.equal(await page.getByTestId('kiki-vision-results-shell').getAttribute('data-sheet-expanded'),'false');
-  await page.screenshot({
-   path:path.join(os.tmpdir(),'sanat-forza-vision-entry-results-mobile.png'),
-   fullPage:true,
-  });
-  assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+  await page.getByTestId('kiki-inline-catalog-results').waitFor({timeout:45000});
+  await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
+  await page.getByRole('button',{name:/تسمه وی شکل A-49/}).waitFor();
+  assert.equal(queries.length,1,'catalog analysis must start automatically after image detection');
+  assert.match(queries[0].imageBase64,/^data:image\\/(?:png|jpeg|webp);base64,/);
+  assert.ok(queries[0].region||queries[0].fullImage,'automatic analysis must use a detected region or the safe full-image fallback');
+  assert.equal(queries[0].includeNearest,false);
+  assert.equal(uploads,0,'customer image must remain in the browser-local vault');
+  assert.equal(await page.locator('.sanat-region-picker__search').count(),0,'manual crop-confirm action must be removed');
+  assert.equal(await page.locator('.sanat-region-picker__full-image').count(),0,'manual full-image action must be removed');
+  const selectedProduct=page.getByRole('button',{name:/تسمه وی شکل A-49/});
+  await selectedProduct.click();
+  assert.equal(await selectedProduct.getAttribute('aria-pressed'),'true','catalog result must be selectable in the same workspace');
+  await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-desktop.png'),fullPage:true});
 
-  // Re-enter the review screen and verify its full-image action uses the same
-  // production analysis endpoint without inventing a crop region.
-  await page.getByRole('button',{name:'عکس یا قطعه دیگر'}).click();
-  await page.getByTestId('forza-vision-entry').waitFor();
-  await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
-  await page.getByTestId('image-region-review').waitFor();
-  await page.waitForFunction(() => {
-   const review=document.querySelector('[data-testid="image-region-review"]');
-   return review && review.getAttribute('aria-busy') === 'false';
-  },null,{timeout:30000});
-  await page.screenshot({
-   path:path.join(os.tmpdir(),'sanat-forza-vision-entry-review-mobile.png'),
-   fullPage:true,
-  });
-  await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();
-  await page.getByTestId('vision-analyzing-screen').waitFor();
-  await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
-  await page.getByTestId('kiki-vision-results-shell').waitFor();
-  assert.equal(queries.length,4);
-  assert.match(queries[3].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
-  assert.equal(queries[3].region,undefined);
-  assert.equal(queries[3].fullImage,true);
+  const frame=page.locator('.sanat-region-picker__frame').first();
+  const bounds=await frame.boundingBox();
+  const candidateCount=await page.locator('.sanat-region-picker__candidate').count();
+  if(candidateCount>1){
+   await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
+   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
+   assert.equal(queries.length,2,'selecting another detected object must automatically run a new search');
+   assert.ok(queries[1].region,'second object search must use its own detected region');
+   assert.ok(queries[1].region.x>0.6,'second object must map to the second detected region');
+  }
+
+  await page.setViewportSize({width:390,height:844});
+  await page.waitForTimeout(120);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'mobile workspace must not overflow horizontally');
+  await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-mobile.png'),fullPage:true});
+  assert.equal(await page.getByTestId('kiki-inline-catalog-results').count(),1,'results stay beside the selected image without a separate results page');
   assert.equal(uploads,0);
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
   assert.deepEqual(errors,[]);
-  await page.close();console.log('UPLOAD_DETECT_CONFIRM_CROP_AND_FULL_IMAGE_REVIEW_RESULTS_MOBILE_OK');
-
+  await page.close();
+  console.log('AUTO_REGION_DETECTION_INLINE_CATALOG_RESULTS_MOBILE_OK');
  }finally{await browser?.close();await server?.close();await fs.rm(fixture,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
