@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { ProductCard, resolveDisplayBrand } from '../components/product/ProductCard';
 import { ProductImage } from '../components/product/ProductImage';
-import { DirectSkuProductCard, directSkuMatchesSubcategory, toDirectSkuProduct, useDirectSkus, type DirectSku } from '../components/catalog/DirectSkuProducts';
+import { DirectSkuProductCard, directSkuMatchesSubcategory, toDirectSkuProduct, type DirectSku } from '../components/catalog/DirectSkuProducts';
 import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
 import type { Product } from '../types';
 import type { CategoryNode } from '../data/categories';
@@ -66,6 +66,7 @@ type MenuResponse = {
   category?: MenuCategory;
   families?: MenuFamily[];
   products?: Product[];
+  directSkus?: DirectSku[];
   message?: string;
 };
 
@@ -688,7 +689,6 @@ const matchesBeltTopWidth = (product: Product | undefined, widthId: string): boo
 
 export const ExcelMenuCategoryPage: React.FC = () => {
   const { slug = '' } = useParams<{ slug: string }>();
-  const directSkus = useDirectSkus(slug);
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<MenuResponse | null>(null);
   const [status, setStatus] = useState<CatalogueStatus>('loading');
@@ -749,7 +749,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     })
       .then(async response => {
         const body = await response.json() as MenuResponse;
-        if (!response.ok || !body.success || !body.category || !Array.isArray(body.families) || !Array.isArray(body.products)) {
+        if (!response.ok || !body.success || !body.category || !Array.isArray(body.families) || !Array.isArray(body.products) || !Array.isArray(body.directSkus)) {
           throw new Error(body.message || 'catalog unavailable');
         }
         return body;
@@ -845,10 +845,11 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   }, [data?.products]);
 
   const families = data?.families || [];
+  const directSkus = data?.directSkus || [];
   const category = data?.category;
   const isVBeltCategory = slug === 'excel-v2-1-2' || Boolean(category && /وی.?بلت|v-belt/i.test(category.name));
   const skuTotal = families.reduce((total, family) => total + Math.max(0, Number(family.skuCount) || 0), 0)
-    + directSkus.filter(item => item.categorySlug === slug).length;
+    + directSkus.length;
 
   const familyBrandLists = useMemo(() => {
     const map = new Map<string, string[]>();
