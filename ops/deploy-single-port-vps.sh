@@ -1115,19 +1115,24 @@ assert any(line.lower().startswith(b'location: https://sanatpish.com/api/admin/c
 print('HTTP_API_HTTPS_REDIRECT_OK')
 # SPA fallback returns index.html with HTTP 200 for unknown API routes.
 # Treat that as a deployment failure; Nginx rollback stays armed.
-stt_raw=get('/api/ai/forza-stt-info')
-# The endpoint must return JSON, not the SPA index.html.
-try:
- stt_info=json.loads(stt_raw)
-except Exception as exc:
- raise AssertionError('FORZA_STT_PUBLIC_API_RETURNED_NON_JSON') from exc
-assert stt_info.get('serverSttConfigured') is True, ('FORZA_STT_PUBLIC_NOT_CONFIGURED',stt_info)
-assert stt_info.get('serverSttProvider') == 'avalai', ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
-assert stt_info.get('serverSttReady') is True, ('FORZA_STT_PUBLIC_NOT_READY',stt_info)
-assert stt_info.get('serverSttFallbackProvider') == 'diba', ('FORZA_STT_DIBA_FALLBACK_MISSING',stt_info)
-assert stt_info.get('serverSttFallbackReady') is True, ('FORZA_STT_DIBA_FALLBACK_NOT_READY',stt_info)
-assert stt_info.get('serverSttReady') is True, ('FORZA_STT_PUBLIC_NOT_READY',stt_info)
-print('PUBLIC_FORZA_STT_DIBA_READY_OK')
+# Diba warms asynchronously as the offline fallback, so allow it to finish
+# before deciding whether the new release can safely accept a voice call.
+stt_info={}
+for attempt in range(40):
+ try:
+  stt_info=json.loads(get('/api/ai/forza-stt-info'))
+ except Exception:
+  stt_info={}
+ if (stt_info.get('serverSttConfigured') is True and
+     stt_info.get('serverSttProvider') == 'avalai' and
+     stt_info.get('serverSttReady') is True and
+     stt_info.get('serverSttFallbackProvider') == 'diba' and
+     stt_info.get('serverSttFallbackReady') is True):
+  break
+ time.sleep(1)
+else:
+ raise AssertionError(('FORZA_STT_AVALAI_OR_DIBA_FALLBACK_NOT_READY',stt_info))
+print('PUBLIC_FORZA_STT_AVALAI_READY_DIBA_FALLBACK_OK')
 print('PUBLIC_HTTPS_AND_DATABASE_OK domain='+domain+' sni=correct')
 PY
 echo '===== VERIFY DOMAIN AND IP ROUTE TO SAME RELEASE ====='
