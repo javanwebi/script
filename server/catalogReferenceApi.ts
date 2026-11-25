@@ -245,11 +245,15 @@ async function loadSnapshot(): Promise<Snapshot> {
     });
   }
 
-  const familyByOldCode = new Map<string, string>();
+  const legacyCodesByCanonical = new Map<string, string[]>();
   for (const alias of aliasRes.rows) {
-    if (alias.old_family_code && alias.new_family_code) {
-      familyByOldCode.set(normalizeCode(alias.old_family_code), String(alias.new_family_code));
-    }
+    const oldCode = normalizeCode(alias.old_family_code);
+    const newCode = normalizeCode(alias.new_family_code);
+    if (!oldCode || !newCode) continue;
+    legacyCodesByCanonical.set(newCode, [
+      ...(legacyCodesByCanonical.get(newCode) || []),
+      oldCode,
+    ]);
   }
 
   const galleryByFamily = new Map<string, ProductGalleryImage[]>();
@@ -278,26 +282,25 @@ async function loadSnapshot(): Promise<Snapshot> {
         !isLegacyCatalogEUrl(image.url),
     );
     const seenUrls = new Set(matchedGallery.map((image) => image.url));
-    const dbFamilyImages = new Set<string>();
 
     const attachGallery = (items?: ProductGalleryImage[]) => {
       for (const image of items || []) {
         if (!image.url || seenUrls.has(image.url)) continue;
         if (!image.identityVerified) continue;
-        if (isBelt && image.scope === 'family') continue;
         seenUrls.add(image.url);
         matchedGallery.push(image);
-        if (image.scope === 'family') dbFamilyImages.add(image.url);
       }
     };
 
-    if (!isBelt) {
-      const familyCandidates = [product.code, ...(product.legacyFamilyCodes || [])];
-      for (const candidate of familyCandidates) {
-        const directKey = normalizeCode(candidate);
-        const dbFamilyCode = familyByOldCode.get(directKey) || String(candidate);
-        attachGallery(galleryByFamily.get(normalizeCode(dbFamilyCode)));
-      }
+    // Family image rows are keyed by their legacy family code. Look up those codes
+    // directly; translating old -> new before the lookup loses the original row.
+    const familyCandidates = new Set([
+      normalizeCode(product.code),
+      ...(product.legacyFamilyCodes || []).map(normalizeCode),
+      ...(legacyCodesByCanonical.get(normalizeCode(product.code)) || []),
+    ].filter(Boolean));
+    for (const candidate of familyCandidates) {
+      attachGallery(galleryByFamily.get(candidate));
     }
 
     const updatedVariants = (product.variants || []).map((variant) => {
@@ -322,13 +325,17 @@ async function loadSnapshot(): Promise<Snapshot> {
       } as ProductVariant;
     });
 
-    const familyImages = Array.from(new Set([
-      ...(product.images || []).filter((url) => !isLegacyCatalogEUrl(url)),
-      ...dbFamilyImages,
-    ]));
+    // Never promote raw archive image fields to family artwork: the archive's
+    // first image can be a variant/SKU image. Family artwork comes only from
+    // identity-verified family-scope gallery rows.
+    const familyImages = Array.from(new Set(
+      matchedGallery
+        .filter((image) => image.scope === 'family' && image.identityVerified === true && Boolean(image.url))
+        .map((image) => image.url),
+    ));
     product.variants = updatedVariants;
     product.images = familyImages;
-    product.image = familyImages[0] || product.image || '';
+    product.image = familyImages[0] || '';
     product.galleryImages = matchedGallery;
     if (updatedVariants.length > 0) {
       product.prices = updatedVariants[0].prices || product.prices || { base: 0, retail: 0, wholesale: 0, dealer: 0 };
