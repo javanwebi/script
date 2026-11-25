@@ -45,8 +45,14 @@ export function PartIdentificationLink({to,onClick,...props}:LinkProps) {
 export function PartIdentificationPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const fullScreen = new URLSearchParams(location.search).get('from') === 'workspace';
+  const entrySource = new URLSearchParams(location.search).get('from');
+  const fullScreen = entrySource === 'workspace' || entrySource === 'belt-selection';
+  const returnPath = entrySource === 'workspace'
+    ? '/ai-consult'
+    : entrySource === 'belt-selection'
+      ? '/belt-selection'
+      : '/';
   return <div className="min-h-[100dvh] bg-slate-100"><Suspense fallback={<div role="status">در حال بارگذاری شناسایی قطعه…</div>}>
-    <Studio isOpen standalone fullScreen onClose={()=>navigate(fullScreen ? '/ai-consult' : '/', {replace:true})} />
+    <Studio isOpen standalone fullScreen onClose={()=>navigate(returnPath, {replace:true})} />
   </Suspense></div>;
 }
