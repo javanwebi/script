@@ -446,3 +446,18 @@ ${huge}location / {
     assert.ok(clean.includes("limit_except GET { deny all; }"));
   } finally { fs.rmSync(sandbox,{recursive:true,force:true}); }
 });
+
+
+test("release bundle gates match automatic KIKI camera capture and inline results, not removed confirmation UI", () => {
+  const mobileScan = file("tests/mobile-scan-ui.test.ts");
+  const kikiVision = file("tests/forza-vision-kiki-fastpath.test.ts");
+  assert.match(one, /grep -RlF 'full-screen-camera-experience'.*dist\/assets/);
+  assert.match(one, /grep -RlF 'kiki-inline-catalog-results'.*dist\/assets/);
+  assert.doesNotMatch(one, /عکس‌برداری مجدد|تأیید و جستجوی قطعه/);
+  assert.match(one, /tests\/forza-vision-kiki-fastpath\.test\.ts/);
+  assert.ok(mobileScan.includes('uploadAndPrepareImage(dataUrl, "camera-capture.jpg")'));
+  assert.ok(kikiVision.includes('data-testid="kiki-inline-catalog-results"'));
+  assert.match(launcher, /grep -RlF 'kiki-inline-catalog-results'.*dist\/assets/);
+  assert.doesNotMatch(launcher, /عکس‌برداری مجدد|تأیید و جستجوی قطعه/);
+  assert.doesNotMatch(launcher, /grep -qF 'عکس‌برداری مجدد'/);
+});
