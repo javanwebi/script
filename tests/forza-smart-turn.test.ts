@@ -18,11 +18,11 @@ test('unfinished Persian intent remains open long enough for a natural continuat
   ]) {
     const result = analyzePersianSentenceCompletion(phrase);
     assert.equal(result.isComplete, false, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 2000, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 1500, phrase);
   }
 });
 
-test('a one-second pause never finalizes even a linguistically complete question', () => {
+test('complete Persian questions dispatch after a short acoustic confirmation', () => {
   for (const phrase of [
     'قیمتش چنده',
     'تسمه SPA 1250 موجود دارید؟',
@@ -32,8 +32,8 @@ test('a one-second pause never finalizes even a linguistically complete question
   ]) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 1300, phrase);
-    assert.ok(forzaTurnRemainingWaitMs(phrase, false, 1000, 1000) > 0, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 900, phrase);
+    assert.equal(forzaTurnRemainingWaitMs(phrase, false, 1000, 1000), 0, phrase);
   }
 });
 
@@ -51,32 +51,39 @@ test('only explicit control commands bypass the adaptive endpoint', () => {
   assert.equal(forzaTurnRemainingWaitMs('صبر کن',false,700,null),0,
     'explicit stop commands must not inherit the long no-VAD fallback');
   for (const phrase of ['سلام', 'درود', 'ممنون']) {
-    assert.equal(forzaEndOfTurnPauseMs(phrase, false), 1350);
-    assert.ok(forzaTurnRemainingWaitMs(phrase, false, 1000, 1000) > 0);
+    assert.equal(forzaEndOfTurnPauseMs(phrase, false), 650);
+    assert.equal(forzaTurnRemainingWaitMs(phrase, false, 1000, 1000), 0);
   }
-  assert.equal(forzaEndOfTurnPauseMs('اوکی',false),1350);
+  assert.equal(forzaEndOfTurnPauseMs('اوکی',false),650);
   for(const phrase of ['مدل چند است؟','آیا بلبرینگ 6203 موجود است؟']){
-    assert.ok(forzaEndOfTurnPauseMs(phrase,false)<=1600,phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase,false)<=900,phrase);
   }
   for(const phrase of ['بله','آره','نه','همونه','همون قبلی','دومی','باشه','اوکی','درسته']){
     assert.equal(analyzePersianSentenceCompletion(phrase).isComplete,true,phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase,false)<=1600,phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase,false)<=900,phrase);
   }
   assert.equal(analyzePersianSentenceCompletion('صبر کن تا').isComplete, false);
+});
+
+test('standalone reactions such as the screenshot phrase dispatch as complete turns',()=>{
+  for(const phrase of ['چه خبر خوبی','چه خبر','چه خوب','عالیه','خیلی خوبه']){
+    assert.equal(analyzePersianSentenceCompletion(phrase).isComplete,true,phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase,true)<=900,phrase);
+  }
 });
 
 test('provisional WebSpeech requires more time than a stable finalized hypothesis', () => {
   const phrase='تسمه SPA 1250 موجود دارید';
   assert.ok(forzaEndOfTurnPauseMs(phrase, true)>forzaEndOfTurnPauseMs(phrase, false));
-  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=3300);
+  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=2000);
 });
 
 test('stable complete turns dispatch quickly while unfinished clauses survive a two-second pause', () => {
   const phrase='قیمتش چنده';
   const required=forzaEndOfTurnPauseMs(phrase,false);
-  assert.equal(required,1350);
-  assert.ok(forzaTurnRemainingWaitMs(phrase,false,1200,1200)>0);
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,1400,1400),0);
+  assert.equal(required,750);
+  assert.ok(forzaTurnRemainingWaitMs(phrase,false,500,500)>0);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,1000,1000),0);
   assert.ok(forzaTurnRemainingWaitMs('این تسمه را می‌خواهم چون',false,2000,2000)>0);
 });
 
@@ -90,7 +97,7 @@ test('recognition restarts append the next partial segment without losing or dup
 test('late final STT revision has a short stability guard after acoustic silence, not a second full pause', () => {
   const phrase='تسمه SPA 1250 موجود دارید';
   const pause=forzaEndOfTurnPauseMs(phrase,false);
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,100,pause+300),150);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,100,pause+300),80);
   assert.equal(forzaTurnRemainingWaitMs(phrase,false,250,pause+300),0);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,250,null)>0);
   assert.ok(forzaTurnRemainingWaitMs('بلبرینگ 6202 نه',false,250,3000)>0);
@@ -110,8 +117,8 @@ test('missing VAD analyser uses a longer text-only guard without blocking foreve
   const pause=forzaEndOfTurnPauseMs(phrase,false);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,pause+50,null)>0,
     'a browser interim stall must not be mistaken for acoustic silence');
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,6050,null),450);
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,6500,null),0);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,2199,null),1);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,2200,null),0);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,0,null)>0);
 });
 
