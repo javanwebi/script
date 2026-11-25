@@ -164,10 +164,10 @@ test('a two-second pause preserves the same live transcript across browser recog
   assert.match(ui,/recognitionSessionBaseRef=useRef<string>\(''\)/);
   assert.match(ui,/recognitionSessionBaseRef\.current=activeTranscriptRef\.current\.trim\(\)/);
   assert.match(ui,/appendForzaSpeechSegment\(recognitionSessionBaseRef\.current,currentSpeech\)/);
-  assert.match(ui,/: 6500;/);
-  assert.match(ui,/Math\.max\(6500,pauseMs\)-acousticSilence/);
-  assert.match(speechPipeline,/hasInterim\?3200:1350/);
-  assert.match(speechPipeline,/hasInterim\?5200:4300/);
+  assert.match(ui,/: 3200;/);
+  assert.match(ui,/Math\.max\(3200,pauseMs\)-acousticSilence/);
+  assert.match(speechPipeline,/hasInterim\?850:Math\.max\(600,analysis\.recommendedPauseMs\)/);
+  assert.match(speechPipeline,/hasInterim\?2200:1600/);
 });
 
 test('FORZA hair animation remains visible during the spoken greeting despite microphone echo cancellation',()=>{
@@ -193,7 +193,7 @@ test('local Diba keeps one recognizer and appends finalized segments across repl
 
 test('VAD waits for delayed speech text before stopping an empty transcript recording',()=>{
   assert.match(ui,/: 6500;/);
-  assert.match(ui,/Math\.max\(0,Math\.max\(6500,pauseMs\)-acousticSilence\)/);
+  assert.match(ui,/Math\.max\(0,Math\.max\(3200,pauseMs\)-acousticSilence\)/);
   assert.match(ui,/turnDispatchPendingRef\.current=true/);
   assert.match(ui,/const canInterruptPendingTurn=Boolean\(q&&\(/);
   assert.match(ui,/if\(turnDispatchPendingRef\.current&&!canInterruptPendingTurn\)return/);
