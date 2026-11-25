@@ -154,6 +154,26 @@ const {chromium}=require('playwright');
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(120);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'mobile workspace must not overflow horizontally');
+  const mobileImage=page.locator('.sanat-region-picker--viewer .sanat-region-picker__frame > img');
+  await mobileImage.waitFor({state:'visible'});
+  const mobileFit=await page.locator('.sanat-region-picker--viewer .sanat-region-picker__frame').evaluate(frame=>{
+   const image=frame.querySelector('img');
+   const imageRect=image.getBoundingClientRect(),frameRect=frame.getBoundingClientRect();
+   const imageStyle=getComputedStyle(image),frameStyle=getComputedStyle(frame);
+   return {
+    naturalWidth:image.naturalWidth,naturalHeight:image.naturalHeight,
+    width:imageRect.width,height:imageRect.height,frameWidth:frameRect.width,frameHeight:frameRect.height,
+    objectFit:imageStyle.objectFit,imageBorder:imageStyle.borderTopWidth,frameBorder:frameStyle.borderTopWidth,
+    frameShadow:frameStyle.boxShadow,displayRatio:imageRect.width/imageRect.height,
+    naturalRatio:image.naturalWidth/image.naturalHeight
+   };
+  });
+  assert.equal(mobileFit.objectFit,'contain','mobile viewer must preserve the complete uploaded image');
+  assert.equal(mobileFit.imageBorder,'0px','uploaded image must not have an added white border');
+  assert.equal(mobileFit.frameBorder,'0px','image holder must not draw an extra border');
+  assert.equal(mobileFit.frameShadow,'none','image holder must not add a white frame shadow');
+  assert.ok(mobileFit.width>0&&mobileFit.height>0&&mobileFit.width<=mobileFit.frameWidth+1&&mobileFit.height<=mobileFit.frameHeight+1,JSON.stringify(mobileFit));
+  assert.ok(Math.abs(mobileFit.displayRatio-mobileFit.naturalRatio)<0.03,'mobile viewer must show the entire image without cropping or stretching');
   await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-mobile.png'),fullPage:true});
   assert.equal(await page.getByTestId('kiki-inline-catalog-results').count(),1,'results stay beside the selected image without a separate results page');
   assert.equal(uploads,0);
