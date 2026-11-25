@@ -116,7 +116,22 @@ test("belt gallery includes only exact POPD family and SKU photos", () => {
       { code: noPhotoSku, name: "SKU بدون تصویر", size: "B-TEST", price: 0, stock: 0 },
     ],
   };
-  const gallery = buildBeltGalleryImages(product, [], photoSku);
+  const staleFamilyImage = {
+    id: "legacy-family-e1",
+    url: "/storage/products/catalog/e(1).png",
+    scope: "family" as const,
+    title: "تصویر قدیمی خانواده",
+  } as ProductGalleryImage;
+  const staleSkuImage = {
+    id: "legacy-sku-e1",
+    url: "/storage/products/catalog/e(1).png",
+    scope: "variant" as const,
+    variantCode: photoSku,
+    title: "تصویر قدیمی SKU",
+  } as ProductGalleryImage;
+  const gallery = buildBeltGalleryImages(product, [staleFamilyImage, staleSkuImage], photoSku);
+  assert.equal(gallery.some(image => image.url === staleFamilyImage.url), false);
+  assert.equal(gallery.some(image => image.id === staleSkuImage.id), false);
   const familyGallery = gallery.filter(image => image.scope === "family");
   const variantGallery = gallery.filter(image => image.scope === "variant");
 
