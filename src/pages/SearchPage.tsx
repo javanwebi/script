@@ -256,24 +256,24 @@ export const SearchPage: React.FC = () => {
             صفحه اصلی
           </Link>
           <ChevronLeft className="h-3.5 w-3.5 text-slate-400" />
-          <Link to="/products" className="font-semibold text-[#55565A] transition-colors hover:text-[#E06518]">
-            کاتالوگ قطعات
+          <Link to={beltScoped ? '/belt-selection' : '/products'} className="font-semibold text-[#55565A] transition-colors hover:text-[#E06518]">
+            {beltScoped ? 'انتخاب هوشمند تسمه' : 'کاتالوگ قطعات'}
           </Link>
           <ChevronLeft className="h-3.5 w-3.5 text-slate-400" />
-          <span className="font-bold text-[#23262B]">جستجوی فنی و مهندسی</span>
+          <span className="font-bold text-[#23262B]">{beltScoped ? 'جستجوی تسمه صنعتی' : 'جستجوی فنی و مهندسی'}</span>
         </div>
 
         <div className="flex items-center gap-3 text-[11px]">
           <Link
-            to="/categories"
+            to={beltScoped ? '/belt-selection' : '/categories'}
             className="inline-flex items-center gap-1 font-bold text-[#55565A] transition-colors hover:text-[#E06518]"
           >
             <Layers className="h-3.5 w-3.5 text-[#E06518]" />
-            مرور دسته‌بندی‌ها
+            {beltScoped ? 'بازگشت به انتخاب تسمه' : 'مرور دسته‌بندی‌ها'}
           </Link>
           <span className="text-slate-300">|</span>
           <Link
-            to="/identify-part"
+            to={beltScoped ? '/identify-part?from=belt-selection' : '/identify-part'}
             className="inline-flex items-center gap-1 font-bold text-[#E06518] transition-colors hover:text-[#C95210]"
           >
             <Camera className="h-3.5 w-3.5" />
@@ -621,7 +621,7 @@ export const SearchPage: React.FC = () => {
               )}
 
               <Link
-                to="/identify-part"
+                to={beltScoped ? '/identify-part?from=belt-selection' : '/identify-part'}
                 className="inline-flex items-center gap-2 rounded-xl border border-[#CBD2D8] bg-[#F8FAFC] px-4 py-2.5 text-xs font-extrabold text-[#23262B] transition-colors hover:border-[#E06518] hover:text-[#E06518]"
               >
                 <Camera className="h-4 w-4 text-[#E06518]" />
