@@ -83,17 +83,24 @@ export function applyBeltRecognition(result:AiPartAnalysisResult,products:Produc
  const variants=new Map<string,{family:Product;variant:ProductVariant}>();
  for(const family of beltFamilies)for(const variant of family.variants||[])if(variant.active!==false&&variant.code?.trim())variants.set(variant.code,{family,variant});
  const parsed=parseBeltMarkings(markings),candidateCodes=new Set<string>();
- const addVisualFamily=(code:string)=>{if(families.has(code))candidateCodes.add(code);};
- // A family is confirmed only by evidence anchored to an eligible visual retrieval.
- // OCR-only (read_code), family-sibling, and exploratory suggestions can enrich a
- // visually anchored family, but can never establish that the photographed object is a belt.
- for(const photo of result.catalogImageMatches||[])for(const binding of photo.bindings||[])addVisualFamily(binding.familyCode);
- for(const item of result.similarCandidates||[]){
-  if(item.isVisualMatch!==true)continue;
-  const owner=item.code?variants.get(item.code):undefined;
-  if(owner)addVisualFamily(owner.family.code);
+ const safePhotoIds=new Set<string>(),safeVisualSkuKeys=new Set<string>();
+ // A shared photo is category evidence only when every bound family is a known
+ // industrial-belt family. Never discard a non-belt binding and then treat the
+ // remaining belt binding as independent evidence.
+ for(const photo of result.catalogImageMatches||[]){
+  const bindings=photo.bindings||[];
+  const familyCodes=[...new Set(bindings.map(binding=>binding.familyCode).filter(Boolean))];
+  if(!familyCodes.length||familyCodes.some(code=>!families.has(code)))continue;
+  safePhotoIds.add(photo.imageId);
+  for(const code of familyCodes)candidateCodes.add(code);
+  const skuBindings=bindings.filter(binding=>Boolean(binding.code));
+  if(familyCodes.length===1&&skuBindings.length===1){
+   const binding=skuBindings[0],owner=binding.code?variants.get(binding.code):undefined;
+   if(owner&&owner.family.code===binding.familyCode)safeVisualSkuKeys.add(binding.familyCode+':'+binding.code);
+  }
  }
- for(const item of result.modelSuggestions||[])if(item.matchBasis==='visual')addVisualFamily(item.familyCode);
+ // A model/SKU card cannot create visual evidence on its own. It must be anchored
+ // to an unambiguous catalogue photo binding above.
  const hasVisualBeltEvidence=candidateCodes.size>0;
  const statuses=new Map<string,'match'|'conflict'|'unknown'>();
  for(const code of candidateCodes){const family=families.get(code);if(family)statuses.set(code,familyProfileStatus(family,parsed?.profile));}
@@ -104,20 +111,27 @@ export function applyBeltRecognition(result:AiPartAnalysisResult,products:Produc
   if(owners.length===1&&allowedCodes.has(owners[0][1].family.code))codeMatches.add(owners[0][1].variant.code);
  }
  const familyOrder=(code:string)=>statuses.get(code)==='match'?0:1;
- const modelSuggestions=(result.modelSuggestions||[]).filter(item=>allowedCodes.has(item.familyCode)).map(item=>{
+ const modelSuggestions=(result.modelSuggestions||[]).filter(item=>{
+  if(!allowedCodes.has(item.familyCode))return false;
+  if(item.matchBasis==='visual')return item.code
+   ? safeVisualSkuKeys.has(item.familyCode+':'+item.code)
+   : candidateCodes.has(item.familyCode);
+  if(item.matchBasis==='read_code')return Boolean(item.code&&codeMatches.has(item.code));
+  return false;
+ }).map(item=>{
   const status=statuses.get(item.familyCode)||'unknown',note=parsed?.profile?suggestionReason(status,parsed.profile):'فقط شباهت تصویری خانواده بررسی شده است؛ پروفیل و سازگاری فنی تأیید نشده‌اند.';
   return {...item,reason:item.reason+' '+note};
  }).sort((a,b)=>familyOrder(a.familyCode)-familyOrder(b.familyCode)||(a.matchBasis==='read_code'?-1:0)-(b.matchBasis==='read_code'?-1:0));
  const matchedProducts=(result.matchedProducts||[]).filter(item=>{
   const owner=variants.get(item.code);
-  return Boolean(owner&&allowedCodes.has(owner.family.code));
+  return Boolean(owner&&allowedCodes.has(owner.family.code)&&safeVisualSkuKeys.has(owner.family.code+':'+item.code));
  });
  const familyByVariant=new Map<string,string>();for(const [code,owner] of variants)familyByVariant.set(code,owner.family.code);
- const similarCandidates=(result.similarCandidates||[]).filter(item=>item.isVisualMatch===true&&Boolean(item.code&&allowedCodes.has(familyByVariant.get(item.code)||''))).map(item=>{
+ const similarCandidates=(result.similarCandidates||[]).filter(item=>item.isVisualMatch===true&&Boolean(item.code&&safeVisualSkuKeys.has((familyByVariant.get(item.code)||'')+':'+item.code)&&allowedCodes.has(familyByVariant.get(item.code)||''))).map(item=>{
   const family=families.get(familyByVariant.get(item.code!)!)!,status=statuses.get(family.code)||'unknown',note=parsed?.profile?suggestionReason(status,parsed.profile):'این گزینه فقط از نظر تصویر به خانواده نزدیک است؛ پروفیل و سازگاری فنی تأیید نشده‌اند.';
   return {...item,matchReason:item.matchReason+' '+note};
  }).sort((a,b)=>familyOrder(familyByVariant.get(a.code)||'')-familyOrder(familyByVariant.get(b.code)||''));
- const catalogImageMatches=(result.catalogImageMatches||[]).flatMap(photo=>{
+ const catalogImageMatches=(result.catalogImageMatches||[]).filter(photo=>safePhotoIds.has(photo.imageId)).flatMap(photo=>{
   const bindings=(photo.bindings||[]).filter(binding=>allowedCodes.has(binding.familyCode));if(!bindings.length)return [];
   return [{...photo,bindings,familyNames:[...new Set(bindings.map(binding=>families.get(binding.familyCode)?.name).filter((name):name is string=>Boolean(name)))]}];
  });
