@@ -430,7 +430,7 @@ test('AvalAI fails over to its Cloudflare-backed route after a first-token timeo
   fetchImpl:(async(url,init)=>{
    calls++;
    assert.equal(JSON.parse(String(init?.body)).model,'glm-5.3-flash');
-   assert.match(String(init?.headers?.Authorization||''),/Bearer same-private-key/);
+   assert.match(String((init?.headers as Record<string,string>|undefined)?.Authorization||''),/Bearer same-private-key/);
    if(calls===1){
     assert.equal(String(url),'https://api.avalai.ir/v1/chat/completions');
     return await new Promise<Response>((_resolve,reject)=>{
