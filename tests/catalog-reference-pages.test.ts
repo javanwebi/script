@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { test } from 'node:test';
+
+const read = (file: string) => readFileSync(join(process.cwd(), file), 'utf8');
+
+test('catalog reference API reads the engineered POPD archive without mutating catalog tables', () => {
+  const api = read('server/catalogReferenceApi.ts');
+  assert.match(api, /app_private\.source_archives/);
+  assert.match(api, /github\/javanwebi\/POPD\/server\/data\/engineeredCatalog\.json/);
+  assert.match(api, /resolvedAssignment/);
+  assert.match(api, /identity_verified/);
+  assert.doesNotMatch(api, /\b(?:INSERT\s+INTO|UPDATE\s+public\.catalog_|DELETE\s+FROM|ALTER\s+TABLE|DROP\s+TABLE)\b/i);
+});
+
+test('category and family screens use the Supabase-backed POPD reference API', () => {
+  const all = read('src/pages/PopdAllCategoriesPage.tsx');
+  const category = read('src/pages/PopdExcelMenuCategoryPage.tsx');
+  const detail = read('src/pages/PopdProductDetailPage.tsx');
+  assert.match(all, /\/api\/catalog\/reference\/categories/);
+  assert.match(all, /\/api\/catalog\/reference\/navigation-groups/);
+  assert.match(category, /\/api\/catalog\/reference\/menu-category\//);
+  assert.match(detail, /\/api\/catalog\/reference\/product\//);
+  assert.doesNotMatch(detail, /useCatalog/);
+});
+
+test('only category and family route components are switched to POPD-derived pages', () => {
+  const app = read('src/App.tsx');
+  const wrapper = read('src/pages/CategoryPage.tsx');
+  assert.match(app, /PopdAllCategoriesPage/);
+  assert.match(app, /PopdProductDetailPage/);
+  assert.match(wrapper, /PopdExcelMenuCategoryPage/);
+});
+
+test('belt family media can resolve canonical families through legacy family codes', () => {
+  const media = read('src/utils/beltCatalogMedia.ts');
+  assert.match(media, /legacyFamilyCodes/);
+  assert.match(media, /hasVerifiedRealPhoto/);
+});

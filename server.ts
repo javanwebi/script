@@ -5,6 +5,7 @@ import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
+import { registerCatalogReferenceApi } from './server/catalogReferenceApi';
 import {registerAdminStaffApi} from './server/db/adminStaffApi';
 import {registerAdminSecurityApi} from './server/db/adminSecurityApi';
 import {registerAdminCustomersApi} from './server/db/adminCustomersApi';
@@ -762,6 +763,7 @@ app.post('/api/catalog/sku-transfer',async(req,res)=>{
 
 // Read-only public navigation and admin-only group/direct SKU write endpoints.
 registerCatalogNavigationApi(app);
+registerCatalogReferenceApi(app);
 
 app.get('/api/catalog/overrides', async (req, res) => {
   res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Cookie');

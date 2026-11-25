@@ -39,6 +39,8 @@ export interface BeltFamilyMedia {
   familyPhotos: [string, string, string];
   specSheetWebp: string;
   specSheetSvg: string;
+  hasVerifiedRealPhoto: boolean;
+  hasVerifiedSpecSheet: boolean;
 }
 
 export interface BeltSkuMedia {
@@ -90,9 +92,12 @@ export function isRealBeltSku(skuCode?: string | null): boolean {
 export function getBeltFamilyMedia(
   familyCode?: string | null,
   existingImageOverride?: string | null,
+  hints?: { legacyFamilyCodes?: string[]; variants?: unknown[] } | string[],
 ): BeltFamilyMedia | null {
-  const clean = String(familyCode || '').trim();
-  if (!isRealBeltFamily(clean)) return null;
+  const legacyCodes = Array.isArray(hints) ? hints : (hints as { legacyFamilyCodes?: string[] } | undefined)?.legacyFamilyCodes || [];
+  const candidates = [familyCode, ...legacyCodes].map((value) => String(value || '').trim()).filter(Boolean);
+  const clean = candidates.find((candidate) => isRealBeltFamily(candidate)) || '';
+  if (!clean) return null;
   const entry = manifest.families[clean];
   const dbImg = normalizeOfficialDbImage(existingImageOverride) || normalizeOfficialDbImage(entry.db);
   const base = `/src/assets/catalog/belts/families/${encodeURIComponent(clean)}`;
@@ -109,6 +114,8 @@ export function getBeltFamilyMedia(
     familyPhotos: [photo1, photo2, photo3],
     specSheetWebp: `${base}/family-specifications.webp`,
     specSheetSvg: `${base}/family-specifications.svg`,
+    hasVerifiedRealPhoto: Boolean(entry.p?.some(Boolean)),
+    hasVerifiedSpecSheet: true,
   };
 }
 
@@ -142,7 +149,7 @@ export function getBeltSkuMedia(
 }
 
 export function buildBeltGalleryImages(
-  product: Pick<Product, 'code' | 'name' | 'image' | 'images' | 'variants'>,
+  product: Pick<Product, 'code' | 'name' | 'image' | 'images' | 'variants'> & Partial<Pick<Product, 'legacyFamilyCodes'>>,
   baseGallery: ProductGalleryImage[],
   activeSkuCode?: string | null,
 ): ProductGalleryImage[] {
@@ -150,6 +157,13 @@ export function buildBeltGalleryImages(
     product.code,
     product.images?.find((u) => Boolean(normalizeOfficialDbImage(u))) || product.image,
   );
+
+  const allowedFamilyCodes = new Set([product.code, ...(product.legacyFamilyCodes || [])].map((code) => String(code).trim().toUpperCase()).filter((code) => isRealBeltFamily(code)));
+  const getProductSkuMedia = (skuCode?: string | null) => {
+    const media = getBeltSkuMedia(undefined, skuCode);
+    if (!media) return null;
+    return allowedFamilyCodes.size && !allowedFamilyCodes.has(String(media.familyCode).toUpperCase()) ? null : media;
+  };
   if (!familyMedia) return baseGallery;
 
   const result: ProductGalleryImage[] = [];
@@ -207,7 +221,7 @@ export function buildBeltGalleryImages(
   // 4. Add verified physical exact-SKU real photos ONLY for SKUs that have one (41349, 52009, 52050)
   for (const variant of product.variants || []) {
     if (!variant?.code || isExcludedBeltSku(variant.code)) continue;
-    const skuMedia = getBeltSkuMedia(product.code, variant.code);
+    const skuMedia = getProductSkuMedia(variant.code);
     if (skuMedia?.realProductImage) {
       pushUnique({
         id: `belt-sku-real-${variant.code}`,
@@ -224,7 +238,7 @@ export function buildBeltGalleryImages(
     activeSkuCode || product.variants?.find((v) => v?.code && !isExcludedBeltSku(v.code))?.code || '',
   ).trim();
   if (targetSku && !isExcludedBeltSku(targetSku)) {
-    const activeSkuMedia = getBeltSkuMedia(product.code, targetSku);
+    const activeSkuMedia = getProductSkuMedia(targetSku);
     if (activeSkuMedia) {
       pushUnique({
         id: `belt-sku-profile-${targetSku}`,

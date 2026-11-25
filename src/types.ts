@@ -41,6 +41,7 @@ export interface ProductGalleryImage {
   variantCode?: string;
   title?: string;
   order?: number;
+  familyCode?: string;
 }
 
 export interface Product {
@@ -78,6 +79,8 @@ export interface Product {
   forzaCode?: string;         // کد رسمی کاتالوگ فورزا اطلس مثل "FORZACODE: 1000 0 1"
   cataloguePage?: number;     // شماره صفحه کاتالوگ رسمی ۱۴۰۴ اطلس
   hasCatalogueImage?: boolean;// آیا دارای تصویر مستقیم و ثبت‌شده از کاتالوگ است
+  legacyFamilyCodes?: string[];
+  resolvedAssignment?: { categorySlug: string; submenuName?: string; leafName?: string | null; method?: string };
 }
 
 export interface ProductVariant {
@@ -112,6 +115,11 @@ export interface Category {
   active?: boolean;
   /** Nested category and submenu navigation maintained by the admin. */
   children?: import('./data/categories').CategoryNode[];
+  menuSource?: string;
+  familyCount?: number;
+  skuCount?: number;
+  directSkuCount?: number;
+  sortOrder?: number;
 }
 
 export interface Brand {

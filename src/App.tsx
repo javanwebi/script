@@ -29,10 +29,10 @@ const CategoryPage = lazy(() =>
     default: module.CategoryPage,
   })),
 );
-const AllCategoriesPage = lazy(() => import("./pages/AllCategoriesPage").then(m => ({default:m.AllCategoriesPage})));
-const DirectSkuDetailPage = lazy(() => import("./pages/DirectSkuDetailPage"));
+const AllCategoriesPage = lazy(() => import('./pages/PopdAllCategoriesPage').then(m => ({default:m.AllCategoriesPage})));
+const DirectSkuDetailPage = lazy(() => import('./pages/PopdProductDetailPage').then((module) => ({ default: module.ProductDetailPage })));
 const ProductDetailPage = lazy(() =>
-  import("./pages/ProductDetailPage").then((module) => ({
+  import('./pages/PopdProductDetailPage').then((module) => ({
     default: module.ProductDetailPage,
   })),
 );
