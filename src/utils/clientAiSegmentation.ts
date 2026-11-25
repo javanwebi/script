@@ -91,8 +91,10 @@ function requestWorker(
   const id = ++workerRequestId;
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
+      const error = new Error('client_segmentation_timeout');
       pendingRequests.delete(id);
-      reject(new Error('client_segmentation_timeout'));
+      reject(error);
+      if (segmentationWorker) rejectWorkerRequests(segmentationWorker, error);
     }, INFERENCE_TIMEOUT_MS);
     pendingRequests.set(id, { resolve, reject, timer });
     try {
