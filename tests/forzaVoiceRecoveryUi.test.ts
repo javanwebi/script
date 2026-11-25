@@ -151,7 +151,7 @@ test('a two-second pause preserves the same live transcript across browser recog
   assert.match(ui,/appendForzaSpeechSegment\(recognitionSessionBaseRef\.current,currentSpeech\)/);
   assert.match(ui,/: 6500;/);
   assert.match(ui,/Math\.max\(6500,pauseMs\)-acousticSilence/);
-  assert.match(speechPipeline,/hasInterim\?3200:2200/);
+  assert.match(speechPipeline,/hasInterim\?3200:1350/);
   assert.match(speechPipeline,/hasInterim\?5200:4300/);
 });
 
