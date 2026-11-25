@@ -189,3 +189,13 @@ test("on-disk belt photos exactly match POPD: 613 families, 18 verified SKUs, an
   }
   assert.equal(foundSkuPhotos, 18);
 });
+
+
+test("POPD belt sync installs verified replacements before deleting stale photos", () => {
+  const source = fs.readFileSync("scripts/sync-popd-belt-assets.mjs", "utf8");
+  const familyInstall = source.indexOf("for (const entry of familyEntries)");
+  const skuInstall = source.indexOf("for (const entry of skuEntries)");
+  const staleCleanup = source.indexOf("Remove obsolete photos only after all verified replacements are installed.");
+  assert.ok(familyInstall >= 0 && skuInstall > familyInstall && staleCleanup > skuInstall);
+  assert.match(source, /family-specifications|CAD drawings and specification sheets/i);
+});

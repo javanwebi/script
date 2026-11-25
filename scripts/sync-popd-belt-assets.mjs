@@ -122,18 +122,8 @@ async function main() {
       downloaded++;
     });
 
-    // Only after every source asset passed its pinned Git blob SHA do we remove
-    // obsolete family/SKU photos. CAD drawings and verified specification sheets stay intact.
-    for (const familyCode of Object.keys(beltManifest.families)) {
-      const dir = path.join(BELT_ROOT, "families", familyCode);
-      for (const file of ["family-image-01.webp", "family-image-02.webp", "family-image-03.webp", "family-image-04.webp"]) {
-        await fs.rm(path.join(dir, file), { force: true });
-      }
-    }
-    for (const skuCode of Object.keys(beltManifest.skus)) {
-      await fs.rm(path.join(BELT_ROOT, "skus", skuCode, "real-product-image.webp"), { force: true });
-    }
-
+    // Every new source asset has now been downloaded and SHA-verified in staging.
+    // Rename each replacement atomically over its old file before removing anything.
     for (const entry of familyEntries) {
       const staged = path.join(stageRoot, "families", entry.familyCode, entry.targetFile);
       await fs.mkdir(path.dirname(entry.targetPath), { recursive: true });
@@ -143,6 +133,21 @@ async function main() {
       const staged = path.join(stageRoot, "skus", entry.skuCode, entry.targetFile);
       await fs.mkdir(path.dirname(entry.targetPath), { recursive: true });
       await fs.rename(staged, entry.targetPath);
+    }
+
+    // Remove obsolete photos only after all verified replacements are installed.
+    // Preserve every CAD drawing and specification sheet.
+    for (const familyCode of Object.keys(beltManifest.families)) {
+      const expected = new Set((popdManifest.families[familyCode] || []).map(entry => entry.targetFile));
+      const dir = path.join(BELT_ROOT, "families", familyCode);
+      for (const file of ["family-image-01.webp", "family-image-02.webp", "family-image-03.webp", "family-image-04.webp"]) {
+        if (!expected.has(file)) await fs.rm(path.join(dir, file), { force: true });
+      }
+    }
+    for (const skuCode of Object.keys(beltManifest.skus)) {
+      if (!popdManifest.skuPhotos[skuCode]) {
+        await fs.rm(path.join(BELT_ROOT, "skus", skuCode, "real-product-image.webp"), { force: true });
+      }
     }
 
     // Keep the generated runtime manifest and the missing-image audit in lockstep

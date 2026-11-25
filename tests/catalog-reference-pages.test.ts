@@ -131,10 +131,10 @@ test('POPD 869-image release is staged for canary and used by both product and v
   const deploy = read('ops/deploy-single-port-vps.sh');
   assert.match(storage, /CATALOG_IMAGE_READ_DIR/);
   assert.match(storage, /CATALOG_IMAGE_READ_DIR_MISSING/);
-  assert.match(server, /activeCatalogDirectory\\(productStorageDirectory\\(\\)\\)/);
-  assert.match(sync, /CATALOG_IMAGE_RELEASE_ID/);
-  assert.match(sync, /CATALOG_IMAGE_ACTIVATE !== "false"/);
-  assert.match(deploy, /node scripts\\/sync-popd-catalog-images\\.mjs/);
-  assert.match(deploy, /CATALOG_IMAGE_READ_DIR=\\$POPD_CATALOG_IMAGE_RELEASE_DIR/);
-  assert.match(deploy, /CATALOG_IMAGE_ACTIVATE=false/);
+  assert.ok(server.includes('activeCatalogDirectory(productStorageDirectory())'));
+  assert.ok(sync.includes('CATALOG_IMAGE_RELEASE_ID'));
+  assert.ok(sync.includes('CATALOG_IMAGE_ACTIVATE !== "false"'));
+  assert.ok(deploy.includes('node scripts/sync-popd-catalog-images.mjs'));
+  assert.ok(deploy.includes('CATALOG_IMAGE_READ_DIR=$POPD_CATALOG_IMAGE_RELEASE_DIR'));
+  assert.ok(deploy.includes('CATALOG_IMAGE_ACTIVATE=false'));
 });
