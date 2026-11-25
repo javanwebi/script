@@ -162,17 +162,44 @@ test('KIKI results header stays within the independently scrollable catalogue pa
 });
 
 
-test('automatic viewer disables detected-region selection while busy and removes manual crop actions', () => {
+test('automatic viewer keeps manual drag-to-crop available when automatic segmentation misses a part', () => {
   const picker = source('src/components/search/ImageRegionSelector.tsx');
   const review = source('src/components/search/ImageRegionReview.tsx');
+  const styles = source('src/components/search/image-region-review.css');
   assert.ok(picker.includes('autoSelect?:boolean;'));
   assert.ok(picker.includes('onClick={selectCandidateAtPoint}'));
-  assert.ok(picker.includes('if(autoSelect||disabled||event.button!==0||!event.isPrimary)return;'));
-  assert.ok(picker.includes('if(autoSelect){'));
-  assert.ok(picker.includes('disabled={disabled}'));
-  assert.ok(review.includes('const selectorDisabled = preparing || Boolean(busy) || Boolean(analysisBusy);'));
-  assert.ok(review.includes('disabled={selectorDisabled}'));
-  assert.ok(review.includes('analysisBusy'));
-  assert.ok(!review.includes('onFullImageSearch'));
-  assert.ok(!review.includes('viewer-actions'));
+  assert.ok(picker.includes("mode:autoSelect?'draw':inside?'move':'draw'"));
+  assert.ok(picker.includes('suppressNextClickRef'));
+  assert.ok(picker.includes('data-manual-crop-enabled={!disabled}'));
+  assert.doesNotMatch(picker, /if\(autoSelect\|\|disabled\|\|event\.button/);
+  assert.ok(review.includes('kiki-mobile-results-sheet-handle'));
+  assert.ok(review.includes('onPointerMove={handleSheetPointerMove}'));
+  assert.ok(review.includes('kiki-manual-crop-hint'));
+  assert.ok(styles.includes('touch-action: none !important'));
+  assert.ok(styles.includes('.sanat-region-picker--viewer .sanat-region-picker__draft'));
+  assert.ok(styles.includes('.sanat-region-picker--viewer.is-manual-crop .sanat-region-picker__handles'));
+});
+
+test('mobile catalogue results float over the submitted photo in a draggable half-screen sheet', () => {
+  const review = source('src/components/search/ImageRegionReview.tsx');
+  const styles = source('src/components/search/image-region-review.css');
+  assert.ok(review.includes('data-sheet-expanded={sheetExpanded}'));
+  assert.ok(review.includes('data-sheet-dragging={sheetDragging}'));
+  assert.ok(review.includes('aria-expanded={sheetExpanded}'));
+  assert.ok(review.includes('setPointerCapture(event.pointerId)'));
+  assert.ok(styles.includes('height: 56dvh'));
+  assert.ok(styles.includes('overflow-y: auto'));
+  assert.ok(styles.includes('translate3d(0, calc(var(--kiki-sheet-base-offset)'));
+  assert.ok(styles.includes('data-sheet-expanded="true"'));
+});
+
+test('manual selection is encoded as a real cropped image when server region detection is unavailable', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const region = source('src/utils/imageRegion.ts');
+  assert.ok(modal.includes('cropImageDataUrlToRegion(imageBase64, selectedRegionForRequest)'));
+  assert.ok(modal.includes('clientCropFallback'));
+  assert.ok(modal.includes("analysisMimeType = 'image/jpeg'"));
+  assert.ok(region.includes('imageRegionToPixelBounds'));
+  assert.ok(region.includes('Math.floor(region.x * width)'));
+  assert.ok(region.includes('Math.ceil((region.x + region.width) * width)'));
 });
