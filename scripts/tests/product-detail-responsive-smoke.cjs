@@ -25,7 +25,7 @@ const familyProduct = {
   stock: 0,
   stockKnown: false,
   inquiryOnly: true,
-  images: ['/storage/products/catalog/e(1).png'],
+  images: ['/storage/products/catalog/test-bearing-family.webp'],
   hasCatalogueImage: true,
   tags: ['آزمایش'],
   unit: 'عدد',
@@ -44,7 +44,7 @@ const familyProduct = {
       stockKnown: false,
       inquiryOnly: true,
       active: true,
-      images: ['/storage/products/catalog/e(2).png'],
+      images: ['/storage/products/catalog/test-bearing-001.webp'],
       technicalSpecs: [{ key: 'قطر داخلی', value: '25 mm' }, { key: 'قطر خارجی', value: '52 mm' }],
     },
     {
@@ -60,7 +60,7 @@ const familyProduct = {
       stockKnown: false,
       inquiryOnly: true,
       active: true,
-      images: ['/storage/products/catalog/e(3).png'],
+      images: ['/storage/products/catalog/test-bearing-002.webp'],
       technicalSpecs: [{ key: 'قطر داخلی', value: '30 mm' }, { key: 'قطر خارجی', value: '62 mm' }],
     },
   ],
@@ -101,6 +101,25 @@ const viewports = [
         const url = route.request().url();
         if (url.includes('/api/runtime')) {
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(runtimeFixture) });
+        }
+        if (url.includes('/api/catalog/reference/product/')) {
+          return route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              success: true,
+              product: familyProduct,
+              categoryMeta: { slug: categorySlug, name: 'بلبرینگ و یاتاقان' },
+              similarProducts: [],
+            }),
+          });
+        }
+        if (url.includes('/api/catalog/variant-review/')) {
+          return route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ success: true, technicalReview: null }),
+          });
         }
         if (url.includes('/api/catalog/overrides')) {
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: {} }) });
