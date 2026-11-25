@@ -4764,16 +4764,17 @@ app.post('/api/ai/analyze-part', async (req, res) => {
           : cachedDetection.query
         : await describeLocalQuery(queryImage);
       // Cached DINO vectors can be reused for a secondary crop, but OCR belongs to
-      // the first detected object only. Read visible codes from this exact crop.
-      if(cachedSelectedQuery && !cachedOcrMatchesRegion && cachedDetection?.query.ocrAvailable){
-        try{
-          query={...cachedSelectedQuery,...await readLocalMarkings(queryImage)};
-        }catch{
-          query=cachedSelectedQuery;
-        }
-      }
+      // the first detected object only. Read visible codes from this exact crop in
+      // parallel with catalogue ranking so the extra OCR pass adds minimal latency.
+      const selectedOcrPromise=cachedSelectedQuery && !cachedOcrMatchesRegion && cachedDetection?.query.ocrAvailable
+        ? readLocalMarkings(queryImage).catch(()=>undefined)
+        : undefined;
       const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
       if(!retrieved)throw new Error('Index changed');
+      if(selectedOcrPromise){
+        const selectedOcr=await selectedOcrPromise;
+        if(selectedOcr)query={...query,...selectedOcr};
+      }
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
       const viewScores=bestBoundQueryViewScores(retrieved,products);
       const selectedRegion=body.fullImage===true ? undefined : requestedRegion || selectBestQueryRegion(query.viewRegions,viewScores,query.region);
