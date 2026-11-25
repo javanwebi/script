@@ -248,3 +248,10 @@ test('a delayed browser final for the just-submitted utterance does not barge in
   assert.match(ui,/!vadRef\.current\.heardSpeech/);
   assert.match(ui,/late_final_for_active_turn_ignored=1/);
 });
+
+test('MediaRecorder rotations keep collecting one long user utterance and retain audio for AvalAI final verification',()=>{
+  assert.match(ui,/const wasRotation=rotateCapture/);
+  assert.match(ui,/if\(wasRotation\)[\s\S]*?audioSegmentsRef\.current\.push\(completedSegment\)[\s\S]*?return;/);
+  assert.match(ui,/!localSttActiveRef\.current\|\|serverSttProviderRef\.current==='avalai'/);
+  assert.match(ui,/Math\.ceil\(audioBlobs\.length\/2\)\*52_000/);
+});
