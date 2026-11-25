@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { matchesCachedImageRegion } from '../src/utils/imageRegion';
 
 const source = (relative: string) =>
   readFileSync(fileURLToPath(new URL('../' + relative, import.meta.url)), 'utf8');
@@ -194,13 +195,15 @@ test('mobile catalogue results float over the submitted photo in a draggable hal
   assert.ok(styles.includes('data-sheet-expanded="true"'));
 });
 
-test('manual selection is encoded as a real cropped image when server region detection is unavailable', () => {
+test('manual selection is encoded as a real cropped image even when server region detection is available', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const region = source('src/utils/imageRegion.ts');
   assert.ok(modal.includes('cropImageDataUrlToRegion(imageBase64, selectedRegionForRequest)'));
   assert.ok(modal.includes('clientCropFallback'));
-  assert.ok(modal.includes('Boolean(selectedRegionForRequest) && !regionDetectionId'));
-  assert.ok(modal.includes('const requestRegion = regionDetectionId ? selectedRegionForRequest : undefined'));
+  assert.ok(modal.includes('matchesCachedImageRegion(selectedRegionForRequest, candidateRegions)'));
+  assert.ok(modal.includes('const requestRegion = requestRegionIsCached ? selectedRegionForRequest : undefined'));
+  assert.ok(modal.includes('Boolean(selectedRegionForRequest) && !requestRegionIsCached'));
+  assert.ok(region.includes('export function matchesCachedImageRegion'));
   assert.ok(modal.includes('detectionId: requestRegion ? regionDetectionId || undefined : undefined'));
   assert.ok(modal.includes('if (clientCropFallback && selectedRegionForRequest)'));
   assert.ok(modal.includes('setQueryRegion(selectedRegionForRequest)'));
@@ -248,4 +251,14 @@ test('secondary cached crops read OCR from the selected region without re-embedd
   assert.ok(vision.includes("localRequest('/markings'"));
   assert.ok(worker.includes("'/markings'"));
   assert.ok(worker.includes("text, available = markings(image)"));
+});
+
+
+test('only an exact cached proposal may reuse the server detection ID; a hand-drawn crop must bypass it', () => {
+  const automatic = { x: 0.18, y: 0.22, width: 0.34, height: 0.41 };
+  const manual = { x: 0.24, y: 0.28, width: 0.26, height: 0.31 };
+  assert.equal(matchesCachedImageRegion(automatic, [automatic]), true);
+  assert.equal(matchesCachedImageRegion({ ...automatic, x: automatic.x + 0.001 }, [automatic]), true);
+  assert.equal(matchesCachedImageRegion(manual, [automatic]), false);
+  assert.equal(matchesCachedImageRegion(undefined, [automatic]), false);
 });
