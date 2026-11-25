@@ -219,7 +219,9 @@ test('TTS rate-limit responses distinguish a shared network ceiling from a singl
 
 
 test('each completed utterance is a separate request while the previous user and assistant turns remain context',()=>{
-  assert.match(ui,/duplicateActiveTurn=Boolean\(q&&activeQuery&&/);
+  assert.match(ui,/duplicateActiveTurn=Boolean\(q&&activeQuery&&activeTurn\?\.startedAt&&/);
+  assert.match(ui,/Date\.now\(\)-activeTurn\.startedAt<2500/);
+  assert.match(ui,/!vadRef\.current\.heardSpeech/);
   assert.match(ui,/activeTurnRef\.current=\{generation,abort:pocketAbort,query:q,startedAt:Date\.now\(\)\}/);
   assert.match(ui,/payload\.history=previousHistory/);
   assert.match(ui,/canReplacePendingHistory=Boolean\(q&&pendingHistoryTurnRef\.current===q/);
