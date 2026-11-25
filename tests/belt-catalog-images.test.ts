@@ -102,7 +102,7 @@ test("belt gallery includes only exact POPD family and SKU photos", () => {
   const photoSku = Object.keys(popd.skuPhotos)[0];
   const noPhotoSku = Object.keys(manifest.skus).find(code => !popd.skuPhotos[code]);
   const familyCode = manifest.skus[photoSku];
-  const familyPhotos = popd.families[familyCode] || [];
+  const familyPhotos = (popd.families[familyCode] || []).slice(0, 3);
   assert.ok(noPhotoSku);
   assert.ok(familyPhotos.length > 0);
 
