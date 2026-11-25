@@ -158,10 +158,14 @@ async function loadSnapshot(): Promise<Snapshot> {
   for (const assignment of e869Assignments) {
     const skuCode = normalizeCode(assignment?.skuCode);
     const imageUrl = String(assignment?.url || '').trim();
+    const imageNumberMatch = imageUrl.match(/^\\/storage\\/products\\/catalog\\/e\\((\\d+)\\)\\.png$/i);
+    const imageNumber = imageNumberMatch ? Number(imageNumberMatch[1]) : 0;
     if (
       assignment?.targetKind !== 'variant' ||
       !skuCode ||
-      !/^\\/storage\\/products\\/catalog\\/e\\([1-9]\\d{0,2}|8[0-6]\\d|869)\\.png$/i.test(imageUrl)
+      !Number.isInteger(imageNumber) ||
+      imageNumber < 1 ||
+      imageNumber > 869
     ) {
       throw new Error('The POPD e869 image mapping contains an invalid SKU or image URL');
     }
@@ -256,6 +260,11 @@ async function loadSnapshot(): Promise<Snapshot> {
     stats.familyCount += 1;
     stats.skuCount += product.variants?.length || 0;
     menuStats.set(slug, stats);
+  }
+
+  const missingActiveE869Skus = Array.from(e869ImageBySku.keys()).filter((code) => !productByVariantCode.has(code));
+  if (missingActiveE869Skus.length) {
+    throw new Error('The POPD e869 image map contains SKUs missing from the active catalogue: ' + missingActiveE869Skus.slice(0, 20).join(', '));
   }
 
   const expectedSkuCount = Number(payload.stats?.validSkus || 0);
