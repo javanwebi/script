@@ -29,11 +29,15 @@ test('Gemini STT requires explicit opt-in and a dedicated Gemini credential',()=
     {provider:'gemini',key:'dedicated-key',reason:'configured'});
 });
 
-test('AvalAI GPT-Transcribe requires its dedicated key and selects the supported transcription model',()=>{
+test('AvalAI GPT-Transcribe requires its dedicated key and falls back to bundled Diba if it is missing',()=>{
   assert.deepEqual(selectForzaSttProvider({FORZA_STT_PROVIDER:'avalai'}),
     {provider:'none',reason:'missing_avalai_key'});
   assert.deepEqual(selectForzaSttProvider({FORZA_STT_PROVIDER:'avalai',AVALAI_API_KEY:'YOUR_AVALAI_API_KEY'}),
     {provider:'none',reason:'missing_avalai_key'});
+  assert.deepEqual(selectForzaSttProvider({
+    FORZA_STT_PROVIDER:'avalai',
+    FORZA_STT_DIBA_MODEL_PATH:'/opt/diba-stt/model',
+  }),{provider:'diba',modelPath:'/opt/diba-stt/model',reason:'avalai_key_missing_fallback'});
   assert.deepEqual(selectForzaSttProvider({FORZA_STT_PROVIDER:'avalai',AVALAI_API_KEY:'private-avalai-key'}),
     {provider:'avalai',key:'private-avalai-key',model:'gpt-transcribe',reason:'configured'});
 });
