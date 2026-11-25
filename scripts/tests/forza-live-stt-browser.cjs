@@ -113,6 +113,7 @@ function wav(){
   // Reproduce the customer's screenshot: a short, usable interim transcript
   // ("چه خبر خوبی") followed by real mic silence must dispatch to the LLM
   // promptly, without waiting for the full-audio AvalAI/Diba verifier.
+  serverTranscriptions=0;consultRequests=0;
   await page.reload({waitUntil:'domcontentloaded'});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
   await page.waitForFunction(()=>!!window.__forzaMockRecognition,null,{timeout:6000});
@@ -126,8 +127,9 @@ function wav(){
   const dispatchStarted=Date.now();
   const requestPromise=page.waitForRequest(request=>request.url().includes('/api/ai/consult-stream'),{timeout:2500});
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
-  await requestPromise;
+  const dispatchedRequest=await requestPromise;
   const dispatchMs=Date.now()-dispatchStarted;
+  assert.equal(dispatchedRequest.postDataJSON().query,'چه خبر خوبی','the exact live transcript must be sent as the new user turn');
   await page.waitForTimeout(80);
   assert.ok(dispatchMs<1800,'a complete interim phrase must reach consult-stream quickly: '+dispatchMs+'ms');
   assert.equal(consultRequests,1,'the completed speech turn must make one LLM request');
