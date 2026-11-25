@@ -475,3 +475,22 @@ test('adopted CRM changes persist as SQL rows across fresh reads without creatin
   assert.equal((await db.query<any>("select count(*)::int as n from app_private.portal_users where id='CRM-INTEGRATION-01'")).rows[0].n,0);
  }finally{await db.close();}
 });
+
+
+test('adopted runtime exposes belt identity metadata without widening unrelated product payloads',async()=>{const db=await adoptedDatabase();const sql=db as unknown as SqlClient;try{
+ await saveAdoptedProducts(sql,[
+  {code:'belt-family',name:'تسمه V شکل صنعتی',categorySlug:'excel-v2-1-1',categoryName:'تسمه و انتقال نیرو',subcategory:'تسمه V شکل',variants:[{code:'SPB-2000',name:'SPB 2000'}]},
+  {code:'bearing-family',name:'بلبرینگ شیار عمیق',categorySlug:'bearings',categoryName:'قطعات مکانیکی',subcategory:'بلبرینگ',variants:[{code:'6202ZZ',name:'6202ZZ'}]}
+ ]);
+ await db.query("update public.catalog_families set profiles='SPB',sizes_summary='2000 mm' where code='belt-family'");
+ await db.query("update public.catalog_variants set identity_specs=$1::jsonb,variable_specs=$2::jsonb where code='SPB-2000'",[JSON.stringify({profile:'SPB',material:'rubber'}),JSON.stringify({beltDivision:'vbelt-wedge'})]);
+ await db.query("update public.catalog_variants set identity_specs=$1::jsonb,variable_specs=$2::jsonb where code='6202ZZ'",[JSON.stringify({profile:'6202'}),JSON.stringify({bearingType:'deep-groove'})]);
+ const products=await readAdoptedProducts(sql,{includeTechnicalReviews:false});
+ const belt=products.find((item:any)=>item.code==='belt-family');
+ const bearing=products.find((item:any)=>item.code==='bearing-family');
+ assert.equal(belt.profiles,'SPB');assert.equal(belt.sizesSummary,'2000 mm');
+ assert.deepEqual(belt.variants[0].identitySpecs,{profile:'SPB',material:'rubber'});
+ assert.deepEqual(belt.variants[0].variableSpecs,{beltDivision:'vbelt-wedge'});
+ assert.equal(bearing.variants[0].identitySpecs,undefined);
+ assert.equal(bearing.variants[0].variableSpecs,undefined);
+}finally{await db.close();}});

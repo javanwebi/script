@@ -53,6 +53,6 @@ export function PartIdentificationPage() {
       ? '/belt-selection'
       : '/';
   return <div className="min-h-[100dvh] bg-slate-100"><Suspense fallback={<div role="status">در حال بارگذاری شناسایی قطعه…</div>}>
-    <Studio isOpen standalone fullScreen domainHint={entrySource === 'belt-selection' ? 'industrial-belt' : undefined} onClose={()=>navigate(returnPath, {replace:true})} />
+    <Studio isOpen standalone fullScreen onClose={()=>navigate(returnPath, {replace:true})} />
   </Suspense></div>;
 }

@@ -113,7 +113,6 @@ interface Props {
   fullScreen?: boolean;
   initialCamera?: boolean;
   standalone?: boolean;
-  domainHint?: 'industrial-belt';
   onAnalysisResult?: (result: AiPartAnalysisResult, image: string) => void;
 }
 
@@ -149,7 +148,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   fullScreen = false,
   initialCamera = false,
   standalone = false,
-  domainHint,
   onAnalysisResult,
 }) => {
   const navigate = useNavigate();
@@ -707,7 +705,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         }
       }
       const result = await aiVisualSearchService.analyzePartWithAi({
-        domainHint,
         imageBase64, mimeType: analysisMimeType,
         length: length ? parseFloat(length) : undefined, width: width ? parseFloat(width) : undefined, pitch: pitch ? parseFloat(pitch) : undefined,
         application: application.trim() || undefined, features: features.trim() || undefined,
@@ -1696,24 +1693,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       {analysisResult.catalogSearchWarning}
                     </span>
                   </div>
-                )}
-
-                {analysisResult.beltAnalysis && (
-                  <section className="rounded-2xl border border-orange-200 bg-orange-50/70 p-4 space-y-3" aria-label="تحلیل تخصصی تسمه">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <strong className="text-sm text-slate-800">بررسی تخصصی تسمه</strong>
-                      <span className="text-[10px] font-bold tracking-wide text-orange-700">FORZA BELT INTELLIGENCE</span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <div className="rounded-xl border border-orange-100 bg-white p-3"><span className="block text-[10px] text-slate-500">نوع تسمه</span><strong className="mt-1 block text-sm text-slate-800">{analysisResult.beltAnalysis.beltTypeLabel}</strong></div>
-                      <div className="rounded-xl border border-orange-100 bg-white p-3"><span className="block text-[10px] text-slate-500">پروفیل خوانده‌شده</span><strong className="mt-1 block text-sm text-slate-800" dir="ltr">{analysisResult.beltAnalysis.profile || "خوانده نشد"}</strong></div>
-                      <div className="rounded-xl border border-orange-100 bg-white p-3"><span className="block text-[10px] text-slate-500">گام اسمی پروفیل</span><strong className="mt-1 block text-sm text-slate-800">{analysisResult.beltAnalysis.nominalPitchMm ? toPersianDigits(String(analysisResult.beltAnalysis.nominalPitchMm)) + " mm" : "مشخص نشد"}</strong></div>
-                      <div className="rounded-xl border border-orange-100 bg-white p-3"><span className="block text-[10px] text-slate-500">مارکینگ طول</span><strong className="mt-1 block text-sm text-slate-800" dir="ltr">{analysisResult.beltAnalysis.lengthMarking || "خوانده نشد"}</strong></div>
-                    </div>
-                    {analysisResult.beltAnalysis.brandMarking && <p className="text-xs text-slate-700">نشان خوانده‌شده: <strong dir="ltr">{analysisResult.beltAnalysis.brandMarking}</strong></p>}
-                    {!!analysisResult.beltAnalysis.candidateFamilies.length && <p className="text-xs leading-6 text-slate-700">خانواده‌های قابل بررسی: {analysisResult.beltAnalysis.candidateFamilies.map(item => item.familyName).join("، ")}</p>}
-                    <p className="text-xs leading-6 text-slate-600">{analysisResult.beltAnalysis.note}</p>
-                  </section>
                 )}
 
                 {/* Summary Bar */}
