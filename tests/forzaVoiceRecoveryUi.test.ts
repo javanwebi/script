@@ -266,3 +266,11 @@ test('final transcript selection trusts AvalAI only when the server did not fall
   assert.match(ui,/preferAvalaiFinal=serverSttProviderRef\.current==='avalai'&&!serverUsedDibaFallback/);
   assert.match(ui,/chooseForzaFinalTranscript\(q,serverTranscript,preferAvalaiFinal\)/);
 });
+
+test('stop-command acknowledgements remain in the same call history for the next utterance',()=>{
+  const stopBranch=ui.split("if(q && forzaTurnIntent(q)==='stop'){")[1]?.split("      // Claim the turn synchronously.")[0]||'';
+  assert.match(stopBranch,/historyRef\.current=\[/);
+  assert.match(stopBranch,/\{role:'user',text:q\}/);
+  assert.match(stopBranch,/\{role:'model',text:stopReply\}/);
+  assert.match(stopBranch,/const stopReply='بله، بفرما\.'/);
+});
