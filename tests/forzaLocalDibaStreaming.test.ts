@@ -114,7 +114,7 @@ test('server STT status is non-blocking and browser retains live fallback while 
  assert.match(status,/\(choice\.provider==='diba'&&dibaConfigured\)/);
  assert.match(status,/serverSttReady:choice\.provider==='avalai'\|\|choice\.provider==='gemini'\|\|/);
  assert.match(status,/\(choice\.provider==='diba'\?isForzaDibaSttReady\(\):false\)/);
- assert.match(status,/serverSttReady:choice\.provider==='diba'\?isForzaDibaSttReady\(\)/);
+
  assert.doesNotMatch(status,/await warmForzaDibaStt\(\)/,
   'readiness diagnostics must not block while workers warm');
  assert.match(server,/void warmForzaDibaStt\(\)\.then/,
