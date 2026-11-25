@@ -137,4 +137,7 @@ test('POPD 869-image release is staged for canary and used by both product and v
   assert.ok(deploy.includes('node scripts/sync-popd-catalog-images.mjs'));
   assert.ok(deploy.includes('CATALOG_IMAGE_READ_DIR=$POPD_CATALOG_IMAGE_RELEASE_DIR'));
   assert.ok(deploy.includes('CATALOG_IMAGE_ACTIVATE=false'));
+  const imageStage = deploy.slice(deploy.indexOf('STAGE AND VERIFY PINNED POPD'), deploy.indexOf('PRIVATE CANARY WITHOUT A HOST PORT'));
+  assert.ok(imageStage.includes('PRODUCT_STORAGE_DIR=$POPD_CATALOG_STORAGE_ROOT'));
+  assert.ok(!imageStage.includes('--env-file "$ENV_FILE"'), 'image-only staging must not receive application secrets');
 });
