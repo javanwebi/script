@@ -599,18 +599,18 @@ async function getSnapshot(): Promise<Snapshot> {
 }
 
 function buildReferenceCategoryChildren(
-  families: Array<{ submenu: string | null; leaf: string | null }>,
+  entries: Array<{ submenu: string | null; leaf: string | null }>,
 ): NonNullable<Category['children']> {
   const bySubmenu = new Map<string, { name: string; children: Array<{ name: string }> }>();
-  for (const family of families) {
-    const submenu = String(family.submenu || family.leaf || '').trim();
+  for (const entry of entries) {
+    const submenu = String(entry.submenu || entry.leaf || '').trim();
     if (!submenu) continue;
     let parent = bySubmenu.get(normalizeCode(submenu));
     if (!parent) {
       parent = { name: submenu, children: [] };
       bySubmenu.set(normalizeCode(submenu), parent);
     }
-    const leaf = String(family.leaf || '').trim();
+    const leaf = String(entry.leaf || '').trim();
     if (leaf && normalizeCode(leaf) !== normalizeCode(submenu) &&
         !parent.children.some((child) => normalizeCode(child.name) === normalizeCode(leaf))) {
       parent.children.push({ name: leaf });
@@ -645,8 +645,8 @@ function categoryPayload(snapshot: Snapshot, slug: string) {
     });
   }
   // Supabase metadata can contain stale/empty subcategories. For a populated POPD
-  // category, the resolved assignments in the pinned engineered archive are the
-  // source of truth: expose only submenus/leaves that actually own a family.
+  // category, the resolved POPD family assignments and active direct-SKU records
+  // are the source of truth: expose only submenus/leaves that own a real catalogue item.
   const directSkuAssignments = snapshot.directSkuAssignments
     .filter((item) => item.categorySlug === slug)
     .map((item) => ({ submenu: item.submenuName, leaf: item.leafName }));
