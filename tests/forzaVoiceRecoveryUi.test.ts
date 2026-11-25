@@ -134,8 +134,8 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 });
 
 
-test('server AvalAI/Diba STT is recovery-only and never delays a valid live transcript',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true &&\s+!q/);
+test('server AvalAI/Diba STT is recovery-only and never delays a finalized live transcript',()=>{
+  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true &&\s+\(!q \|\| speechInterimRef\.current\)/);
   assert.match(ui,/if\(audioBlob && needsServerFinal\)/);
   assert.match(ui,/transcribeOnly:true/);
   assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
