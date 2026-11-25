@@ -7336,6 +7336,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
     // we do not select a different speech model or change any API credentials.
     let sttProviderError = false;
     let sttProviderStatus = 0;
+    let sttProviderUsed = sttSelection.provider;
 
     // AvalAI GPT-Transcribe is the high-accuracy final recognizer. The browser
     // continues to display live partial words; this bounded upload corrects the
@@ -7354,11 +7355,33 @@ app.post('/api/ai/forza-live', async (req, res) => {
           ' elapsed_ms='+result.elapsedMs);
       }catch(sttErr:any){
         if(abort.signal.aborted)return;
-        sttProviderError=true;
-        sttProviderStatus=sttErr instanceof ForzaAvalaiSttError
-          ? Number(sttErr.status||0) : 503;
-        console.warn('[AI FORZA STT] provider=avalai failure code='+
-          String(sttErr?.code||'avalai_stt_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+        // The bundled Diba model is a genuine offline fallback, not just a
+        // readiness badge. If AvalAI is rate-limited or unavailable, keep the
+        // customer's completed audio turn and attempt one bounded local decode.
+        let fallbackTranscript='';
+        if(hasForzaDibaSttModel()){
+          try{
+            fallbackTranscript=await transcribeForzaDibaAudio(audioBase64,{
+              signal:abort.signal,timeoutMs:22_000,
+            });
+          }catch(fallbackErr:any){
+            console.warn('[AI FORZA STT] provider=diba fallback_failure code='+
+              String(fallbackErr?.message||'diba_fallback_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+          }
+        }
+        if(abort.signal.aborted)return;
+        userQuery=normalizePersianTranscript(fallbackTranscript);
+        if(userQuery){
+          sttProviderUsed='diba-fallback';
+          sttProviderError=false;sttProviderStatus=0;
+          console.warn('[AI FORZA STT] provider=avalai fallback=diba transcript_chars='+userQuery.length);
+        }else{
+          sttProviderError=true;
+          sttProviderStatus=sttErr instanceof ForzaAvalaiSttError
+            ? Number(sttErr.status||0) : 503;
+          console.warn('[AI FORZA STT] provider=avalai failure code='+
+            String(sttErr?.code||'avalai_stt_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+        }
       }finally{res.off('close',onClose);}
     }
 
@@ -7489,6 +7512,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       return res.json({
         success: true,
         userTranscript: userQuery,
+        sttProvider: sttProviderUsed,
         timings: { sttMs: sttFinishedAt - turnStartedAt },
       });
     }
