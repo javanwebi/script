@@ -2,6 +2,22 @@ BEGIN;
 
 CREATE SCHEMA IF NOT EXISTS app_private;
 
+-- Keep the exact upstream JSON payloads and their source hashes inside the
+-- private VPS database. Existing installations retain their current table.
+CREATE TABLE IF NOT EXISTS app_private.source_archives (
+  source_path text NOT NULL,
+  sha256 text NOT NULL,
+  payload jsonb NOT NULL,
+  imported_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (source_path, sha256)
+);
+
+CREATE INDEX IF NOT EXISTS source_archives_path_imported_idx
+  ON app_private.source_archives(source_path, imported_at DESC);
+
+ALTER TABLE app_private.source_archives ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE app_private.source_archives FROM PUBLIC, anon, authenticated;
+
 CREATE TABLE IF NOT EXISTS app_private.catalog_popd_families (
   source_family_code text PRIMARY KEY,
   source_kind text NOT NULL CHECK (source_kind IN ('belt', 'non_belt')),
