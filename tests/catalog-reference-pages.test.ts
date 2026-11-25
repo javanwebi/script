@@ -22,7 +22,7 @@ test('category and family screens use the Supabase-backed POPD reference API', (
   assert.match(all, /\/api\/catalog\/reference\/navigation-groups/);
   assert.match(category, /\/api\/catalog\/reference\/menu-category\//);
   assert.match(detail, /\/api\/catalog\/reference\/product\//);
-  assert.doesNotMatch(detail, /useCatalog/);
+  assert.doesNotMatch(detail, /useCatalog\s*\(|CatalogContext/);
 });
 
 test('only category and family route components are switched to POPD-derived pages', () => {
