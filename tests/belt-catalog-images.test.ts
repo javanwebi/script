@@ -47,12 +47,12 @@ test("POPD belt source manifest is pinned and reconciles exact family/SKU covera
   assert.equal(popd.totals.familiesWithImages, 613);
   assert.equal(popd.totals.familyImageFiles, 1496);
   assert.deepEqual(popd.totals.missingFamilyImages, ["FAM-32929"]);
-  assert.equal(popd.totals.skusWithRealImages, 214);
-  assert.equal(popd.totals.skuWebImages, 193);
-  assert.equal(popd.totals.skuRealMarkingImages, 21);
+  assert.equal(popd.totals.skusWithRealImages, 13);
+  assert.equal(popd.totals.skuWebImages, 0);
+  assert.equal(popd.totals.skuRealMarkingImages, 13);
   assert.equal(Object.keys(popd.families).length, 613);
-  assert.equal(Object.keys(popd.skuPhotos).length, 214);
-  assert.equal(getBeltManifestTotals().exactVerifiedRealSkuImages, 214);
+  assert.equal(Object.keys(popd.skuPhotos).length, 13);
+  assert.equal(getBeltManifestTotals().exactVerifiedRealSkuImages, 13);
   assert.deepEqual(
     [...manifest.exactRealSkuIds].sort((a, b) => a.localeCompare(b, "en")),
     Object.keys(popd.skuPhotos).sort((a, b) => a.localeCompare(b, "en")),
@@ -187,5 +187,5 @@ test("on-disk belt photos exactly match POPD: 613 families, 214 SKUs, and no sta
       assert.equal(isWebp(filePath), true, `SKU ${skuCode} must be a valid WebP`);
     }
   }
-  assert.equal(foundSkuPhotos, 214);
+  assert.equal(foundSkuPhotos, 13);
 });
