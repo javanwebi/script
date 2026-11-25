@@ -1018,3 +1018,78 @@
     font-size: 8px;
   }
 }
+
+
+/* KIKI viewer polish: no white object frames, full uploaded image on phones. */
+.sanat-region-picker--viewer .sanat-region-picker__frame,
+.sanat-region-picker--viewer .sanat-region-picker__frame > img {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.sanat-region-picker--viewer .sanat-region-picker__candidate {
+  border: 1px solid rgba(224,101,24,.58) !important;
+  background: rgba(224,101,24,.035);
+  box-shadow: 0 0 0 1px rgba(43,49,58,.12) !important;
+}
+
+.sanat-region-picker--viewer .sanat-region-picker__candidate.is-selected {
+  border: 2px solid #e06518 !important;
+  background: rgba(224,101,24,.10);
+  box-shadow: 0 0 0 2px rgba(224,101,24,.16) !important;
+}
+
+.sanat-region-picker--viewer .fv-lens-corner {
+  border-color: #e06518 !important;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.34));
+}
+
+.kiki-image-workspace__result-card {
+  transition: none;
+}
+
+.kiki-image-workspace__result-select {
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.kiki-image-workspace__result-select[aria-disabled="true"] {
+  opacity: .62;
+  cursor: wait;
+  pointer-events: none;
+}
+
+/* Static placeholders avoid six continuously animated shimmer layers on mobile. */
+.kiki-image-workspace__skeleton-image::after,
+.kiki-image-workspace__skeleton-line::after {
+  display: none !important;
+  animation: none !important;
+}
+
+@media (max-width: 900px) {
+  .sanat-region-picker--viewer .sanat-region-picker__canvas {
+    min-height: 0;
+    padding: 2px;
+    border: 0;
+    background: transparent;
+  }
+
+  .sanat-region-picker--viewer .sanat-region-picker__frame > img {
+    max-width: 100%;
+    max-height: min(calc(54dvh - 145px), 480px);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+  }
+}
+
+@media (max-width: 580px) {
+  .sanat-region-picker--viewer .sanat-region-picker__frame > img {
+    max-width: 100%;
+    max-height: min(calc(58dvh - 145px), 480px);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+  }
+}
