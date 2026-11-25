@@ -71,3 +71,17 @@ test('the session transcript starts a new line for every utterance, including a 
   const third=appendForzaSessionTurn(second,'برای خط تولید تسمه می‌خواهم');
   assert.equal(third,['سلام','سلام','برای خط تولید تسمه می‌خواهم'].join('\n'));
 });
+
+
+test('repeating the same words in a later turn does not replace or merge the earlier turn',()=>{
+  const first=prepareForzaConversationTurn([],'سلام');
+  const historyWithReply=[
+    ...first.nextHistory,
+    {role:'model' as const,text:'سلام، بفرمایید.'},
+  ];
+  const repeated=prepareForzaConversationTurn(historyWithReply,'سلام');
+  assert.deepEqual(repeated.previousHistory,historyWithReply);
+  assert.deepEqual(repeated.nextHistory.map(item=>item.role),['user','model','user']);
+  assert.equal(repeated.nextHistory[0].text,'سلام');
+  assert.equal(repeated.nextHistory[2].text,'سلام');
+});
