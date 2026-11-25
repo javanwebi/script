@@ -775,9 +775,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     const selectedRegionForRequest = regionOverride === null || (regionOverride === undefined && fullImageSelected)
       ? undefined
       : regionOverride || queryRegion;
-    const requestRegion = localRegionEnabled ? selectedRegionForRequest : undefined;
-    const clientCropFallback = !localRegionEnabled && Boolean(selectedRegionForRequest);
-    const requestFullImage = regionOverride === null || (!requestRegion && fullImageSelected) || clientCropFallback;
+    // Only a live server detection ID proves that the backend has the source-frame
+    // coordinates cached. Otherwise crop the customer's original image locally.
+    const requestRegion = regionDetectionId ? selectedRegionForRequest : undefined;
+    const clientCropFallback = Boolean(selectedRegionForRequest) && !regionDetectionId;
+    const requestFullImage = regionOverride === null || (!requestRegion && (fullImageSelected || clientCropFallback));
     analysisBusyRef.current = true;
     const sequence = ++analysisSequenceRef.current;
     setErrorMessage(""); setPendingStage(stage); setAnalysisProgress(0); setAnalysisPhaseIndex(0); setScanCounts(null);
@@ -793,7 +795,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
         imageBase64 = temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob);
         const localSegmentation = localSegmentationRef.current;
-        if (localSegmentation && localSegmentation.source === temporaryImageDataUrl && requestRegion) {
+        if (!clientCropFallback && localSegmentation && localSegmentation.source === temporaryImageDataUrl && requestRegion) {
           const a = requestRegion;
           const b = localSegmentation.region;
           const intersectionWidth = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
@@ -825,7 +827,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         imageBase64, mimeType: analysisMimeType,
         length: length ? parseFloat(length) : undefined, width: width ? parseFloat(width) : undefined, pitch: pitch ? parseFloat(pitch) : undefined,
         application: application.trim() || undefined, features: features.trim() || undefined,
-        stage, observationOnly: false, region: requestRegion, detectionId: localRegionEnabled ? regionDetectionId || undefined : undefined, fullImage: requestFullImage, includeNearest: true,
+        stage, observationOnly: false, region: requestRegion, detectionId: regionDetectionId || undefined, fullImage: requestFullImage, includeNearest: true,
         measurements: stage === "refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if (sequence !== analysisSequenceRef.current) return;
