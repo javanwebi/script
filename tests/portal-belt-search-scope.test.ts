@@ -30,6 +30,8 @@ test('direct belt SKU search recognizes belt markings and rejects unrelated code
   assert.equal(isIndustrialBeltDirectSku({ skuCode: 'SPB-2000', name: 'SPB 2000' }), true);
   assert.equal(isIndustrialBeltDirectSku({ skuCode: 'HTD-8M-1200', name: 'HTD 8M 1200' }), true);
   assert.equal(isIndustrialBeltDirectSku({ skuCode: '8M-1200', name: '8M ۱۲۰۰' }), true);
+  assert.equal(isIndustrialBeltDirectSku({ skuCode: 'DS8M-1200', name: 'DS8M 1200' }), true);
+  assert.equal(isIndustrialBeltDirectSku({ skuCode: 'PULLEY-SPB-2000', name: 'SPB 2000' }), false);
   assert.equal(isIndustrialBeltDirectSku({ skuCode: '6202ZZ', name: '6202ZZ', subcategory: 'بلبرینگ' }), false);
   assert.equal(isIndustrialBeltDirectSku({ skuCode: 'PULLEY-200', name: 'پولی ۲۰۰' }), false);
 });
