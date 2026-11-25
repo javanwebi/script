@@ -7212,6 +7212,23 @@ app.post('/api/ai/transcribe', async (req, res) => {
           timings:{sttMs:result.elapsedMs}});
       }catch(error:any){
         if(abort.signal.aborted)return;
+        // Keep the legacy standalone transcription endpoint on the same
+        // AvalAI -> bundled Diba fallback path as the live call endpoint.
+        let fallbackText='';
+        if(hasForzaDibaSttModel()){
+          try{
+            fallbackText=await transcribeForzaDibaAudio(cleanAudioData,{
+              signal:abort.signal,timeoutMs:22_000,
+            });
+          }catch(fallbackError:any){
+            console.warn('[STT] provider=diba fallback_failure code='+
+              String(fallbackError?.message||'diba_fallback_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+          }
+        }
+        if(abort.signal.aborted)return;
+        if(fallbackText.trim()){
+          return res.json({success:true,text:fallbackText,provider:'diba-fallback'});
+        }
         const code=error instanceof ForzaAvalaiSttError?error.code:'avalai_stt_failed';
         const status=error instanceof ForzaAvalaiSttError?error.status:undefined;
         console.warn('[STT] provider=avalai failure code='+code);
