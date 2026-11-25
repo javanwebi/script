@@ -675,6 +675,14 @@ export const ProductDetailPage: React.FC = () => {
                   </span>
                 </button>
 
+                {currentGalleryImage?.scope === 'family' && (
+                  <span
+                    className="absolute top-3 right-3 z-10 rounded-lg border border-slate-200 bg-white/95 px-2.5 py-1.5 text-[10px] font-bold text-slate-600 shadow-2xs"
+                  >
+                    تصویر مرجع خانواده
+                  </span>
+                )}
+
                 {galleryImages.length > 1 && (
                   <span
                     aria-hidden="true"
