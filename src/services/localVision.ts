@@ -112,7 +112,8 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
  // active SKU binding across the image. Shared photos remain family-level.
  const similarCandidates:NonNullable<AiPartAnalysisResult['similarCandidates']>=photoMatches.flatMap(photo=>{
   const owners=new Set(photo.bindings.flatMap(binding=>binding.code?[binding.familyCode+':'+binding.code]:[]));
-  if(owners.size!==1)return [];
+  const boundFamilies=new Set(photo.bindings.map(binding=>binding.familyCode));
+  if(owners.size!==1 || boundFamilies.size!==1)return [];
   const ownerKey=[...owners][0];
   const binding=photo.bindings.find(item=>item.code && item.familyCode+':'+item.code===ownerKey);
   if(!binding || seen.has(binding.code!))return [];
