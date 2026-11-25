@@ -168,9 +168,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const regionDetectionSequenceRef=useRef(0);
   const autoAnalysisKeyRef=useRef<string|null>(null);
   const localSegmentationRef=useRef<{source:string;result:ClientAiSegmentationResult;region:ImageRegion}|null>(null);
-  React.useEffect(() => {
-    if (isOpen) void preloadClientAiSegmentation();
-  }, [isOpen]);
+  const localVisionServerEnabledRef=useRef(false);
+  const localVisionStatusPromiseRef=useRef<Promise<boolean>|null>(null);
   const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
@@ -178,11 +177,32 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const customRequestSequenceRef=useRef(0);
   const [localRegionEnabled,setLocalRegionEnabled]=useState(false);
   React.useEffect(()=>{
-    if(!isOpen)return;
+    if(!isOpen){
+      localVisionServerEnabledRef.current=false;
+      localVisionStatusPromiseRef.current=null;
+      return;
+    }
     const controller=new AbortController();
-    fetch(apiUrl('/api/ai/local-vision-status'),{signal:controller.signal,cache:'no-store'})
-      .then(r=>r.ok?r.json():null).then(data=>{if(!controller.signal.aborted)setLocalRegionEnabled(data?.enabled===true && ['local-lens-v2','local-lens-v3'].includes(data?.pipeline));})
-      .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
+    const statusPromise=fetch(apiUrl('/api/ai/local-vision-status'),{signal:controller.signal,cache:'no-store'})
+      .then(r=>r.ok?r.json():null)
+      .then(data=>{
+        const enabled=data?.enabled===true && ['local-lens-v2','local-lens-v3'].includes(data?.pipeline);
+        if(!controller.signal.aborted){
+          localVisionServerEnabledRef.current=enabled;
+          setLocalRegionEnabled(enabled);
+          if(!enabled)void preloadClientAiSegmentation();
+        }
+        return enabled;
+      })
+      .catch(()=>{
+        if(!controller.signal.aborted){
+          localVisionServerEnabledRef.current=false;
+          setLocalRegionEnabled(false);
+          void preloadClientAiSegmentation();
+        }
+        return false;
+      });
+    localVisionStatusPromiseRef.current=statusPromise;
     return ()=>controller.abort();
   },[isOpen]);
   React.useEffect(()=>{if(!isOpen){regionDetectionSequenceRef.current++;localSegmentationRef.current=null;analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
@@ -274,9 +294,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [mobileResultsExpanded, setMobileResultsExpanded] = useState(false);
   const resultsSwipeStartY = useRef<number | null>(null);
   const [recentSearches, setRecentSearches] = useState<VisionRecentSearchItem[]>(() => loadVisionRecentSearches());
-  const visiblePhotoMatches=(analysisResult?.catalogImageMatches || []).filter(photo=>
-    !analysisResult?.modelSuggestions?.length || photo.bindings.length===0);
-  const workspaceResults:VisionWorkspaceResult[]=[
+  const visiblePhotoMatches=React.useMemo(()=> (analysisResult?.catalogImageMatches || []).filter(photo=>
+    !analysisResult?.modelSuggestions?.length || photo.bindings.length===0),[analysisResult]);
+  const workspaceResults=React.useMemo<VisionWorkspaceResult[]>(()=>[
     ...(analysisResult?.matchedProducts||[]).map(item=>({
       id:'sku:'+item.code,code:item.code,familyCode:item.catalogProduct?.code,name:item.name,brand:item.brand,
       image:item.image||item.catalogProduct?.image||item.catalogProduct?.images?.[0],
@@ -303,7 +323,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       similarityScore:item.visualScore,matchLabel:item.matchBasis==='explore'?'برای بررسی؛ تأیید نشده':item.reason,
       reason:item.reason,
     })),
-  ].filter((item,index,all)=>item.name.trim().length>0&&index===all.findIndex(other=>other.id===item.id));
+  ].filter((item,index,all)=>item.name.trim().length>0&&index===all.findIndex(other=>other.id===item.id)),[analysisResult]);
 
   // Short part family for dynamic titles, e.g. «این چرخ‌دهنده‌ها را داریم».
   // Different per product type (wheel / belt / pulley / bush / ...).
@@ -387,11 +407,55 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setRegionDetectionMessage('');
     setRegionDetectionId(null);
 
+    // When the production local-vision encoder is active, its own crop proposals
+    // must drive both the preview and the cached catalogue query. The browser
+    // saliency model is only a fallback for deployments without that encoder.
+    const statusPromise=localVisionStatusPromiseRef.current;
+    const serverPreferred=localVisionServerEnabledRef.current || (statusPromise
+      ? await Promise.race([
+          statusPromise,
+          new Promise<boolean>(resolve=>setTimeout(()=>resolve(false),350)),
+        ])
+      : false);
+    let serverAttempted=false;
+
+    const commitServerDetection=(detection:{
+      detectionId:string;
+      queryRegion?:ImageRegion;
+      queryRegions?:ImageRegion[];
+    })=>{
+      const detectedRegions=detection.queryRegions||[];
+      const primaryRegion=detection.queryRegion||detectedRegions[0];
+      localSegmentationRef.current=null;
+      setRegionDetectionId(detection.detectionId);
+      setQueryRegion(primaryRegion);
+      setCandidateRegions(detectedRegions.length?detectedRegions:(primaryRegion?[primaryRegion]:[]));
+      setFullImageSelected(!primaryRegion);
+      setRegionDetectionState('ready');
+      setLocalRegionEnabled(true);
+      setRegionDetectionMessage(primaryRegion
+        ? detectedRegions.length>1
+          ? 'چند ناحیه از تصویر پیشنهاد شده است؛ انتخاب هر ناحیه، همان بخش را با موتور کاتالوگ بررسی می‌کند.'
+          : 'ناحیه پیشنهادی موتور کاتالوگ انتخاب شد؛ جست‌وجو آغاز می‌شود.'
+        : 'مرز قطعه با اطمینان کافی مشخص نشد؛ تصویر کامل برای جست‌وجو بررسی می‌شود.');
+    };
+
+    if(serverPreferred){
+      serverAttempted=true;
+      try{
+        const detection=await aiVisualSearchService.detectImageRegions(imageUrl);
+        if(sequence!==regionDetectionSequenceRef.current)return;
+        commitServerDetection(detection);
+        return;
+      }catch{
+        if(sequence!==regionDetectionSequenceRef.current)return;
+        // A temporary encoder failure falls back to the browser detector below.
+      }
+    }
+
     let localSucceeded = false;
     let serverCommitted = false;
 
-    // Local model and server fallback are both real; a warm model can return
-    // first without waiting for the server's detection round-trip.
     const localDetection = segmentImageWithClientAi(imageUrl).then(segmented => {
       if (sequence !== regionDetectionSequenceRef.current || serverCommitted || !segmented) return false;
       const detectedRegions = segmented.regions;
@@ -417,31 +481,36 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     ]);
     if (fastLocal || localSucceeded || sequence !== regionDetectionSequenceRef.current) return;
 
-    try {
-      const detection = await aiVisualSearchService.detectImageRegions(imageUrl);
-      if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
-      serverCommitted = Boolean(detection.queryRegion || detection.queryRegions?.length);
-      const detectedRegions=detection.queryRegions||[];
-      const primaryRegion=detection.queryRegion||detectedRegions[0];
-      setRegionDetectionId(detection.detectionId);
-      setQueryRegion(primaryRegion);
-      setCandidateRegions(detectedRegions.length?detectedRegions:(primaryRegion?[primaryRegion]:[]));
-      setFullImageSelected(!primaryRegion);
-      setRegionDetectionState('ready');
-      setLocalRegionEnabled(true);
-      if (!primaryRegion) setRegionDetectionMessage('مرز قطعه با اطمینان کافی تشخیص داده نشد؛ جست‌وجوی خودکار تصویر کامل انجام می‌شود.');
-    } catch (error: any) {
-      if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
-      if (await localDetection || sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
-      serverCommitted = true;
-      setRegionDetectionId(null);
-      setQueryRegion(undefined);
-      setCandidateRegions([]);
-      setFullImageSelected(true);
-      setRegionDetectionState('fallback');
-      setLocalRegionEnabled(true);
-      setRegionDetectionMessage('تشخیص ناحیه در دسترس نبود؛ جست‌وجوی خودکار روی تصویر کامل انجام می‌شود.');
+    if(!serverAttempted){
+      try {
+        const detection = await aiVisualSearchService.detectImageRegions(imageUrl);
+        if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
+        serverCommitted = true;
+        commitServerDetection(detection);
+      } catch {
+        if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
+        if (await localDetection || sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
+        serverCommitted = true;
+        setRegionDetectionId(null);
+        setQueryRegion(undefined);
+        setCandidateRegions([]);
+        setFullImageSelected(true);
+        setRegionDetectionState('fallback');
+        setLocalRegionEnabled(true);
+        setRegionDetectionMessage('تشخیص ناحیه در دسترس نبود؛ جست‌وجوی خودکار روی تصویر کامل انجام می‌شود.');
+      }
+      return;
     }
+
+    if(await localDetection || sequence!==regionDetectionSequenceRef.current || localSucceeded)return;
+    serverCommitted=true;
+    setRegionDetectionId(null);
+    setQueryRegion(undefined);
+    setCandidateRegions([]);
+    setFullImageSelected(true);
+    setRegionDetectionState('fallback');
+    setLocalRegionEnabled(true);
+    setRegionDetectionMessage('تشخیص ناحیه در دسترس نبود؛ جست‌وجوی خودکار روی تصویر کامل انجام می‌شود.');
   };
 
   const uploadAndPrepareImage = async (source: string | Blob, originalName = "customer-image") => {
@@ -1075,13 +1144,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             setSelectedProductId(id);
             const code=workspaceResults.find(item=>item.id===id)?.code;
             if(code&&imageEventId)void selectCustomerImageProduct(imageEventId,code).catch(error=>console.warn('[Customer image history] selected product sync unavailable',error));
-          }}
-          onOpenProduct={(id) => {
-            const item=workspaceResults.find(result=>result.id===id);
-            const productCode=item?.code || item?.familyCode;
-            if(!productCode)return;
-            navigate('/product/'+encodeURIComponent(productCode));
-            onClose();
           }}
           onRetryAnalysis={() => {
             setErrorMessage('');
