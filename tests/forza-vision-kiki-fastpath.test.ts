@@ -155,14 +155,16 @@ test('KIKI results header stays within the independently scrollable catalogue pa
 });
 
 
-test('region selector blocks keyboard and action controls while image preparation or analysis is busy', () => {
+test('automatic region selector disables detected-object taps while image preparation or analysis is busy', () => {
   const picker = source('src/components/search/ImageRegionSelector.tsx');
   const review = source('src/components/search/ImageRegionReview.tsx');
-  assert.ok(picker.includes('disabled?:boolean;'));
-  assert.ok(picker.includes('tabIndex={disabled?-1:0}'));
-  assert.ok(picker.includes('if(disabled)return;'));
-  assert.ok(picker.includes('disabled={disabled || !value}'));
+  assert.ok(picker.includes('disabled?: boolean;'));
+  assert.ok(picker.includes('if (disabled) return;'));
   assert.ok(picker.includes('disabled={disabled}'));
-  assert.ok(review.includes('const selectorDisabled = preparing || Boolean(busy);'));
+  assert.ok(picker.includes('onClick={(event) => { event.stopPropagation(); onChange(region); }}'));
+  assert.ok(picker.includes('const hit = visibleRegions'));
+  assert.ok(picker.includes('if (hit) onChange(hit)'));
+  assert.doesNotMatch(picker, /tabIndex=|onPointerDown|mode:\s*['"]resize|onSearch|onFullImageSearch/);
+  assert.ok(review.includes('const selectorDisabled = preparing || Boolean(busy) || analysisBusy;'));
   assert.ok(review.includes('disabled={selectorDisabled}'));
 });
