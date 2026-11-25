@@ -99,6 +99,9 @@ const {chromium}=require('playwright');
   const catalogSvg='<svg xmlns="http://www.w3.org/2000/svg" width="500" height="300"><rect width="500" height="300" fill="#f6f7f8"/><path d="M70 155 C80 35 420 35 430 155 C420 260 80 260 70 155Z" fill="#24272b"/><text x="250" y="170" font-size="54" text-anchor="middle" fill="white">A-49</text></svg>';
   const catalogImage='data:image/svg+xml;base64,'+Buffer.from(catalogSvg).toString('base64');
   page.on('pageerror',e=>errors.push(e.message));
+  // Keep this browser case deterministic: exercise the server's cached multi-view
+  // ranking path; the local U2Net worker has its own model-backed validation job.
+  await page.route('**/models/u2netp.onnx',route=>route.fulfill({status:404,body:'model disabled for server-path smoke'}));
   await page.route('**/api/**',async route=>{
    const pathname=new URL(route.request().url()).pathname;
    let body={success:true,values:{},products:[]};
