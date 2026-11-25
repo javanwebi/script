@@ -141,8 +141,10 @@ export function ImageRegionReview({
       ? 'در حال تشخیص خودکار قطعات تصویر'
       : analysisBusy
         ? 'در حال تطبیق قطعه با کاتالوگ صنعت پیش'
-        : results.length
-          ? 'برای مشاهده مشخصات، روی کارت محصول بزنید'
+        : results.length && results.every(item => item.matchBasis === 'explore')
+          ? 'نزدیک‌ترین گزینه‌ها برای بررسی پیدا شدند؛ تطبیق قطعی نیست'
+          : results.length
+            ? 'برای مشاهده مشخصات، روی کارت محصول بزنید'
           : analysisComplete && !results.length
             ? 'جست‌وجو کامل شد؛ نتیجه قابل اتکایی پیدا نشد'
             : status === 'fallback'
@@ -184,7 +186,7 @@ export function ImageRegionReview({
             <img src={image} alt="تصویر قطعه انتخاب‌شده" />
             <div>
               <h2>محصولات مشابه کاتالوگ</h2>
-              <p>{analysisBusy ? 'نتایج به‌محض آماده‌شدن نمایش داده می‌شوند' : 'برای دیدن کد، مشخصات و مدل‌ها، کارت محصول را باز کنید'}</p>
+              <p>{analysisBusy ? 'نتایج به‌محض آماده‌شدن نمایش داده می‌شوند' : results.length && results.every(item => item.matchBasis === 'explore') ? 'گزینه‌های نزدیک کاتالوگ؛ نوع و سازگاری هنوز تأیید نشده‌اند' : 'برای دیدن کد، مشخصات و مدل‌ها، کارت محصول را باز کنید'}</p>
             </div>
           </div>
           <span className="kiki-image-workspace__catalog-mark" aria-hidden="true">FORZA</span>
@@ -264,7 +266,7 @@ export function ImageRegionReview({
                   : undefined;
                 return (
                   <article className={'kiki-image-workspace__result-card' + (selected ? ' is-selected' : '')}
-                    key={item.id} data-selected={selected || undefined}>
+                    key={item.id} data-selected={selected || undefined} data-match-basis={item.matchBasis || 'visual'}>
                     <button type="button" className="kiki-image-workspace__result-select"
                       onClick={() => { onSelectProduct(item.id); onOpenProduct(item.id); }}
                       disabled={selectorDisabled}
