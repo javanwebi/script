@@ -222,6 +222,8 @@ test('each completed utterance is a separate request while the previous user and
   assert.match(ui,/duplicateActiveTurn=Boolean\(q&&activeQuery&&/);
   assert.match(ui,/activeTurnRef\.current=\{generation,abort:pocketAbort,query:q,startedAt:Date\.now\(\)\}/);
   assert.match(ui,/payload\.history=previousHistory/);
+  assert.match(ui,/canReplacePendingHistory=Boolean\(q&&pendingHistoryTurnRef\.current===q/);
+  assert.match(ui,/historyRef\.current=\[\.\.\.previousHistory,\{role:'user',text:resolvedUserQuery\}\]/);
   assert.match(ui,/query:resolvedUserQuery,\s+history:previousHistory/);
   assert.match(consult,/هر بار که کاربر پس از پایان واقعی گفتار، دوباره صحبت می‌کند، آن گفتار یک پیام مستقل/);
   assert.match(consult,/تمام پیام‌های قبلی کاربر و پاسخ‌های کامل FORZA در تاریخچه همین تماس حفظ می‌شوند/);
