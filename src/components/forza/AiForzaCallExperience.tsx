@@ -1546,14 +1546,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
           heardEntry.text=[heardEntry.text,phrase.trim()].filter(Boolean).join(' ').trim();
         };
-        const commitAssistantReply=(text:string,playbackComplete:boolean)=>{
+        const commitAssistantReply=(text:string)=>{
           const clean=String(text||'').trim();
           if(!clean)return;
-          const stored=playbackComplete?clean:
-            '[متن کامل پاسخ در زیرنویس نمایش داده شد؛ پخش صوت کامل نشد.] '+clean;
-          if(heardEntry)heardEntry.text=stored;
+          // The full text is visible to the customer even if TTS is muted,
+          // interrupted, or unavailable; preserve the actual assistant answer
+          // in conversation history, not a synthetic playback-status sentence.
+          if(heardEntry)heardEntry.text=clean;
           else{
-            heardEntry={role:'model',text:stored};
+            heardEntry={role:'model',text:clean};
             historyRef.current.push(heardEntry);
           }
         };
@@ -1797,7 +1798,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 ' final_chars='+(finalPhrases.at(-1)?.length||0));
               for(const phrase of finalPhrases)queueSpeech(phrase);
               await activeNimaBuffer.finish();
-              commitAssistantReply(reply,true);
+              commitAssistantReply(reply);
               console.info('[FORZA_LATENCY] phase=nima-incremental-finished phrases='+
                 activeNimaBuffer.statistics.scheduled+
                 ' audio_s='+activeNimaBuffer.statistics.totalBufferedSeconds.toFixed(2)+
@@ -1808,12 +1809,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 'call-'+callIdRef.current+'-turn-'+generation);
               recordHeard(reply);
             }
-            commitAssistantReply(reply,true);
+            commitAssistantReply(reply);
             if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
               setVoiceOutputError(null);
           }catch(error:any){
             if(!pocketAbort.signal.aborted&&activeTurnRef.current?.generation===generation)
-              commitAssistantReply(reply,false);
+              commitAssistantReply(reply);
             if(activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted)
               setVoiceStage('error');
             if(pocketAbort.signal.aborted || activeTurnRef.current?.generation!==generation)
