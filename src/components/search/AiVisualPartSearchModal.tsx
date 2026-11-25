@@ -166,6 +166,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [regionDetectionId,setRegionDetectionId]=useState<string|null>(null);
   const [fullImageSelected,setFullImageSelected]=useState(false);
   const regionDetectionSequenceRef=useRef(0);
+  const autoAnalysisKeyRef=useRef<string|null>(null);
   const localSegmentationRef=useRef<{source:string;result:ClientAiSegmentationResult;region:ImageRegion}|null>(null);
   React.useEffect(() => {
     if (isOpen) void preloadClientAiSegmentation();
@@ -183,7 +184,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{localSegmentationRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
+  React.useEffect(()=>{localSegmentationRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);autoAnalysisKeyRef.current=null;setInlineAnalysisBusy(false);setSelectedCatalogCode(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){regionDetectionSequenceRef.current++;localSegmentationRef.current=null;analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
   React.useEffect(() => {
     if (!isOpen) {
@@ -263,6 +264,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Analysis result & error
   const [analysisResult, setAnalysisResult] =
     useState<AiPartAnalysisResult | null>(null);
+  const [inlineAnalysisBusy, setInlineAnalysisBusy] = useState(false);
+  const [selectedCatalogCode, setSelectedCatalogCode] = useState<string | null>(null);
   const [customRequestDraft, setCustomRequestDraft] = useState<ManufacturingRequestDraft | null>(null);
   const [customRequestOpen, setCustomRequestOpen] = useState(false);
   const [isPreparingCustomRequest, setIsPreparingCustomRequest] = useState(false);
@@ -342,10 +345,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const friendlyVisionError = (error: any) => {
     if (error?.code === 'VISION_BUSY' || error?.status === 429) return 'موتور شناسایی در حال تأیید ناحیه دیگری است. چند لحظه دیگر دوباره تلاش کنید.';
     if (error?.code === 'INDEX_NOT_READY') return 'کاتالوگ تصویری در حال آماده‌سازی است. تصویر شما محفوظ است؛ کمی بعد دوباره تلاش کنید.';
-    if (error?.code === 'VISION_DISABLED') return 'تشخیص خودکار روی این سرور فعال نیست؛ ناحیه قطعه را دستی انتخاب کنید.';
+    if (error?.code === 'VISION_DISABLED') return 'تشخیص خودکار روی این سرور فعال نیست؛ تصویر کامل برای تطبیق بررسی می‌شود.';
     if (error?.code === 'CATALOG_UNAVAILABLE') return 'ارتباط با کاتالوگ برقرار نیست. تصویر شما محفوظ است؛ کمی بعد دوباره تلاش کنید.';
-    if (error?.code === 'INVALID_REGION') return 'کادر انتخاب‌شده معتبر نیست؛ لطفاً ناحیه را دوباره مشخص کنید.';
-    if (error?.status === 503) return 'ارتباط با موتور تحلیل موقتاً برقرار نشد. تصویر شما حذف نشده است؛ دوباره تلاش کنید یا ناحیه را دستی انتخاب کنید.';
+    if (error?.code === 'INVALID_REGION') return 'ناحیه خودکار معتبر نبود؛ تشخیص تصویر را دوباره اجرا کنید.';
+    if (error?.status === 503) return 'ارتباط با موتور تحلیل موقتاً برقرار نشد. تصویر شما محفوظ است؛ کمی بعد دوباره تلاش کنید.';
     if (error?.name === 'TypeError') return 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.';
     return error?.message || 'تحلیل تصویر کامل نشد. دوباره تلاش کنید.';
   };
@@ -375,8 +378,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setRegionDetectionState('ready');
       setLocalRegionEnabled(true);
       setRegionDetectionMessage(detectedRegions.length > 1
-        ? 'چند قطعه در تصویر پیدا شد؛ قطعه موردنظر را از روی کادرها انتخاب کنید یا برش را دستی اصلاح کنید.'
-        : 'مدل محلی ناحیه اصلی قطعه را پیدا کرد. برای دقیق‌تر شدن، کادر را جابه‌جا کنید یا گوشه‌های آن را بکشید.');
+        ? 'چند قطعه به‌صورت خودکار پیدا شد؛ انتخاب هر کادر، جست‌وجوی همان قطعه را شروع می‌کند.'
+        : 'ناحیه اصلی قطعه به‌صورت خودکار پیدا شد؛ جست‌وجوی کاتالوگ شروع می‌شود.');
       return true;
     }).catch(() => false);
 
@@ -391,12 +394,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
       serverCommitted = Boolean(detection.queryRegion || detection.queryRegions?.length);
       setRegionDetectionId(detection.detectionId);
-      setQueryRegion(detection.queryRegion);
-      setCandidateRegions(detection.queryRegions || []);
-      setFullImageSelected(!detection.queryRegion);
+      const detectedRegion = detection.queryRegion || detection.queryRegions?.[0];
+      setQueryRegion(detectedRegion);
+      setCandidateRegions(detection.queryRegions?.length ? detection.queryRegions : detectedRegion ? [detectedRegion] : []);
+      setFullImageSelected(!detectedRegion);
       setRegionDetectionState('ready');
       setLocalRegionEnabled(true);
-      if (!detection.queryRegion) setRegionDetectionMessage('کادر مطمئن پیدا نشد؛ قطعه را لمس کنید یا محدوده را دستی انتخاب کنید.');
+      if (!detectedRegion) setRegionDetectionMessage('ناحیه مستقل قابل‌اعتماد پیدا نشد؛ جست‌وجوی تصویر کامل به‌عنوان جایگزین انجام می‌شود.');
     } catch (error: any) {
       if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
       if (await localDetection || sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
@@ -429,14 +433,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   const retryRegionPreparation = () => {
+    autoAnalysisKeyRef.current = null;
     if (temporaryImageDataUrl) void detectUploadedImageRegions(temporaryImageDataUrl);
     else if (selectedImage) void uploadAndPrepareImage(selectedImage, "camera-capture.jpg");
-  };
-
-  const handleRegionSelection = (region: ImageRegion | undefined) => {
-    setQueryRegion(region);
-    setFullImageSelected(!region);
-    setErrorMessage('');
   };
 
   // Upload first, then ask the local vision engine only for a crop proposal.
@@ -657,8 +656,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   // Submit to AI (two-stage: quick = image only, refined = image + dims + application)
-  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?: ImageRegion | null, localImageIdOverride?: string) => {
+  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?: ImageRegion | null, localImageIdOverride?: string, options: { keepWorkspace?: boolean } = {}) => {
     if (analysisBusyRef.current) return;
+    const keepWorkspace = options.keepWorkspace === true;
     if (!selectedImage && !length && !width) { setErrorMessage("لطفاً حداقل تصویر قطعه یا ابعاد (طول و عرض) را مشخص فرمایید."); return; }
     if (stage === "quick" && !selectedImage) { setErrorMessage("برای شناسایی فوری، ابتدا تصویر قطعه را بارگذاری کنید."); return; }
     if (isUploadingImage && !localImageIdOverride) { setErrorMessage("لطفاً صبر کنید تا ذخیره تصویر روی دستگاه کامل شود."); return; }
@@ -671,7 +671,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     const requestFullImage = regionOverride === null || (!requestRegion && fullImageSelected);
     analysisBusyRef.current = true;
     const sequence = ++analysisSequenceRef.current;
-    setErrorMessage(""); setPendingStage(stage); setAnalysisProgress(0); setAnalysisPhaseIndex(0); setScanCounts(null); setCurrentStep("analyzing");
+    setInlineAnalysisBusy(keepWorkspace);
+    setErrorMessage(""); setPendingStage(stage); setAnalysisProgress(0); setAnalysisPhaseIndex(0); setScanCounts(null);
+    if (!keepWorkspace) setCurrentStep("analyzing");
     let activeImageEventId: string | null = imageEventId;
     try {
       let imageBase64: string | undefined;
@@ -730,6 +732,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         }).catch(error => console.warn("[Customer image history] result sync unavailable", error));
       }
       setAnalysisResult(result);
+      const primaryResultMatch = result.matchedProducts?.[0] || result.similarCandidates?.[0];
+      setSelectedCatalogCode(primaryResultMatch?.code || null);
       const primaryHistoryMatch = result.matchedProducts?.[0] || result.similarCandidates?.[0];
       const photoHistoryMatch = result.catalogImageMatches?.find((photo) =>
         Boolean(primaryHistoryMatch?.code && photo.bindings?.some((binding) => binding.code === primaryHistoryMatch.code)),
@@ -753,27 +757,29 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (!result.observationOnly && (result.matchedProducts?.length || result.similarCandidates?.length)) {
         const conversationImage = temporaryImageDataUrl || selectedImage;
         if (conversationImage) onAnalysisResult?.(result, conversationImage);
-      } setLastStage(result.stage || stage); setCurrentStep(result.observationOnly ? 2 : "results");
+      } setLastStage(result.stage || stage); if (!keepWorkspace) setCurrentStep(result.observationOnly ? 2 : "results");
     } catch (error: any) {
       if (sequence !== analysisSequenceRef.current) return;
       console.error(error);
       if (activeImageEventId) void completeCustomerImageIdentification(activeImageEventId, { status: "failed" }).catch(() => undefined);
-      setErrorMessage(friendlyVisionError(error)); setCurrentStep(stage === "quick" ? 1 : 3);
-    } finally { if (sequence === analysisSequenceRef.current) analysisBusyRef.current = false; }
+      setErrorMessage(friendlyVisionError(error)); if (!keepWorkspace) setCurrentStep(stage === "quick" ? 1 : 3);
+    } finally { if (sequence === analysisSequenceRef.current) { analysisBusyRef.current = false; setInlineAnalysisBusy(false); } }
   };
+
+  // Run the first catalog search automatically after the image is stored and
+  // local/server region detection has completed. Keep the split workspace mounted.
+  React.useEffect(() => {
+    if (!isOpen || currentStep !== 1 || !selectedImage || !temporaryImageDataUrl || !localImageId) return;
+    if (isUploadingImage || !localRegionEnabled || !['ready', 'fallback'].includes(regionDetectionState)) return;
+    if (autoAnalysisKeyRef.current === localImageId) return;
+    autoAnalysisKeyRef.current = localImageId;
+    void handleAnalyze('quick', queryRegion || null, localImageId, { keepWorkspace: true });
+  }, [isOpen, currentStep, selectedImage, temporaryImageDataUrl, localImageId, isUploadingImage, localRegionEnabled, regionDetectionState, queryRegion]);
 
   const confirmRegionAndAnalyze = () => {
     if (!temporaryImageDataUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
     setErrorMessage('');
     void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
-  };
-
-  const confirmFullImageAndAnalyze = () => {
-    if (!temporaryImageDataUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
-    setQueryRegion(undefined);
-    setFullImageSelected(true);
-    setErrorMessage('');
-    void handleAnalyze('quick', null);
   };
 
   const goToStep2 = () => {
@@ -782,12 +788,33 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setCurrentStep(2);
   };
 
-  // Selecting another crop never starts an expensive search implicitly.
-  // The customer reviews the crop and explicitly presses "search this part".
+  // Selecting a detected object immediately runs the existing catalog analysis
+  // for that region. There is no manual crop confirmation step.
   const searchRegion=(region:ImageRegion|undefined)=>{
+    if (!region || !temporaryImageDataUrl || isUploadingImage || analysisBusyRef.current) return;
+    const same = queryRegion &&
+      Math.abs(queryRegion.x-region.x)<0.002 &&
+      Math.abs(queryRegion.y-region.y)<0.002 &&
+      Math.abs(queryRegion.width-region.width)<0.002 &&
+      Math.abs(queryRegion.height-region.height)<0.002;
+    if (same) return;
     setQueryRegion(region);
-    setFullImageSelected(!region);
+    setFullImageSelected(false);
     setErrorMessage('');
+    setSelectedCatalogCode(null);
+    if (localImageId) autoAnalysisKeyRef.current = localImageId;
+    if (currentStep === 1) setAnalysisResult(null);
+    void handleAnalyze('quick', region, localImageId || undefined, { keepWorkspace: true });
+  };
+
+  const handleCatalogProductSelection = (code:string) => {
+    setSelectedCatalogCode(code);
+    if (imageEventId) {
+      void selectCustomerImageProduct(imageEventId, code).catch(error =>
+        console.warn('[Customer image history] selected product sync unavailable', error)
+      );
+    }
+    setMobileResultsExpanded(false);
   };
 
   // The original stays in the customer's local vault during identification.
@@ -1085,9 +1112,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           message={[regionDetectionMessage, localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
           analysisError={errorMessage}
           busy={isUploadingImage || !temporaryImageDataUrl}
-          onRegionChange={handleRegionSelection}
-          onConfirm={confirmRegionAndAnalyze}
-          onFullImageSearch={confirmFullImageAndAnalyze}
+          onRegionChange={searchRegion}
+          analysisResult={analysisResult}
+          analysisBusy={inlineAnalysisBusy}
+          selectedCatalogCode={selectedCatalogCode}
+          onSelectProduct={handleCatalogProductSelection}
+          onOpenDetails={() => setCurrentStep("results")}
           onRetryPreparation={retryRegionPreparation}
           onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
           onChangeImage={() => fileInputRef.current?.click()}
@@ -1592,8 +1622,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   value={queryRegion}
                   candidateRegions={candidateRegions}
                   onChange={searchRegion}
-                  onSearch={() => { if(queryRegion)void handleAnalyze('quick', queryRegion); }}
-                  onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
+                  disabled={inlineAnalysisBusy}
+                  variant="viewer"
                 />}
                 {!localRegionEnabled && selectedImage && (
                   <div className="kiki-vision-image-evidence" data-testid="kiki-vision-image-evidence">
@@ -1643,6 +1673,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     </button>
                   </div>
                 </header>
+                    {inlineAnalysisBusy && <div className="fv-inline-analysis-status" role="status" aria-live="polite" data-testid="vision-inline-analysis-busy"><span className="fv-inline-analysis-status__spinner" aria-hidden="true" />در حال جست‌وجوی قطعه انتخاب‌شده در کاتالوگ؛ نتایج همین‌جا به‌روزرسانی می‌شوند.</div>}
                     <div className="sp-vision-result-intro">
                   <div>
                     <span>FORZA VISION · CATALOGUE EVIDENCE</span>
@@ -2008,15 +2039,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                             const priceInfo = getItemPrice(catalogItem);
                             const isExact =
                               match.visualVerdict === "exact_match";
+                            const isSelectedCatalogItem = selectedCatalogCode === match.code;
 
                             return (
                               <div
                                 key={match.code + idx}
-                                className={`sp-vision-match-card bg-white border rounded-2xl p-4 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-3 ${
-                                  isExact
-                                    ? "border-emerald-500 ring-2 ring-emerald-200/80 shadow-sm"
-                                    : "border-blue-300 ring-1 ring-blue-100 hover:border-blue-400"
-                                }`}
+                                className={`sp-vision-match-card bg-white border rounded-2xl p-4 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-3 ${isSelectedCatalogItem ? "border-orange-500 ring-2 ring-orange-200/80 shadow-sm" : isExact ? "border-emerald-500 ring-2 ring-emerald-200/80 shadow-sm" : "border-blue-300 ring-1 ring-blue-100 hover:border-blue-400"}`}
                               >
                                 <div className="space-y-2.5">
                                   <div className="sp-vision-match-layout">
@@ -2071,6 +2099,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                       <h5 className="font-bold text-sm text-[#55565A] leading-snug mt-1 line-clamp-2">
                                         {match.name}
                                       </h5>
+                                      <button type="button" className="fv-match-select-on-image" aria-pressed={isSelectedCatalogItem} onClick={() => handleCatalogProductSelection(match.code)}>
+                                        <Target className="w-3.5 h-3.5" aria-hidden="true" />
+                                        {isSelectedCatalogItem ? "این نتیجه روی تصویر انتخاب شده" : "نمایش این قطعه روی تصویر"}
+                                      </button>
 
                                       {((match as any).forzaCode ||
                                         (catalogItem as any)?.forzaCode) && (

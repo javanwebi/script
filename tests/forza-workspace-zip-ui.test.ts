@@ -83,19 +83,20 @@ test('mobile FORZA launcher preserves the swipe-up contact sheet and direct desk
   assert.match(styles, /prefers-reduced-motion/);
 });
 
-test('approved optical tap feedback is cosmetic and retains the live region selector', () => {
+test('optical selection taps only model-detected object boxes and keeps the real segmentation engine', () => {
   const selector = read('src/components/search/ImageRegionSelector.tsx');
-  const styles = read('src/components/search/industrial-scan.css');
+  const styles = read('src/components/search/image-region-review.css');
   const scanner = read('src/components/search/AiVisualPartSearchModal.tsx');
-  assert.match(selector, /tapFeedback/);
-  assert.match(selector, /fv-tap-ripple/);
-  assert.match(selector, /fv-object-dot--active/);
-  assert.match(selector, /findImageRegionAtPoint/);
-  assert.match(selector, /tapImageRegion/);
-  assert.match(styles, /fv-approved-tap-ripple/);
-  assert.match(styles, /prefers-reduced-motion/);
+  assert.match(selector, /sanat-region-picker__frame--automatic/);
+  assert.match(selector, /const hit = visibleRegions/);
+  assert.match(selector, /if \(hit\) onChange\(hit\)/);
+  assert.match(selector, /onClick=\{\(event\) => \{ event\.stopPropagation\(\); onChange\(region\); \}\}/);
+  assert.doesNotMatch(selector, /tapImageRegion|findImageRegionAtPoint|tapFeedback|onPointerDown|mode:\s*['"]resize/);
+  assert.match(styles, /pointer-events: auto/);
+  assert.match(styles, /\.sanat-region-picker--viewer \.sanat-region-picker__candidate/);
   assert.match(scanner, /ImageRegionSelector/);
   assert.match(scanner, /clientAiSegmentation/);
+  assert.match(scanner, /onChange=\{searchRegion\}/);
 });
 
 test('approved workspace keeps catalog search collapsible without dropping live callbacks', () => {
