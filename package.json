@@ -29,7 +29,8 @@
     "db:verify:adopted": "node --import tsx scripts/database/verifyAdopted.ts",
     "db:smoke:online": "node --import tsx scripts/database/smokeAdopted.ts",
     "db:plan:adopted": "node --import tsx scripts/database/migrateAdopted.ts plan",
-    "db:migrate:adopted": "node --import tsx scripts/database/migrateAdopted.ts apply"
+    "db:migrate:adopted": "node --import tsx scripts/database/migrateAdopted.ts apply",
+    "db:import:popd": "node scripts/database/importPopdCatalogArchive.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
