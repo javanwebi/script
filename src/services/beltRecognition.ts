@@ -83,14 +83,16 @@ export function applyBeltRecognition(result:AiPartAnalysisResult,products:Produc
  const variants=new Map<string,{family:Product;variant:ProductVariant}>();
  for(const family of beltFamilies)for(const variant of family.variants||[])if(variant.active!==false&&variant.code?.trim())variants.set(variant.code,{family,variant});
  const parsed=parseBeltMarkings(markings),candidateCodes=new Set<string>();
- // Accepted visual candidates only. Exploratory nearest neighbours are not proof that the object is a belt.
- for(const item of result.modelSuggestions||[])if(item.matchBasis!=='explore')candidateCodes.add(item.familyCode);
+ // A family is confirmed only by evidence anchored to an eligible visual retrieval.
+ // OCR-only (read_code), family-sibling, and exploratory suggestions can enrich a
+ // visually anchored family, but can never establish that the photographed object is a belt.
  for(const photo of result.catalogImageMatches||[])for(const binding of photo.bindings||[])candidateCodes.add(binding.familyCode);
  for(const item of result.similarCandidates||[]){
   if(item.isVisualMatch!==true)continue;
   const owner=item.code?variants.get(item.code):undefined;
   if(owner)candidateCodes.add(owner.family.code);
  }
+ for(const item of result.modelSuggestions||[])if(item.matchBasis==='visual')candidateCodes.add(item.familyCode);
  const hasVisualBeltEvidence=[...candidateCodes].some(code=>families.has(code));
  const statuses=new Map<string,'match'|'conflict'|'unknown'>();
  for(const code of candidateCodes){const family=families.get(code);if(family)statuses.set(code,familyProfileStatus(family,parsed?.profile));}
