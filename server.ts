@@ -7385,7 +7385,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
         let fallbackTranscript='';
         if(hasForzaDibaSttModel()){
           try{
-            fallbackTranscript=await transcribeForzaDibaAudio(audioBase64,{
+            fallbackTranscript=await transcribeForzaDibaAudio(cleanAudioData,{
               signal:abort.signal,timeoutMs:22_000,
             });
           }catch(fallbackErr:any){
