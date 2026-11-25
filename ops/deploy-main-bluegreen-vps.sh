@@ -136,8 +136,8 @@ docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memor
  node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund && npm run lint && node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts && npm run build'
 test -s "$STAGE/dist/index.html"
 grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'عکس‌برداری مجدد' "$STAGE/dist/assets" --include='*.js' >/dev/null
-grep -RlF 'تأیید و جستجوی قطعه' "$STAGE/dist/assets" --include='*.js' >/dev/null
+grep -RlF 'شناسایی قطعه با دوربین' "$STAGE/dist/assets" --include='*.js' >/dev/null
+grep -RlF 'ثبت عکس قطعه' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'vision-analyzing-screen' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'sanat-identification-open' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'forza-mobile-contact-sheet' "$STAGE/dist/assets" --include='*.js' >/dev/null
@@ -399,7 +399,8 @@ CAMERAJS="$(grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --inc
 curl --noproxy '*' -fsS --max-time 35 "http://127.0.0.1:$NEXT/assets/$(basename "$CAMERAJS")" \
  -o /tmp/sanatpish-fullscreen-camera-canary.js
 grep -qF 'full-screen-camera-experience' /tmp/sanatpish-fullscreen-camera-canary.js
-grep -qF 'عکس‌برداری مجدد' /tmp/sanatpish-fullscreen-camera-canary.js
+grep -qF 'شناسایی قطعه با دوربین' /tmp/sanatpish-fullscreen-camera-canary.js
+grep -qF 'ثبت عکس قطعه' /tmp/sanatpish-fullscreen-camera-canary.js
 PROGRESSJS="$(grep -RlF 'vision-analyzing-screen' "$STAGE/dist/assets" --include='*.js' | head -1)"
 curl --noproxy '*' -fsS --max-time 35 "http://127.0.0.1:$NEXT/assets/$(basename "$PROGRESSJS")"  -o /tmp/sanatpish-vision-redesign-canary.js
 grep -qF 'vision-analyzing-screen' /tmp/sanatpish-vision-redesign-canary.js
