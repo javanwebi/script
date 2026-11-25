@@ -7,8 +7,7 @@
   direction: rtl;
 }
 
-.home-belt-promo *,
-.belt-selection-page * {
+.home-belt-promo * {
   box-sizing: border-box;
 }
 
