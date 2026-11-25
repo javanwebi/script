@@ -134,8 +134,9 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 });
 
 
-test('server Diba remains a fallback when browser recognition has no transcript',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true &&\s+\(serverSttProviderRef\.current==='avalai' \|\| !q \|\| !localSttActiveRef\.current\)/);
+test('server AvalAI/Diba STT is recovery-only and never delays a valid live transcript',()=>{
+  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true &&\s+!q/);
+  assert.match(ui,/if\(audioBlob && needsServerFinal\)/);
   assert.match(ui,/transcribeOnly:true/);
   assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
   assert.match(ui,/provider==='avalai'\|\|provider==='diba'\|\|provider==='gemini'/);
@@ -143,6 +144,16 @@ test('server Diba remains a fallback when browser recognition has no transcript'
   assert.match(ui,/تشخیص گفتار سرور تنظیم نشده؛ متن زنده مرورگر/);
   assert.match(ui,/serverSttConfiguredRef=useRef\(false\)/);
   assert.match(ui,/تشخیص گفتار: \{serverSttLabel\}/);
+});
+
+test('native browser transcripts are not discarded by the RMS gate while FORZA is listening',()=>{
+  const from=ui.indexOf('rec.onresult = (event: any) => {');
+  const to=ui.indexOf('if(admitted.waiting&&!retryExpired)',from);
+  assert.ok(from>0&&to>from);
+  const admission=ui.slice(from,to);
+  assert.match(admission,/if\(retryExpired\|\|likelySpeakerEcho\(words\)\)return 'reject';/);
+  assert.match(admission,/if\(!playback\)return 'accept';/);
+  assert.match(admission,/speechAdmissionRef\.current\.decide\(words,final,playback,Date\.now\(\)\)/);
 });
 
 test('a two-second pause preserves the same live transcript across browser recognizer restarts',()=>{
