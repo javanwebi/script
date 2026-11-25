@@ -491,4 +491,6 @@ test("the production canary verifies the POPD reference archive and every approv
     referenceGate.indexOf("POPD_REFERENCE_CATEGORY_FAMILY_SKU_ROUTES_OK"));
   assert.ok(one.indexOf("node ops/verify-single-port-canary.mjs") <
     one.indexOf("===== PROMOTE ON SAME FIXED PORT"));
+  const syntax = spawnSync("node", ["--check", "ops/verify-single-port-canary.mjs"], { encoding: "utf8" });
+  assert.equal(syntax.status, 0, syntax.stderr || syntax.stdout);
 });
