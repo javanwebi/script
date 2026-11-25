@@ -1,4 +1,5 @@
 import beltManifestRaw from '../generated/beltCatalogManifest';
+import popdBeltMediaRaw from '../generated/popdBeltMediaManifest';
 import type { Product, ProductGalleryImage } from '../types';
 
 export interface BeltManifestFamilyEntry {
@@ -25,10 +26,16 @@ export interface BeltCatalogManifest {
   skus: Record<string, string>;
 }
 
+type PopdBeltMediaManifest = {
+  families: Record<string, Array<{ targetFile: string }>>;
+  skuPhotos: Record<string, { targetFile: string }>;
+};
+
 const manifest = beltManifestRaw as unknown as BeltCatalogManifest;
+const popdMedia = popdBeltMediaRaw as unknown as PopdBeltMediaManifest;
 const EXCLUDED_FAMILY_SET = new Set<string>(manifest.excludedFamilyIds || []);
 const EXCLUDED_MIXED_SKU_SET = new Set<string>(manifest.excludedMixedSkuIds || []);
-const EXACT_REAL_SKU_SET = new Set<string>(manifest.exactRealSkuIds || []);
+const EXACT_REAL_SKU_SET = new Set<string>(Object.keys(popdMedia.skuPhotos || {}));
 
 export interface BeltFamilyMedia {
   familyCode: string;
@@ -36,7 +43,7 @@ export interface BeltFamilyMedia {
   dominantDivision: string;
   existingDbImage: string | null;
   primaryThumbnail: string;
-  familyPhotos: [string, string, string];
+  familyPhotos: string[];
   specSheetWebp: string;
   specSheetSvg: string;
   hasVerifiedRealPhoto: boolean;
@@ -55,13 +62,6 @@ export interface BeltSkuMedia {
   realImageStatusLabelFa: string;
 }
 
-function normalizeOfficialDbImage(candidate?: string | null): string | null {
-  const clean = String(candidate || '').trim();
-  if (/^\/storage\/products\/(catalog\/e\([1-9]\d{0,3}\)\.png|thumbs\/e\([1-9]\d{0,3}\)\.webp)$/i.test(clean)) {
-    return clean;
-  }
-  return null;
-}
 
 export function getBeltManifestTotals() {
   return manifest.totals;
@@ -99,24 +99,25 @@ export function getBeltFamilyMedia(
   const clean = candidates.find((candidate) => isRealBeltFamily(candidate)) || '';
   if (!clean) return null;
   const entry = manifest.families[clean];
-  // The manifest's legacy db/p fields are not proof of family-level identity.
-  // Only an image already filtered by the verified family gallery API is trusted.
-  const dbImg = normalizeOfficialDbImage(existingImageOverride);
+  // POPD family photographs are mapped by exact family code and pinned source-file identity.
+  // Do not fall back to old e(n).png thumbnails or generic master images for belt families.
   const base = `/src/assets/catalog/belts/families/${encodeURIComponent(clean)}`;
+  const familyPhotos = (popdMedia.families[clean] || []).map(
+    (photo) => `${base}/${encodeURIComponent(photo.targetFile)}`,
+  );
+  const hasVerifiedRealPhoto = familyPhotos.length > 0;
 
   return {
     familyCode: clean,
     menuCategorySlug: entry.s,
     dominantDivision: entry.d,
-    existingDbImage: dbImg,
-    primaryThumbnail: dbImg || '',
-    // Generated master triplets are illustrative assets, not family-specific photographs.
-    // Keep them out of the public gallery until exact-family photos are verified.
-    familyPhotos: ['', '', ''],
+    existingDbImage: null,
+    primaryThumbnail: familyPhotos[0] || '',
+    familyPhotos,
     specSheetWebp: `${base}/family-specifications.webp`,
     specSheetSvg: `${base}/family-specifications.svg`,
-    hasVerifiedRealPhoto: Boolean(dbImg),
-    hasVerifiedSpecSheet: Boolean(dbImg),
+    hasVerifiedRealPhoto,
+    hasVerifiedSpecSheet: hasVerifiedRealPhoto,
   };
 }
 
@@ -133,6 +134,7 @@ export function getBeltSkuMedia(
 
   const base = `/src/assets/catalog/belts/skus/${encodeURIComponent(cleanSku)}`;
   const hasExactReal = EXACT_REAL_SKU_SET.has(cleanSku);
+  const exactPhoto = popdMedia.skuPhotos[cleanSku];
 
   return {
     skuCode: cleanSku,
@@ -141,7 +143,7 @@ export function getBeltSkuMedia(
     technicalDrawingSvg: `${base}/technical-drawing.svg`,
     profileDrawingWebp: `${base}/profile-drawing.webp`,
     profileDrawingSvg: `${base}/profile-drawing.svg`,
-    realProductImage: hasExactReal ? `${base}/real-product-image.webp` : null,
+    realProductImage: hasExactReal && exactPhoto ? `${base}/${encodeURIComponent(exactPhoto.targetFile)}` : null,
     realImageStatus: hasExactReal ? 'EXACT_SKU_IMAGE_FOUND' : 'REAL_IMAGE_NOT_FOUND',
     realImageStatusLabelFa: hasExactReal
       ? 'تصویر واقعی کالای فیزیکی تأییدشده'
@@ -191,8 +193,18 @@ export function buildBeltGalleryImages(
     });
   }
 
-  // 2. Append a family-specific specification sheet only when the family itself
-  // has a verified family-level image. Never publish shared master triplets as family photos.
+  // 2. Add only POPD photographs explicitly mapped to this exact family code.
+  const familyPhotoLabels = ['نمای اصلی', 'نمای زاویه‌ای', 'جزئیات ساختار', 'نمای نزدیک'];
+  familyMedia.familyPhotos.forEach((url, index) => {
+    pushUnique({
+      id: `belt-family-photo-${product.code}-${index + 1}`,
+      url,
+      scope: 'family',
+      title: `تصویر ${familyPhotoLabels[index] || 'مرجع'} خانواده ${product.name}`,
+    });
+  });
+
+  // 3. Append the family specification sheet only when the family has verified POPD photos.
   if (familyMedia.hasVerifiedSpecSheet && familyMedia.specSheetWebp) {
     pushUnique({
       id: `belt-fam-spec-${product.code}`,
@@ -202,14 +214,14 @@ export function buildBeltGalleryImages(
     });
   }
 
-  // 3. Preserve any existing non-belt variant DB images cleanly
+  // 4. Preserve any existing non-belt variant DB images cleanly
   for (const img of baseGallery) {
     if (img.scope === 'variant') {
       pushUnique(img);
     }
   }
 
-  // 4. Add verified physical exact-SKU real photos ONLY for SKUs that have one (41349, 52009, 52050)
+  // 5. Add only exact-SKU POPD physical photos; missing photos remain null.
   for (const variant of product.variants || []) {
     if (!variant?.code || isExcludedBeltSku(variant.code)) continue;
     const skuMedia = getProductSkuMedia(variant.code);
@@ -224,7 +236,7 @@ export function buildBeltGalleryImages(
     }
   }
 
-  // 5. Append the orthogonal CAD profile drawing for the currently active SKU (or first valid belt SKU)
+  // 6. Append the orthogonal CAD profile drawing only when the active SKU has its own verified real photo.
   const targetSku = String(
     activeSkuCode || product.variants?.find((v) => v?.code && !isExcludedBeltSku(v.code))?.code || '',
   ).trim();
