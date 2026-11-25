@@ -192,7 +192,7 @@ test('Nima phrase requests are serialized to match the private single-worker CPU
 
 test('server AvalAI final verification with Diba fallback preserves browser text and merges recorder segments in order',()=>{
   assert.match(ui,/mapForzaSegmentsInOrder\(audioBlobs,2,async segment=>/);
-  assert.match(ui,/Math\.ceil\(audioBlobs\.length\/2\)\*42_000/);
+  assert.match(ui,/Math\.ceil\(audioBlobs\.length\/2\)\*52_000/);
   assert.match(ui,/A failed final verifier must never erase a usable live transcript/);
   assert.match(ui,/serverTranscript=appendForzaSpeechSegment\(serverTranscript,result\.value\)/);
   assert.match(ui,/A failed final verifier must never erase a usable live transcript/);
