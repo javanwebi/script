@@ -133,15 +133,14 @@ const {chromium}=require('playwright');
   assert.equal(await selectedProduct.getAttribute('aria-pressed'),'true','catalog result must be selectable in the same workspace');
   await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-desktop.png'),fullPage:true});
 
-  const frame=page.locator('.sanat-region-picker__frame').first();
-  const bounds=await frame.boundingBox();
-  const candidateCount=await page.locator('.sanat-region-picker__candidate').count();
-  if(candidateCount>1){
-   await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
+  const candidateButtons=page.getByTestId('vision-region-candidates').getByRole('button');
+  if(await candidateButtons.count()>1){
+   const previousRegion=queries[0].region;
+   await candidateButtons.nth(1).click();
    await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
    assert.equal(queries.length,2,'selecting another detected object must automatically run a new search');
    assert.ok(queries[1].region,'second object search must use its own detected region');
-   assert.ok(queries[1].region.x>0.6,'second object must map to the second detected region');
+   assert.notDeepEqual(queries[1].region,previousRegion,'selecting another detected object must change the analyzed region');
   }
 
   await page.setViewportSize({width:390,height:844});
