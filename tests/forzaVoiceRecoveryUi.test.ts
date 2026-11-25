@@ -203,7 +203,7 @@ test('voice warmup belongs to the active abortable turn so a customer can barge 
   const from=ui.indexOf('const handleUserFinishedSpeaking = useCallback(');
   const to=ui.indexOf('// Setup MediaRecorder',from);
   const turn=ui.slice(from,to);
-  assert.ok(turn.indexOf('activeTurnRef.current={generation,abort:pocketAbort,query:q}')<
+  assert.ok(turn.indexOf('activeTurnRef.current={generation,abort:pocketAbort,query:q,startedAt:Date.now()}')<
     turn.indexOf('await ensureVoiceMode()'));
   assert.match(turn,/if\(pocketAbort\.signal\.aborted \|\| activeTurnRef\.current\?\.generation!==generation\)return/);
 });
@@ -220,7 +220,7 @@ test('TTS rate-limit responses distinguish a shared network ceiling from a singl
 
 test('each completed utterance is a separate request while the previous user and assistant turns remain context',()=>{
   assert.match(ui,/duplicateActiveTurn=Boolean\(q&&activeQuery&&/);
-  assert.match(ui,/activeTurnRef\.current=\{generation,abort:pocketAbort,query:q\}/);
+  assert.match(ui,/activeTurnRef\.current=\{generation,abort:pocketAbort,query:q,startedAt:Date\.now\(\)\}/);
   assert.match(ui,/payload\.history=previousHistory/);
   assert.match(ui,/query:resolvedUserQuery,\s+history:previousHistory/);
   assert.match(consult,/هر بار که کاربر پس از پایان واقعی گفتار، دوباره صحبت می‌کند، آن گفتار یک پیام مستقل/);
@@ -240,4 +240,11 @@ test('turn ownership prevents duplicate dispatch but a real interruption release
   assert.match(ui,/turnDispatchPendingRef\.current=false;\s+active\.abort\.abort\(new Error\('forza_customer_interrupted'\)\)/);
   assert.match(ui,/turnDispatchPendingRef\.current=true/);
   assert.match(ui,/turnDispatchPendingRef\.current=false;\s+setStatus\('listening'\)/);
+});
+
+test('a delayed browser final for the just-submitted utterance does not barge in or create a duplicate turn',()=>{
+  assert.match(ui,/recentLateFinal=Boolean\(activeTurn&&/);
+  assert.match(ui,/Date\.now\(\)-activeTurn\.startedAt<2500/);
+  assert.match(ui,/!vadRef\.current\.heardSpeech/);
+  assert.match(ui,/late_final_for_active_turn_ignored=1/);
 });
