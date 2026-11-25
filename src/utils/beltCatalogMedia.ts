@@ -175,20 +175,8 @@ export function buildBeltGalleryImages(
     result.push({ ...img, order: result.length + 1 });
   };
 
-  // 1. Preserve official owner DB family images first (never overwrite e(*).png)
-  for (const img of baseGallery) {
-    if (img.scope === 'family') {
-      pushUnique(img);
-    }
-  }
-  if (familyMedia.existingDbImage) {
-    pushUnique({
-      id: `belt-db-${product.code}`,
-      url: familyMedia.existingDbImage,
-      scope: 'family',
-      title: `تصویر اصلی کاتالوگ خانواده ${product.name}`,
-    });
-  }
+  // 1. Belt family photos must come only from the pinned POPD family-code manifest.
+  // Do not retain stale database family thumbnails after the POPD image migration.
 
   // 2. Add only POPD photographs explicitly mapped to this exact family code.
   const familyPhotoLabels = ['نمای اصلی', 'نمای زاویه‌ای', 'جزئیات ساختار', 'نمای نزدیک'];
@@ -211,9 +199,10 @@ export function buildBeltGalleryImages(
     });
   }
 
-  // 4. Preserve any existing non-belt variant DB images cleanly
+  // 4. Preserve legacy variant images only for non-belt SKUs in a mixed family.
+  // Belt SKU images are replaced exclusively by the exact-code POPD photo manifest.
   for (const img of baseGallery) {
-    if (img.scope === 'variant') {
+    if (img.scope === 'variant' && img.variantCode && !isRealBeltSku(img.variantCode)) {
       pushUnique(img);
     }
   }
