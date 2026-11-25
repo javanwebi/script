@@ -244,7 +244,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <ProductImage
             src={cardPrimaryImage}
             fallbackSrc={cardFallbackImage}
-            disableFallback={disableSiteFallback}
+            disableFallback={shouldDisableSiteFallback}
             thumbnail
             alt={product.name}
             loading="lazy"
