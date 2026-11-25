@@ -91,7 +91,7 @@ export function isRealBeltSku(skuCode?: string | null): boolean {
 
 export function getBeltFamilyMedia(
   familyCode?: string | null,
-  existingImageOverride?: string | null,
+  _existingImageOverride?: string | null,
   hints?: { legacyFamilyCodes?: string[]; variants?: unknown[] } | string[],
 ): BeltFamilyMedia | null {
   const legacyCodes = Array.isArray(hints) ? hints : (hints as { legacyFamilyCodes?: string[] } | undefined)?.legacyFamilyCodes || [];
@@ -156,10 +156,7 @@ export function buildBeltGalleryImages(
   baseGallery: ProductGalleryImage[],
   activeSkuCode?: string | null,
 ): ProductGalleryImage[] {
-  const familyMedia = getBeltFamilyMedia(
-    product.code,
-    product.images?.find((u) => Boolean(normalizeOfficialDbImage(u))) || product.image,
-  );
+  const familyMedia = getBeltFamilyMedia(product.code);
 
   const allowedFamilyCodes = new Set([product.code, ...(product.legacyFamilyCodes || [])].map((code) => String(code).trim().toUpperCase()).filter((code) => isRealBeltFamily(code)));
   const getProductSkuMedia = (skuCode?: string | null) => {
