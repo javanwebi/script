@@ -134,8 +134,8 @@ export function publicForzaTextProviderStatus(
 
 /**
  * xKiro's free gateway has exhibited >10s time-to-first-token on the VPS.
- * Keep B.AI budgets unchanged. xKiro uses a short stream budget followed by
- * at most one same-model, free-tier completion verification.
+ * Keep its short failure budget isolated; B.AI and AvalAI voice turns receive
+ * a longer first-token window so transient gateway latency does not end a call.
  */
 export function providerStreamTimeouts(provider: 'xkiro' | 'bai' | 'avalai', voice: boolean) {
   return {
