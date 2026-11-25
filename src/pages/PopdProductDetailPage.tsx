@@ -28,7 +28,6 @@ import { NonBeltFamilyGrid } from '../components/product/NonBeltFamilyGrid';
 import { Modal } from '../components/ui/Modal';
 import { formatPrice, toPersianDigits } from '../utils/formatters';
 import { resolveDisplayBrand } from '../utils/catalogBrands';
-import { resolveSiteProductImage } from '../utils/siteProductImages';
 import { getCleanVariantSpecs, isNonBeltFamilyProduct } from '../utils/nonBeltFamilyDisplay';
 import {
   buildBeltGalleryImages,
@@ -374,7 +373,7 @@ export const ProductDetailPage: React.FC = () => {
     beltFamilyMedia?.primaryThumbnail ||
     product.images?.[0] ||
     product.image ||
-    resolveSiteProductImage(product, `${product.subcategory} ${product.categoryName}`);
+    '';
 
   const displayTitle = selectedVariant?.name || product.name;
   const isFavorited = isInWishlist(product.code);
@@ -435,7 +434,7 @@ export const ProductDetailPage: React.FC = () => {
       bm?.primaryThumbnail ||
       sim.images?.[0] ||
       sim.image ||
-      resolveSiteProductImage(sim, `${sim.name} ${sim.categoryName || ''}`)
+      ''
     );
   };
 
@@ -642,6 +641,7 @@ export const ProductDetailPage: React.FC = () => {
               <div className="relative aspect-[16/10] sm:aspect-[4/3] w-full bg-white flex items-center justify-center p-4 sm:p-6 overflow-hidden">
                 <button
                   type="button"
+                  disabled={!activeImageUrl}
                   onClick={() =>
                     setZoomModal({
                       title: displayTitle,
@@ -657,7 +657,7 @@ export const ProductDetailPage: React.FC = () => {
                   <ProductImage
                     src={activeImageUrl}
                     alt={displayTitle}
-                    disableFallback={false}
+                    disableFallback={true}
                     className="max-h-full max-w-full object-contain transition-transform duration-200 group-hover:scale-[1.03]"
                   />
                   <span
@@ -1062,6 +1062,7 @@ export const ProductDetailPage: React.FC = () => {
                       <ProductImage
                         src={resolveSimilarImage(sim)}
                         alt={sim.name}
+                        disableFallback={true}
                         className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.04]"
                       />
                     </Link>
