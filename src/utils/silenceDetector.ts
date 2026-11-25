@@ -50,7 +50,7 @@ export function analyzePersianSentenceCompletion(text: string): PersianSentenceA
 
   // Stand-alone commands are complete. A longer sentence starting with
   // "صبر کن" is NOT necessarily complete ("صبر کن توضیح بدم ...").
-  if (/^(?:سلام|درود|خداحافظ|ممنون|ممنونم|متشکرم|سپاس|صبر\s+کن|بس\s+کن|ادامه\s+بده|قطع\s+کن|متوقف\s+شو|دوباره\s+بگو)$/.test(clean)) {
+  if (/^(?:سلام|درود|خداحافظ|ممنون|ممنونم|متشکرم|سپاس|بله|بله\s+بفرمایید|بفرمایید|آره|اره|آری|نه|همونه|همان|همون|همون\s+قبلی|همان\s+قبلی|دومی|اولی|سومی|گزینه\s+اول|گزینه\s+دوم|گزینه\s+سوم|باشه|اوکی|قبوله|درسته|صبر\s+کن|بس\s+کن|ادامه\s+بده|قطع\s+کن|متوقف\s+شو|دوباره\s+بگو)$/.test(clean)) {
     return decision(true, false, false, 0.98, 650, 'فرمان یا عبارت مستقل');
   }
 
