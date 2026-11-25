@@ -22,3 +22,12 @@ test('belt scope filters non-belt candidates and ranks matching profile evidence
 test('conflicting profile removes the visual family from primary candidates',()=>{const result=applyBeltRecognition(resultFor('timing-family','HTD-8M-1200'),products,[{text:'SPB 2000',confidence:97}]);assert.equal(result.beltAnalysis?.profileMatchStatus,'not-matched');assert.deepEqual(result.modelSuggestions,[]);assert.deepEqual(result.similarCandidates,[]);assert.deepEqual(result.catalogImageMatches,[]);assert.equal(result.summary.catalogAvailability?.status,'custom_order_available');});
 test('missing family profile metadata is shown as unverified rather than matched',()=>{const unknown=[{...products[0],profiles:'',variants:[{code:'SPB-2000',name:'تسمه صنعتی',active:true}]}] as Product[];const result=applyBeltRecognition(resultFor('belt-family','SPB-2000'),unknown,[{text:'SPB 2000',confidence:97}]);assert.equal(result.beltAnalysis?.profileMatchStatus,'unverified');assert.equal(result.modelSuggestions?.length,1);assert.match(result.beltAnalysis!.note,/کامل نیست/);});
 test('generic recognition is unchanged without explicit belt scope',()=>{const base=resultFor('belt-family','SPB-2000');assert.equal(base.beltAnalysis,undefined);assert.equal(base.modelSuggestions?.length,2);});
+
+test('a non-belt visual result is not relabelled as an industrial belt',()=>{
+ const result=applyBeltRecognition(resultFor('bearing-family','6202ZZ'),products,[]);
+ assert.equal(result.beltAnalysis?.visualBeltConfirmed,false);
+ assert.equal(result.beltAnalysis?.beltType,'unknown');
+ assert.equal(result.summary.detectedPartType,'تطبیق تصویری تسمه تأیید نشد');
+ assert.deepEqual(result.modelSuggestions,[]);
+ assert.deepEqual(result.similarCandidates,[]);
+});

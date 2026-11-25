@@ -100,6 +100,7 @@ export interface CatalogModelSuggestion {
 export interface BeltRecognitionAnalysis {
   beltType: 'v-belt'|'timing'|'ribbed'|'unknown';
   beltTypeLabel: string;
+  visualBeltConfirmed: boolean;
   profile?: string;
   nominalPitchMm?: number;
   lengthMarking?: string;
