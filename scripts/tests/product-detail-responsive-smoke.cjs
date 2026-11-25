@@ -190,6 +190,7 @@ const viewports = [
       await familyThumbnail.click();
       await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('test-bearing-family.webp'));
       assert.equal(await familyThumbnail.getAttribute('aria-pressed'), 'true', 'family reference thumbnail should become active');
+      assert.equal(await page.getByText('تصویر مرجع خانواده', { exact: true }).isVisible(), true, 'family artwork must be visibly labelled as a family reference');
       assert.equal((await page.locator('[data-testid="active-sku-code"]').innerText()).trim(), 'TEST-BRG-002', 'choosing a family image must not silently change the selected SKU');
 
       const firstVariantThumbnail = page.getByRole('button', { name: /انتخاب تصویر کد TEST-BRG-001/ }).first();
