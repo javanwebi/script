@@ -25,18 +25,18 @@ const familyProduct = {
   stock: 0,
   stockKnown: false,
   inquiryOnly: true,
-  images: ['/storage/products/catalog/test-bearing-family.webp'],
+  images: ['/storage/products/11111111-1111-4111-8111-111111111111.webp'],
   galleryImages: [
     {
       id: 'test-family-image',
-      url: '/storage/products/catalog/test-bearing-family.webp',
+      url: '/storage/products/11111111-1111-4111-8111-111111111111.webp',
       scope: 'family',
       title: 'تصویر مرجع خانواده بلبرینگ آزمایشی',
       order: 0,
     },
     {
       id: 'test-sku-image-001',
-      url: '/storage/products/catalog/test-bearing-001.webp',
+      url: '/storage/products/22222222-2222-4222-8222-222222222222.webp',
       scope: 'variant',
       variantCode: 'TEST-BRG-001',
       title: 'تصویر کد کالا TEST-BRG-001',
@@ -44,7 +44,7 @@ const familyProduct = {
     },
     {
       id: 'test-sku-image-002',
-      url: '/storage/products/catalog/test-bearing-002.webp',
+      url: '/storage/products/33333333-3333-4333-8333-333333333333.webp',
       scope: 'variant',
       variantCode: 'TEST-BRG-002',
       title: 'تصویر کد کالا TEST-BRG-002',
@@ -69,7 +69,7 @@ const familyProduct = {
       stockKnown: false,
       inquiryOnly: true,
       active: true,
-      images: ['/storage/products/catalog/test-bearing-001.webp'],
+      images: ['/storage/products/22222222-2222-4222-8222-222222222222.webp'],
       technicalSpecs: [{ key: 'قطر داخلی', value: '25 mm' }, { key: 'قطر خارجی', value: '52 mm' }],
     },
     {
@@ -85,7 +85,7 @@ const familyProduct = {
       stockKnown: false,
       inquiryOnly: true,
       active: true,
-      images: ['/storage/products/catalog/test-bearing-002.webp'],
+      images: ['/storage/products/33333333-3333-4333-8333-333333333333.webp'],
       technicalSpecs: [{ key: 'قطر داخلی', value: '30 mm' }, { key: 'قطر خارجی', value: '62 mm' }],
     },
   ],
@@ -163,10 +163,10 @@ const viewports = [
 
       const mainImage = page.locator('[data-testid="product-detail-image"] img').first();
       await mainImage.waitFor({ state: 'visible' });
-      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('test-bearing-001.webp'));
+      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('22222222-2222-4222-8222-222222222222.webp'));
       await mainImage.evaluate(image => image.decode());
       assert.ok(await mainImage.evaluate(image => image.complete && image.naturalWidth > 0), 'selected SKU image should load');
-      assert.ok((await mainImage.evaluate(image => image.src)).includes('test-bearing-001.webp'), 'main gallery must use the exact selected SKU image');
+      assert.ok((await mainImage.evaluate(image => image.src)).includes('22222222-2222-4222-8222-222222222222.webp'), 'main gallery must use the exact selected SKU image');
       assert.equal((await page.locator('[data-testid="active-sku-code"]').innerText()).trim(), 'TEST-BRG-001', 'main gallery must be paired with the exact selected SKU');
 
       const initialLayout = await page.evaluate(() => ({
@@ -182,13 +182,13 @@ const viewports = [
         : page.locator('[data-testid="belt-sku-selector"] tbody tr').filter({ hasText: 'TEST-BRG-002' }).first();
       await secondVariant.click();
       await page.waitForFunction(() => document.querySelector('[data-testid="active-sku-code"]')?.textContent?.trim() === 'TEST-BRG-002');
-      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('test-bearing-002.webp'));
+      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('33333333-3333-4333-8333-333333333333.webp'));
       assert.equal(new URL(page.url()).searchParams.get('source'), 'responsive-smoke', 'SKU selection should preserve existing query parameters');
       assert.equal((await page.locator('[data-testid="active-sku-code"]').innerText()).trim(), 'TEST-BRG-002', 'the active SKU label should update without leaving the family page');
 
       const familyThumbnail = page.getByRole('button', { name: /نمایش تصویر عمومی خانواده/ }).first();
       await familyThumbnail.click();
-      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('test-bearing-family.webp'));
+      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('11111111-1111-4111-8111-111111111111.webp'));
       assert.equal(await familyThumbnail.getAttribute('aria-pressed'), 'true', 'family reference thumbnail should become active');
       assert.equal(await page.getByText('تصویر مرجع خانواده', { exact: true }).isVisible(), true, 'family artwork must be visibly labelled as a family reference');
       assert.equal((await page.locator('[data-testid="active-sku-code"]').innerText()).trim(), 'TEST-BRG-002', 'choosing a family image must not silently change the selected SKU');
@@ -196,7 +196,7 @@ const viewports = [
       const firstVariantThumbnail = page.getByRole('button', { name: /انتخاب تصویر کد TEST-BRG-001/ }).first();
       await firstVariantThumbnail.click();
       await page.waitForFunction(() => document.querySelector('[data-testid="active-sku-code"]')?.textContent?.trim() === 'TEST-BRG-001');
-      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('test-bearing-001.webp'));
+      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('22222222-2222-4222-8222-222222222222.webp'));
 
       await page.getByRole('tab', { name: /مشخصات فنی کد و خانواده/ }).click();
       await page.getByText(/مشخصات کد انتخاب‌شده/).waitFor();
