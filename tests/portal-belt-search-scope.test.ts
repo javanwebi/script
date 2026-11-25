@@ -35,5 +35,7 @@ test('direct belt SKU search recognizes belt markings and rejects unrelated code
 
 test('belt-selection code and catalogue links carry the belt-only search scope', () => {
   const source = readFileSync(new URL('../src/pages/BeltSelectionPage.tsx', import.meta.url), 'utf8');
+  const searchPage = readFileSync(new URL('../src/pages/SearchPage.tsx', import.meta.url), 'utf8');
   assert.match(source, /scope=industrial-belt/);
+  assert.match(searchPage, /identify-part\?from=belt-selection/);
 });
