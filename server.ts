@@ -7206,7 +7206,7 @@ app.post('/api/ai/transcribe', async (req, res) => {
       try{
         const result=await transcribeForzaAvalaiAudio(cleanAudioData,{
           apiKey:sttSelection.key,model:sttSelection.model,audioMimeType,
-          signal:abort.signal,timeoutMs:18_000,
+          signal:abort.signal,timeoutMs:25_000,
         });
         return res.json({success:true,text:result.text,provider:'avalai-gpt-transcribe',
           timings:{sttMs:result.elapsedMs}});
@@ -7353,7 +7353,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       try{
         const result=await transcribeForzaAvalaiAudio(audioBase64,{
           apiKey:sttSelection.key,model:sttSelection.model,audioMimeType,
-          signal:abort.signal,timeoutMs:18_000,
+          signal:abort.signal,timeoutMs:25_000,
         });
         userQuery=normalizePersianTranscript(result.text);
         console.info('[AI FORZA STT] provider=avalai-gpt-transcribe transcript_chars='+userQuery.length+
