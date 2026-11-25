@@ -243,7 +243,7 @@ test('turn ownership prevents duplicate dispatch but a real interruption release
 });
 
 test('a delayed browser final for the just-submitted utterance does not barge in or create a duplicate turn',()=>{
-  assert.match(ui,/recentLateFinal=Boolean\(activeTurn&&/);
+  assert.match(ui,/recentLateFinal=Boolean\(activeTurn\?\.query&&/);
   assert.match(ui,/Date\.now\(\)-activeTurn\.startedAt<2500/);
   assert.match(ui,/!vadRef\.current\.heardSpeech/);
   assert.match(ui,/late_final_for_active_turn_ignored=1/);
