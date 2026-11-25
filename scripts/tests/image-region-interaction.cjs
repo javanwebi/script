@@ -112,6 +112,14 @@ const {chromium}=require('playwright');
     const request=route.request().postDataJSON();queries.push(request);
     await new Promise(resolve=>setTimeout(resolve,180));
     body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'تسمه وی شکل',detectedProfile:'A',visualAnalysis:'تسمه مشکی با نوشته A-49',confidence:94},matchedProducts:[{code:'TEST-A49',name:'تسمه وی شکل A-49',brand:'FORZA',image:catalogImage,imageScope:'variant',similarityScore:94,visualVerdictFarsi:'تطبیق تصویری قوی',specs:[{key:'سری',value:'A'},{key:'طول',value:'49 اینچ'}],catalogProduct:{image:catalogImage,imageScope:'sku-verified',categoryName:'تسمه صنعتی'}}],similarCandidates:[],modelSuggestions:[],technicalAdvice:'',queryRegion:request.fullImage?undefined:request.region||{x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:1}};
+    if(queries.length>1){
+     body={
+      ...body,
+      summary:{...body.summary,confidence:0,exactVisualMatch:false,detectedPartType:'شباهت قطعی پیدا نشد'},
+      matchedProducts:[],similarCandidates:[],modelSuggestions:[],
+      nearestCatalogSuggestions:[{code:'NEAREST-01',name:'قطعه نزدیک برای بررسی',familyCode:'NEAREST-FAMILY',familyName:'خانواده نزدیک',brand:'FORZA',image:catalogImage,imageScope:'family',matchBasis:'explore',specs:[],reason:'نزدیک‌ترین گزینه برای بررسی؛ تشخیص قطعی نیست.'}],
+     };
+    }
    }
    await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
   });
@@ -219,6 +227,8 @@ const {chromium}=require('playwright');
    assert.equal(manualCropRequest.fullImage,true);
    assert.notEqual(manualCropRequest.imageBase64,queries[beforeManualCrop-1].imageBase64,'manual client crop must change the submitted image bytes');
   }
+  await page.locator('.kiki-image-workspace__result-card[data-match-basis="explore"]').waitFor();
+  await page.getByText('گزینه نزدیک برای بررسی؛ تطبیق قطعی نیست').waitFor();
   assert.equal(uploads,0);
   assert.deepEqual(errors,[]);
   await page.close();
