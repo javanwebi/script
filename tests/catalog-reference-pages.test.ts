@@ -62,6 +62,7 @@ test('family and SKU artwork only use identity-verified matches and never generi
   assert.doesNotMatch(category, /resolveSiteProductImage/);
   assert.match(category, /تصویر معتبر ثبت نشده/);
   assert.doesNotMatch(detail, /resolveSiteProductImage/);
+  assert.match(detail, /تصویر مرجع خانواده/);
   assert.match(detail, /disableFallback=\{true\}/);
   assert.match(detail, /image\.scope === 'variant'/);
   assert.match(detail, /String\(image\.variantCode \|\| ''\)\.toLowerCase\(\) === activeSkuCode\.toLowerCase\(\)/);
