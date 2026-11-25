@@ -214,6 +214,14 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
   return server;
 }
 
+/** Use a server final transcript only when every recording segment completed.
+ * A partial AvalAI/Diba result must never overwrite a complete browser utterance.
+ */
+export function canUseForzaServerFinalTranscript(serverValue: string, failedSegments: number): boolean {
+  return normalizePersianTranscript(serverValue).length > 0 &&
+    Number.isInteger(failedSegments) && failedSegments === 0;
+}
+
 /** Adaptive acoustic endpointing for natural Persian voice turns.
  * Clear, final utterances should not wait four seconds before the LLM starts.
  * Incomplete clauses and technical-code corrections keep a longer continuation
