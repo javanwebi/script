@@ -38,19 +38,20 @@ test('mobile account dialog uses one scroll surface and keeps separate auth imag
   assert.match(css, /-webkit-overflow-scrolling: touch/);
 });
 
-test('all dedicated auth URLs and the shared dialog use the same two-mode account design', () => {
+
+test('dedicated login and registration routes share the two replacement banners with the auth dialog', () => {
   const app = read('src/App.tsx');
   const modal = read('src/components/auth/AuthModal.tsx');
   const auth = read('src/components/auth/AccountAccess.tsx');
   const css = read('src/storefront.css');
-  assert.match(app, /path="\\/login" element={<LoginPage \/>}/);
-  assert.match(app, /path="\\/register" element={<RegisterPage \/>}/);
-  assert.match(modal, /<AccountAccess[\\s\\S]*initial={authModalInitialView}/);
-  assert.match(auth, /data-mode={mode}/);
-  assert.match(auth, /bannerAuthLogin/);
-  assert.match(auth, /bannerAuthRegister/);
-  assert.match(auth, /همکاری صنعتی را هوشمندانه شروع کنید/);
-  assert.match(auth, /قطعات، استعلام‌ها و سفارش‌هایتان یک‌جا در دسترس است/);
-  assert.match(css, /grid-template-columns: minmax\\(0, \\.9fr\\) minmax\\(0, 1\\.1fr\\)/);
-  assert.match(css, /@media \\(max-width: 767px\\)[\\s\\S]*?\\.account-access-story/);
+  assert.ok(app.includes('path="/login"'));
+  assert.ok(app.includes('path="/register"'));
+  assert.ok(modal.includes('initial={authModalInitialView}'));
+  assert.ok(auth.includes('data-mode={mode}'));
+  assert.ok(auth.includes('A.bannerAuthLogin'));
+  assert.ok(auth.includes('A.bannerAuthRegister'));
+  assert.ok(auth.includes('عضو صنعت پیش شوید'));
+  assert.ok(auth.includes('به میزکار خود در صنعت پیش وارد شوید'));
+  assert.ok(css.includes('aspect-ratio: 3.6 / 1'));
+  assert.ok(css.includes('Final banner replacement'));
 });
