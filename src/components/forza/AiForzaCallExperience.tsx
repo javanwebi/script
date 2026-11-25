@@ -1489,7 +1489,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(activeTurnRef.current?.generation===generation)
           activeTurnRef.current.query=resolvedUserQuery;
         // The live hypothesis was already committed before asynchronous STT.
-        // Replace only this last turn if Diba supplies a better final transcript;
+        // Replace only this last turn if the server STT provider supplies a better final transcript;
         // earlier turns remain untouched across pauses and assistant replies.
         if(resolvedUserQuery){
           const engine=conversationEngineRef.current;
