@@ -11,6 +11,7 @@ const BELT_MANIFEST_PATH = path.join(ROOT, "src/generated/beltCatalogManifest.ts
 const POPD_MANIFEST_PATH = path.join(ROOT, "src/generated/popdBeltMediaManifest.ts");
 const POPD_RAW = "https://raw.githubusercontent.com/javanwebi/POPD";
 const CONCURRENCY = 8;
+let sourceCommit = "";
 
 function parseGeneratedTs(source, symbol) {
   const prefix = `export const ${symbol} = `;
@@ -81,7 +82,7 @@ async function main() {
   ]);
   const beltManifest = parseGeneratedTs(beltSource, "beltCatalogManifest");
   const popdManifest = parseGeneratedTs(popdSource, "popdBeltMediaManifest");
-  const sourceCommit = popdManifest.sourceCommit;
+  sourceCommit = popdManifest.sourceCommit;
   if (!/^[a-f0-9]{40}$/.test(sourceCommit)) throw new Error("POPD_SOURCE_COMMIT_INVALID");
 
   const familyEntries = Object.entries(popdManifest.families).flatMap(([familyCode, entries]) =>
