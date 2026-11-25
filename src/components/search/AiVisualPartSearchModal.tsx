@@ -827,7 +827,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         imageBase64, mimeType: analysisMimeType,
         length: length ? parseFloat(length) : undefined, width: width ? parseFloat(width) : undefined, pitch: pitch ? parseFloat(pitch) : undefined,
         application: application.trim() || undefined, features: features.trim() || undefined,
-        stage, observationOnly: false, region: requestRegion, detectionId: regionDetectionId || undefined, fullImage: requestFullImage, includeNearest: true,
+        stage, observationOnly: false, region: requestRegion, detectionId: requestRegion ? regionDetectionId || undefined : undefined, fullImage: requestFullImage, includeNearest: true,
         measurements: stage === "refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if (sequence !== analysisSequenceRef.current) return;
