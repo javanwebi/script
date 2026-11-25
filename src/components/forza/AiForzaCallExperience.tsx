@@ -1657,9 +1657,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 durationMs:progress.durationMs};
             }
           },
-          // The private Nima service defaults to one CPU inference worker.
-          // Two parallel phrase requests can fill its 2.5s FIFO waiter and
-          // make the second phrase fail, cancelling the rest of the answer.
+          // Keep synthesis serial for the single CPU worker, but retain the
+          // currently playing phrase plus two lookahead slots in memory.
+          // Start after a short bounded prebuffer so the first phrase is quick
+          // without starving the next WAV at the first sentence boundary.
           maxConcurrent:1,
           maxAheadPhrases:3,
           initialBufferSeconds:1.6,
