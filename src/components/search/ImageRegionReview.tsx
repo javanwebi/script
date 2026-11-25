@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ImageRegionSelector } from './ImageRegionSelector';
 import type { ImageRegion } from '../../utils/imageRegion';
+import type { BeltRecognitionAnalysis } from '../../services/aiVisualSearchService';
 import './image-region-review.css';
 
 export type RegionPreparationState = 'uploading' | 'detecting' | 'ready' | 'fallback';
@@ -43,6 +44,7 @@ interface Props {
   compared?: number;
   total?: number;
   analysisComplete?: boolean;
+  beltAnalysis?: BeltRecognitionAnalysis;
   results: VisionWorkspaceResult[];
   selectedProductId?: string;
   onRegionChange: (region: ImageRegion | undefined) => void;
@@ -67,6 +69,7 @@ export function ImageRegionReview({
   compared,
   total,
   analysisComplete,
+  beltAnalysis,
   results,
   selectedProductId,
   onRegionChange,
@@ -122,6 +125,39 @@ export function ImageRegionReview({
             <span>{statusText}</span>
             {selectedRegion && <small>قطعه انتخاب‌شده روی تصویر مشخص است</small>}
           </div>
+
+          {beltAnalysis && (
+            <section
+              className="kiki-image-workspace__belt-analysis"
+              dir="rtl"
+              aria-label="تحلیل تخصصی تسمه"
+              data-testid="kiki-inline-belt-analysis"
+              data-visual-confirmed={beltAnalysis.visualBeltConfirmed}
+            >
+              <header className="kiki-image-workspace__belt-header">
+                <strong>بررسی تخصصی تسمه</strong>
+                <span>{beltAnalysis.visualBeltConfirmed ? 'تطبیق تصویری خانواده تسمه' : 'تطبیق تصویری تأیید نشد'}</span>
+              </header>
+              <div className="kiki-image-workspace__belt-metrics">
+                <div><span>نوع / وضعیت</span><strong>{beltAnalysis.beltTypeLabel}</strong></div>
+                <div><span>پروفیل خوانده‌شده</span><strong dir="ltr">{beltAnalysis.profile || 'خوانده نشد'}</strong></div>
+                <div><span>گام اسمی پروفیل</span><strong>{beltAnalysis.nominalPitchMm ? String(beltAnalysis.nominalPitchMm) + ' mm' : 'مشخص نشد'}</strong></div>
+                <div><span>مارکینگ طول</span><strong dir="ltr">{beltAnalysis.lengthMarking || 'خوانده نشد'}</strong></div>
+              </div>
+              {beltAnalysis.brandMarking && (
+                <p className="kiki-image-workspace__belt-detail">نشان خوانده‌شده: <strong dir="ltr">{beltAnalysis.brandMarking}</strong></p>
+              )}
+              {!!beltAnalysis.codeMatches.length && (
+                <p className="kiki-image-workspace__belt-detail">کدهای دقیق منطبق در کاتالوگ: <strong dir="ltr">{beltAnalysis.codeMatches.join('، ')}</strong></p>
+              )}
+              {!!beltAnalysis.candidateFamilies.length && (
+                <p className="kiki-image-workspace__belt-detail">
+                  خانواده‌های قابل بررسی: {beltAnalysis.candidateFamilies.map(item => [item.familyName, item.profile && 'پروفیل ' + item.profile, item.sizesSummary && 'اندازه‌ها: ' + item.sizesSummary].filter(Boolean).join(' · ')).join('، ')}
+                </p>
+              )}
+              <p className="kiki-image-workspace__belt-note">{beltAnalysis.note}</p>
+            </section>
+          )}
 
           {analysisBusy && typeof total === 'number' && total > 0 && (
             <div className="kiki-image-workspace__progress" role="progressbar"
