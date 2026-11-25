@@ -186,6 +186,164 @@ for (const slug of ["excel-v2-1-1","excel-v2-1-2","excel-v2-1-3","excel-v2-1-4"]
     "directSkus=" + direct.items.length, "totalSkus=" + liveTotalSkuCount);
 }
 
+// Verify the POPD reference catalogue against the exact database inherited
+// from the currently serving VPS container. This catches a missing JSON archive
+// before the candidate can replace the live website.
+console.log("===== POPD REFERENCE CATALOGUE CANARY =====");
+const referenceStatus = await json(candidate, "/api/catalog/reference/status");
+assert.equal(referenceStatus.sourcePath, "github/javanwebi/POPD/server/data/engineeredCatalog.json",
+  "POPD_REFERENCE_ARCHIVE_SOURCE_MISMATCH");
+assert.equal(referenceStatus.familyCount, 492, "POPD_REFERENCE_FAMILY_COUNT_MISMATCH");
+assert.equal(referenceStatus.skuCount, 10308, "POPD_REFERENCE_SKU_COUNT_MISMATCH");
+assert.equal(referenceStatus.categoryCount, 40, "POPD_REFERENCE_CATEGORY_COUNT_MISMATCH");
+assert.equal(referenceStatus.groupCount, 14, "POPD_REFERENCE_GROUP_COUNT_MISMATCH");
+assert.equal(referenceStatus.quarantinedSkuCount, 127, "POPD_REFERENCE_QUARANTINE_COUNT_MISMATCH");
+assert.equal(referenceStatus.rawDirectSkuCount, 678, "POPD_REFERENCE_DIRECT_AUDIT_COUNT_MISMATCH");
+assert.equal(referenceStatus.standaloneDirectSkuRows, 0, "POPD_REFERENCE_DUPLICATE_DIRECT_SKU_ROWS");
+assert.equal(referenceStatus.verifiedFamilyImageCount, 479, "POPD_REFERENCE_FAMILY_IMAGE_COUNT_MISMATCH");
+assert.equal(referenceStatus.verifiedVariantImageCount, 137, "POPD_REFERENCE_SKU_IMAGE_COUNT_MISMATCH");
+assert.ok(typeof referenceStatus.sourceSha256 === "string" && referenceStatus.sourceSha256.length >= 32,
+  "POPD_REFERENCE_ARCHIVE_SHA_MISSING");
+console.log("POPD_REFERENCE_STATUS_OK",
+  "families=" + referenceStatus.familyCount,
+  "skus=" + referenceStatus.skuCount,
+  "categories=" + referenceStatus.categoryCount,
+  "groups=" + referenceStatus.groupCount,
+  "familyImages=" + referenceStatus.verifiedFamilyImageCount,
+  "skuImages=" + referenceStatus.verifiedVariantImageCount);
+
+const [referenceCategoryPayload, referenceGroupPayload] = await Promise.all([
+  json(candidate, "/api/catalog/reference/categories"),
+  json(candidate, "/api/catalog/reference/navigation-groups"),
+]);
+const referenceCategories = referenceCategoryPayload.categories;
+const referenceGroups = referenceGroupPayload.groups;
+assert.ok(referenceCategoryPayload.success && Array.isArray(referenceCategories) &&
+  referenceCategories.length === 40, "POPD_REFERENCE_CATEGORIES_INVALID");
+assert.ok(referenceGroupPayload.success && Array.isArray(referenceGroups) &&
+  referenceGroups.length === 14, "POPD_REFERENCE_GROUPS_INVALID");
+const referenceCategorySlugs = new Set(referenceCategories.map(category => category.slug));
+assert.equal(referenceCategorySlugs.size, 40, "POPD_REFERENCE_DUPLICATE_CATEGORY_SLUG");
+assert.ok(referenceCategories.every(category =>
+  category.active === true &&
+  typeof category.name === "string" && category.name.trim() &&
+  Array.isArray(category.children) && category.children.length > 0),
+  "POPD_REFERENCE_CATEGORY_METADATA_INCOMPLETE");
+const groupMembership = new Map();
+for (const group of referenceGroups) {
+  assert.ok(group.active === true && Array.isArray(group.categorySlugs),
+    "POPD_REFERENCE_GROUP_METADATA_INVALID: " + String(group.id));
+  for (const slug of group.categorySlugs) {
+    groupMembership.set(slug, (groupMembership.get(slug) || 0) + 1);
+  }
+}
+assert.equal(groupMembership.size, 40, "POPD_REFERENCE_GROUP_CATEGORY_COVERAGE_MISMATCH");
+assert.ok(referenceCategories.every(category => groupMembership.get(category.slug) === 1),
+  "POPD_REFERENCE_CATEGORY_MUST_BELONG_TO_EXACTLY_ONE_GROUP");
+assert.equal(referenceCategories.reduce((sum, category) => sum + category.familyCount, 0), 492,
+  "POPD_REFERENCE_CATEGORY_FAMILY_TOTAL_MISMATCH");
+assert.equal(referenceCategories.reduce((sum, category) => sum + category.skuCount, 0), 10308,
+  "POPD_REFERENCE_CATEGORY_SKU_TOTAL_MISMATCH");
+
+const familyCodes = new Set();
+const skuCodes = new Set();
+const familyImageUrls = new Set();
+const skuImageUrls = new Set();
+let sampleFamilyCode = "";
+let sampleVariantCode = "";
+for (const category of referenceCategories) {
+  const detail = await json(candidate,
+    "/api/catalog/reference/menu-category/" + encodeURIComponent(category.slug));
+  assert.ok(detail.success && detail.category?.slug === category.slug &&
+    Array.isArray(detail.families) && Array.isArray(detail.products),
+    "POPD_REFERENCE_CATEGORY_DETAIL_INVALID: " + category.slug);
+  assert.equal(detail.families.length, category.familyCount,
+    "POPD_REFERENCE_CATEGORY_FAMILY_COUNT_MISMATCH: " + category.slug);
+  assert.equal(detail.products.length, category.familyCount,
+    "POPD_REFERENCE_CATEGORY_PRODUCT_COUNT_MISMATCH: " + category.slug);
+  const detailFamilyCodes = new Set(detail.families.map(family => family.code));
+  assert.equal(detailFamilyCodes.size, detail.families.length,
+    "POPD_REFERENCE_DUPLICATE_FAMILY_IN_CATEGORY: " + category.slug);
+  let categorySkuCount = 0;
+  for (const product of detail.products) {
+    assert.ok(product.code && product.resolvedAssignment?.categorySlug === category.slug,
+      "POPD_REFERENCE_FAMILY_CATEGORY_MISMATCH: " + String(product.code || "unknown"));
+    assert.ok(detailFamilyCodes.has(product.code),
+      "POPD_REFERENCE_FAMILY_PRODUCT_PAIR_MISMATCH: " + product.code);
+    assert.ok(!familyCodes.has(product.code),
+      "POPD_REFERENCE_FAMILY_DUPLICATE_ACROSS_CATEGORIES: " + product.code);
+    familyCodes.add(product.code);
+    if (!sampleFamilyCode) sampleFamilyCode = product.code;
+    for (const url of product.images || []) {
+      assert.ok(typeof url === "string" && url.startsWith("/storage/products/"),
+        "POPD_REFERENCE_FAMILY_IMAGE_URL_INVALID: " + product.code);
+      familyImageUrls.add(url);
+    }
+    for (const variant of product.variants || []) {
+      const code = String(variant.code || "");
+      assert.ok(code, "POPD_REFERENCE_EMPTY_SKU_CODE: " + product.code);
+      assert.ok(!skuCodes.has(code),
+        "POPD_REFERENCE_DUPLICATE_SKU_ACROSS_CATEGORIES: " + code);
+      skuCodes.add(code);
+      categorySkuCount += 1;
+      if (!sampleVariantCode) sampleVariantCode = code;
+      for (const url of variant.images || []) {
+        assert.ok(typeof url === "string" && url.startsWith("/storage/products/"),
+          "POPD_REFERENCE_SKU_IMAGE_URL_INVALID: " + code);
+        skuImageUrls.add(url);
+      }
+    }
+  }
+  assert.equal(categorySkuCount, category.skuCount,
+    "POPD_REFERENCE_CATEGORY_VARIANT_TOTAL_MISMATCH: " + category.slug);
+}
+assert.equal(familyCodes.size, 492, "POPD_REFERENCE_UNIQUE_FAMILY_TOTAL_MISMATCH");
+assert.equal(skuCodes.size, 10308, "POPD_REFERENCE_UNIQUE_SKU_TOTAL_MISMATCH");
+assert.equal(familyImageUrls.size, referenceStatus.verifiedFamilyImageCount,
+  "POPD_REFERENCE_FAMILY_IMAGE_ASSIGNMENT_DRIFT");
+assert.equal(skuImageUrls.size, referenceStatus.verifiedVariantImageCount,
+  "POPD_REFERENCE_SKU_IMAGE_ASSIGNMENT_DRIFT");
+
+// Identity approval is not enough if the mounted /data volume is missing the
+// underlying file. HEAD all approved URLs before promotion; no broken gallery
+// image is allowed to enter the public catalogue.
+const storageImageUrls = [...new Set([...familyImageUrls, ...skuImageUrls])];
+const storageImageFailures = [];
+for (let index = 0; index < storageImageUrls.length; index += 16) {
+  const batch = storageImageUrls.slice(index, index + 16);
+  const results = await Promise.all(batch.map(async url => {
+    try {
+      const response = await fetch(candidate + url, {
+        method: "HEAD",
+        signal: AbortSignal.timeout(20000),
+      });
+      const contentType = response.headers.get("content-type") || "";
+      if (response.status !== 200 || !contentType.startsWith("image/")) {
+        return { url, status: response.status, contentType };
+      }
+      return null;
+    } catch (error) {
+      return { url, error: String(error?.message || error) };
+    }
+  }));
+  storageImageFailures.push(...results.filter(Boolean));
+}
+assert.equal(storageImageFailures.length, 0,
+  "POPD_REFERENCE_STORAGE_IMAGES_MISSING: " + JSON.stringify(storageImageFailures.slice(0, 12)));
+console.log("POPD_REFERENCE_STORAGE_IMAGES_OK", storageImageUrls.length);
+
+assert.ok(sampleFamilyCode && sampleVariantCode, "POPD_REFERENCE_PRODUCT_DETAIL_SAMPLES_MISSING");
+const familyLookup = await json(candidate,
+  "/api/catalog/reference/product/" + encodeURIComponent(sampleFamilyCode));
+assert.ok(familyLookup.success && familyLookup.product?.code === sampleFamilyCode,
+  "POPD_REFERENCE_FAMILY_DETAIL_ROUTE_FAILED");
+const skuLookup = await json(candidate,
+  "/api/catalog/reference/product/" + encodeURIComponent(sampleVariantCode));
+assert.ok(skuLookup.success && skuLookup.product?.code === sampleFamilyCode,
+  "POPD_REFERENCE_SKU_DETAIL_ROUTE_FAILED");
+console.log("POPD_REFERENCE_CATEGORY_FAMILY_SKU_ROUTES_OK",
+  "families=" + familyCodes.size, "skus=" + skuCodes.size);
+
 for (const [route, key] of [
   ["/api/catalog/home-categories", "categories"],
   ["/api/catalog/home-preview", "products"],
