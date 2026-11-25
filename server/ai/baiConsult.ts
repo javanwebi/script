@@ -480,7 +480,7 @@ export async function completeXkiroConsult(
 export async function streamAvalaiConsult(options: BaiConsultOptions) {
   let sentText=false;
   const configuredBase=String(process.env.AVALAI_API_BASE_URL||'https://api.avalai.ir/v1')
-    .trim().replace(/\\/+$/,'');
+    .trim().replace(/\/+$/,'');
   const allowedBases=new Set([
     'https://api.avalai.ir/v1',
     'https://api.avalapis.ir/v1',
