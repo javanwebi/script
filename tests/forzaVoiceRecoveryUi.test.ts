@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const audio=readFileSync(new URL('../src/utils/forzaContinuousWav.ts',import.meta.url),'utf8');
 const speechPipeline=readFileSync(new URL('../src/utils/forzaSpeechPipeline.ts',import.meta.url),'utf8');
+const consult=readFileSync(new URL('../server/ai/baiConsult.ts',import.meta.url),'utf8');
 const avatar=readFileSync(new URL('../src/components/forza/ParticleAvatar.tsx',import.meta.url),'utf8');
 const styles=readFileSync(new URL('../src/components/forza/style.css',import.meta.url),'utf8');
 const routePreload=readFileSync(new URL('../src/components/layout/RouteIntentPreload.tsx',import.meta.url),'utf8');
@@ -134,10 +135,10 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 
 
 test('server Diba remains a fallback when browser recognition has no transcript',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true && \(!q \|\| !localSttActiveRef\.current\)/);
+  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true &&\s+\(serverSttProviderRef\.current==='avalai' \|\| !q \|\| !localSttActiveRef\.current\)/);
   assert.match(ui,/transcribeOnly:true/);
   assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
-  assert.match(ui,/info\.serverSttProvider==='diba'/);
+  assert.match(ui,/provider==='avalai'\|\|provider==='diba'\|\|provider==='gemini'/);
   assert.match(ui,/info\.serverSttReady===true/);
   assert.match(ui,/دایبا تنظیم نشده؛ متن زنده مرورگر/);
   assert.match(ui,/serverSttConfiguredRef=useRef\(false\)/);
@@ -148,10 +149,10 @@ test('a two-second pause preserves the same live transcript across browser recog
   assert.match(ui,/recognitionSessionBaseRef=useRef<string>\(''\)/);
   assert.match(ui,/recognitionSessionBaseRef\.current=activeTranscriptRef\.current\.trim\(\)/);
   assert.match(ui,/appendForzaSpeechSegment\(recognitionSessionBaseRef\.current,currentSpeech\)/);
-  assert.match(ui,/: 5200;/);
-  assert.match(ui,/Math\.max\(5200,pauseMs\)-acousticSilence/);
-  assert.match(speechPipeline,/hasInterim\?2100:1350/);
-  assert.match(speechPipeline,/hasInterim\?3400:2800/);
+  assert.match(ui,/: 6500;/);
+  assert.match(ui,/Math\.max\(6500,pauseMs\)-acousticSilence/);
+  assert.match(speechPipeline,/hasInterim\?3200:2200/);
+  assert.match(speechPipeline,/hasInterim\?5200:4300/);
 });
 
 test('FORZA hair animation remains visible during the spoken greeting despite microphone echo cancellation',()=>{
@@ -176,8 +177,8 @@ test('local Diba keeps one recognizer and appends finalized segments across repl
 });
 
 test('VAD waits for delayed speech text before stopping an empty transcript recording',()=>{
-  assert.match(ui,/: 5200;/);
-  assert.match(ui,/Math\.max\(0,Math\.max\(5200,pauseMs\)-acousticSilence\)/);
+  assert.match(ui,/: 6500;/);
+  assert.match(ui,/Math\.max\(0,Math\.max\(6500,pauseMs\)-acousticSilence\)/);
   assert.match(ui,/turnDispatchPendingRef\.current=true/);
   assert.match(ui,/if\(turnDispatchPendingRef\.current && !\(q && forzaTurnIntent\(q\)==='stop'\)\)return/);
 });
@@ -201,7 +202,7 @@ test('voice warmup belongs to the active abortable turn so a customer can barge 
   const from=ui.indexOf('const handleUserFinishedSpeaking = useCallback(');
   const to=ui.indexOf('// Setup MediaRecorder',from);
   const turn=ui.slice(from,to);
-  assert.ok(turn.indexOf('activeTurnRef.current={generation,abort:pocketAbort}')<
+  assert.ok(turn.indexOf('activeTurnRef.current={generation,abort:pocketAbort,query:q}')<
     turn.indexOf('await ensureVoiceMode()'));
   assert.match(turn,/if\(pocketAbort\.signal\.aborted \|\| activeTurnRef\.current\?\.generation!==generation\)return/);
 });
@@ -213,4 +214,29 @@ test('TTS rate-limit responses distinguish a shared network ceiling from a singl
   assert.match(ui,/pocket_rate_limited_network/);
   assert.match(ui,/pocket_rate_limited_turn/);
   assert.match(ui,/سقف درخواست صوتی این اتصال در یک دقیقه تکمیل شده است/);
+});
+
+
+test('each completed utterance is a separate request while the previous user and assistant turns remain context',()=>{
+  assert.match(ui,/duplicateActiveTurn=Boolean\\(q&&activeQuery&&/);
+  assert.match(ui,/activeTurnRef\\.current=\\{generation,abort:pocketAbort,query:q\\}/);
+  assert.match(ui,/payload\\.history=previousHistory/);
+  assert.match(ui,/query:resolvedUserQuery,\\s+history:previousHistory/);
+  assert.match(consult,/هر بار که کاربر پس از پایان واقعی گفتار، دوباره صحبت می‌کند، آن گفتار یک پیام مستقل/);
+  assert.match(consult,/تمام پیام‌های قبلی کاربر و پاسخ‌های کامل FORZA در تاریخچه همین تماس حفظ می‌شوند/);
+  assert.match(consult,/historyMessages = history\\.slice\\(-FORZA_CONVERSATION_HISTORY_LIMIT\\)/);
+});
+
+test('full assistant replies are retained in context after successful playback or text-only fallback',()=>{
+  assert.match(ui,/const commitAssistantReply=\\(text:string,playbackComplete:boolean\\)=>/);
+  assert.match(ui,/commitAssistantReply\\(reply,true\\)/);
+  assert.match(ui,/commitAssistantReply\\(reply,false\\)/);
+  assert.match(ui,/متن کامل پاسخ در زیرنویس نمایش داده شد؛ پخش صوت کامل نشد/);
+});
+
+test('turn ownership prevents duplicate dispatch but a real interruption releases the next turn',()=>{
+  assert.match(ui,/if\\(duplicateActiveTurn\\)return/);
+  assert.match(ui,/turnDispatchPendingRef\\.current=false;\\s+active\\.abort\\.abort\\(new Error\\('forza_customer_interrupted'\\)\\)/);
+  assert.match(ui,/turnDispatchPendingRef\\.current=true/);
+  assert.match(ui,/turnDispatchPendingRef\\.current=false;\\s+setStatus\\('listening'\\)/);
 });
