@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import {localVisionResult,embedLocalImages,LOCAL_VISION_MODEL,selectCachedQueryView} from '../src/services/localVision';
+import {localVisionResult,embedLocalImages,LOCAL_VISION_MODEL,LOCAL_VISION_PIPELINE,selectCachedQueryView,readLocalMarkings} from '../src/services/localVision';
 import type {Product} from '../src/types';
 
 const products=[{code:'family',name:'خانواده واقعی',active:true,variants:[{code:'sku',name:'کالای واقعی',active:true,technicalSpecs:[{key:'سایز',value:'20'}]},{code:'other-size',active:true},{code:'inactive',active:false}]}] as Product[];
@@ -249,4 +249,25 @@ test('a selected cached region uses only its own embedding and never inherits OC
  assert.deepEqual(selectedFirst?.markings,[{text:'6203ZZ',confidence:96}]);
  assert.equal(selectedFirst?.ocrAvailable,true);
  assert.equal(selectCachedQueryView(query,{x:0.4,y:0.4,width:0.2,height:0.2}),undefined);
+});
+
+
+test('selected-crop OCR uses the authenticated private worker and validates returned markings',async()=>{
+ let received:any;
+ const server=http.createServer(async(req,res)=>{
+  let raw='';for await(const chunk of req)raw+=chunk;
+  received={url:req.url,authorization:req.headers.authorization,body:JSON.parse(raw)};
+  res.setHeader('content-type','application/json');
+  res.end(JSON.stringify({model:LOCAL_VISION_MODEL,pipeline:LOCAL_VISION_PIPELINE,markings:[{text:'6203ZZ',confidence:96},{text:'noise',confidence:40}],ocrAvailable:true}));
+ });
+ await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try{
+  const image=Buffer.from('selected crop');
+  const env={LOCAL_VISION_URL:`http://127.0.0.1:${(server.address() as any).port}`,LOCAL_VISION_TOKEN:'private-local-token'};
+  const result=await readLocalMarkings(image,env);
+  assert.equal(received.url,'/markings');
+  assert.equal(received.authorization,'Bearer private-local-token');
+  assert.equal(received.body.image,image.toString('base64'));
+  assert.deepEqual(result,{markings:[{text:'6203ZZ',confidence:96}],ocrAvailable:true});
+ }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}
 });
