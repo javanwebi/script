@@ -2089,11 +2089,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const playback=isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current;
         const admitted=admission.filter(event.results,(words,final)=>{
           if(retryExpired||likelySpeakerEcho(words))return 'reject';
-          // Native Web Speech has already recognized the words. While FORZA is
-          // listening, do not discard its transcript because the separate RMS
-          // monitor has a low microphone level or has not calibrated yet.
-          // Keep the strict near-field acoustic gate for barge-in during TTS.
-          if(!playback)return 'accept';
+          // Keep near-field admission active while listening, but its idle
+          // threshold is calibrated for ordinary desktop microphones. TTS
+          // barge-in retains the stricter acoustic gate.
           const decision=speechAdmissionRef.current.decide(words,final,playback,Date.now());
           if(new URLSearchParams(window.location.search).get('forzaVoiceDiagnostics')==='1')
             console.info('[FORZA_ADMISSION]',decision,JSON.stringify(speechAdmissionRef.current.diagnostics(Date.now())));
