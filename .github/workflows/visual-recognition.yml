@@ -28,6 +28,7 @@ on:
       - 'src/services/localVision.ts'
       - 'src/services/beltRecognition.ts'
       - 'tests/belt-recognition.test.ts'
+      - 'tests/forza-vision-kiki-fastpath.test.ts'
       - 'src/services/catalogVisualIndex.ts'
       - 'src/services/localQueryImage.ts'
       - 'src/utils/imageRegionInteraction.ts'
