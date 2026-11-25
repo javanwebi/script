@@ -140,6 +140,7 @@ async function main() {
     files.length !== 869 ||
     fileNames.size !== 869 ||
     [...Array(869)].some((_, index) => !fileNames.has(`e(${index + 1}).png`)) ||
+    [...imageNames].some(name => !fileNames.has(name)) ||
     files.some(file => !Number.isInteger(file.size) || file.size <= 1000 || !/^[a-f0-9]{40}$/.test(file.sha))
   ) throw new Error("POPD_E869_SOURCE_TREE_INVALID");
 
