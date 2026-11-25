@@ -1,5 +1,5 @@
 import {useRef,useState} from 'react';
-import type {PointerEvent} from 'react';
+import type {MouseEvent,PointerEvent} from 'react';
 import {validImageRegion,type ImageRegion} from '../../utils/imageRegion';
 import {findImageRegionAtPoint,tapImageRegion} from '../../utils/imageRegionInteraction';
 
@@ -28,11 +28,12 @@ interface Props {
  onSearch?:()=>void;
  onFullImageSearch?:()=>void;
  disabled?:boolean;
+ autoSelect?:boolean;
  variant?:'default'|'viewer';
 }
 
 export function ImageRegionSelector({
- src,value,candidateRegions=[],onChange,onSearch,onFullImageSearch,disabled=false,variant='default',
+ src,value,candidateRegions=[],onChange,onSearch,onFullImageSearch,disabled=false,autoSelect=false,variant='default',
 }:Props){
  const frameRef=useRef<HTMLDivElement|null>(null);
  const imageRef=useRef<HTMLImageElement|null>(null);
@@ -51,6 +52,15 @@ export function ImageRegionSelector({
    x:Math.max(0,Math.min(1,(event.clientX-box.left)/box.width)),
    y:Math.max(0,Math.min(1,(event.clientY-box.top)/box.height)),
   };
+ };
+
+ const selectCandidateAtPoint=(event:MouseEvent<HTMLDivElement>)=>{
+  if(!autoSelect||disabled)return;
+  const box=frameRef.current?.getBoundingClientRect();
+  if(!box||!box.width||!box.height)return;
+  const p={x:Math.max(0,Math.min(1,(event.clientX-box.left)/box.width)),y:Math.max(0,Math.min(1,(event.clientY-box.top)/box.height))};
+  const candidate=findImageRegionAtPoint(p,candidates);
+  if(candidate)onChange(candidate);
  };
 
  const makeDraft=(state:Interaction,p:ImagePoint):ImageRegion=>{
@@ -136,8 +146,10 @@ export function ImageRegionSelector({
      tabIndex={disabled?-1:0}
      className="sanat-region-picker__frame"
      dir="ltr"
+     aria-label={autoSelect?'برای انتخاب قطعه دیگر، روی کادر شناسایی‌شده بزنید':'انتخاب محدوده قطعه'}
+     onClick={selectCandidateAtPoint}
      onPointerDown={event=>{
-      if(disabled||event.button!==0||!event.isPrimary)return;
+      if(autoSelect||disabled||event.button!==0||!event.isPrimary)return;
       const frameBounds=event.currentTarget.getBoundingClientRect();
       const bounds={left:frameBounds.left,top:frameBounds.top,width:frameBounds.width,height:frameBounds.height};
       const p=point(event,bounds);
@@ -171,7 +183,7 @@ export function ImageRegionSelector({
       onChange(r);
      }}
     >
-     <img ref={imageRef} src={src} alt="عکس ارسالی؛ ناحیه قطعه را انتخاب کنید" draggable={false}
+     <img ref={imageRef} src={src} alt={autoSelect?'تصویر قطعات شناسایی‌شده؛ برای انتخاب قطعه روی کادر آن بزنید':'عکس ارسالی؛ ناحیه قطعه را انتخاب کنید'} draggable={false}
       onLoad={event=>setAspect(event.currentTarget.naturalWidth/event.currentTarget.naturalHeight||1)}/>
      {candidates.map((region,index)=><div key={index} aria-hidden="true"
       className={'sanat-region-picker__candidate '+(sameRegion(value,region)?'is-selected':'')}
@@ -196,7 +208,7 @@ export function ImageRegionSelector({
       <i className="fv-lens-corner fv-lens-corner--bl"/>
       <i className="fv-lens-corner fv-lens-corner--br"/>
      </div>}
-     {value&&!disabled&&<div className="sanat-region-picker__handles" style={selectedStyle}>
+     {!autoSelect&&value&&!disabled&&<div className="sanat-region-picker__handles" style={selectedStyle}>
       {(['nw','ne','sw','se'] as ResizeHandle[]).map(handle=><button
        key={handle}
        type="button"
@@ -225,10 +237,6 @@ export function ImageRegionSelector({
     <button type="button" className="sanat-region-picker__full-image" onClick={()=>onFullImageSearch ? onFullImageSearch() : onChange(undefined)} disabled={disabled}>جست‌وجوی کل تصویر</button>
    </aside>}
   </div>
-  {viewer&&<div className="sanat-region-picker__viewer-actions">
-   <button type="button" className="sanat-region-picker__search" onClick={onSearch} disabled={disabled || !value}>تأیید برش و جست‌وجوی این قطعه</button>
-   <button type="button" className="sanat-region-picker__full-image" onClick={()=>onFullImageSearch ? onFullImageSearch() : onChange(undefined)} disabled={disabled}>جست‌وجوی کل تصویر</button>
-  </div>}
   {candidates.length > 1 && (
    <div className="fv-region-candidates" role="group" aria-label="انتخاب قطعه از میان نواحی تصویر" data-testid="vision-region-candidates">
     <span className="fv-region-candidates__heading">بخش‌های تصویر:</span>
