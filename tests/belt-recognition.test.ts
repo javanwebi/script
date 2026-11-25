@@ -17,6 +17,14 @@ function resultFor(familyCode:string,code:string):AiPartAnalysisResult{
 }
 test('Persian digits and V-belt profile are read without inventing pitch',()=>{const parsed=parseBeltMarkings([{text:'SWR SPB ۲۰۰۰',confidence:97}]);assert.equal(parsed?.profile,'SPB');assert.equal(parsed?.kind,'v-belt');assert.equal(parsed?.lengthMarking,'2000');assert.equal(parsed?.nominalPitchMm,undefined);});
 test('timing profile pitch is separated from printed length marking',()=>{const parsed=parseBeltMarkings([{text:'GATES HTD 8M 1200',confidence:96}]);assert.equal(parsed?.profile,'8M');assert.equal(parsed?.kind,'timing');assert.equal(parsed?.nominalPitchMm,8);assert.equal(parsed?.lengthMarking,'1200');});
+test('DS8M timing profile preserves its eight-millimetre pitch and Persian length digits',()=>{
+ const parsed=parseBeltMarkings([{text:'CONTITECH DS8M ۱۲۰۰',confidence:96}]);
+ assert.equal(parsed?.profile,'DS8M');
+ assert.equal(parsed?.kind,'timing');
+ assert.equal(parsed?.nominalPitchMm,8);
+ assert.equal(parsed?.lengthMarking,'1200');
+});
+
 test('lone letters and low-confidence OCR do not create a profile',()=>{assert.equal(parseBeltMarkings([{text:'INDUSTRIAL PART A',confidence:98}]),undefined);assert.equal(parseBeltMarkings([{text:'SPB 2000',confidence:84}]),undefined);});
 test('belt scope filters non-belt candidates and ranks matching profile evidence',()=>{const result=applyBeltRecognition(resultFor('belt-family','SPB-2000'),products,[{text:'SPB 2000',confidence:97}]);assert.equal(result.summary.detectedPartType,'تسمه V شکل');assert.equal(result.summary.detectedProfile,'SPB');assert.equal(result.beltAnalysis?.profileMatchStatus,'matched');assert.deepEqual(result.beltAnalysis?.codeMatches,['SPB-2000']);assert.deepEqual(result.modelSuggestions?.map(item=>item.familyCode),['belt-family']);assert.deepEqual(result.similarCandidates?.map(item=>item.code),['SPB-2000']);assert.deepEqual(result.catalogImageMatches?.[0].bindings.map(item=>item.familyCode),['belt-family']);});
 test('a cross-family shared photo cannot confirm a belt even when one binding is a belt family',()=>{
