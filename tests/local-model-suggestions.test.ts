@@ -41,7 +41,7 @@ test('a shared photo produces one family-level suggestion, not multiple SKU matc
 test('a photo shared between a SKU and another family is not assigned to the SKU',()=>{
  const p=family('gear',1),other=family('other',1);
  const shared=hit('gear','gear-0',0.95);
- shared.row.bindings.push({familyCode:'other',verified:false});
+ shared.row.bindings.push({familyCode:'other',code:undefined,verified:false});
  const list=localModelSuggestions([shared],[p,other]);
  assert.deepEqual(list.map(item=>item.familyCode),['gear','other']);
  assert.ok(list.every(item=>!item.code&&item.imageScope==='family'));
