@@ -4,7 +4,7 @@ import {
   ArrowLeft,
   Eye,
   EyeOff,
-    ShieldCheck,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { IRAN_PROVINCES, ACTIVITY_FIELDS } from "../../data/iranLocations";
@@ -205,29 +205,19 @@ export function AccountAccess({
   );
   return (
     <div className="account-access">
-      <aside className="account-access-story" data-mode={mode} aria-label={mode === "register" ? "شروع همکاری با صنعت پیش" : "ورود به حساب مشتریان صنعت پیش"}>
+      <aside
+        className="account-access-story"
+        data-mode={mode}
+        aria-label={mode === "register" ? "بنر ثبت‌نام صنعت پیش" : "بنر ورود صنعت پیش"}
+      >
         <img
-          src={mode === "register" ? (A.bannerAuthRegister || A.authIndustrialHero) : (A.bannerAuthLogin || A.authIndustrialHero)}
-          alt=""
+          src={mode === "register" ? A.bannerAuthRegister : A.bannerAuthLogin}
+          alt={mode === "register"
+            ? "عضو صنعت پیش شوید؛ دسترسی به کاتالوگ کامل، جست‌وجوی هوشمند و مشاوره FORZA"
+            : "به میزکار خود در صنعت پیش وارد شوید؛ دسترسی به کاتالوگ، سفارش‌ها و خدمات هوشمند FORZA"}
+          loading="eager"
+          decoding="async"
         />
-        <div className="account-access-story-content">
-          <span className="account-access-story-brand">
-            <SanatPishLogo className="w-full h-full object-contain" alt="لوگوی صنعت پیش" />
-          </span>
-          <span className="account-access-story-eyebrow">
-            {mode === "register" ? "شروع همکاری با صنعت پیش" : "حساب مشتریان صنعت پیش"}
-          </span>
-          <h2>
-            {mode === "register"
-              ? "همکاری صنعتی را هوشمندانه شروع کنید"
-              : "قطعات، استعلام‌ها و سفارش‌هایتان یک‌جا در دسترس است"}
-          </h2>
-          <p>
-            {mode === "register"
-              ? "حساب بسازید تا قطعات را جست‌وجو و شناسایی کنید، استعلام بگیرید و مسیر تأمین را پیگیری کنید."
-              : "وارد شوید و استعلام‌ها، سفارش‌ها و مسیر تأمین قطعات خود را سریع و یک‌جا دنبال کنید."}
-          </p>
-        </div>
       </aside>
       <section className="account-access-form">
         <div className="account-form-heading">
