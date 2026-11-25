@@ -25,7 +25,7 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
-import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,selectCachedQueryView,type QueryEvidence} from './src/services/localVision';
+import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,readLocalMarkings,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,selectCachedQueryView,type QueryEvidence} from './src/services/localVision';
 import {applyBeltRecognition} from './src/services/beltRecognition';
 import {LocalVisionDetectionCache} from './src/services/localVisionDetectionCache';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
@@ -4750,13 +4750,28 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const cachedSelectedQuery=cachedDetection&&cachedRegionMatches&&requestedRegion
         ? selectCachedQueryView(cachedDetection.query,requestedRegion)
         : undefined;
+      const cachedOcrMatchesRegion=Boolean(requestedRegion&&cachedDetection?.query.region&&
+        Math.abs(cachedDetection.query.region.x-requestedRegion.x)<0.002 &&
+        Math.abs(cachedDetection.query.region.y-requestedRegion.y)<0.002 &&
+        Math.abs(cachedDetection.query.region.width-requestedRegion.width)<0.002 &&
+        Math.abs(cachedDetection.query.region.height-requestedRegion.height)<0.002
+      );
       // A selected candidate must be compared on its own, not with the full frame
       // and sibling candidates still mixed into the cached multi-view query.
-      const query=cachedDetection && cachedRegionMatches
+      let query:QueryEvidence=cachedDetection && cachedRegionMatches
         ? requestedRegion
           ? cachedSelectedQuery || await describeLocalQuery(queryImage)
           : cachedDetection.query
         : await describeLocalQuery(queryImage);
+      // Cached DINO vectors can be reused for a secondary crop, but OCR belongs to
+      // the first detected object only. Read visible codes from this exact crop.
+      if(cachedSelectedQuery && !cachedOcrMatchesRegion && cachedDetection?.query.ocrAvailable){
+        try{
+          query={...cachedSelectedQuery,...await readLocalMarkings(queryImage)};
+        }catch{
+          query=cachedSelectedQuery;
+        }
+      }
       const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
