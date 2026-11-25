@@ -1,7 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {IncomingMessage,ServerResponse} from 'node:http';
-import {supabaseAuthAction} from '../../server/db/supabaseAuth';
+import {AUTH_REFRESH_COOKIE_PATH,buildLegacyRefreshCookieClear,buildRefreshCookie,buildRefreshCookieMigration,supabaseAuthAction} from '../../server/db/supabaseAuth';
+
+test('refresh cookie covers portal and sibling admin API routes with secure cookie attributes',()=>{
+ assert.equal(AUTH_REFRESH_COOKIE_PATH,'/api');
+ const cookie=buildRefreshCookie('test-refresh-token',2592000,true);
+ assert.match(cookie,/^sp_refresh=test-refresh-token; Path=\/api;/);
+ assert.match(cookie,/HttpOnly; SameSite=Lax; Max-Age=2592000; Secure$/);
+ const cleared=buildRefreshCookie('',0,true);
+ assert.match(cleared,/Max-Age=0; Secure$/);
+ const legacyClear=buildLegacyRefreshCookieClear(true);
+ assert.match(legacyClear,/^sp_refresh=; Path=\/api\/portal;/);
+ assert.match(legacyClear,/HttpOnly; SameSite=Lax; Max-Age=0; Secure$/);
+ const migration=buildRefreshCookieMigration('existing-refresh-token',true);
+ assert.equal(migration.length,2);
+ assert.match(migration[0],/^sp_refresh=existing-refresh-token; Path=\/api;/);
+ assert.match(migration[1],/^sp_refresh=; Path=\/api\/portal;/);
+});
 
 test('registration fails closed without SMS; credentials require a verified server session; malformed OTP is rejected',async()=>{
  const names=['SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','SUPABASE_SMS_READY'];
