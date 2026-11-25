@@ -168,7 +168,8 @@ test('automatic viewer keeps manual drag-to-crop available when automatic segmen
   const styles = source('src/components/search/image-region-review.css');
   assert.ok(picker.includes('autoSelect?:boolean;'));
   assert.ok(picker.includes('onClick={selectCandidateAtPoint}'));
-  assert.ok(picker.includes("mode:autoSelect?'draw':inside?'move':'draw'"));
+  assert.ok(picker.includes('const canMoveSelection=Boolean(value&&inside&&(!autoSelect||manualSelection))'));
+  assert.ok(picker.includes("mode:canMoveSelection?'move':'draw'"));
   assert.ok(picker.includes('suppressNextClickRef'));
   assert.ok(picker.includes('data-manual-crop-enabled={!disabled}'));
   assert.doesNotMatch(picker, /if\(autoSelect\|\|disabled\|\|event\.button/);
