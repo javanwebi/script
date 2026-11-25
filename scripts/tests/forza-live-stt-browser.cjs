@@ -1,5 +1,5 @@
 // Browser-level contract: Persian interim words appear in the customer bubble
-// BEFORE end of speech and WITHOUT waiting for the server transcription route.
+// before end of speech; bounded server STT then corrects the completed turn before LLM dispatch.
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 function wav(){
@@ -51,8 +51,23 @@ function wav(){
   });
   await page.route('**/api/runtime',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})}));
   await page.route('**/api/portal',r=>r.fulfill({status:200,contentType:'application/json',body:'{"success":true,"user":null}'}));
+  await page.route('**/api/ai/forza-stt-info',r=>r.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({
+      serverSttConfigured:true,serverSttProvider:'avalai',serverSttReady:true,
+    }),
+  }));
   await page.route('**/forza-greeting-bootstrap.wav',r=>r.fulfill({status:200,contentType:'audio/wav',body:wav()}));
-  await page.route('**/api/ai/forza-live',r=>{serverTranscriptions++;return r.fulfill({status:503,body:'{}'});});
+  let transcribeMode='unavailable';
+  await page.route('**/api/ai/forza-live',async r=>{
+    serverTranscriptions++;
+    if(transcribeMode==='success'){
+      await new Promise(resolve=>setTimeout(resolve,250));
+      return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+        success:true,userTranscript:'برای خط تولید تسمه تایمینگ می‌خواهم',sttProvider:'avalai',
+      })});
+    }
+    return r.fulfill({status:503,contentType:'application/json',body:'{}'});
+  });
   await page.route('**/api/ai/consult-stream',r=>{consultRequests++;return r.abort();});
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
@@ -110,10 +125,9 @@ function wav(){
   await page.evaluate(()=>{window.__forzaMockRecognition.onerror({error:'not-allowed'});window.__forzaMockRecognition.onend();});
   await page.waitForTimeout(600);assert.equal(await page.evaluate(()=>window.__forzaRecognitionStarts),recoveredStarts,'permission rejection must not restart the recognizer');
 
-  // Reproduce the customer's screenshot: a short, usable interim transcript
-  // ("چه خبر خوبی") followed by real mic silence must dispatch to the LLM
-  // promptly, without waiting for the full-audio AvalAI/Diba verifier.
-  serverTranscriptions=0;consultRequests=0;
+  // Reproduce a garbled browser hypothesis. The short bounded AvalAI verifier
+  // must correct it before the LLM request, without adding a multi-second stall.
+  serverTranscriptions=0;consultRequests=0;transcribeMode='success';
   await page.reload({waitUntil:'domcontentloaded'});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
   await page.waitForFunction(()=>!!window.__forzaMockRecognition,null,{timeout:6000});
@@ -129,12 +143,35 @@ function wav(){
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
   const dispatchedRequest=await requestPromise;
   const dispatchMs=Date.now()-dispatchStarted;
-  assert.equal(dispatchedRequest.postDataJSON().query,'چه خبر خوبی','the exact live transcript must be sent as the new user turn');
+  assert.equal(dispatchedRequest.postDataJSON().query,'برای خط تولید تسمه تایمینگ می‌خواهم','the AvalAI final transcript must correct the garbled browser hypothesis');
   await page.waitForTimeout(80);
   assert.ok(dispatchMs<1800,'a complete interim phrase must reach consult-stream quickly: '+dispatchMs+'ms');
   assert.equal(consultRequests,1,'the completed speech turn must make one LLM request');
-  assert.equal(serverTranscriptions,0,'a usable interim transcript must bypass full-audio STT');
+  assert.equal(serverTranscriptions,1,'the captured audio must be verified exactly once by server STT');
+
+  // If the verifier is unavailable, the call must still send the live transcript
+  // after the same short budget rather than losing the customer's utterance.
+  serverTranscriptions=0;consultRequests=0;transcribeMode='unavailable';
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
+  await page.waitForFunction(()=>!!window.__forzaMockRecognition,null,{timeout:6000});
+  await page.waitForTimeout(450);
+  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
+  await page.waitForTimeout(450);
+  await page.evaluate(()=>window.__forzaMockRecognition.onresult({resultIndex:0,results:[
+    Object.assign([{transcript:'برای خط بسته‌بندی یک تسمه می‌خواهم'}],{isFinal:false}),
+  ]}));
+  await page.getByText('برای خط بسته‌بندی یک تسمه می‌خواهم',{exact:true}).waitFor({timeout:1000});
+  const fallbackStarted=Date.now();
+  const fallbackRequestPromise=page.waitForRequest(request=>request.url().includes('/api/ai/consult-stream'),{timeout:2500});
+  await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
+  const fallbackRequest=await fallbackRequestPromise;
+  const fallbackDispatchMs=Date.now()-fallbackStarted;
+  assert.equal(fallbackRequest.postDataJSON().query,'برای خط بسته‌بندی یک تسمه می‌خواهم','failed verification must preserve the live browser transcript');
+  assert.ok(fallbackDispatchMs<1800,'failed verification must not stall the turn: '+fallbackDispatchMs+'ms');
+  assert.equal(consultRequests,1,'a failed verifier still dispatches exactly one LLM turn');
+  assert.equal(serverTranscriptions,1,'the unavailable verifier is attempted once, not retried indefinitely');
   assert.deepEqual(errors,[]);
-  console.log('FORZA_LIVE_STT_BROWSER_PASS partial_appeared_ms='+partialMs+' two_second_pause_preserved=1 recognizer_restart_appended=1 transient_network_recovered=1 permissions_do_not_loop=1 fast_interim_turn_dispatch_ms='+dispatchMs+' server_stt_bypassed=1');
+  console.log('FORZA_LIVE_STT_BROWSER_PASS partial_appeared_ms='+partialMs+' two_second_pause_preserved=1 recognizer_restart_appended=1 transient_network_recovered=1 permissions_do_not_loop=1 fast_verified_turn_dispatch_ms='+dispatchMs+' server_stt_corrected=1 verifier_failure_fallback_ms='+fallbackDispatchMs);
  }finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_LIVE_STT_BROWSER_FAIL',e);process.exitCode=1;});

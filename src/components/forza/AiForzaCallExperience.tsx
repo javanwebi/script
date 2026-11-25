@@ -13,7 +13,7 @@ import {
   Square,
 } from 'lucide-react';
 import type { ParticleAvatarProps, ParticleAvatarRef } from './ParticleAvatar';
-import { checkpointForzaRecognition, extractPersianSpeechSince, normalizePersianTranscript, appendForzaSpeechSegment, appendForzaSessionTurn, replaceForzaLastSessionTurn, composeForzaSessionTranscript, mapForzaSegmentsInOrder, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript, canUseForzaServerFinalTranscript } from '../../utils/forzaSpeechPipeline';
+import { checkpointForzaRecognition, extractPersianSpeechSince, normalizePersianTranscript, appendForzaSpeechSegment, appendForzaSessionTurn, replaceForzaLastSessionTurn, composeForzaSessionTranscript, mapForzaSegmentsInOrder, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript, canUseForzaServerFinalTranscript, shouldRunForzaServerFinalTranscript, forzaLiveSttVerificationBudgetMs } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { attachForzaAudioEvidence } from '../../utils/forzaAudioEvidence';
@@ -1375,19 +1375,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        // A usable live transcript is the turn. Do not put a second, potentially
-        // 25-55s server transcription in front of the LLM just because Chrome
-        // marked the last hypothesis interim. The acoustic endpoint + stable
-        // transcript guard already decided the customer finished speaking.
-        // Server AvalAI/Diba transcription is recovery-only when no live text
-        // exists at all; it must never delay a valid spoken query.
-        const needsServerFinal = Boolean(audioBlob) &&
-          serverSttConfiguredRef.current === true &&
-          !q;
-        if(audioBlob&&q){
+        // Browser SpeechRecognition supplies low-latency live words, but it is
+        // only a hypothesis: Chrome can return plausible yet incorrect Persian
+        // words/codes. Verify every captured utterance with the configured
+        // server recognizer. A short budget is used when live text exists, so a
+        // slow verifier never holds the actual conversation hostage.
+        const needsServerFinal = shouldRunForzaServerFinalTranscript(
+          Boolean(audioBlob),serverSttConfiguredRef.current===true,
+        );
+        if(audioBlob&&q&&needsServerFinal){
           console.info('[FORZA_STT] turn='+generation+
-            ' source=live_transcript server_verifier=skipped interim='+
+            ' source=live_transcript server_verifier=scheduled interim='+
             Number(speechInterimRef.current)+' chars='+q.length);
+        }else if(audioBlob&&q){
+          console.info('[FORZA_STT] turn='+generation+
+            ' source=live_transcript server_verifier=not_configured chars='+q.length);
         }
         if(audioBlob && needsServerFinal){
           const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
@@ -1396,7 +1398,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Every rotated WebM segment is transcribed with at most two requests
           // in flight. Scale the deadline with segment count instead of imposing
           // a fixed total recording-duration ceiling.
-          const sttBudgetMs=Math.max(55_000,Math.ceil(audioBlobs.length/2)*52_000+8_000);
+          const audioBytes=audioBlobs.reduce((total,segment)=>total+segment.size,0);
+          // Short live turns start with a 1s verification window; longer
+          // recordings receive proportionally more time, without a fixed cap.
+          const sttBudgetMs=q
+            ? forzaLiveSttVerificationBudgetMs(audioBytes)
+            : Math.max(55_000,Math.ceil(audioBlobs.length/2)*52_000+8_000);
+          console.info('[FORZA_STT] turn='+generation+' phase=server_verify_started'+
+            ' browser_chars='+q.length+' segments='+audioBlobs.length+
+            ' audio_bytes='+audioBytes+' budget_ms='+sttBudgetMs);
           const sttTimer=window.setTimeout(
             ()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید.')),
             sttBudgetMs,
@@ -2429,14 +2439,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         serverSttConfiguredRef.current=configured;
         setServerSttLabel(provider==='avalai'&&configured
           ? info.serverSttReady===true
-            ? 'AvalAI پشتیبان است · متن زنده فعال'
-            : 'AvalAI در دسترس نیست · متن زنده مرورگر'
+            ? 'متن زنده فعال · بازبینی نهایی AvalAI تنظیم شده'
+            : 'متن زنده فعال · AvalAI موقتاً در دسترس نیست'
           : provider==='diba'&&configured
             ? info.serverSttReady===true
-              ? 'دایبا سرور آماده است · متن زنده مرورگر'
-              : 'دایبا سرور در حال آماده‌سازی · متن زنده فعال است'
+              ? 'متن زنده فعال · بازبینی نهایی دایبا'
+              : 'متن زنده فعال · دایبا سرور در حال آماده‌سازی'
             : provider==='gemini'&&configured
-              ? 'تشخیص گفتار هوشمند آماده است'
+              ? 'متن زنده فعال · بازبینی نهایی Gemini تنظیم شده'
               : localSttModelRef.current
                 ? 'دایبا محلی آماده است · تشخیص زنده'
                 : localSttModelLoadingRef.current

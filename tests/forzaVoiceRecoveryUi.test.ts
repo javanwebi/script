@@ -134,19 +134,23 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 });
 
 
-test('server AvalAI/Diba STT is recovery-only and never delays any usable live transcript',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true &&\s+!q/);
+test('configured server STT verifies every captured live turn with a strict nonblocking budget',()=>{
+  assert.match(ui,/shouldRunForzaServerFinalTranscript\(\s*Boolean\(audioBlob\),serverSttConfiguredRef\.current===true,/);
   assert.match(ui,/if\(audioBlob && needsServerFinal\)/);
-  assert.match(ui,/source=live_transcript server_verifier=skipped/);
+  assert.match(ui,/server_verifier=scheduled/);
+  assert.match(ui,/server_verifier=not_configured/);
+  assert.match(ui,/audio_bytes=/);
+  assert.doesNotMatch(ui,/server_verifier=skipped/);
   assert.match(ui,/transcribeOnly:true/);
   assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
   assert.match(ui,/provider==='avalai'\|\|provider==='diba'\|\|provider==='gemini'/);
+  assert.match(ui,/forzaLiveSttVerificationBudgetMs\(audioBytes\)/);
+  assert.match(ui,/const audioBytes=audioBlobs\.reduce/);
   assert.match(ui,/info\.serverSttReady===true/);
   assert.match(ui,/تشخیص گفتار سرور تنظیم نشده؛ متن زنده مرورگر/);
   assert.match(ui,/serverSttConfiguredRef=useRef\(false\)/);
   assert.match(ui,/تشخیص گفتار: \{serverSttLabel\}/);
 });
-
 test('native browser transcripts use a microphone-sensitive near-field gate while TTS barge-in stays strict',()=>{
   const from=ui.indexOf('rec.onresult = (event: any) => {');
   const to=ui.indexOf('if(admitted.waiting&&!retryExpired)',from);

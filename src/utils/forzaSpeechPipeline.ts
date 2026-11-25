@@ -195,7 +195,12 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
   // complete transcript over a plausible-looking but incorrect browser code;
   // only keep browser text when the server clearly returned a tiny fragment.
   if(preferServer){
-    if(browser.length>=12&&server.length<Math.max(6,browser.length*0.45))return browser;
+    // AvalAI returns a completed server transcript, not a live browser interim.
+    // Keep browser text only when the server produced an implausibly tiny
+    // fragment relative to a substantial utterance; a shorter but complete
+    // correction must beat a browser transcript polluted by background words.
+    const serverWords=server.split(/\s+/).filter(Boolean);
+    if(browser.length>=24&&server.length<12&&serverWords.length===1)return browser;
     return server;
   }
   const toAsciiDigits=(value:string)=>value.replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
@@ -212,6 +217,23 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
   if(browserTokens.some(token=>!serverTokens.has(token)))return browser;
   if(browser.length>=10&&server.length<browser.length*0.5)return browser;
   return server;
+}
+
+/** Verify every captured voice turn when a server recognizer is configured.
+ * Browser SpeechRecognition is a fast live hypothesis, not a trusted final:
+ * it can return plausible but incorrect Persian words or industrial codes.
+ */
+export function shouldRunForzaServerFinalTranscript(audioCaptured: boolean, serverSttConfigured: boolean): boolean {
+  return audioCaptured && serverSttConfigured;
+}
+
+/** Give short live turns a fast verification window, while allowing longer
+ * recordings proportionally more decode time without a fixed duration cap.
+ * WebM/Opus byte size is used only as a conservative duration estimate.
+ */
+export function forzaLiveSttVerificationBudgetMs(audioBytes: number): number {
+  const bytes=Number.isFinite(audioBytes)?Math.max(0,audioBytes):0;
+  return Math.max(1_000,Math.ceil(900+(bytes/4_000)*150));
 }
 
 /** Use a server final transcript only when every recording segment completed.

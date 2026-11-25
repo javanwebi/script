@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   appendForzaSpeechSegment, checkpointForzaRecognition, extractPersianSpeechRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs,
   normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64, chooseForzaFinalTranscript,
-  canUseForzaServerFinalTranscript,
+  canUseForzaServerFinalTranscript, shouldRunForzaServerFinalTranscript, forzaLiveSttVerificationBudgetMs,
 } from '../src/utils/forzaSpeechPipeline.ts';
 
 function result(value:string, isFinal:boolean) {
@@ -110,6 +110,20 @@ test('FORZA response stream has no fixed total-duration cutoff',()=>{
   assert.match(source,/ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند/);
 });
 
+test('live STT verification budget is fast for short speech and scales without a fixed recording cap',()=>{
+  assert.equal(forzaLiveSttVerificationBudgetMs(0),1_000);
+  assert.equal(forzaLiveSttVerificationBudgetMs(12_000),1_350);
+  assert.equal(forzaLiveSttVerificationBudgetMs(160_000),6_900);
+  assert.ok(forzaLiveSttVerificationBudgetMs(1_000_000)>forzaLiveSttVerificationBudgetMs(160_000));
+  assert.equal(forzaLiveSttVerificationBudgetMs(Number.NaN),1_000);
+});
+
+test('every captured audio turn gets server final verification when a server recognizer is configured, even with browser text',()=>{
+  assert.equal(shouldRunForzaServerFinalTranscript(true,true),true);
+  assert.equal(shouldRunForzaServerFinalTranscript(true,false),false);
+  assert.equal(shouldRunForzaServerFinalTranscript(false,true),false);
+});
+
 test('a partial server transcript never replaces the complete browser utterance after any segment fails',()=>{
   assert.equal(canUseForzaServerFinalTranscript('تمام متن گفتار',0),true);
   assert.equal(canUseForzaServerFinalTranscript('فقط بخش دوم گفتار',1),false);
@@ -118,12 +132,27 @@ test('a partial server transcript never replaces the complete browser utterance 
   assert.equal(canUseForzaServerFinalTranscript('متن ناقص',Number.NaN),false);
   const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
   assert.match(ui,/canUseForzaServerFinalTranscript\(serverTranscript,failedSegments\)/);
+  assert.match(ui,/shouldRunForzaServerFinalTranscript\(\s*Boolean\(audioBlob\),serverSttConfiguredRef\.current===true,/);
+  assert.match(ui,/server_verifier=scheduled/);
+  assert.doesNotMatch(ui,/server_verifier=skipped/);
+  assert.doesNotMatch(ui,/const needsServerFinal = Boolean\(audioBlob\)[\s\S]{0,140}!q;/);
 });
 
 test('AvalAI final transcript corrects a plausible but wrong browser product code',()=>{
   const browser='برای خط تولید بلبرینگ 6303 ZZ می‌خواهم';
   const avalai='برای خط تولید بلبرینگ 6203 ZZ می‌خواهم';
   assert.equal(chooseForzaFinalTranscript(browser,avalai,true),avalai);
+});
+
+test('AvalAI final transcript removes long hallucinated Persian suffixes from browser STT',()=>{
+  const browser='سلام خوبی چه خبر چه خبر خوبی زن عشق کون عزیزم عزیزم جون من ارزش قائلم';
+  const avalai='سلام خوبی چه خبر خوبی';
+  assert.equal(chooseForzaFinalTranscript(browser,avalai,true),avalai);
+});
+
+test('AvalAI trusts a complete short multiword correction over a long noisy browser transcript',()=>{
+  const browser='سلام خوبی چه خبر چه خبر خوبی زن عشق کون عزیزم عزیزم جون من ارزش قائلم';
+  assert.equal(chooseForzaFinalTranscript(browser,'تسمه تایمینگ',true),'تسمه تایمینگ');
 });
 
 test('AvalAI final transcript does not replace a complete browser turn with a tiny fragment',()=>{
