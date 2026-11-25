@@ -142,6 +142,7 @@ const {chromium}=require('playwright');
   if(nextCandidateIndex>=0){
    const previousRegion=queries[0].region;
    await candidateButtons.nth(nextCandidateIndex).click();
+   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='true',null,{timeout:10000});
    await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
    assert.equal(queries.length,2,'selecting another detected object must automatically run a new search');
    assert.ok(queries[1].region,'second object search must use its own detected region');
