@@ -140,6 +140,7 @@ test('multi-part lens auto-selects a detected object and starts catalog search w
   assert.ok(review.includes("import { Link } from 'react-router-dom'"));
   assert.ok(review.includes('to={productHref}'));
   assert.ok(review.includes('onSelectProduct(item.id)'));
+  assert.ok(review.includes('onClose();'),'opening a product must close the image review overlay');
   assert.ok(review.includes("aria-label={'مشاهده صفحه محصول ' + item.name}"));
   assert.ok(!review.includes('onOpenProduct'));
   assert.ok(!modal.includes('onOpenProduct='));
