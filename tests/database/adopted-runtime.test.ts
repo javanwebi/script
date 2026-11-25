@@ -494,3 +494,24 @@ test('adopted runtime exposes belt identity metadata without widening unrelated 
  assert.equal(bearing.variants[0].identitySpecs,undefined);
  assert.equal(bearing.variants[0].variableSpecs,undefined);
 }finally{await db.close();}});
+
+test('adopted runtime excludes belt-category false positives and belt-welding tools from identity hydration',async()=>{const db=await adoptedDatabase();const sql=db as unknown as SqlClient;try{
+ await saveAdoptedProducts(sql,[
+  {code:'actual-belt-family',name:'تسمه V شکل صنعتی',categorySlug:'excel-v2-1-1',categoryName:'تسمه و انتقال نیرو',subcategory:'تسمه V شکل',variants:[{code:'SPB-2000',name:'SPB 2000'}]},
+  {code:'category-false-positive',name:'بلبرینگ شیار عمیق',categorySlug:'excel-v2-1-1',categoryName:'تسمه و انتقال نیرو',subcategory:'بلبرینگ',variants:[{code:'6202ZZ',name:'6202ZZ'}]},
+  {code:'belt-tool-family',name:'دستگاه جوش تسمه',categorySlug:'excel-v2-1-1',categoryName:'تسمه و انتقال نیرو',subcategory:'تجهیزات جوش',variants:[{code:'TOOL-1',name:'دستگاه جوش تسمه'}]}
+ ]);
+ await db.query("update public.catalog_variants set identity_specs=$1::jsonb,variable_specs=$2::jsonb where code='SPB-2000'",[JSON.stringify({profile:'SPB'}),JSON.stringify({beltDivision:'vbelt-wedge'})]);
+ await db.query("update public.catalog_variants set identity_specs=$1::jsonb,variable_specs=$2::jsonb where code='6202ZZ'",[JSON.stringify({profile:'6202'}),JSON.stringify({bearingType:'deep-groove'})]);
+ await db.query("update public.catalog_variants set identity_specs=$1::jsonb,variable_specs=$2::jsonb where code='TOOL-1'",[JSON.stringify({productType:'دستگاه جوش تسمه'}),JSON.stringify({beltDivision:'belt-welding-tool'})]);
+ const products=await readAdoptedProducts(sql,{includeTechnicalReviews:false});
+ const belt=products.find((item:any)=>item.code==='actual-belt-family');
+ const other=products.find((item:any)=>item.code==='category-false-positive');
+ const tool=products.find((item:any)=>item.code==='belt-tool-family');
+ assert.deepEqual(belt.variants[0].identitySpecs,{profile:'SPB'});
+ assert.deepEqual(belt.variants[0].variableSpecs,{beltDivision:'vbelt-wedge'});
+ assert.equal(other.variants[0].identitySpecs,undefined);
+ assert.equal(other.variants[0].variableSpecs,undefined);
+ assert.equal(tool.variants[0].identitySpecs,undefined);
+ assert.equal(tool.variants[0].variableSpecs,undefined);
+}finally{await db.close();}});

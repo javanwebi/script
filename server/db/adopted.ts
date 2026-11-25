@@ -292,10 +292,20 @@ export async function readAdoptedProducts(client:SqlClient,options:{includeTechn
   client.query('select * from public.catalog_gallery_images order by sort_order,id')
  ]);
  const families=familyResult.rows,variants=variantResult.rows,images=imageResult.rows;
+ const variantsByFamily=new Map<string,Row[]>();
+ for(const variant of variants){
+  const key=String(variant.family_code),list=variantsByFamily.get(key)||[];
+  list.push(variant);variantsByFamily.set(key,list);
+ }
  const beltFamilyCodes=new Set(families.filter(f=>{
-  const identity=[f.name,f.subcategory,f.submenu,f.category_name,f.category_slug].filter(Boolean).join(' ');
-  const excluded=[f.name,f.subcategory,f.submenu].filter(Boolean).join(' ');
-  return (/تسمه|belt/i.test(identity) || /^excel-v2-1-[1-4]$/i.test(String(f.category_slug || ''))) && !/پولی|pulley|فلکه|قرقره/i.test(excluded);
+  const label=[f.name,f.subcategory,f.submenu].filter(Boolean).join(' ');
+  const rows=variantsByFamily.get(String(f.code))||[];
+  const divisions=rows.map(v=>String(v.variable_specs?.beltDivision||'').trim()).filter(Boolean);
+  const productTypes=rows.map(v=>String(v.identity_specs?.productType||''));
+  const excludedLabel=/پولی|pulley|فلکه|قرقره|دستگاه\s*جوش|تجهیزات?\s*جوش/i.test(label);
+  const excludedDivision=divisions.some(value=>/^(?:non-belt-|service-ambiguous$|belt-welding-tool$)/i.test(value));
+  const beltEvidence=/تسمه|belt/i.test(label)||/(?:belt|تسمه|vbelt|timing|ribbed|welded-pu)/i.test(divisions.join(' '))||/تسمه|belt/i.test(productTypes.join(' '));
+  return !excludedLabel&&!excludedDivision&&beltEvidence;
  }).map(f=>String(f.code)));
  const byFamily=new Map<string,Row[]>(),gallery=new Map<string,Row[]>();
  for(const v of variants){const prices={base:toman(v.base_price,v.currency),retail:toman(v.retail_price || v.price,v.currency),wholesale:toman(v.wholesale_price,v.currency),dealer:toman(v.dealer_price,v.currency)};const dto={...v.runtime_payload,code:v.code,name:v.name,size:v.size || '',model:v.model,brand:v.brand,unit:v.unit,active:v.active,images:v.images,technicalSpecs:v.technical_specs,...(beltFamilyCodes.has(String(v.family_code))?{identitySpecs:v.identity_specs || {},variableSpecs:v.variable_specs || {}}:{}),...(includeTechnicalReviews?{technicalReview:v.technical_review}:{}),prices,price:prices.retail,stock:Math.max(0,Number(v.stock || 0)-Number(v.stock_reserved || 0)),stockKnown:v.stock_known===true,inquiryOnly:v.inquiry_only!==false};const list=byFamily.get(v.family_code) || [];list.push(dto);byFamily.set(v.family_code,list);}

@@ -11,6 +11,20 @@ function normalizeMarking(value:unknown):string{
  return String(value??'').normalize('NFKC').replace(/[۰-۹]/g,d=>String(p.indexOf(d))).replace(/[٠-٩]/g,d=>String(a.indexOf(d))).replace(/[×✕]/g,'X').replace(/[–—]/g,'-').replace(/[\u200c\u200d\u200e\u200f]/g,' ').toUpperCase().replace(/[^A-Z0-9\u0600-\u06ff. -]+/g,' ').replace(/\s+/g,' ').trim();
 }
 function normalizeCode(value:unknown):string{return normalizeMarking(value).replace(/[^A-Z0-9]/g,'');}
+function markingContainsCode(markingText:string,code:string):boolean{
+ const expected=normalizeCode(code);
+ if(!expected)return false;
+ const tokens=normalizeMarking(markingText).split(/[^A-Z0-9]+/).filter(Boolean);
+ for(let start=0;start<tokens.length;start++){
+  let combined='';
+  for(let end=start;end<tokens.length&&combined.length<expected.length;end++){
+   combined+=tokens[end];
+   if(combined===expected)return true;
+   if(!expected.startsWith(combined))break;
+  }
+ }
+ return false;
+}
 function profileKind(profile:string):BeltKind{
  if(/^(SPZ|SPA|SPB|SPC|XPZ|XPA|XPB|XPC|3V|3VX|5V|5VX|8V|8VX|ZX|AX|BX|CX|AA|BB|CC|Z|A|B|C|D|E)$/.test(profile))return 'v-belt';
  if(/^(PH|PJ|PK|PL|PM)$/.test(profile))return 'ribbed';
@@ -44,10 +58,17 @@ export function parseBeltMarkings(markings:Marking[]):ProfileEvidence|undefined{
  return {...(selected||{profile:'',kind:'unknown' as BeltKind,evidence:usable[0].text.trim().slice(0,80),confidence:usable[0].confidence}),nominalPitchMm:selected?.nominalPitchMm??(explicitPitch?Number(explicitPitch[1]):undefined),lengthMarking:selected?.lengthMarking||explicitLength?.[1],evidence:selected?.evidence||usable[0].text.trim().slice(0,80),confidence:selected?.confidence??usable[0].confidence,brandMarking:brand};
 }
 function isBeltFamily(product:Product):boolean{
- const identity=[product.name,product.nameEn,product.subcategory,product.submenu,product.categoryName,product.categorySlug,product.profiles].filter(Boolean).join(' ');
- const excluded=[product.name,product.subcategory,product.submenu].filter(Boolean).join(' ');
- const hasDivision=(product.variants||[]).some(v=>/belt|تسمه|vbelt|timing/i.test(String(v.variableSpecs?.beltDivision||'')+' '+String(v.identitySpecs?.productType||'')));
- return !/پولی|pulley|فلکه|قرقره/i.test(excluded)&&(/تسمه|belt/i.test(identity)||hasDivision||/^excel-v2-1-[1-4]$/i.test(String(product.categorySlug||'')));
+ const familyLabel=[product.name,product.nameEn,product.subcategory,product.submenu].filter(Boolean).join(' ');
+ const excludedLabel=/پولی|pulley|فلکه|قرقره|دستگاه\s*جوش|تجهیزات?\s*جوش/i.test(familyLabel);
+ const variants=product.variants||[];
+ const divisions=variants.map(v=>String(v.variableSpecs?.beltDivision||'').trim()).filter(Boolean);
+ const excludedDivision=divisions.some(value=>/^(?:non-belt-|service-ambiguous$|belt-welding-tool$)/i.test(value));
+ const hasBeltDivision=variants.some(v=>{
+  const division=String(v.variableSpecs?.beltDivision||'');
+  const productType=String(v.identitySpecs?.productType||'');
+  return /(?:belt|تسمه|vbelt|timing|ribbed|welded-pu)/i.test(division)||/تسمه|belt/i.test(productType);
+ });
+ return !excludedLabel&&!excludedDivision&&(/تسمه|belt/i.test(familyLabel)||hasBeltDivision);
 }
 function addKnownProfiles(target:Set<string>,value:unknown):void{
  if(value===undefined||value===null)return;
@@ -74,21 +95,32 @@ export function applyBeltRecognition(result:AiPartAnalysisResult,products:Produc
  const variants=new Map<string,{family:Product;variant:ProductVariant}>();
  for(const family of beltFamilies)for(const variant of family.variants||[])if(variant.active!==false&&variant.code?.trim())variants.set(variant.code,{family,variant});
  const parsed=parseBeltMarkings(markings),candidateCodes=new Set<string>();
- for(const item of result.modelSuggestions||[])candidateCodes.add(item.familyCode);
+ // Accepted visual candidates only. Exploratory nearest neighbours are not proof that the object is a belt.
+ for(const item of result.modelSuggestions||[])if(item.matchBasis!=='explore')candidateCodes.add(item.familyCode);
  for(const photo of result.catalogImageMatches||[])for(const binding of photo.bindings||[])candidateCodes.add(binding.familyCode);
- for(const item of result.similarCandidates||[]){const owner=item.code?variants.get(item.code):undefined;if(owner)candidateCodes.add(owner.family.code);}
- for(const item of result.nearestCatalogSuggestions||[])candidateCodes.add(item.familyCode);
+ for(const item of result.similarCandidates||[]){
+  if(item.isVisualMatch!==true)continue;
+  const owner=item.code?variants.get(item.code):undefined;
+  if(owner)candidateCodes.add(owner.family.code);
+ }
  const hasVisualBeltEvidence=[...candidateCodes].some(code=>families.has(code));
  const statuses=new Map<string,'match'|'conflict'|'unknown'>();
  for(const code of candidateCodes){const family=families.get(code);if(family)statuses.set(code,familyProfileStatus(family,parsed?.profile));}
  const allowedCodes=new Set([...statuses.entries()].filter(([,status])=>status!=='conflict').map(([code])=>code));
  const candidateMarkings=markings.filter(m=>Number.isFinite(m.confidence)&&m.confidence>=85),codeMatches=new Set<string>();
- for(const marking of candidateMarkings){const normalized=normalizeCode(marking.text);if(!normalized)continue;const owners=[...variants.entries()].filter(([,entry])=>normalizeCode(entry.variant.code)===normalized);if(owners.length===1&&allowedCodes.has(owners[0][1].family.code))codeMatches.add(owners[0][1].variant.code);}
+ for(const marking of candidateMarkings){
+  const owners=[...variants.entries()].filter(([,entry])=>markingContainsCode(marking.text,entry.variant.code));
+  if(owners.length===1&&allowedCodes.has(owners[0][1].family.code))codeMatches.add(owners[0][1].variant.code);
+ }
  const familyOrder=(code:string)=>statuses.get(code)==='match'?0:1;
  const modelSuggestions=(result.modelSuggestions||[]).filter(item=>allowedCodes.has(item.familyCode)).map(item=>{
   const status=statuses.get(item.familyCode)||'unknown',note=parsed?.profile?suggestionReason(status,parsed.profile):'فقط شباهت تصویری خانواده بررسی شده است؛ پروفیل و سازگاری فنی تأیید نشده‌اند.';
   return {...item,reason:item.reason+' '+note};
  }).sort((a,b)=>familyOrder(a.familyCode)-familyOrder(b.familyCode)||(a.matchBasis==='read_code'?-1:0)-(b.matchBasis==='read_code'?-1:0));
+ const matchedProducts=(result.matchedProducts||[]).filter(item=>{
+  const owner=variants.get(item.code);
+  return Boolean(owner&&allowedCodes.has(owner.family.code));
+ });
  const familyByVariant=new Map<string,string>();for(const [code,owner] of variants)familyByVariant.set(code,owner.family.code);
  const similarCandidates=(result.similarCandidates||[]).filter(item=>Boolean(item.code&&allowedCodes.has(familyByVariant.get(item.code)||''))).map(item=>{
   const family=families.get(familyByVariant.get(item.code!)!)!,status=statuses.get(family.code)||'unknown',note=parsed?.profile?suggestionReason(status,parsed.profile):'این گزینه فقط از نظر تصویر به خانواده نزدیک است؛ پروفیل و سازگاری فنی تأیید نشده‌اند.';
@@ -107,7 +139,7 @@ export function applyBeltRecognition(result:AiPartAnalysisResult,products:Produc
   const status=statuses.get(family.code)||'unknown',readCode=[...codeMatches].some(code=>variants.get(code)?.family.code===family.code),profiles=catalogProfiles(family);
   return {familyCode:family.code,familyName:family.name,profile:profiles.join(' / ')||undefined,basis:readCode?'read-code' as const:status==='match'?'profile' as const:'visual-family' as const};
  });
- const profileMatchStatus:BeltRecognitionAnalysis['profileMatchStatus']=!parsed?.profile?'not-read':candidateFamilies.some(item=>statuses.get(item.familyCode)==='match')?'matched':candidateFamilies.some(item=>statuses.get(item.familyCode)==='unknown')?'unverified':'not-matched';
+ const profileMatchStatus:BeltRecognitionAnalysis['profileMatchStatus']=!parsed?.profile?'not-read':!hasVisualBeltEvidence?'unverified':candidateFamilies.some(item=>statuses.get(item.familyCode)==='match')?'matched':candidateFamilies.some(item=>statuses.get(item.familyCode)==='unknown')?'unverified':'not-matched';
  const codeList=[...codeMatches].slice(0,6),evidence=[...(parsed?.evidence?['مارکینگ خوانده‌شده: '+parsed.evidence]:[]),...(parsed?.profile?['پروفیل استخراج‌شده: '+parsed.profile]:[]),...(codeList.length?['کدهای یکتای متصل به خانواده تصویری: '+codeList.join('، ')]:[])];
  const note=!hasVisualBeltEvidence?(parsed?.profile?'مارکینگ '+parsed.profile+' خوانده شد، اما تصویر به خانواده‌های تسمه شباهت کافی نشان نداد؛ برای جلوگیری از پیشنهاد اشتباه، نوع تسمه تأیید نمی‌شود.':'تصویر به خانواده‌های تسمه شباهت کافی نشان نداد؛ ابتدا باید تسمه بودن قطعه از روی تصویر تأیید شود.') : profileMatchStatus==='matched'?'پروفیل خوانده‌شده با اطلاعات هویتی حداقل یک خانواده تصویری تسمه هم‌خوان است. این تطبیق هنوز طول مرجع، تعداد دندانه، عرض، جنس و سازگاری با دستگاه را تأیید نمی‌کند.':profileMatchStatus==='unverified'?'پروفیل از مارکینگ استخراج شد، اما اطلاعات هویتی خانواده‌های نزدیک برای تأیید یا رد آن کامل نیست؛ بررسی مهندسی لازم است.':profileMatchStatus==='not-matched'?'پروفیل خوانده‌شده با پروفیل‌های ثبت‌شده خانواده‌های تصویری هم‌خوان نیست؛ نامزدهای متناقض از پیشنهادهای اصلی حذف شدند.':candidateFamilies.length?'خانواده‌های تسمه از نظر تصویر نزدیک‌اند، اما مارکینگ خوانا برای تأیید پروفیل در دسترس نیست.':'در این تصویر، خانواده تسمه با شواهد کافی در کاتالوگ پیدا نشد. تصویر واضح‌تر از سطح نوشته‌دار یا کد فنی لازم است.';
  const observedSpecifications=[...(result.summary.observedSpecifications||[])];
@@ -117,8 +149,16 @@ export function applyBeltRecognition(result:AiPartAnalysisResult,products:Produc
  const pitchWasPrinted=candidateMarkings.some(m=>/(?:PITCH|GAM|گام)/i.test(normalizeMarking(m.text)));
  if(parsed?.nominalPitchMm&&pitchWasPrinted)observedSpecifications.push({name:'گام نوشته‌شده',value:String(parsed.nominalPitchMm)+' mm',evidence:parsed.evidence,source:'visible_marking'});
  const detectedPartType=hasVisualBeltEvidence?(parsed?.profile?beltTypeLabel(parsed.kind):'تسمه صنعتی'):'تطبیق تصویری تسمه تأیید نشد';
- const summaryText=candidateFamilies.length?'در مسیر تخصصی تسمه، '+candidateFamilies.length+' خانواده قابل بررسی از کاتالوگ پیدا شد. شباهت تصویر و مارکینگ باید جداگانه از نظر فنی تأیید شوند.':'تصویر در مسیر تخصصی تسمه بررسی شد، اما تطبیق تصویری کافی با خانواده‌های فعال تسمه پیدا نشد.';
- const catalogAvailability=candidateFamilies.length?{status:'similar_in_catalog' as const,statusFarsiTitle:profileMatchStatus==='matched'?'پروفیل هم‌خوان در کاتالوگ':'خانواده مشابه تسمه در کاتالوگ',statusFarsiMessage:note}:{status:'custom_order_available' as const,statusFarsiTitle:'تطبیق تسمه پیدا نشد',statusFarsiMessage:'در این جستجو تطبیق قابل اتکایی پیدا نشد. این نتیجه به معنی تأیید موجودی یا امکان ساخت سفارشی نیست؛ برای ادامه، عکس واضح‌تر، کد یا اندازه‌های واقعی لازم است.'};
+ const summaryText=!hasVisualBeltEvidence
+  ?'تصویر با خانواده‌های فعال تسمه در کاتالوگ تطبیق تصویری کافی ندارد؛ نوع تسمه و سازگاری آن تأیید نشده است.'
+  :candidateFamilies.length
+   ?'در مسیر تخصصی تسمه، '+candidateFamilies.length+' خانواده قابل بررسی از کاتالوگ پیدا شد. شباهت تصویر و مارکینگ باید جداگانه از نظر فنی تأیید شوند.'
+   :'تصویر به خانواده‌های تسمه نزدیک بود، اما پروفیل خوانده‌شده با اطلاعات هویتی خانواده‌های نزدیک هم‌خوانی ندارد.';
+ const originalDescription=hasVisualBeltEvidence?(result.summary.whatYouSee||result.summary.visualAnalysis||''):'';
+ const combinedDescription=[originalDescription,summaryText].filter((value,index,array)=>Boolean(value)&&array.indexOf(value)===index).join(' ');
+ const catalogAvailability=candidateFamilies.length
+  ?{status:'similar_in_catalog' as const,statusFarsiTitle:profileMatchStatus==='matched'?'پروفیل هم‌خوان در کاتالوگ':'خانواده مشابه تسمه در کاتالوگ',statusFarsiMessage:note}
+  :{status:'custom_order_available' as const,statusFarsiTitle:hasVisualBeltEvidence?'پروفیل با خانواده‌های نزدیک هم‌خوان نیست':'تطبیق تصویری تسمه پیدا نشد',statusFarsiMessage:note+' این نتیجه به معنی تأیید موجودی یا امکان ساخت سفارشی نیست.'};
  const beltAnalysis:BeltRecognitionAnalysis={beltType:hasVisualBeltEvidence?(parsed?.kind||'unknown'):'unknown',beltTypeLabel:detectedPartType,visualBeltConfirmed:hasVisualBeltEvidence,profile:parsed?.profile||undefined,nominalPitchMm:parsed?.nominalPitchMm,lengthMarking:parsed?.lengthMarking,brandMarking,codeMatches:codeList,profileMatchStatus,candidateFamilies,evidence,note};
- return {...result,modelSuggestions,similarCandidates,catalogImageMatches,nearestCatalogSuggestions,beltAnalysis,summary:{...result.summary,whatYouSee:summaryText,detectedPartType,partFamilyFarsi:hasVisualBeltEvidence?'تسمه صنعتی':'نیازمند بررسی',detectedProfile:parsed?.profile||'از روی مارکینگ قابل خواندن نبود',observedSpecifications:observedSpecifications.length?observedSpecifications.slice(0,8):undefined,catalogAvailability,exactVisualMatch:false,confidence:0,visualAnalysis:summaryText},technicalAdvice:!hasVisualBeltEvidence?(parsed?.profile?'مارکینگ '+parsed.profile+' خوانده شد، اما تصویر برای تأیید تسمه بودن قطعه کافی نیست؛ عکس واضح‌تر از کل قطعه و سطح نوشته‌دار لازم است.':'تصویر به خانواده‌های تسمه شباهت کافی نشان نداد؛ مطمئن شوید تصویر مربوط به تسمه است و از بدنه و سطح نوشته‌دار عکس واضح بگیرید.') : parsed?.profile?'پروفیل '+parsed.profile+' از مارکینگ استخراج شد. '+(parsed.nominalPitchMm?'گام اسمی استاندارد این پروفیل '+parsed.nominalPitchMm+' میلی‌متر است؛ این مقدار جای اندازه‌گیری واقعی را نمی‌گیرد. ':'')+(parsed.lengthMarking?'عدد '+parsed.lengthMarking+' به‌عنوان مارکینگ طول ثبت شد؛ مبنای Li/La/Ld/Lp از این نوشته به‌تنهایی قطعی نیست. ':'')+'پیش از انتخاب، طول مرجع، عرض، تعداد دندانه، ساختار و شرایط کاری را با دیتاشیت یا اندازه‌گیری تأیید کنید.':'مارکینگ برای تشخیص قطعی پروفیل کافی نبود. از سطح نوشته‌دار عکس نزدیک‌تر بگیرید و در صورت امکان طول مرجع، عرض، تعداد دندانه و شرایط کاری را اعلام کنید.',catalogSearchWarning:[result.catalogSearchWarning,'در مسیر تخصصی تسمه، خانواده‌های غیرتسمه از پیشنهادها حذف شده‌اند. OCR ممکن است خطا داشته باشد و شباهت تصویری به‌تنهایی تأیید هویت یا سازگاری نیست.'].filter(Boolean).join(' ')};
+ return {...result,matchedProducts,modelSuggestions,similarCandidates,catalogImageMatches,nearestCatalogSuggestions,beltAnalysis,summary:{...result.summary,whatYouSee:combinedDescription,detectedPartType,partFamilyFarsi:hasVisualBeltEvidence?'تسمه صنعتی':'نیازمند بررسی',detectedProfile:parsed?.profile||'از روی مارکینگ قابل خواندن نبود',observedSpecifications:observedSpecifications.length?observedSpecifications.slice(0,8):undefined,catalogAvailability,exactVisualMatch:false,confidence:0,visualAnalysis:combinedDescription},technicalAdvice:!hasVisualBeltEvidence?(parsed?.profile?'مارکینگ '+parsed.profile+' خوانده شد، اما تصویر برای تأیید تسمه بودن قطعه کافی نیست؛ عکس واضح‌تر از کل قطعه و سطح نوشته‌دار لازم است.':'تصویر به خانواده‌های تسمه شباهت کافی نشان نداد؛ مطمئن شوید تصویر مربوط به تسمه است و از بدنه و سطح نوشته‌دار عکس واضح بگیرید.') : profileMatchStatus==='not-matched'?'پروفیل '+(parsed?.profile||'خوانده‌شده')+' با پروفیل‌های ثبت‌شده در خانواده‌های تصویری نزدیک هم‌خوان نیست؛ قبل از انتخاب، مارکینگ و اندازه‌ها را دوباره بررسی کنید.':parsed?.profile?'پروفیل '+parsed.profile+' از مارکینگ استخراج شد. '+(parsed.nominalPitchMm?'گام اسمی استاندارد این پروفیل '+parsed.nominalPitchMm+' میلی‌متر است؛ این مقدار جای اندازه‌گیری واقعی را نمی‌گیرد. ':'')+(parsed.lengthMarking?'عدد '+parsed.lengthMarking+' به‌عنوان مارکینگ طول ثبت شد؛ مبنای Li/La/Ld/Lp از این نوشته به‌تنهایی قطعی نیست. ':'')+'پیش از انتخاب، طول مرجع، عرض، تعداد دندانه، ساختار و شرایط کاری را با دیتاشیت یا اندازه‌گیری تأیید کنید.':'مارکینگ برای تشخیص قطعی پروفیل کافی نبود. از سطح نوشته‌دار عکس نزدیک‌تر بگیرید و در صورت امکان طول مرجع، عرض، تعداد دندانه و شرایط کاری را اعلام کنید.',catalogSearchWarning:[result.catalogSearchWarning,'در مسیر تخصصی تسمه، خانواده‌های غیرتسمه از پیشنهادها حذف شده‌اند. OCR ممکن است خطا داشته باشد و شباهت تصویری به‌تنهایی تأیید هویت یا سازگاری نیست.'].filter(Boolean).join(' ')};
 }

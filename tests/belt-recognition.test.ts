@@ -31,3 +31,21 @@ test('a non-belt visual result is not relabelled as an industrial belt',()=>{
  assert.deepEqual(result.modelSuggestions,[]);
  assert.deepEqual(result.similarCandidates,[]);
 });
+
+test('combined brand and profile marking can still match an exact SKU token sequence',()=>{
+ const result=applyBeltRecognition(resultFor('belt-family','SPB-2000'),products,[{text:'SWR SPB 2000',confidence:97}]);
+ assert.deepEqual(result.beltAnalysis?.codeMatches,['SPB-2000']);
+});
+test('exploratory nearest neighbours do not confirm that the photographed object is a belt',()=>{
+ const base=resultFor('belt-family','SPB-2000');
+ const result=applyBeltRecognition({...base,modelSuggestions:[],similarCandidates:[],catalogImageMatches:[],nearestCatalogSuggestions:[{name:'تسمه V شکل صنعتی',familyCode:'belt-family',familyName:'تسمه V شکل صنعتی',imageScope:'family',matchBasis:'explore',specs:[],reason:'نزدیک‌ترین نتیجه'}]},products,[{text:'SPB 2000',confidence:97}]);
+ assert.equal(result.beltAnalysis?.visualBeltConfirmed,false);
+ assert.equal(result.beltAnalysis?.profileMatchStatus,'unverified');
+ assert.equal(result.summary.detectedPartType,'تطبیق تصویری تسمه تأیید نشد');
+ assert.deepEqual(result.nearestCatalogSuggestions,[]);
+});
+test('welding tools and ambiguous service families are excluded from belt identity',()=>{
+ const tool={code:'tool-family',name:'دستگاه جوش تسمه',brand:'',categorySlug:'excel-v2-1-1',categoryName:'تسمه و انتقال نیرو',subcategory:'تجهیزات جوش',active:true,variants:[{code:'TOOL-1',name:'دستگاه جوش تسمه',active:true,variableSpecs:{beltDivision:'belt-welding-tool'}}]} as Product;
+ const result=applyBeltRecognition(resultFor('belt-family','SPB-2000'),[...products,tool],[{text:'SPB 2000',confidence:97}]);
+ assert.equal(result.beltAnalysis?.candidateFamilies.some(item=>item.familyCode==='tool-family'),false);
+});
