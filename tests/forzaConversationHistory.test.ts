@@ -69,5 +69,5 @@ test('the session transcript starts a new line for every utterance, including a 
   const first=appendForzaSessionTurn('','سلام');
   const second=appendForzaSessionTurn(first,'سلام');
   const third=appendForzaSessionTurn(second,'برای خط تولید تسمه می‌خواهم');
-  assert.equal(third,'سلام\\nسلام\\nبرای خط تولید تسمه می‌خواهم');
+  assert.equal(third,['سلام','سلام','برای خط تولید تسمه می‌خواهم'].join('\\n'));
 });
