@@ -93,7 +93,7 @@ async function handleRequest(request: WorkerRequest): Promise<void> {
     let foregroundPixels = 0;
     for (let i = 0; i < width * height; i++) {
       const alpha = alphaMask[i];
-      if (alpha >= 110) foregroundPixels++;
+      if (alpha >= 76) foregroundPixels++;
       const a = alpha / 255;
       const inverse = 1 - a;
       const offset = i * 4;
