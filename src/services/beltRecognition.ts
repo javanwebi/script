@@ -1,5 +1,6 @@
 import type { Product, ProductVariant } from '../types';
 import type { AiPartAnalysisResult, BeltRecognitionAnalysis } from './aiVisualSearchService';
+import { isIndustrialBeltProduct } from '../utils/industrialBeltScope';
 type Marking={text:string;confidence:number};
 type BeltKind=BeltRecognitionAnalysis['beltType'];
 type ProfileEvidence={profile:string;kind:BeltKind;evidence:string;confidence:number;nominalPitchMm?:number;lengthMarking?:string;brandMarking?:string};
@@ -57,19 +58,6 @@ export function parseBeltMarkings(markings:Marking[]):ProfileEvidence|undefined{
  if(!selected&&!explicitPitch&&!explicitLength&&!brand)return undefined;
  return {...(selected||{profile:'',kind:'unknown' as BeltKind,evidence:usable[0].text.trim().slice(0,80),confidence:usable[0].confidence}),nominalPitchMm:selected?.nominalPitchMm??(explicitPitch?Number(explicitPitch[1]):undefined),lengthMarking:selected?.lengthMarking||explicitLength?.[1],evidence:selected?.evidence||usable[0].text.trim().slice(0,80),confidence:selected?.confidence??usable[0].confidence,brandMarking:brand};
 }
-function isBeltFamily(product:Product):boolean{
- const familyLabel=[product.name,product.nameEn,product.subcategory,product.submenu].filter(Boolean).join(' ');
- const excludedLabel=/پولی|pulley|فلکه|قرقره|دستگاه\s*جوش|تجهیزات?\s*جوش/i.test(familyLabel);
- const variants=product.variants||[];
- const divisions=variants.map(v=>String(v.variableSpecs?.beltDivision||'').trim()).filter(Boolean);
- const excludedDivision=divisions.some(value=>/^(?:non-belt-|service-ambiguous$|belt-welding-tool$)/i.test(value));
- const hasBeltDivision=variants.some(v=>{
-  const division=String(v.variableSpecs?.beltDivision||'');
-  const productType=String(v.identitySpecs?.productType||'');
-  return /(?:belt|تسمه|vbelt|timing|ribbed|welded-pu)/i.test(division)||/تسمه|belt/i.test(productType);
- });
- return !excludedLabel&&!excludedDivision&&(/تسمه|belt/i.test(familyLabel)||hasBeltDivision);
-}
 function addKnownProfiles(target:Set<string>,value:unknown):void{
  if(value===undefined||value===null)return;
  const text=normalizeMarking(value);
@@ -90,7 +78,7 @@ function suggestionReason(status:'match'|'conflict'|'unknown',profile?:string):s
  return 'پروفیل خوانده‌شده با مشخصات این خانواده هم‌خوان نیست.';
 }
 export function applyBeltRecognition(result:AiPartAnalysisResult,products:Product[],markings:Marking[]):AiPartAnalysisResult{
- const beltFamilies=products.filter(p=>p.active!==false&&isBeltFamily(p)),families=new Map<string,Product>();
+ const beltFamilies=products.filter(p=>p.active!==false&&isIndustrialBeltProduct(p)),families=new Map<string,Product>();
  for(const family of beltFamilies)families.set(family.code,family);
  const variants=new Map<string,{family:Product;variant:ProductVariant}>();
  for(const family of beltFamilies)for(const variant of family.variants||[])if(variant.active!==false&&variant.code?.trim())variants.set(variant.code,{family,variant});

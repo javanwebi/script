@@ -15,15 +15,15 @@ test('industrial belt family is recognized from its product identity and belt di
     subcategory: 'SPB',
     active: true,
     variants: [{ code: 'SPB-2000', variableSpecs: { beltDivision: 'vbelt-wedge' } }]
-  } as Product;
+  } as unknown as Product;
   assert.equal(isIndustrialBeltProduct(family), true);
 });
 
 test('pulleys, welding equipment and unrelated product families are excluded', () => {
   const base = { brand: 'Generic', categorySlug: 'excel-v2-1-1', categoryName: 'تسمه و انتقال نیرو', active: true, variants: [] };
-  assert.equal(isIndustrialBeltProduct({ ...base, code: 'pulley', name: 'پولی تایمینگ', subcategory: 'پولی' } as Product), false);
-  assert.equal(isIndustrialBeltProduct({ ...base, code: 'welding-tool', name: 'دستگاه جوش تسمه', subcategory: 'تجهیزات جوش' } as Product), false);
-  assert.equal(isIndustrialBeltProduct({ ...base, code: 'bearing', name: 'بلبرینگ شیار عمیق', categorySlug: 'bearings', categoryName: 'قطعات مکانیکی', subcategory: 'بلبرینگ' } as Product), false);
+  assert.equal(isIndustrialBeltProduct({ ...base, code: 'pulley', name: 'پولی تایمینگ', subcategory: 'پولی' } as unknown as Product), false);
+  assert.equal(isIndustrialBeltProduct({ ...base, code: 'welding-tool', name: 'دستگاه جوش تسمه', subcategory: 'تجهیزات جوش' } as unknown as Product), false);
+  assert.equal(isIndustrialBeltProduct({ ...base, code: 'bearing', name: 'بلبرینگ شیار عمیق', categorySlug: 'bearings', categoryName: 'قطعات مکانیکی', subcategory: 'بلبرینگ' } as unknown as Product), false);
 });
 
 test('direct belt SKU search recognizes belt markings and rejects unrelated codes', () => {
