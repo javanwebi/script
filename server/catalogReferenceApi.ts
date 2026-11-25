@@ -158,7 +158,7 @@ async function loadSnapshot(): Promise<Snapshot> {
   for (const assignment of e869Assignments) {
     const skuCode = normalizeCode(assignment?.skuCode);
     const imageUrl = String(assignment?.url || '').trim();
-    const imageNumberMatch = imageUrl.match(/^\\/storage\\/products\\/catalog\\/e\\((\\d+)\\)\\.png$/i);
+    const imageNumberMatch = imageUrl.match(/^\/storage\/products\/catalog\/e\((\d+)\)\.png$/i);
     const imageNumber = imageNumberMatch ? Number(imageNumberMatch[1]) : 0;
     if (
       assignment?.targetKind !== 'variant' ||
