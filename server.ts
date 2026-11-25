@@ -70,6 +70,7 @@ import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmFo
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
 import { applyPrivateForzaConfig } from './server/ai/privateForzaConfig';
+import {resolveForzaQuickVoiceReply} from './server/ai/forzaQuickReply';
 
 dotenv.config();
 // Optional VPS-only private FORZA configuration. The deployment preserves the
@@ -6038,6 +6039,22 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   };
 
   sendEvent({ type: 'start', responseId, userTurnId, timestamp: startedAt });
+
+  // Greetings are transport/voice checks, not engineering questions. Return
+  // them through the normal text-chunk/done path immediately; the browser will
+  // synthesize them with the selected Nima voice and keep the same call history.
+  if(lowLatencyVoice){
+    const quickReply=resolveForzaQuickVoiceReply(String(query||''),history);
+    if(quickReply){
+      sendEvent({type:'provider',responseId,provider:'forza_quick_greeting'});
+      sendEvent({type:'text_chunk',responseId,chunk:quickReply,textSoFar:quickReply});
+      sendEvent({type:'done',responseId,fullText:quickReply});
+      console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
+        ' phase=quick_greeting_complete ms='+(Date.now()-startedAt));
+      return res.end();
+    }
+  }
+
   // Crucial: the initial SSE event is sent before any synchronous catalog
   // preprocessing or outbound model discovery, exposing their real latency.
   const catalogStartedAt=Date.now();
