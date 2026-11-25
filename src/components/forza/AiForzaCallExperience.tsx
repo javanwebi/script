@@ -13,7 +13,7 @@ import {
   Square,
 } from 'lucide-react';
 import type { ParticleAvatarProps, ParticleAvatarRef } from './ParticleAvatar';
-import { checkpointForzaRecognition, extractPersianSpeechSince, appendForzaSpeechSegment, appendForzaSessionTurn, replaceForzaLastSessionTurn, composeForzaSessionTranscript, mapForzaSegmentsInOrder, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
+import { checkpointForzaRecognition, extractPersianSpeechSince, normalizePersianTranscript, appendForzaSpeechSegment, appendForzaSessionTurn, replaceForzaLastSessionTurn, composeForzaSessionTranscript, mapForzaSegmentsInOrder, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { attachForzaAudioEvidence } from '../../utils/forzaAudioEvidence';
