@@ -229,19 +229,22 @@ export function canUseForzaServerFinalTranscript(serverValue: string, failedSegm
  */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
   const normalized=normalizePersianTranscript(text);
-  // No transcript yet is not proof that the customer stopped speaking. Keep
-  // enough time for delayed local/browser ASR hypotheses.
-  if(!normalized)return 6500;
+  // No transcript is not proof of silence; keep a bounded fallback for delayed ASR.
+  if(!normalized)return 3200;
   // Explicit stop/continue commands should interrupt without a long endpoint.
   if(/^(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|توقف|بسه|ساکت|ساکت شو|ادامه بده|ادامه بدید|ادامه)$/.test(normalized))
-    return 650;
+    return 450;
   const analysis = analyzePersianSentenceCompletion(normalized);
-  // A clear, final answer can dispatch quickly. A provisional hypothesis gets
-  // extra time for a late correction (for example 6202 -> 6203).
-  if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?3200:1350;
-  // Preserve more room for clauses, unfinished requests and industrial codes.
-  if(analysis.isMidThought)return hasInterim?5200:4300;
-  return hasInterim?3800:3000;
+  // Complete natural phrases dispatch after a short acoustic confirmation.
+  // Interim text gets a small correction window, not a multi-second STT wait.
+  if(analysis.isComplete&&analysis.confidence>=0.9)
+    return hasInterim?850:Math.max(600,analysis.recommendedPauseMs);
+  // Keep a real continuation window for unfinished clauses and industrial codes,
+  // while avoiding the old 4.3-5.2s delay on ordinary speech.
+  if(analysis.isMidThought)return hasInterim?2200:1600;
+  // Ambiguous fragments (for example a request ending in "را") stay open
+  // long enough for the next clause without freezing a completed sentence.
+  return hasInterim?2400:1500;
 }
 
 /**
@@ -264,13 +267,12 @@ export function forzaTurnRemainingWaitMs(
   // acoustic silence. When VAD is available, retain the normal fast endpoint.
   const requiredMs = baseRequiredMs <= 650
     ? baseRequiredMs
-    : vadSilenceMs === null ? Math.max(baseRequiredMs, 6500) : baseRequiredMs;
-  // Late final ASR hypotheses must not restart the entire acoustic endpoint
-  // window. Preserve the full pause for unfinished thoughts and when no VAD
-  // is available; allow a short revision guard only for completed final text.
+    : vadSilenceMs === null ? Math.max(baseRequiredMs, 2200) : baseRequiredMs;
+  // Late final ASR hypotheses need only a short revision guard once a complete
+  // final transcript and real acoustic silence agree.
   const analysis=analyzePersianSentenceCompletion(text);
   const stableRequiredMs=vadSilenceMs!==null&&!hasInterim&&analysis.isComplete
-    ? Math.min(requiredMs,250) : requiredMs;
+    ? Math.min(requiredMs,180) : requiredMs;
   const textRemaining = stableRequiredMs - Math.max(0, transcriptStableMs);
   const vadRemaining = vadSilenceMs === null ? 0 : requiredMs - Math.max(0, vadSilenceMs);
   return Math.max(0, Math.ceil(textRemaining), Math.ceil(vadRemaining));
