@@ -108,15 +108,22 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
   bindings:row.bindings.filter(b=>{const p=families.get(b.familyCode);return !!p && (!b.code || p.variants?.some(v=>v.code===b.code && v.active!==false));})
  }));
  const seen=new Set<string>();
- // The strongest candidate list keeps explicit bindings; broader, labelled models are returned separately in modelSuggestions.
- const similarCandidates:NonNullable<AiPartAnalysisResult['similarCandidates']>=photoMatches.flatMap(photo=>photo.bindings.flatMap(binding=>{
+ // A catalogue photograph can identify a SKU only when it has exactly one
+ // active SKU binding across the image. Shared photos remain family-level.
+ const similarCandidates:NonNullable<AiPartAnalysisResult['similarCandidates']>=photoMatches.flatMap(photo=>{
+  const owners=new Set(photo.bindings.flatMap(binding=>binding.code?[binding.familyCode+':'+binding.code]:[]));
+  if(owners.size!==1)return [];
+  const ownerKey=[...owners][0];
+  const binding=photo.bindings.find(item=>item.code && item.familyCode+':'+item.code===ownerKey);
+  if(!binding || seen.has(binding.code!))return [];
   const family=families.get(binding.familyCode),variant=family?.variants?.find(v=>v.code===binding.code && v.active!==false);
-  if(!variant || seen.has(variant.code))return [];seen.add(variant.code);
-  return [{code:variant.code,name:variant.name || family!.name,brand:variant.brand || family!.brand || '',type:family!.name,
-   image:photo.image,similarityScore:photo.score,matchReason:photo.reason,matchType:'visual' as const,
+  if(!family || !variant)return [];
+  seen.add(variant.code);
+  return [{code:variant.code,name:variant.name || family.name,brand:variant.brand || family.brand || '',type:family.name,
+   image:photo.image,imageScope:'variant' as const,similarityScore:photo.score,matchReason:photo.reason,matchType:'visual' as const,
    visualVerdict:'very_similar' as const,isVisualMatch:true,specs:variant.technicalSpecs || [],
-   distinction:'کد متصل به تصویر کاتالوگ؛ یکسان‌بودن سایز و مدل با قطعه شما هنوز تأیید نشده است.'}];
- })).slice(0,12);
+   distinction:'تصویر اختصاصی متصل به این کد مشابه است؛ یکسان‌بودن سایز و سازگاری فنی هنوز تأیید نشده است.'}];
+ });
  // A readable code can suggest a real SKU within a visually retrieved family;
  // it is not an invented photo binding and never becomes an exact identity claim.
  for(const marking of query?.markings || []){
@@ -125,8 +132,10 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
   const {family,variant}=matching[0];
   const photo=photoMatches.find(p=>p.bindings.some(b=>b.familyCode===family.code));
   if(!photo || seen.has(variant.code))continue;seen.add(variant.code);
+  const ownVariantImage=variant.images?.[0] || family.galleryImages?.find(image=>image.scope==='variant'&&image.variantCode===variant.code)?.url;
+  const familyPhoto=family.galleryImages?.find(image=>image.scope==='family')?.url || family.images?.[0];
   similarCandidates.unshift({code:variant.code,name:variant.name || family.name,brand:variant.brand || family.brand || '',type:family.name,
-   image:variant.images?.[0] || family.images?.[0] || photo.image,similarityScore:photo.score,
+   image:ownVariantImage || familyPhoto, imageScope:ownVariantImage?'variant':familyPhoto?'family':'none',similarityScore:photo.score,
    matchReason:'کد خوانده‌شده از عکس با این کد کاتالوگ تطبیق دارد و خانواده نیز شباهت تصویری دارد؛ نوشته را کنترل کنید.',
    matchType:'combined',visualVerdict:'very_similar',isVisualMatch:false,specs:variant.technicalSpecs || [],
    distinction:'پیشنهاد بر پایهٔ OCR و شباهت خانواده؛ خواندن کد، اندازه و سازگاری نیاز به تأیید دارند.'});
