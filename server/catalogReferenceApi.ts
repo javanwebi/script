@@ -320,7 +320,7 @@ async function loadSnapshot(): Promise<Snapshot> {
 
   const isUniqueFamilyImageFor = (image: ProductGalleryImage, canonicalCode: string) => {
     const owners = familyImageOwnersByUrl.get(normalizeCode(image.url));
-    return !owners || (owners.size === 1 && owners.has(canonicalCode));
+    return Boolean(owners && owners.size === 1 && owners.has(canonicalCode));
   };
 
   for (const product of products) {
