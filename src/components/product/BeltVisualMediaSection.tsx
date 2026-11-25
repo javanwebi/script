@@ -36,8 +36,8 @@ export const BeltVisualMediaSection: React.FC<BeltVisualMediaSectionProps> = ({
   onOpenDocModal,
   onJumpToFamilyGallery,
 }) => {
-  const familyPhotoTitles = ["نمای اصلی خانواده", "نمای زاویه‌ای", "جزئیات ساختار", "نمای نزدیک"];
-  const familyPhotoCards = beltFamilyMedia.familyPhotos.map((url, index) => ({
+  const familyPhotoTitles = ["نمای اصلی خانواده", "نمای زاویه‌ای", "جزئیات ساختار"];
+  const familyPhotoCards = beltFamilyMedia.familyPhotos.slice(0, 3).map((url, index) => ({
     id: `family-photo-${index + 1}`,
     url,
     svgUrl: url,
