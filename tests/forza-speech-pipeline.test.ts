@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   appendForzaSpeechSegment, checkpointForzaRecognition, extractPersianSpeechRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs,
-  normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64,
+  normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64, chooseForzaFinalTranscript,
 } from '../src/utils/forzaSpeechPipeline.ts';
 
 function result(value:string, isFinal:boolean) {
@@ -106,4 +106,21 @@ test('FORZA response stream has no fixed total-duration cutoff',()=>{
   const source=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
   assert.doesNotMatch(source,/totalTimer|120000|بیش از دو دقیقه/);
   assert.match(source,/ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند/);
+});
+
+test('AvalAI final transcript corrects a plausible but wrong browser product code',()=>{
+  const browser='برای خط تولید بلبرینگ 6303 ZZ می‌خواهم';
+  const avalai='برای خط تولید بلبرینگ 6203 ZZ می‌خواهم';
+  assert.equal(chooseForzaFinalTranscript(browser,avalai,true),avalai);
+});
+
+test('AvalAI final transcript does not replace a complete browser turn with a tiny fragment',()=>{
+  const browser='برای خط بسته‌بندی تسمه تایمینگ با عرض بیست میلی‌متر می‌خواهم';
+  assert.equal(chooseForzaFinalTranscript(browser,'تسمه',true),browser);
+});
+
+test('Diba fallback keeps the existing technical-code preservation heuristic',()=>{
+  const browser='بلبرینگ 6203 ZZ برای خط تولید';
+  const diba='بلبرینگ برای خط تولید';
+  assert.equal(chooseForzaFinalTranscript(browser,diba,false),browser);
 });
