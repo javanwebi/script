@@ -45,7 +45,7 @@ test('exploratory nearest neighbours do not confirm that the photographed object
  assert.deepEqual(result.nearestCatalogSuggestions,[]);
 });
 test('welding tools and ambiguous service families are excluded from belt identity',()=>{
- const tool={code:'tool-family',name:'دستگاه جوش تسمه',brand:'',categorySlug:'excel-v2-1-1',categoryName:'تسمه و انتقال نیرو',subcategory:'تجهیزات جوش',active:true,variants:[{code:'TOOL-1',name:'دستگاه جوش تسمه',active:true,variableSpecs:{beltDivision:'belt-welding-tool'}}]} as Product;
+ const tool={code:'tool-family',name:'دستگاه جوش تسمه',brand:'',categorySlug:'excel-v2-1-1',categoryName:'تسمه و انتقال نیرو',subcategory:'تجهیزات جوش',active:true,variants:[{code:'TOOL-1',name:'دستگاه جوش تسمه',active:true,variableSpecs:{beltDivision:'belt-welding-tool'}}]} as unknown as Product;
  const result=applyBeltRecognition(resultFor('belt-family','SPB-2000'),[...products,tool],[{text:'SPB 2000',confidence:97}]);
  assert.equal(result.beltAnalysis?.candidateFamilies.some(item=>item.familyCode==='tool-family'),false);
 });
