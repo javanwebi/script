@@ -180,7 +180,8 @@ test('VAD waits for delayed speech text before stopping an empty transcript reco
   assert.match(ui,/: 6500;/);
   assert.match(ui,/Math\.max\(0,Math\.max\(6500,pauseMs\)-acousticSilence\)/);
   assert.match(ui,/turnDispatchPendingRef\.current=true/);
-  assert.match(ui,/if\(turnDispatchPendingRef\.current && !\(q && forzaTurnIntent\(q\)==='stop'\)\)return/);
+  assert.match(ui,/const canInterruptPendingTurn=Boolean\(q&&\(/);
+  assert.match(ui,/if\(turnDispatchPendingRef\.current&&!canInterruptPendingTurn\)return/);
 });
 
 test('Nima phrase requests are serialized to match the private single-worker CPU engine',()=>{
