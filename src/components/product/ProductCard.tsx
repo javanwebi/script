@@ -160,11 +160,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const specRows = extractCardSpecs(product, hasVariants);
 
   const isInStock = product.stockKnown && product.stock > 0 && !product.inquiryOnly;
-  const resolvedImage = disableSiteFallback ? "" : resolveSiteProductImage(product);
+  const shouldDisableSiteFallback = disableSiteFallback || product.catalogSource === "popd";
+  const resolvedImage = shouldDisableSiteFallback ? "" : resolveSiteProductImage(product);
   const rawPrimaryImage = product.images?.[0] || product.image || "";
   const beltFamilyMedia = getBeltFamilyMedia(product.code, rawPrimaryImage);
   const cardPrimaryImage = rawPrimaryImage || beltFamilyMedia?.primaryThumbnail || resolvedImage;
-  const cardFallbackImage = disableSiteFallback
+  const cardFallbackImage = shouldDisableSiteFallback
     ? undefined
     : product.image || beltFamilyMedia?.primaryThumbnail || resolvedImage;
 
@@ -176,7 +177,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <ProductImage
               src={cardPrimaryImage}
               fallbackSrc={cardFallbackImage}
-              disableFallback={disableSiteFallback}
+              disableFallback={shouldDisableSiteFallback}
               thumbnail
               alt={product.name}
               loading="lazy"
