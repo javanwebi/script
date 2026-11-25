@@ -163,6 +163,7 @@ export function ImageRegionReview({
                     <button type="button" className="kiki-image-workspace__result-select"
                       onClick={() => { onSelectProduct(item.id); onOpenProduct(item.id); }}
                       disabled={selectorDisabled}
+                      aria-pressed={selected}
                       aria-label={'مشاهده صفحه محصول ' + item.name}>
                       <span className="kiki-image-workspace__result-image">
                         {item.image
