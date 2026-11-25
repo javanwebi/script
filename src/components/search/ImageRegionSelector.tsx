@@ -141,7 +141,6 @@ export function ImageRegionSelector({
     <div
      ref={frameRef}
      role="group"
-     aria-label="انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت"
      aria-disabled={disabled || undefined}
      tabIndex={disabled?-1:0}
      className="sanat-region-picker__frame"
