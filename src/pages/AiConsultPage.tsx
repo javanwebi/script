@@ -425,6 +425,18 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     };
   }, []);
 
+  // Deep links from the smart belt-selection flow reuse the existing FORZA tools.
+  // The calculator remains the existing tested modal; no second formula engine is introduced.
+  useEffect(() => {
+    if (entryParams.get('tool') === 'belt-calculator') {
+      setShowCalculatorModal(true);
+    }
+    const initialPrompt = entryParams.get('prompt')?.trim();
+    if (initialPrompt) {
+      setInputQuery(initialPrompt);
+    }
+  }, [entryParams]);
+
   const saveSessionsToStorage = (updatedSessions: ChatSession[]) => {
     setSessions(updatedSessions);
     try {
