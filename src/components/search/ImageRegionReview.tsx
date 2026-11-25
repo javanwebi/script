@@ -170,6 +170,7 @@ export function ImageRegionReview({
                       onClick={event => {
                         if(selectorDisabled || !productCode){event.preventDefault();return;}
                         onSelectProduct(item.id);
+                        onClose();
                       }}
                       aria-disabled={selectorDisabled || !productCode}
                       aria-current={selected ? 'page' : undefined}
