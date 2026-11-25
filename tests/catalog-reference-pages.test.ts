@@ -65,6 +65,7 @@ test('family and SKU artwork only use identity-verified matches and never generi
   assert.match(media, /hasVerifiedRealPhoto: Boolean\(dbImg\)/);
   assert.match(media, /familyPhotos: \['', '', ''\]/);
   assert.doesNotMatch(media, /familyMedia\.familyPhotos\.forEach/);
+  assert.match(media, /activeSkuMedia\?\.realProductImage && activeSkuMedia\.profileDrawingWebp/);
 });
 
 test('legacy family image rows are attached by their original family code', () => {
