@@ -23,12 +23,16 @@ test('KIKI entry, camera, automatic region detection and inline results share on
 test('local segmenter preserves aspect ratio and exposes ranked object candidates', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const segmentation = source('src/utils/clientAiSegmentation.ts');
+  const segmentationWorker = source('src/utils/clientAiSegmentation.worker.ts');
   const foreground = source('src/utils/foregroundRegion.ts');
-  assert.ok(segmentation.includes('ort.env.wasm.proxy = true'));
+  assert.ok(segmentation.includes("new URL('./clientAiSegmentation.worker.ts', import.meta.url)"));
+  assert.ok(segmentationWorker.includes('ort.env.wasm.proxy = false'));
+  assert.ok(segmentationWorker.includes('session.run'));
+  assert.ok(segmentationWorker.includes('getForegroundRegions'));
   assert.ok(segmentation.includes('const MAX_IMAGE_DIMENSION = 720'));
-  assert.ok(modal.includes('getForegroundRegions(segmented)'));
+  assert.ok(modal.includes('const detectedRegions = segmented.regions'));
   assert.ok(modal.includes('setCandidateRegions(detectedRegions.length ? detectedRegions : [region])'));
-  assert.ok(segmentation.includes('const modelScale = Math.min(INPUT_SIZE / width, INPUT_SIZE / height)'));
+  assert.ok(segmentation.includes('const modelScale = Math.min(MODEL_INPUT_SIZE / width, MODEL_INPUT_SIZE / height)'));
   assert.ok(segmentation.includes('modelLeft'));
   assert.ok(segmentation.includes('modelTop'));
   assert.ok(segmentation.includes('modelRect'));
@@ -48,7 +52,7 @@ test('local segmenter is warmed and can win without serial server crop detection
   assert.ok(fast.includes('Promise.race'));
   assert.ok(fast.includes('aiVisualSearchService.detectImageRegions(imageUrl)'));
   assert.ok(fast.includes('sequence !== regionDetectionSequenceRef.current'));
-  assert.ok(fast.includes('getForegroundRegion(segmented)'));
+  assert.ok(fast.includes('const region = detectedRegions[0]'));
   assert.ok(fast.indexOf('const localDetection') < fast.indexOf('aiVisualSearchService.detectImageRegions'));
   assert.ok(modal.includes('saveCustomerDeviceImage(blob'));
   assert.ok(modal.includes('customerImageBlobToDataUrl(blob)'));
