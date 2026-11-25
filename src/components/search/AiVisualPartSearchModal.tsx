@@ -2,7 +2,7 @@ import {LocalModelResults} from './LocalModelResults';
 import {CatalogResultImage} from './CatalogResultImage';
 import { loadVisionRecentSearches, recordVisionRecentSearch, type VisionRecentSearchItem } from './visionRecentHistory';
 import {apiUrl} from '../../config/apiConfig';
-import { getForegroundRegion, getForegroundRegions, preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
+import { preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState, type VisionWorkspaceResult} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
@@ -394,8 +394,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     // first without waiting for the server's detection round-trip.
     const localDetection = segmentImageWithClientAi(imageUrl).then(segmented => {
       if (sequence !== regionDetectionSequenceRef.current || serverCommitted || !segmented) return false;
-      const detectedRegions = getForegroundRegions(segmented);
-      const region = getForegroundRegion(segmented) || detectedRegions[0];
+      const detectedRegions = segmented.regions;
+      const region = detectedRegions[0];
       if (!region) return false;
       localSucceeded = true;
       localSegmentationRef.current = { source: imageUrl, result: segmented, region };
