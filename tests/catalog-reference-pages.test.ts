@@ -14,15 +14,13 @@ test('catalog reference API reads the engineered POPD archive without mutating c
   assert.doesNotMatch(api, /\b(?:INSERT\s+INTO|UPDATE\s+public\.catalog_|DELETE\s+FROM|ALTER\s+TABLE|DROP\s+TABLE)\b/i);
 });
 
-test('category and family screens use the Supabase-backed POPD reference API', () => {
-  const all = read('src/pages/PopdAllCategoriesPage.tsx');
-  const category = read('src/pages/PopdExcelMenuCategoryPage.tsx');
+test('POPD reference API is used for family detail while category appearance remains in SCRIPT', () => {
   const detail = read('src/pages/PopdProductDetailPage.tsx');
-  assert.match(all, /\/api\/catalog\/reference\/categories/);
-  assert.match(all, /\/api\/catalog\/reference\/navigation-groups/);
-  assert.match(category, /\/api\/catalog\/reference\/menu-category\//);
+  const category = read('src/pages/CategoryPage.tsx');
   assert.match(detail, /\/api\/catalog\/reference\/product\//);
   assert.doesNotMatch(detail, /useCatalog\s*\(|CatalogContext/);
+  assert.match(category, /from '\.\/ExcelMenuCategoryPage'/);
+  assert.doesNotMatch(category, /PopdExcelMenuCategoryPage/);
 });
 
 test('category and direct-SKU page appearance stays in SCRIPT while family detail uses POPD', () => {
@@ -94,14 +92,11 @@ test('legacy family image rows are attached by their original family code', () =
 
 
 
-test('all six database-added category artworks match POPD', () => {
+test('category artwork mapping remains the existing SCRIPT design', () => {
   const artwork = read('src/utils/excelCategoryCatalog.ts');
-  assert.match(artwork, /excel-v2-1-5.*vbeltRibbedHero/);
-  assert.match(artwork, /excel-v2-4-2.*forzaSubCoupling/);
-  assert.match(artwork, /excel-v2-7-4.*refractoryPtfeCord/);
-  assert.match(artwork, /excel-v2-7-5.*forzaSubFittings/);
-  assert.match(artwork, /excel-v2-9-5.*categories\.chains/);
-  assert.match(artwork, /excel-v2-10-3.*ceramicGlazeRotary/);
+  assert.match(artwork, /excel-v2-1-1.*timingBeltHero/);
+  assert.match(artwork, /excel-v2-2-1.*categories\.conveyor/);
+  assert.doesNotMatch(artwork, /excel-v2-1-5/);
 });
 
 test('all active Supabase categories and their database group assignments remain visible', () => {
