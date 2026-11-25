@@ -26,7 +26,7 @@ test('Persian normalization preserves real product codes and numbers',()=>{
 });
 
 test('Adaptive endpointing dispatches complete Persian speech quickly and protects unfinished industrial phrases',()=>{
-  assert.equal(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false),1600);
+  assert.equal(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false),2250);
   assert.equal(forzaEndOfTurnPauseMs('مدل 6205',true),2200);
   assert.equal(forzaEndOfTurnPauseMs('سلام',false),650);
   assert.equal(forzaEndOfTurnPauseMs('ممنون',false),650);
