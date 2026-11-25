@@ -164,7 +164,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const resolvedImage = shouldDisableSiteFallback ? "" : resolveSiteProductImage(product);
   const rawPrimaryImage = product.images?.[0] || product.image || "";
   const beltFamilyMedia = getBeltFamilyMedia(product.code, rawPrimaryImage);
-  const cardPrimaryImage = rawPrimaryImage || beltFamilyMedia?.primaryThumbnail || resolvedImage;
+  const isPopdFamily = product.catalogSource === "popd" || product.code.startsWith("PFAM-");
+  const cardPrimaryImage = isPopdFamily
+    ? beltFamilyMedia?.primaryThumbnail || rawPrimaryImage || resolvedImage
+    : rawPrimaryImage || beltFamilyMedia?.primaryThumbnail || resolvedImage;
   const cardFallbackImage = shouldDisableSiteFallback
     ? undefined
     : product.image || beltFamilyMedia?.primaryThumbnail || resolvedImage;
