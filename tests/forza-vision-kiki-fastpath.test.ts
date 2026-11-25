@@ -75,6 +75,9 @@ test('active local catalogue encoder owns region proposals; browser segmentation
   assert.ok(server.includes('localVisionStatusSnapshot={...coverage,ready:corpus.length>0 && coverage.ready}'));
   assert.ok(server.includes('localVisionStatusRefresh:Promise<void>|null=null'));
   assert.ok(server.includes('localVisionStatusLastRefreshAt<=refreshStartedAt'));
+  assert.ok(server.includes('if(!localVisionWarmupInProgress)void refreshLocalVisionStatusSnapshot()'));
+  assert.ok(server.includes('localVisionWarmupInProgress=true'));
+  assert.ok(server.includes('localVisionWarmupInProgress=false'));
   assert.ok(server.includes('canReuseLocalVisionQuery(cachedDetection,body.region,body.fullImage===true)'));
   assert.ok(server.includes('body.fullImage===true ? [] : body.region ? [body.region]'));
 });
