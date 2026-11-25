@@ -7322,6 +7322,7 @@ app.get('/api/ai/forza-stt-info',async(_req,res)=>{
 app.post('/api/ai/forza-live', async (req, res) => {
   try {
     const { query, history, image, audioBase64, audioMimeType, deferAudio, transcribeOnly } = req.body;
+    const cleanAudioData = extractForzaAudioBase64(audioBase64);
     const turnStartedAt = Date.now();
     let sttFinishedAt = turnStartedAt;
     const apiKey = getGeminiKey();
@@ -7360,7 +7361,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
     // we do not select a different speech model or change any API credentials.
     let sttProviderError = false;
     let sttProviderStatus = 0;
-    let sttProviderUsed = sttSelection.provider;
+    let sttProviderUsed: string = sttSelection.provider;
 
     // AvalAI GPT-Transcribe is the high-accuracy final recognizer. The browser
     // continues to display live partial words; this bounded upload corrects the
@@ -7430,7 +7431,6 @@ app.post('/api/ai/forza-live', async (req, res) => {
     // 1. Direct Voice Audio Comprehension (if user spoke and audio was captured)
     if (!userQuery && audioBase64 && sttApiKey) {
       try {
-        const cleanAudioData = audioBase64.replace(/^data:[^;]+;base64,/, '');
         let cleanAudioMime = (audioMimeType || 'audio/webm').split(';')[0].trim().toLowerCase();
         if (!cleanAudioMime || !cleanAudioMime.startsWith('audio/')) {
           cleanAudioMime = 'audio/webm';
