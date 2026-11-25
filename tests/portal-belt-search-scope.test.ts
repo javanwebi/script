@@ -50,3 +50,10 @@ test('belt analysis is rendered in the automatic KIKI inline workspace', () => {
   assert.match(review, /beltAnalysis\.visualBeltConfirmed/);
   assert.match(review, /beltAnalysis\.candidateFamilies/);
 });
+
+test('belt-scoped image analysis fails closed instead of falling back to generic matching', () => {
+  const server = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
+  assert.match(server, /BELT_IMAGE_REQUIRED/);
+  assert.match(server, /BELT_VISION_UNAVAILABLE/);
+  assert.match(server, /domainHint==='industrial-belt' && !localVisionEnabled/);
+});
