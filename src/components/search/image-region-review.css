@@ -638,13 +638,13 @@
   }
 
   .sanat-region-picker--viewer .sanat-region-picker__frame > img {
-    max-height: min(calc(54dvh - 115px), 440px);
+    max-height: min(calc(54dvh - 200px), 440px);
   }
 }
 
 @media (max-width: 580px) {
   .kiki-vision-review-shell.kiki-image-workspace {
-    grid-template-rows: minmax(260px, 48dvh) minmax(360px, 1fr);
+    grid-template-rows: minmax(280px, 58dvh) minmax(360px, 1fr);
   }
 
   .kiki-image-workspace__viewer {
@@ -683,7 +683,7 @@
   }
 
   .sanat-region-picker--viewer .sanat-region-picker__frame > img {
-    max-height: min(calc(48dvh - 96px), 420px);
+    max-height: min(calc(58dvh - 200px), 420px);
   }
 
   .sanat-region-picker--viewer .sanat-region-picker__viewer-actions button {
