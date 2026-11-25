@@ -48,6 +48,16 @@ test('one catalogue photo shared by multiple SKU bindings returns a family card,
  assert.equal(result.modelSuggestions![0].imageScope,'family');
  assert.equal(result.modelSuggestions![0].matchBasis,'visual');
 });
+
+test('a photo shared by a SKU and a second family cannot identify the SKU',()=>{
+ const result=localVisionResult([hit([
+  {familyCode:'family',code:'sku',verified:false},
+  {familyCode:'other-family',verified:false}
+ ])],[...products,{code:'other-family',name:'خانواده دوم',active:true,variants:[]}] as Product[],coverage,'/customer');
+ assert.deepEqual(result.similarCandidates,[]);
+ assert.equal(result.modelSuggestions!.length,2);
+ assert.ok(result.modelSuggestions!.every(item=>!item.code&&item.imageScope==='family'));
+});
 test('weak or invalid similarity yields no invented nearest match or absence/stock claim',()=>{
  const result=localVisionResult([hit([],0.4),hit([],NaN)],products,coverage,'/customer');
  assert.deepEqual(result.catalogImageMatches,[]);assert.deepEqual(result.similarCandidates,[]);
