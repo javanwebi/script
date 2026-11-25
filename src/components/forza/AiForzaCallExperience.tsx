@@ -1396,13 +1396,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        // Browser/local interim text stays visible immediately. On devices
-        // using Chrome as the live recognizer, run the local server Diba model
-        // as a bounded final verifier too; on devices already using local Diba,
-        // avoid wasting a second inference on the same model.
+        // A usable live transcript is already the completed user turn.
+        // Never hold the LLM request while a second STT provider re-transcribes
+        // the same audio. Server AvalAI/Diba is strictly a recovery path when
+        // the live browser/local recognizer produced no text.
         const needsServerFinal = Boolean(audioBlob) &&
           serverSttConfiguredRef.current === true &&
-          (serverSttProviderRef.current==='avalai' || !q || !localSttActiveRef.current);
+          !q;
         if(audioBlob && needsServerFinal){
           const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
           const sttStartedAt=performance.now();
@@ -2089,6 +2089,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const playback=isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current;
         const admitted=admission.filter(event.results,(words,final)=>{
           if(retryExpired||likelySpeakerEcho(words))return 'reject';
+          // Native Web Speech has already recognized the words. While FORZA is
+          // listening, do not discard its transcript because the separate RMS
+          // monitor has a low microphone level or has not calibrated yet.
+          // Keep the strict near-field acoustic gate for barge-in during TTS.
+          if(!playback)return 'accept';
           const decision=speechAdmissionRef.current.decide(words,final,playback,Date.now());
           if(new URLSearchParams(window.location.search).get('forzaVoiceDiagnostics')==='1')
             console.info('[FORZA_ADMISSION]',decision,JSON.stringify(speechAdmissionRef.current.diagnostics(Date.now())));
@@ -2439,7 +2444,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         serverSttConfiguredRef.current=configured;
         setServerSttLabel(provider==='avalai'&&configured
           ? info.serverSttReady===true
-            ? 'AvalAI هوشمند آماده است · اصلاح متن نهایی'
+            ? 'AvalAI پشتیبان است · متن زنده فعال'
             : 'AvalAI در دسترس نیست · متن زنده مرورگر'
           : provider==='diba'&&configured
             ? info.serverSttReady===true
