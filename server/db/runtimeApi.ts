@@ -51,7 +51,7 @@ async function publicProductsCached():Promise<unknown>{
  if(publicCatalogCache && Date.now()<publicCatalogCache.expires)return publicCatalogCache.value;
  if(!publicCatalogInFlight){
   const generation=publicCatalogGeneration;
-  const task=readProducts({includeTechnicalReviews:false}).then(products=>{
+  const task=readProducts({includeTechnicalReviews:false,includePopdCatalog:true,includeUnverifiedImages:false}).then(products=>{
     const value=compactCatalogReviews(publicCatalog(products));
     if(generation===publicCatalogGeneration)
       publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value};
