@@ -143,6 +143,7 @@ export const ProductVariants: React.FC<ProductVariantsProps> = ({
             <button
               key={v.code}
               type="button"
+              aria-label={`انتخاب کد کالا ${v.code}`}
               aria-pressed={isSelected}
               onClick={() => onSelect(v.code)}
               className={`w-full min-h-[68px] px-4 py-3.5 text-right flex items-center justify-between gap-3 transition-colors active:bg-orange-50/90 cursor-pointer ${
@@ -278,6 +279,7 @@ export const ProductVariants: React.FC<ProductVariantsProps> = ({
                   <td className="py-3 px-4 text-left whitespace-nowrap">
                     <button
                       type="button"
+                      aria-label={`انتخاب کد کالا ${v.code}`}
                       aria-pressed={isSelected}
                       onClick={(e) => {
                         e.stopPropagation();
