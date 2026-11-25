@@ -66,7 +66,8 @@ test('active local catalogue encoder owns region proposals; browser segmentation
   const server=source('server.ts');
   const status=server.slice(server.indexOf("app.get('/api/ai/local-vision-status'"),server.indexOf('const localVisionDetectionCache'));
   assert.ok(status.includes('app.get(\'/api/ai/local-vision-status\', (_req,res)=>'));
-  assert.ok(!status.includes('catalogVisualIndex.load'));
+  assert.ok(status.includes('void catalogVisualIndex.load().catch(()=>undefined)'));
+  assert.ok(!status.includes('await catalogVisualIndex.load'));
   assert.ok(!status.includes('buildCatalogImageCorpus'));
   assert.ok(server.includes('canReuseLocalVisionQuery(cachedDetection,body.region,body.fullImage===true)'));
   assert.ok(server.includes('body.fullImage===true ? [] : body.region ? [body.region]'));
