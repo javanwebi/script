@@ -479,17 +479,38 @@ export async function completeXkiroConsult(
 
 export async function streamAvalaiConsult(options: BaiConsultOptions) {
   let sentText=false;
-  const attempt=()=>streamOpenAiCompatible({...options,onDelta:(delta,text)=>{
-    sentText=true;options.onDelta(delta,text);
-  }}, 'https://api.avalai.ir/v1/chat/completions');
-  try{return await attempt();}catch(error){
-    // Retry only a transport failure before any answer. Never replay partial
-    // speech, retry billing/auth/model failures, or add a second timeout budget.
-    if(options.signal?.aborted||sentText||!(error instanceof BaiConsultError)||
-       !['upstream_network_error','provider_stream_incomplete'].includes(error.code))throw error;
-    console.info('[FORZA_TEXT_STREAM] provider=avalai retry=empty_transport');
-    return attempt();
+  const configuredBase=String(process.env.AVALAI_API_BASE_URL||'https://api.avalai.ir/v1')
+    .trim().replace(/\\/+$/,'');
+  const allowedBases=new Set([
+    'https://api.avalai.ir/v1',
+    'https://api.avalapis.ir/v1',
+    'https://api.avalai.org/v1',
+  ]);
+  const primaryBase=allowedBases.has(configuredBase)?configuredBase:'https://api.avalai.ir/v1';
+  // AvalAI documents these domains as the same API/key/billing surface:
+  // .ir is the default domestic route; .org is the Cloudflare-backed route.
+  const fallbackBase=primaryBase==='https://api.avalai.org/v1'
+    ?'https://api.avalai.ir/v1'
+    :'https://api.avalai.org/v1';
+  const endpoints=[primaryBase,fallbackBase].map(base=>base+'/chat/completions');
+  let lastError:unknown;
+  for(let index=0;index<endpoints.length;index++){
+    try{
+      return await streamOpenAiCompatible({...options,onDelta:(delta,text)=>{
+        sentText=true;options.onDelta(delta,text);
+      }},endpoints[index]);
+    }catch(error){
+      lastError=error;
+      // Retry only a failure before the first visible token. The alternate
+      // domain uses the same AvalAI key and model, never a second provider.
+      // Once any text was emitted, replaying would duplicate spoken content.
+      const retryable=error instanceof BaiConsultError&&
+        ['upstream_network_error','upstream_timeout','provider_stream_incomplete'].includes(error.code);
+      if(options.signal?.aborted||sentText||!retryable||index===endpoints.length-1)throw error;
+      console.info('[FORZA_TEXT_STREAM] provider=avalai route_failover=1 code='+error.code);
+    }
   }
+  throw lastError instanceof Error?lastError:new BaiConsultError('upstream_network_error');
 }
 
 export function streamBaiConsult(options: BaiConsultOptions) {
