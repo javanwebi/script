@@ -26,7 +26,7 @@ const ASSETS = [
 
 function gitBlobSha(buffer) {
   return crypto.createHash("sha1")
-    .update(Buffer.from(`blob ${buffer.length}\\0`))
+    .update(Buffer.from(`blob ${buffer.length}\0`))
     .update(buffer)
     .digest("hex");
 }

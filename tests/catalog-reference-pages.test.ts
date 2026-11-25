@@ -152,7 +152,7 @@ test('missing verified POPD family photos are synced from the pinned source befo
   assert.ok(pkg.scripts.predev.includes('scripts/sync-popd-family-images.mjs'));
   assert.ok(pkg.scripts['pretest:portal'].includes('scripts/sync-popd-family-images.mjs'));
   assert.match(sync, /e81218f2a248f1db9a72349a67e46af55c7977ee/);
-  assert.match(sync, /images=\\$\\{ASSETS.length\\}/);
+  assert.ok(sync.includes('images=${ASSETS.length}'));
   assert.match(sync, /gitBlobSha/);
   assert.match(sync, /POPD_FAMILY_IMAGE_SHA_MISMATCH/);
 });
