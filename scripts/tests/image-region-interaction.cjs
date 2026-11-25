@@ -122,7 +122,7 @@ const {chromium}=require('playwright');
   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
   await page.getByRole('button',{name:/تسمه وی شکل A-49/}).waitFor();
   assert.equal(queries.length,1,'catalog analysis must start automatically after image detection');
-  assert.match(queries[0].imageBase64,/^data:image\\/(?:png|jpeg|webp);base64,/);
+  assert.match(queries[0].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
   assert.ok(queries[0].region||queries[0].fullImage,'automatic analysis must use a detected region or the safe full-image fallback');
   assert.equal(queries[0].includeNearest,false);
   assert.equal(uploads,0,'customer image must remain in the browser-local vault');
