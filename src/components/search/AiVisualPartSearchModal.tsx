@@ -1084,6 +1084,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           compared={scanCounts?.compared}
           total={scanCounts?.total}
           results={workspaceResults}
+          analysisComplete={Boolean(analysisResult)}
           selectedProductId={selectedProductId}
           onSelectProduct={(id) => {
             setSelectedProductId(id);
