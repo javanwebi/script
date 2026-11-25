@@ -112,7 +112,7 @@ export function applyBeltRecognition(result:AiPartAnalysisResult,products:Produc
   return Boolean(owner&&allowedCodes.has(owner.family.code));
  });
  const familyByVariant=new Map<string,string>();for(const [code,owner] of variants)familyByVariant.set(code,owner.family.code);
- const similarCandidates=(result.similarCandidates||[]).filter(item=>Boolean(item.code&&allowedCodes.has(familyByVariant.get(item.code)||''))).map(item=>{
+ const similarCandidates=(result.similarCandidates||[]).filter(item=>item.isVisualMatch===true&&Boolean(item.code&&allowedCodes.has(familyByVariant.get(item.code)||''))).map(item=>{
   const family=families.get(familyByVariant.get(item.code!)!)!,status=statuses.get(family.code)||'unknown',note=parsed?.profile?suggestionReason(status,parsed.profile):'این گزینه فقط از نظر تصویر به خانواده نزدیک است؛ پروفیل و سازگاری فنی تأیید نشده‌اند.';
   return {...item,matchReason:item.matchReason+' '+note};
  }).sort((a,b)=>familyOrder(familyByVariant.get(a.code)||'')-familyOrder(familyByVariant.get(b.code)||''));
