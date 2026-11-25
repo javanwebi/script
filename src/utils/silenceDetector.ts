@@ -54,9 +54,10 @@ export function analyzePersianSentenceCompletion(text: string): PersianSentenceA
       'در انتظار ادامه جمله، مشخصات کالا یا اصلاح مشتری');
   }
 
-  // Stand-alone commands are complete. A longer sentence starting with
-  // "صبر کن" is NOT necessarily complete ("صبر کن توضیح بدم ...").
-  if (/^(?:سلام|درود|خداحافظ|ممنون|ممنونم|متشکرم|سپاس|بله|بله\s+بفرمایید|بفرمایید|آره|اره|آری|نه|همونه|همان|همون|همون\s+قبلی|همان\s+قبلی|دومی|اولی|سومی|گزینه\s+اول|گزینه\s+دوم|گزینه\s+سوم|باشه|اوکی|قبوله|درسته|صبر\s+کن|بس\s+کن|ادامه\s+بده|قطع\s+کن|متوقف\s+شو|دوباره\s+بگو)$/.test(clean)) {
+  // Short standalone reactions are complete turns too. In particular,
+  // "چه خبر خوبی" must not be mistaken for an unfinished clause and held
+  // for four seconds merely because it has no terminal punctuation.
+  if (/^(?:چه\s+خبر\s+خوبی|چه\s+خبر|چه\s+خبرها|چه\s+خوب|چه\s+عالی|عالیه|خیلی\s+خوبه|خوبه|خبر\s+خوبیه|سلام|درود|خداحافظ|ممنون|ممنونم|متشکرم|سپاس|بله|بله\s+بفرمایید|بفرمایید|آره|اره|آری|نه|همونه|همان|همون|همون\s+قبلی|همان\s+قبلی|دومی|اولی|سومی|گزینه\s+اول|گزینه\s+دوم|گزینه\s+سوم|باشه|اوکی|قبوله|درسته|صبر\s+کن|بس\s+کن|ادامه\s+بده|قطع\s+کن|متوقف\s+شو|دوباره\s+بگو)$/.test(clean)) {
     return decision(true, false, false, 0.98, 650, 'فرمان یا عبارت مستقل');
   }
 
