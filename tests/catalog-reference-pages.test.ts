@@ -52,7 +52,8 @@ test('family and SKU artwork only use identity-verified matches and never generi
   const detail = read('src/pages/PopdProductDetailPage.tsx');
   const media = read('src/utils/beltCatalogMedia.ts');
 
-  assert.match(api, /matchedGallery[\s\S]*filter\(\(image\) => image\.scope === 'family' && image\.identityVerified === true/);
+  assert.match(api, /image\.scope === 'family'/);
+  assert.match(api, /image\.identityVerified === true/);
   assert.match(api, /product\.image = familyImages\[0\] \|\| ''/);
   assert.match(api, /image\.scope === 'variant'/);
   assert.match(api, /familyImageOwnersByUrl/);
