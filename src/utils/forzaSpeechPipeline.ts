@@ -230,7 +230,7 @@ export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number
   const analysis = analyzePersianSentenceCompletion(normalized);
   // A clear, final answer can dispatch quickly. A provisional hypothesis gets
   // extra time for a late correction (for example 6202 -> 6203).
-  if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?3200:2200;
+  if(analysis.isComplete&&analysis.confidence>=0.9)return hasInterim?3200:1350;
   // Preserve more room for clauses, unfinished requests and industrial codes.
   if(analysis.isMidThought)return hasInterim?5200:4300;
   return hasInterim?3800:3000;
