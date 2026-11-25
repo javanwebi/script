@@ -271,15 +271,69 @@ async function loadSnapshot(): Promise<Snapshot> {
     }
   }
 
+  // Build a canonical ownership map for family images. A URL shared by two
+  // different canonical families is ambiguous and must not appear on either.
+  const canonicalFamilyByCode = new Map<string, string>();
+  for (const product of products) {
+    const canonicalCode = normalizeCode(product.code);
+    if (!canonicalCode) continue;
+    canonicalFamilyByCode.set(canonicalCode, canonicalCode);
+    for (const legacyCode of product.legacyFamilyCodes || []) {
+      const legacyKey = normalizeCode(legacyCode);
+      if (legacyKey) canonicalFamilyByCode.set(legacyKey, canonicalCode);
+    }
+  }
+  for (const [canonicalCode, legacyCodes] of legacyCodesByCanonical) {
+    for (const legacyCode of legacyCodes) {
+      canonicalFamilyByCode.set(legacyCode, canonicalCode);
+    }
+  }
+
+  const familyImageOwnersByUrl = new Map<string, Set<string>>();
+  const addFamilyImageOwner = (url: unknown, familyCode: unknown, canonicalOverride?: string) => {
+    const urlKey = normalizeCode(url);
+    const familyKey = normalizeCode(familyCode);
+    const canonicalCode = canonicalOverride || canonicalFamilyByCode.get(familyKey);
+    if (!urlKey || !canonicalCode) return;
+    const owners = familyImageOwnersByUrl.get(urlKey) || new Set<string>();
+    owners.add(canonicalCode);
+    familyImageOwnersByUrl.set(urlKey, owners);
+  };
+
+  for (const row of galleryRes.rows) {
+    if (row.scope === 'family-example' && row.identity_verified === true) {
+      addFamilyImageOwner(row.url, row.family_code);
+    }
+  }
+  for (const product of products) {
+    for (const image of product.galleryImages || []) {
+      if (
+        image.scope === 'family' &&
+        image.identityVerified === true &&
+        Boolean(image.url) &&
+        !isLegacyCatalogEUrl(image.url)
+      ) {
+        addFamilyImageOwner(image.url, product.code, normalizeCode(product.code));
+      }
+    }
+  }
+
+  const isUniqueFamilyImageFor = (image: ProductGalleryImage, canonicalCode: string) => {
+    const owners = familyImageOwnersByUrl.get(normalizeCode(image.url));
+    return !owners || (owners.size === 1 && owners.has(canonicalCode));
+  };
+
   for (const product of products) {
     const isBelt = isAuditedBeltProduct(product);
+    const canonicalCode = normalizeCode(product.code);
     const matchedGallery: ProductGalleryImage[] = (product.galleryImages || []).filter(
       (image) =>
         !isBelt &&
         image.scope === 'family' &&
         image.identityVerified === true &&
         Boolean(image.url) &&
-        !isLegacyCatalogEUrl(image.url),
+        !isLegacyCatalogEUrl(image.url) &&
+        isUniqueFamilyImageFor(image, canonicalCode),
     );
     const seenUrls = new Set(matchedGallery.map((image) => image.url));
 
@@ -287,6 +341,7 @@ async function loadSnapshot(): Promise<Snapshot> {
       for (const image of items || []) {
         if (!image.url || seenUrls.has(image.url)) continue;
         if (!image.identityVerified) continue;
+        if (image.scope === 'family' && !isUniqueFamilyImageFor(image, canonicalCode)) continue;
         seenUrls.add(image.url);
         matchedGallery.push(image);
       }
@@ -402,7 +457,7 @@ async function loadSnapshot(): Promise<Snapshot> {
     quarantinedSkuCount,
     rawDirectSkuCount: Number(payload.stats?.directSkus || 0),
     standaloneDirectSkuRows: asArray(payload.directSkus).length,
-    verifiedFamilyImageCount: galleryRes.rows.filter((row: any) => row.scope !== 'variant' && row.identity_verified === true).length,
+    verifiedFamilyImageCount: Array.from(familyImageOwnersByUrl.values()).filter((owners) => owners.size === 1).length,
     verifiedVariantImageCount: galleryRes.rows.filter((row: any) => row.scope === 'variant' && row.identity_verified === true).length,
   };
 }
