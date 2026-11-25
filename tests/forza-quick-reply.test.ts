@@ -10,6 +10,10 @@ test('a first greeting is answered immediately without requiring a remote model 
   );
   assert.equal(resolveForzaQuickVoiceReply('سلام وقت بخیر',[]),
     'سلام، صدات رو دارم. بفرما، چطور می‌تونم کمکت کنم؟');
+  assert.equal(resolveForzaQuickVoiceReply('سلام خوبی چه خبر چه خبر خوبی',[]),
+    'سلام، صدات رو دارم. بفرما، چطور می‌تونم کمکت کنم؟');
+  assert.equal(resolveForzaQuickVoiceReply('سلام، چه خبر؟',[]),
+    'سلام، صدات رو دارم. بفرما، چطور می‌تونم کمکت کنم؟');
 });
 
 test('a greeting inside an existing call does not restart introductions',()=>{
