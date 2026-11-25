@@ -255,3 +255,10 @@ test('MediaRecorder rotations keep collecting one long user utterance and retain
   assert.match(ui,/!localSttActiveRef\.current\|\|serverSttProviderRef\.current==='avalai'/);
   assert.match(ui,/Math\.ceil\(audioBlobs\.length\/2\)\*52_000/);
 });
+
+test('final transcript selection trusts AvalAI only when the server did not fall back to Diba',()=>{
+  assert.match(ui,/let serverUsedDibaFallback=false/);
+  assert.match(ui,/sttData\?\.sttProvider==='diba-fallback'/);
+  assert.match(ui,/preferAvalaiFinal=serverSttProviderRef\.current==='avalai'&&!serverUsedDibaFallback/);
+  assert.match(ui,/chooseForzaFinalTranscript\(q,serverTranscript,preferAvalaiFinal\)/);
+});
