@@ -21,6 +21,18 @@ test('lone letters and low-confidence OCR do not create a profile',()=>{assert.e
 test('belt scope filters non-belt candidates and ranks matching profile evidence',()=>{const result=applyBeltRecognition(resultFor('belt-family','SPB-2000'),products,[{text:'SPB 2000',confidence:97}]);assert.equal(result.summary.detectedPartType,'تسمه V شکل');assert.equal(result.summary.detectedProfile,'SPB');assert.equal(result.beltAnalysis?.profileMatchStatus,'matched');assert.deepEqual(result.beltAnalysis?.codeMatches,['SPB-2000']);assert.deepEqual(result.modelSuggestions?.map(item=>item.familyCode),['belt-family']);assert.deepEqual(result.similarCandidates?.map(item=>item.code),['SPB-2000']);assert.deepEqual(result.catalogImageMatches?.[0].bindings.map(item=>item.familyCode),['belt-family']);});
 test('conflicting profile removes the visual family from primary candidates',()=>{const result=applyBeltRecognition(resultFor('timing-family','HTD-8M-1200'),products,[{text:'SPB 2000',confidence:97}]);assert.equal(result.beltAnalysis?.profileMatchStatus,'not-matched');assert.deepEqual(result.modelSuggestions,[]);assert.deepEqual(result.similarCandidates,[]);assert.deepEqual(result.catalogImageMatches,[]);assert.equal(result.summary.catalogAvailability?.status,'custom_order_available');});
 test('missing family profile metadata is shown as unverified rather than matched',()=>{const unknown=[{...products[0],profiles:'',variants:[{code:'SPB-2000',name:'تسمه صنعتی',active:true}]}] as Product[];const result=applyBeltRecognition(resultFor('belt-family','SPB-2000'),unknown,[{text:'SPB 2000',confidence:97}]);assert.equal(result.beltAnalysis?.profileMatchStatus,'unverified');assert.equal(result.modelSuggestions?.length,1);assert.match(result.beltAnalysis!.note,/کامل نیست/);});
+test('OCR-only and family-sibling suggestions cannot confirm a belt without visual family evidence',()=>{
+ const base=resultFor('belt-family','SPB-2000');
+ for(const basis of ['read_code','family'] as const){
+  const suggestions=(base.modelSuggestions||[]).map(item=>({...item,matchBasis:basis}));
+  const result=applyBeltRecognition({...base,modelSuggestions:suggestions,similarCandidates:[],catalogImageMatches:[]},products,[{text:'SPB 2000',confidence:97}]);
+  assert.equal(result.beltAnalysis?.visualBeltConfirmed,false);
+  assert.equal(result.beltAnalysis?.profileMatchStatus,'unverified');
+  assert.deepEqual(result.beltAnalysis?.candidateFamilies,[]);
+  assert.equal(result.summary.detectedPartType,'تطبیق تصویری تسمه تأیید نشد');
+ }
+});
+
 test('generic recognition is unchanged without explicit belt scope',()=>{const base=resultFor('belt-family','SPB-2000');assert.equal(base.beltAnalysis,undefined);assert.equal(base.modelSuggestions?.length,2);});
 
 test('a non-belt visual result is not relabelled as an industrial belt',()=>{
