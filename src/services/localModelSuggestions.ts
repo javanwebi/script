@@ -52,6 +52,7 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
   const bindings=hit.row.bindings.filter(binding=>families.has(binding.familyCode));
   const ownersByFamily=new Map<string,Set<string>>();
   const allOwners=new Set<string>();
+  const boundFamilies=new Set(bindings.map(binding=>binding.familyCode));
   for(const binding of bindings){
    if(!binding.code)continue;
    const owner=variants.get(binding.code);
@@ -66,7 +67,7 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
    const family=families.get(binding.familyCode)!;
    const familyOwners=ownersByFamily.get(family.code) || new Set<string>();
    if(!binding.code){
-    if(familyOwners.size===0 || allOwners.size>1){
+    if(familyOwners.size===0 || allOwners.size>1 || boundFamilies.size>1){
      putFamily(family,hit,visualRank,familyOwners.size>1 || allOwners.size>1
       ? 'این تصویر میان چند کد یا خانواده مشترک است؛ فقط شباهت در سطح خانواده قابل ارائه است و کد SKU دقیق تأیید نشده است.'
       : 'تصویر به خانواده واقعی محصول متصل است، نه به یک کد SKU مشخص؛ مدل و سایز دقیق تأیید نشده است.');
@@ -77,7 +78,7 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
    }
    const owner=variants.get(binding.code);
    if(!owner || owner.family.code!==family.code)continue;
-   const independent=familyOwners.size===1 && allOwners.size===1;
+   const independent=familyOwners.size===1 && allOwners.size===1 && boundFamilies.size===1;
    if(!independent){
     putFamily(family,hit,visualRank,'تصویر کاتالوگ بین چند کد مشترک است؛ این نتیجه فقط خانواده را نشان می‌دهد و مدل یا سایز مستقل تأیید نشده است.');
     continue;
