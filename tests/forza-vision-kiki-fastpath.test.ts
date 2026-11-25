@@ -124,7 +124,8 @@ test('multi-part lens auto-selects a detected object and starts catalog search w
   assert.ok(review.includes('مشاهده صفحه محصول و مشخصات'));
   assert.ok(modal.includes("navigate('/product/'+encodeURIComponent(productCode))"));
   assert.ok(styles.includes('.kiki-image-workspace__family-image-note'));
-  assert.ok(styles.includes('max-height: min(calc(48dvh - 82px), 420px)'));
+  assert.ok(styles.includes('max-height: min(calc(48dvh - 96px), 420px)'));
+  assert.ok(styles.includes('max-height: min(calc(54dvh - 115px), 440px)'));
   assert.ok(styles.includes('background: transparent'));
   assert.ok(styles.includes('.kiki-image-workspace__result-card.is-selected'));
   assert.ok(styles.includes('.sanat-region-picker--viewer .sanat-region-picker__handles'));
