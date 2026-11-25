@@ -229,6 +229,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [regionDetectionMessage,setRegionDetectionMessage]=useState('');
   const [regionDetectionId,setRegionDetectionId]=useState<string|null>(null);
   const [fullImageSelected,setFullImageSelected]=useState(false);
+  const [regionSelectionExplicit,setRegionSelectionExplicit]=useState(false);
   const regionDetectionSequenceRef=useRef(0);
   const autoAnalysisKeyRef=useRef<string|null>(null);
   const localSegmentationRef=useRef<{source:string;result:ClientAiSegmentationResult;region:ImageRegion}|null>(null);
@@ -329,7 +330,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     useState<AiPartAnalysisResult | null>(null);
   const [selectedProductId,setSelectedProductId]=useState<string>();
   const [regionSelectionVersion,setRegionSelectionVersion]=useState(0);
-  React.useEffect(()=>{localSegmentationRef.current=null;autoAnalysisKeyRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);setSelectedProductId(undefined);setInlineAnalysisBusy(false);setAnalysisResult(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
+  React.useEffect(()=>{localSegmentationRef.current=null;autoAnalysisKeyRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);setRegionSelectionExplicit(false);setSelectedProductId(undefined);setInlineAnalysisBusy(false);setAnalysisResult(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
   const [customRequestDraft, setCustomRequestDraft] = useState<ManufacturingRequestDraft | null>(null);
   const [customRequestOpen, setCustomRequestOpen] = useState(false);
   const [isPreparingCustomRequest, setIsPreparingCustomRequest] = useState(false);
@@ -536,6 +537,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const handleRegionSelection = (region: ImageRegion | undefined) => {
     autoAnalysisKeyRef.current=null;
     setRegionSelectionVersion(version=>version+1);
+    setRegionSelectionExplicit(true);
     setQueryRegion(region);
     setFullImageSelected(!region);
     setSelectedProductId(undefined);
@@ -775,15 +777,17 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     const selectedRegionForRequest = regionOverride === null || (regionOverride === undefined && fullImageSelected)
       ? undefined
       : regionOverride || queryRegion;
-    // Reuse server-side embeddings only when the selection matches a cached
-    // detection proposal. A hand-drawn rectangle has no cached view, so crop the
-    // original customer image locally and bypass the stale detection ID.
+    // The first automatic box is only a proposal. Let the catalogue rank every
+    // cached view before choosing the best one; pin a view only after the customer
+    // explicitly taps it. Hand-drawn rectangles are cropped locally and bypass
+    // the server cache because they have no cached embedding.
     const requestRegionIsCached = Boolean(
-      regionDetectionId && selectedRegionForRequest &&
+      regionSelectionExplicit && regionDetectionId && selectedRegionForRequest &&
       matchesCachedImageRegion(selectedRegionForRequest, candidateRegions),
     );
     const requestRegion = requestRegionIsCached ? selectedRegionForRequest : undefined;
-    const clientCropFallback = Boolean(selectedRegionForRequest) && !requestRegionIsCached;
+    const clientCropFallback = Boolean(regionSelectionExplicit && selectedRegionForRequest) && !requestRegionIsCached;
+    const requestDetectionId = !clientCropFallback ? regionDetectionId || undefined : undefined;
     const requestFullImage = regionOverride === null || (!requestRegion && (fullImageSelected || clientCropFallback));
     analysisBusyRef.current = true;
     const sequence = ++analysisSequenceRef.current;
@@ -832,7 +836,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         imageBase64, mimeType: analysisMimeType,
         length: length ? parseFloat(length) : undefined, width: width ? parseFloat(width) : undefined, pitch: pitch ? parseFloat(pitch) : undefined,
         application: application.trim() || undefined, features: features.trim() || undefined,
-        stage, observationOnly: false, region: requestRegion, detectionId: requestRegion ? regionDetectionId || undefined : undefined, fullImage: requestFullImage, includeNearest: true,
+        stage, observationOnly: false, region: requestRegion, detectionId: requestDetectionId, fullImage: requestFullImage, includeNearest: true,
         measurements: stage === "refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if (sequence !== analysisSequenceRef.current) return;
@@ -903,12 +907,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     if(!isOpen||currentStep!==1||!selectedImage||!temporaryImageDataUrl||!localImageId||isUploadingImage)return;
     if(regionDetectionState!=='ready'&&regionDetectionState!=='fallback')return;
     const region=fullImageSelected?null:(queryRegion||candidateRegions[0]||null);
-    const regionKey=region?[region.x,region.y,region.width,region.height].map(value=>value.toFixed(4)).join(':'):'full-image';
+    const regionKey=regionSelectionExplicit
+      ? region?[region.x,region.y,region.width,region.height].map(value=>value.toFixed(4)).join(':'):'full-image'
+      : 'automatic-catalog-ranking';
     const key=localImageId+':'+regionKey;
     if(autoAnalysisKeyRef.current===key||inlineAnalysisBusy||analysisBusyRef.current)return;
     autoAnalysisKeyRef.current=key;
     void handleAnalyze('quick',region,localImageId,true);
-  },[isOpen,currentStep,selectedImage,temporaryImageDataUrl,localImageId,isUploadingImage,regionDetectionState,fullImageSelected,queryRegion,candidateRegions,inlineAnalysisBusy,regionSelectionVersion]);
+  },[isOpen,currentStep,selectedImage,temporaryImageDataUrl,localImageId,isUploadingImage,regionDetectionState,fullImageSelected,queryRegion,candidateRegions,inlineAnalysisBusy,regionSelectionVersion,regionSelectionExplicit]);
   
   const goToStep2 = () => {
     if(selectedImage && !analysisResult?.requiredMeasurements){setCurrentStep(1);return;}
