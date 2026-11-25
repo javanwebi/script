@@ -37,6 +37,12 @@ export function analyzePersianSentenceCompletion(text: string): PersianSentenceA
     return decision(false, false, true, 0, 2200, 'گفتار کوتاه یا ناتمام');
   }
 
+  // A standalone negative answer is complete; a longer correction such as
+  // "نه، منظورم 6203 بود" still falls through to the continuation rules.
+  if(clean==='نه'&&!ellipsis){
+    return decision(true,false,false,0.94,800,'پاسخ منفی کوتاه');
+  }
+
   // Ending a clause with a connector, self-correction, or incomplete request
   // is not the same as ending a conversational turn. Check this BEFORE
   // punctuation: Chrome may auto-insert a full stop on an interim hypothesis.
