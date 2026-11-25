@@ -140,11 +140,12 @@ export function publicForzaTextProviderStatus(
  */
 export function providerStreamTimeouts(provider: 'xkiro' | 'bai' | 'avalai', voice: boolean) {
   return {
-    // Bound only connection establishment / first token and inactivity.
+    // Voice calls have a shorter first-token budget so a stalled upstream
+    // cannot leave the live call waiting for twenty seconds per route.
     // A healthy stream may run as long as the model keeps producing deltas.
     firstTokenMs: provider === 'xkiro' ? 4500 : provider === 'avalai'
-      ? (voice ? 20000 : 18000)
-      : (voice ? 18000 : 20000),
+      ? (voice ? 8000 : 18000)
+      : (voice ? 10000 : 20000),
     idleAfterDeltaMs: provider === 'xkiro' ? 1100 : 45000,
   };
 }

@@ -109,7 +109,32 @@ function wav(){
   const recoveredStarts=await page.evaluate(()=>window.__forzaRecognitionStarts);
   await page.evaluate(()=>{window.__forzaMockRecognition.onerror({error:'not-allowed'});window.__forzaMockRecognition.onend();});
   await page.waitForTimeout(600);assert.equal(await page.evaluate(()=>window.__forzaRecognitionStarts),recoveredStarts,'permission rejection must not restart the recognizer');
+
+  // Reproduce the customer's screenshot: a short, usable interim transcript
+  // ("چه خبر خوبی") followed by real mic silence must dispatch to the LLM
+  // promptly, without waiting for the full-audio AvalAI/Diba verifier.
+  serverTranscriptions=0;consultRequests=0;
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
+  await page.waitForFunction(()=>!!window.__forzaMockRecognition,null,{timeout:6000});
+  await page.waitForTimeout(450);
+  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
+  await page.waitForTimeout(450);
+  await page.evaluate(()=>window.__forzaMockRecognition.onresult({resultIndex:0,results:[
+    Object.assign([{transcript:'چه خبر خوبی'}],{isFinal:false}),
+  ]}));
+  await page.getByText('چه خبر خوبی',{exact:true}).waitFor({timeout:1000});
+  const dispatchStarted=Date.now();
+  const requestPromise=page.waitForRequest(request=>request.url().includes('/api/ai/consult-stream'),{timeout:2500});
+  await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
+  const dispatchedRequest=await requestPromise;
+  const dispatchMs=Date.now()-dispatchStarted;
+  assert.equal(dispatchedRequest.postDataJSON().query,'چه خبر خوبی','the exact live transcript must be sent as the new user turn');
+  await page.waitForTimeout(80);
+  assert.ok(dispatchMs<1800,'a complete interim phrase must reach consult-stream quickly: '+dispatchMs+'ms');
+  assert.equal(consultRequests,1,'the completed speech turn must make one LLM request');
+  assert.equal(serverTranscriptions,0,'a usable interim transcript must bypass full-audio STT');
   assert.deepEqual(errors,[]);
-  console.log('FORZA_LIVE_STT_BROWSER_PASS partial_appeared_ms='+partialMs+' two_second_pause_preserved=1 recognizer_restart_appended=1 transient_network_recovered=1 permissions_do_not_loop=1');
+  console.log('FORZA_LIVE_STT_BROWSER_PASS partial_appeared_ms='+partialMs+' two_second_pause_preserved=1 recognizer_restart_appended=1 transient_network_recovered=1 permissions_do_not_loop=1 fast_interim_turn_dispatch_ms='+dispatchMs+' server_stt_bypassed=1');
  }finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_LIVE_STT_BROWSER_FAIL',e);process.exitCode=1;});
