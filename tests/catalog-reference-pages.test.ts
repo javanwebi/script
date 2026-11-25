@@ -116,7 +116,7 @@ test('reference catalog reports only attached artwork and preserves legacy produ
   const api = read('server/catalogReferenceApi.ts');
   const detail = read('src/pages/PopdProductDetailPage.tsx');
   assert.match(api, /activeVerifiedFamilyImageUrls/);
-  assert.match(api, /verifiedFamilyImageCount: activeVerifiedFamilyImageUrls\\.size/);
+  assert.match(api, /verifiedFamilyImageCount: activeVerifiedFamilyImageUrls\.size/);
   assert.match(detail, /LegacyProductDetailPage/);
   assert.match(detail, /status === 'not-found'/);
 });
