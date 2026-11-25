@@ -17,10 +17,12 @@ export type RegionPreparationState = 'uploading' | 'detecting' | 'ready' | 'fall
 export interface VisionWorkspaceResult {
   id: string;
   code?: string;
+  familyCode?: string;
   name: string;
   brand?: string;
   image?: string;
   imageScope?: 'family' | 'variant' | 'none';
+  matchBasis?: 'visual' | 'read_code' | 'family' | 'explore';
   familyName?: string;
   model?: string;
   size?: string;
@@ -47,6 +49,7 @@ interface Props {
   selectedProductId?: string;
   onRegionChange: (region: ImageRegion | undefined) => void;
   onSelectProduct: (id: string) => void;
+  onOpenProduct: (id: string) => void;
   onRetryAnalysis: () => void;
   onChangeImage: () => void;
   onCamera: () => void;
@@ -71,6 +74,7 @@ export function ImageRegionReview({
   selectedProductId,
   onRegionChange,
   onSelectProduct,
+  onOpenProduct,
   onRetryAnalysis,
   onChangeImage,
   onCamera,
@@ -87,12 +91,12 @@ export function ImageRegionReview({
       : analysisBusy
         ? 'در حال تطبیق قطعه با کاتالوگ صنعت پیش'
         : results.length
-          ? 'محصولات مشابه پیدا شدند؛ برای انتخاب، روی کارت محصول بزنید'
+          ? 'برای مشاهده مشخصات، روی کارت محصول بزنید'
           : analysisComplete && !results.length
-          ? 'جست‌وجو کامل شد؛ نتیجه قابل اتکایی پیدا نشد'
-          : status === 'fallback'
-            ? 'در حال بررسی تصویر کامل؛ نیازی به برش دستی نیست'
-            : 'تصویر آماده بررسی خودکار است';
+            ? 'جست‌وجو کامل شد؛ نتیجه قابل اتکایی پیدا نشد'
+            : status === 'fallback'
+              ? 'در حال بررسی تصویر کامل؛ نیازی به برش دستی نیست'
+              : 'تصویر آماده بررسی خودکار است';
 
   return (
     <section
@@ -108,7 +112,7 @@ export function ImageRegionReview({
             <img src={image} alt="تصویر قطعه انتخاب‌شده" />
             <div>
               <h2>محصولات مشابه کاتالوگ</h2>
-              <p>{analysisBusy ? 'نتایج به‌محض آماده‌شدن نمایش داده می‌شوند' : 'انتخاب قطعه و مشاهده نتیجه در همین میزکار'}</p>
+              <p>{analysisBusy ? 'نتایج به‌محض آماده‌شدن نمایش داده می‌شوند' : 'برای دیدن کد، مشخصات و مدل‌ها، کارت محصول را باز کنید'}</p>
             </div>
           </div>
           <span className="kiki-image-workspace__catalog-mark" aria-hidden="true">FORZA</span>
@@ -157,8 +161,9 @@ export function ImageRegionReview({
                   <article className={'kiki-image-workspace__result-card' + (selected ? ' is-selected' : '')}
                     key={item.id} data-selected={selected || undefined}>
                     <button type="button" className="kiki-image-workspace__result-select"
-                      onClick={() => onSelectProduct(item.id)} disabled={selectorDisabled}
-                      aria-pressed={selected}>
+                      onClick={() => { onSelectProduct(item.id); onOpenProduct(item.id); }}
+                      disabled={selectorDisabled}
+                      aria-label={'مشاهده صفحه محصول ' + item.name}>
                       <span className="kiki-image-workspace__result-image">
                         {item.image
                           ? <img src={item.image} alt={item.name} loading={index < 3 ? 'eager' : 'lazy'} />
@@ -170,6 +175,9 @@ export function ImageRegionReview({
                           {selected && <CheckCircle2 size={17} aria-label="محصول انتخاب‌شده" />}
                         </span>
                         {item.code && <span className="kiki-image-workspace__result-code" dir="ltr">{item.code}</span>}
+                        {!item.code && item.familyCode && (
+                          <span className="kiki-image-workspace__result-code" dir="ltr">کد خانواده: {item.familyCode}</span>
+                        )}
                         {(item.brand || item.familyName || item.model || item.size) && (
                           <span className="kiki-image-workspace__result-meta">
                             {[item.brand, item.familyName, item.model, item.size].filter(Boolean).join(' · ')}
@@ -180,10 +188,16 @@ export function ImageRegionReview({
                             {item.specs.slice(0, 3).map(spec => spec.key + ': ' + spec.value).join('  |  ')}
                           </span>
                         ) : null}
+                        {item.imageScope === 'family' && (
+                          <span className="kiki-image-workspace__family-image-note">
+                            تصویر نمونه خانواده است؛ مدل و کد SKU دقیق از این عکس تأیید نشده است.
+                          </span>
+                        )}
                         {item.matchLabel && <span className="kiki-image-workspace__result-match">{item.matchLabel}</span>}
                         {typeof score === 'number' && (
-                          <span className="kiki-image-workspace__result-score">شباهت تصویری: {score.toLocaleString('fa-IR')}٪</span>
+                          <span className="kiki-image-workspace__result-score">امتیاز رتبه‌بندی تصویر: {score.toLocaleString('fa-IR')} از ۱۰۰</span>
                         )}
+                        <span className="kiki-image-workspace__result-action">مشاهده صفحه محصول و مشخصات</span>
                       </span>
                     </button>
                   </article>
