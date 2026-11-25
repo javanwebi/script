@@ -184,4 +184,8 @@ test('POPD category subnavigation is derived from assigned families and omits st
   assert.match(api, /children: referenceChildren/);
   assert.match(api, /subcategories: referenceChildren\.map\(\(node\) => node\.name\)/);
   assert.match(api, /only submenus\/leaves that actually own a family/);
+  assert.match(api, /from public\.catalog_direct_skus/);
+  assert.match(api, /directSkuAssignments/);
+  assert.match(api, /buildReferenceCategoryChildren\(\[\.\.\.families, \.\.\.directSkuAssignments\]\)/);
+  assert.match(api, /standaloneDirectSkuRows: directSkuAssignments\.length/);
 });
