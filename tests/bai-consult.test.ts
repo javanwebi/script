@@ -289,8 +289,10 @@ test('provider error code is preserved without logging provider response bodies'
 test('provider streams use first-token and inactivity budgets, never a total response deadline', () => {
   assert.deepEqual(providerStreamTimeouts('avalai', true), { firstTokenMs: 8000, idleAfterDeltaMs: 45000 });
   assert.deepEqual(providerStreamTimeouts('avalai', false), { firstTokenMs: 12000, idleAfterDeltaMs: 45000 });
-  assert.deepEqual(providerStreamTimeouts('bai', true), { firstTokenMs: 10000, idleAfterDeltaMs: 45000 });
-  assert.deepEqual(providerStreamTimeouts('bai', false), { firstTokenMs: 15000, idleAfterDeltaMs: 45000 });
+  assert.deepEqual(providerStreamTimeouts('bai', true), { firstTokenMs: 18000, idleAfterDeltaMs: 45000 });
+  assert.deepEqual(providerStreamTimeouts('bai', false), { firstTokenMs: 20000, idleAfterDeltaMs: 45000 });
+  assert.deepEqual(providerStreamTimeouts('avalai', true), { firstTokenMs: 20000, idleAfterDeltaMs: 45000 });
+  assert.deepEqual(providerStreamTimeouts('avalai', false), { firstTokenMs: 18000, idleAfterDeltaMs: 45000 });
   assert.deepEqual(providerStreamTimeouts('xkiro', true), { firstTokenMs: 4500, idleAfterDeltaMs: 1100 });
   assert.deepEqual(providerStreamTimeouts('xkiro', false), { firstTokenMs: 4500, idleAfterDeltaMs: 1100 });
 });
