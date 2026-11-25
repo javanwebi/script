@@ -96,11 +96,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }else if(data?.voice==='piper-amir-medium'){
           voiceModeRef.current='piper-amir-medium';
           setActiveVoiceLabel('امیر (Piper فارسی)');
-        }else if(data?.voice==='pocket-farsi-v2'){
-          voiceModeRef.current='pocket-farsi-v2';
-          setActiveVoiceLabel('Pocket TTS فارسی v2');
         }else{
-          setActiveVoiceLabel('موتور فعلی سرور');
+          // Nima without incrementalSpeech and older/unknown workers keep the
+          // existing whole-answer TTS path; the response header still verifies
+          // the actual server voice when audio is requested.
+          voiceModeRef.current='pocket-farsi-v2';
+          setActiveVoiceLabel(data?.voice==='pocket-farsi-v2'
+            ?'Pocket TTS فارسی v2':'موتور فعلی سرور');
         }
       }catch{
         if(mounted)setActiveVoiceLabel('نیما (Piper فارسی)');
