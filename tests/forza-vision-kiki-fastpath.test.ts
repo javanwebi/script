@@ -237,3 +237,15 @@ test('server isolates a cached multi-view query to the exact customer-selected r
   assert.ok(localVision.includes('vectors:[query.vectors[index]]'));
   assert.ok(localVision.includes('markings:markingsBelongToRegion?query.markings:[]'));
 });
+
+
+test('secondary cached crops read OCR from the selected region without re-embedding the image', () => {
+  const server = source('server.ts');
+  const vision = source('src/services/localVision.ts');
+  const worker = source('services/local-vision/worker.py');
+  assert.ok(server.includes('readLocalMarkings(queryImage)'));
+  assert.ok(server.includes('cachedOcrMatchesRegion'));
+  assert.ok(vision.includes("localRequest('/markings'"));
+  assert.ok(worker.includes("'/markings'"));
+  assert.ok(worker.includes("text, available = markings(image)"));
+});
