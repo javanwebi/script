@@ -4710,6 +4710,12 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
 });
 
 app.post('/api/ai/analyze-part', async (req, res) => {
+  if(req.body?.domainHint==='industrial-belt' && !req.body?.imageUrl && !req.body?.imageBase64){
+    return res.status(400).json({error:{code:'BELT_IMAGE_REQUIRED',message:'برای شناسایی تخصصی تسمه، تصویر قطعه لازم است.'}});
+  }
+  if(req.body?.domainHint==='industrial-belt' && !localVisionEnabled){
+    return res.status(503).json({error:{code:'BELT_VISION_UNAVAILABLE',message:'موتور تطبیق تصویری تخصصی تسمه در دسترس نیست؛ برای جلوگیری از پیشنهاد نامرتبط، نتیجه عمومی نمایش داده نمی‌شود.'}});
+  }
   if(localVisionEnabled && (req.body?.imageUrl || req.body?.imageBase64)){
     if(localVisionQueries>=1)return res.status(429).json({error:{code:'VISION_BUSY',message:'جست‌وجوی تصویری مشغول است؛ چند ثانیه بعد دوباره تلاش کنید.'}});
     localVisionQueries++;
