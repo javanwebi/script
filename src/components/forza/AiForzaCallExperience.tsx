@@ -13,7 +13,7 @@ import {
   Square,
 } from 'lucide-react';
 import type { ParticleAvatarProps, ParticleAvatarRef } from './ParticleAvatar';
-import { checkpointForzaRecognition, extractPersianSpeechSince, normalizePersianTranscript, appendForzaSpeechSegment, appendForzaSessionTurn, replaceForzaLastSessionTurn, composeForzaSessionTranscript, mapForzaSegmentsInOrder, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
+import { checkpointForzaRecognition, extractPersianSpeechSince, normalizePersianTranscript, appendForzaSpeechSegment, appendForzaSessionTurn, replaceForzaLastSessionTurn, composeForzaSessionTranscript, mapForzaSegmentsInOrder, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript, canUseForzaServerFinalTranscript } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { attachForzaAudioEvidence } from '../../utils/forzaAudioEvidence';
@@ -1461,7 +1461,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               }
             }
             serverTranscript=serverTranscript.trim();
-            if(serverTranscript && (q || failedSegments===0)){
+            if(canUseForzaServerFinalTranscript(serverTranscript,failedSegments)){
               const preferAvalaiFinal=serverSttProviderRef.current==='avalai'&&!serverUsedDibaFallback;
               payload.query=chooseForzaFinalTranscript(q,serverTranscript,preferAvalaiFinal);
               const finalSttProvider=serverUsedDibaFallback
