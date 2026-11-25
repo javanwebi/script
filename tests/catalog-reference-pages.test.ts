@@ -180,7 +180,7 @@ test('Excel menu category pages use the authoritative POPD reference payload for
 test('POPD category subnavigation is derived from assigned families and omits stale empty database nodes', () => {
   const api = read('server/catalogReferenceApi.ts');
   assert.match(api, /function buildReferenceCategoryChildren\(/);
-  assert.match(api, /const referenceChildren = buildReferenceCategoryChildren\(families\)/);
+  assert.match(api, /const referenceChildren = buildReferenceCategoryChildren\(\[\.\.\.families, \.\.\.directSkuAssignments\]\)/);
   assert.match(api, /children: referenceChildren/);
   assert.match(api, /subcategories: referenceChildren\.map\(\(node\) => node\.name\)/);
   assert.match(api, /only submenus\/leaves that actually own a family/);
