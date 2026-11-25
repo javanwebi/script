@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import {
   AlertCircle,
   Camera,
@@ -95,7 +95,6 @@ export function ImageRegionReview({
   const selectorDisabled = preparing || Boolean(busy) || Boolean(analysisBusy);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [sheetDragging, setSheetDragging] = useState(false);
-  const [sheetDragOffset, setSheetDragOffset] = useState(0);
   const sheetPointerRef = useRef<SheetPointerState | null>(null);
 
   const handleSheetPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -103,7 +102,7 @@ export function ImageRegionReview({
     event.preventDefault();
     sheetPointerRef.current = { pointerId: event.pointerId, startY: event.clientY, startExpanded: sheetExpanded };
     setSheetDragging(true);
-    setSheetDragOffset(0);
+    event.currentTarget.closest('.kiki-image-workspace')?.style.setProperty('--kiki-sheet-drag-offset', '0px');
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const handleSheetPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -112,9 +111,12 @@ export function ImageRegionReview({
     const delta = event.clientY - state.startY;
     const sheetHeight = event.currentTarget.closest('.kiki-image-workspace__catalog')?.getBoundingClientRect().height || 420;
     const maxTravel = Math.max(120, sheetHeight - 104);
-    setSheetDragOffset(state.startExpanded
+    const offset = state.startExpanded
       ? Math.max(0, Math.min(maxTravel, delta))
-      : Math.max(-maxTravel, Math.min(0, delta)));
+      : Math.max(-maxTravel, Math.min(0, delta));
+    // Update the compositor-driven transform directly; do not re-render the
+    // entire catalogue grid for every touchmove on slower phones.
+    event.currentTarget.closest('.kiki-image-workspace')?.style.setProperty('--kiki-sheet-drag-offset', offset + 'px');
   };
   const finishSheetPointer = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const state = sheetPointerRef.current;
@@ -123,12 +125,12 @@ export function ImageRegionReview({
     if (Math.abs(delta) <= 8) setSheetExpanded(value => !value);
     else if (Math.abs(delta) >= 44) setSheetExpanded(delta < 0);
     sheetPointerRef.current = null;
-    setSheetDragOffset(0);
+    event.currentTarget.closest('.kiki-image-workspace')?.style.setProperty('--kiki-sheet-drag-offset', '0px');
     setSheetDragging(false);
   };
-  const cancelSheetPointer = () => {
+  const cancelSheetPointer = (event: ReactPointerEvent<HTMLButtonElement>) => {
     sheetPointerRef.current = null;
-    setSheetDragOffset(0);
+    event.currentTarget.closest('.kiki-image-workspace')?.style.setProperty('--kiki-sheet-drag-offset', '0px');
     setSheetDragging(false);
   };
   const handleSheetClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
@@ -160,7 +162,6 @@ export function ImageRegionReview({
       data-testid="image-region-review"
       data-sheet-expanded={sheetExpanded}
       data-sheet-dragging={sheetDragging}
-      style={{ '--kiki-sheet-drag-offset': sheetDragOffset + 'px' } as CSSProperties}
     >
       <section className="kiki-image-workspace__catalog" dir="rtl" aria-label="محصولات مشابه کاتالوگ" data-testid="kiki-mobile-results-sheet">
         <button
