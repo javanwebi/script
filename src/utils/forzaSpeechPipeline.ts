@@ -254,7 +254,9 @@ export function forzaTurnRemainingWaitMs(
   // emitting interim hypotheses while the customer is still speaking. A
   // longer text-only guard is safer than treating that transport stall as
   // acoustic silence. When VAD is available, retain the normal fast endpoint.
-  const requiredMs = vadSilenceMs === null ? Math.max(baseRequiredMs, 6500) : baseRequiredMs;
+  const requiredMs = baseRequiredMs <= 650
+    ? baseRequiredMs
+    : vadSilenceMs === null ? Math.max(baseRequiredMs, 6500) : baseRequiredMs;
   // Late final ASR hypotheses must not restart the entire acoustic endpoint
   // window. Preserve the full pause for unfinished thoughts and when no VAD
   // is available; allow a short revision guard only for completed final text.
