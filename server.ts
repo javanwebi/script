@@ -4740,7 +4740,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const started=Date.now();
       const requestedRegion=body.fullImage===true?undefined:body.region;
       const queryImage=await prepareLocalQuery(uploaded.buffer,requestedRegion);
-      const cachedDetection=typeof body.detectionId==='string'
+      const cachedDetection=body.fullImage===true?undefined:typeof body.detectionId==='string'
         ? localVisionDetectionCache.get(body.detectionId,imageFingerprint,localProfile.model)
         : undefined;
       const cachedRegionMatches=!requestedRegion || Boolean(cachedDetection?.queryRegions.some(region=>
