@@ -83,6 +83,7 @@ jobs:
           tests/image-region-interaction.test.ts
           tests/local-query-image.test.ts
           tests/belt-recognition.test.ts
+          tests/forza-vision-kiki-fastpath.test.ts
       - name: Install pinned Playwright browser runner
         run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1 onnxruntime-web@1.18.0
       - name: Install Chromium
