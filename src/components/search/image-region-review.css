@@ -1308,3 +1308,14 @@
     line-height: 1.5;
   }
 }
+
+
+.kiki-image-workspace__result-card[data-match-basis="explore"] .kiki-image-workspace__result-match {
+  display: inline-block;
+  width: fit-content;
+  padding: 4px 7px;
+  border: 1px solid #ead8b9;
+  border-radius: 7px;
+  color: #825a21;
+  background: #fff9ed;
+}
