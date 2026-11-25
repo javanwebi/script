@@ -10,8 +10,11 @@ export function resolveForzaQuickVoiceReply(query:string,history:unknown):string
     .replace(/[،,.!؟؛:]+/g,' ')
     .replace(/\s+/g,' ')
     .trim();
-  if(!/^(سلام|درود|سلام علیکم|وقت بخیر|سلام وقت بخیر|صبح بخیر|عصر بخیر|شب بخیر|سلام خوبی|سلام چطوری)$/u.test(normalized))
-    return null;
+  // Recognize short, purely social greeting sequences as one complete turn.
+  // Keep this whitelist narrow: any technical noun, code or request still goes
+  // through the live AvalAI conversation path.
+  const socialGreeting=/^(?:(?:سلام|درود|سلام علیکم|وقت بخیر|سلام وقت بخیر|صبح بخیر|عصر بخیر|شب بخیر)(?:\\s+(?:خوبی|چطوری|چه خبر|چه خبر خوبی|حالت چطوره|خوب هستی))*|(?:سلام خوبی|سلام چطوری|چه خبر|چه خبر خوبی|چه خبرها))$/u;
+  if(!socialGreeting.test(normalized))return null;
 
   const hasPriorUserTurn=Array.isArray(history)&&history.some((item:any)=>
     (item?.role==='user'||item?.sender==='user')&&String(item?.text||'').trim(),
