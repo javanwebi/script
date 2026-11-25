@@ -4,6 +4,7 @@ import {
   FORZA_CONVERSATION_HISTORY_LIMIT,
   prepareForzaConversationTurn,
 } from '../src/utils/forzaConversationHistory';
+import {appendForzaSessionTurn} from '../src/utils/forzaSpeechPipeline';
 
 test('the current customer utterance is appended once and never duplicated in prior history',()=>{
   const history=[
@@ -47,4 +48,26 @@ test('invalid or empty messages are excluded and a zero limit means no history',
     previousHistory:[],
     nextHistory:[{role:'user',text:'سؤال'}],
   });
+});
+
+
+test('a new utterance is a separate user message but still receives all previous user and assistant context',()=>{
+  const first=prepareForzaConversationTurn([],'برای خط بسته‌بندی تسمه می‌خواهم');
+  const firstExchange=[
+    ...first.nextHistory,
+    {role:'model' as const,text:'برای انتخاب درست، عرض و طول تسمه را بفرمایید.'},
+  ];
+  const second=prepareForzaConversationTurn(firstExchange,'عرض ۲۰ میلی‌متر و طول ۱۲۵۰');
+  assert.deepEqual(second.previousHistory,firstExchange);
+  assert.deepEqual(second.nextHistory.map(item=>item.role),['user','model','user']);
+  assert.equal(second.nextHistory[0].text,'برای خط بسته‌بندی تسمه می‌خواهم');
+  assert.equal(second.nextHistory[1].text,'برای انتخاب درست، عرض و طول تسمه را بفرمایید.');
+  assert.equal(second.nextHistory[2].text,'عرض ۲۰ میلی‌متر و طول ۱۲۵۰');
+});
+
+test('the session transcript starts a new line for every utterance, including a repeated phrase',()=>{
+  const first=appendForzaSessionTurn('','سلام');
+  const second=appendForzaSessionTurn(first,'سلام');
+  const third=appendForzaSessionTurn(second,'برای خط تولید تسمه می‌خواهم');
+  assert.equal(third,'سلام\\nسلام\\nبرای خط تولید تسمه می‌خواهم');
 });
