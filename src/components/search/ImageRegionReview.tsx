@@ -1,7 +1,11 @@
+import { useRef, useState } from 'react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import {
   AlertCircle,
   Camera,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   LoaderCircle,
   Phone,
   RefreshCw,
@@ -14,6 +18,8 @@ import type { BeltRecognitionAnalysis } from '../../services/aiVisualSearchServi
 import './image-region-review.css';
 
 export type RegionPreparationState = 'uploading' | 'detecting' | 'ready' | 'fallback';
+
+type SheetPointerState = { pointerId: number; startY: number; startExpanded: boolean };
 
 export interface VisionWorkspaceResult {
   id: string;
@@ -87,6 +93,48 @@ export function ImageRegionReview({
   const preparing = status === 'uploading' || status === 'detecting';
   const working = preparing || Boolean(analysisBusy);
   const selectorDisabled = preparing || Boolean(busy) || Boolean(analysisBusy);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [sheetDragging, setSheetDragging] = useState(false);
+  const [sheetDragOffset, setSheetDragOffset] = useState(0);
+  const sheetPointerRef = useRef<SheetPointerState | null>(null);
+
+  const handleSheetPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    event.preventDefault();
+    sheetPointerRef.current = { pointerId: event.pointerId, startY: event.clientY, startExpanded: sheetExpanded };
+    setSheetDragging(true);
+    setSheetDragOffset(0);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const handleSheetPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const state = sheetPointerRef.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    const delta = event.clientY - state.startY;
+    const sheetHeight = event.currentTarget.closest('.kiki-image-workspace__catalog')?.getBoundingClientRect().height || 420;
+    const maxTravel = Math.max(120, sheetHeight - 104);
+    setSheetDragOffset(state.startExpanded
+      ? Math.max(0, Math.min(maxTravel, delta))
+      : Math.max(-maxTravel, Math.min(0, delta)));
+  };
+  const finishSheetPointer = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const state = sheetPointerRef.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    const delta = event.clientY - state.startY;
+    if (Math.abs(delta) <= 8) setSheetExpanded(value => !value);
+    else if (Math.abs(delta) >= 44) setSheetExpanded(delta < 0);
+    sheetPointerRef.current = null;
+    setSheetDragOffset(0);
+    setSheetDragging(false);
+  };
+  const cancelSheetPointer = () => {
+    sheetPointerRef.current = null;
+    setSheetDragOffset(0);
+    setSheetDragging(false);
+  };
+  const handleSheetClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    // Pointer gestures are handled on pointerup; detail=0 is keyboard activation.
+    if (event.detail === 0) setSheetExpanded(value => !value);
+  };
   const statusText = status === 'uploading'
     ? 'در حال آماده‌سازی تصویر'
     : status === 'detecting'
@@ -108,8 +156,29 @@ export function ImageRegionReview({
       aria-label="میزکار شناسایی تصویری FORZA"
       aria-busy={working || Boolean(busy)}
       data-testid="image-region-review"
+      data-sheet-expanded={sheetExpanded}
+      data-sheet-dragging={sheetDragging}
+      style={{ '--kiki-sheet-drag-offset': sheetDragOffset + 'px' } as CSSProperties}
     >
-      <section className="kiki-image-workspace__catalog" dir="rtl" aria-label="محصولات مشابه کاتالوگ">
+      <section className="kiki-image-workspace__catalog" dir="rtl" aria-label="محصولات مشابه کاتالوگ" data-testid="kiki-mobile-results-sheet">
+        <button
+          type="button"
+          className="kiki-image-workspace__sheet-handle"
+          aria-label={sheetExpanded ? 'جمع کردن پنل محصولات و نمایش تصویر' : 'باز کردن پنل محصولات'}
+          aria-expanded={sheetExpanded}
+          aria-controls="kiki-image-workspace-catalog-body"
+          data-testid="kiki-mobile-results-sheet-handle"
+          onPointerDown={handleSheetPointerDown}
+          onPointerMove={handleSheetPointerMove}
+          onPointerUp={finishSheetPointer}
+          onPointerCancel={cancelSheetPointer}
+          onLostPointerCapture={cancelSheetPointer}
+          onClick={handleSheetClick}
+        >
+          <span className="kiki-image-workspace__sheet-grip" aria-hidden="true" />
+          <span>{sheetExpanded ? 'برای بازگشت به تصویر، پنل را پایین بکشید' : 'برای دیدن محصولات، پنل را بالا بکشید'}</span>
+          {sheetExpanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronUp size={15} aria-hidden="true" />}
+        </button>
         <header className="kiki-image-workspace__catalog-header">
           <div className="kiki-image-workspace__catalog-identity">
             <img src={image} alt="تصویر قطعه انتخاب‌شده" />
@@ -121,7 +190,7 @@ export function ImageRegionReview({
           <span className="kiki-image-workspace__catalog-mark" aria-hidden="true">FORZA</span>
         </header>
 
-        <div className="kiki-image-workspace__catalog-body">
+        <div className="kiki-image-workspace__catalog-body" id="kiki-image-workspace-catalog-body">
           <div className="kiki-image-workspace__status" role="status" aria-live="polite">
             {working
               ? <LoaderCircle size={16} aria-hidden="true" />
@@ -308,8 +377,8 @@ export function ImageRegionReview({
             variant="viewer"
           />
         </div>
-        <p className="kiki-image-workspace__viewer-hint">
-          قطعات شناسایی‌شده روی تصویر مشخص‌اند؛ برای بررسی قطعه دیگر، روی کادر آن بزنید. نتایج کنار تصویر به‌روزرسانی می‌شوند.
+        <p className="kiki-image-workspace__viewer-hint" data-testid="kiki-manual-crop-hint">
+          کادر پیشنهادی را لمس کنید؛ اگر قطعه پیدا نشد، انگشت را روی تصویر بکشید و دور قطعه کادر برش دستی بسازید. تحلیل دوباره خودکار اجرا می‌شود.
         </p>
       </aside>
     </section>
