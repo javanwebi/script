@@ -153,15 +153,37 @@ async function loadSnapshot(): Promise<Snapshot> {
 
   const fallbackCategories = APPROVED_MENU_CATEGORIES as unknown as Category[];
   const fallbackGroups = APPROVED_MENU_GROUPS as unknown as NavigationGroup[];
-  const categorySlugs = new Set(fallbackCategories.map((category) => category.slug));
+  const fallbackCategoriesBySlug = new Map(fallbackCategories.map((category) => [category.slug, category]));
   const categoryRowsBySlug = new Map(categoryRes.rows.map((row: any) => [String(row.slug), row]));
   const groupRowsById = new Map(groupRes.rows.map((row: any) => [String(row.id), row]));
 
+  // The fallback file is a last-known-good source and currently contains 34 entries.
+  // Supabase is the active 40-category authority; never drop categories added after
+  // that fallback snapshot or reject families assigned to those valid active slugs.
+  const activeCategorySlugs = categoryRes.rows.length
+    ? categoryRes.rows.map((row: any) => normalizeCode(row.slug)).filter(Boolean)
+    : fallbackCategories.map((category) => normalizeCode(category.slug));
+  const categorySlugs = new Set(activeCategorySlugs);
+
   if (categoryRes.rows.length && fallbackCategories.some((category) => !categoryRowsBySlug.has(category.slug))) {
-    throw new Error('Supabase active categories do not fully match the approved POPD menu taxonomy');
+    throw new Error('Supabase active categories are missing an approved fallback category');
   }
   if (groupRes.rows.length && fallbackGroups.some((group) => !groupRowsById.has(group.id))) {
     throw new Error('Supabase active navigation groups do not fully match the approved POPD menu taxonomy');
+  }
+
+  const activeGroupCategorySlugs = new Set(
+    groupRes.rows.flatMap((row: any) => asArray<string>(row.categorySlugs).map(normalizeCode)),
+  );
+  if (categoryRes.rows.length && groupRes.rows.length) {
+    const ungrouped = activeCategorySlugs.filter((slug) => !activeGroupCategorySlugs.has(slug));
+    const unknownGroupCategories = Array.from(activeGroupCategorySlugs).filter((slug) => !categorySlugs.has(slug));
+    if (ungrouped.length || unknownGroupCategories.length) {
+      throw new Error(
+        'Supabase catalogue navigation does not cover the active category set: ' +
+        JSON.stringify({ ungrouped, unknownGroupCategories }),
+      );
+    }
   }
 
   const productByCode = new Map<string, Product>();
@@ -409,32 +431,68 @@ async function loadSnapshot(): Promise<Snapshot> {
     if (slug) directSkuCounts.set(slug, (directSkuCounts.get(slug) || 0) + 1);
   }
 
-  const categories = fallbackCategories.map((category) => {
-    const stats = menuStats.get(category.slug) || { familyCount: 0, skuCount: 0 };
-    const directSkuCount = directSkuCounts.get(category.slug) || 0;
-    const dbCategory = categoryRowsBySlug.get(category.slug);
+  const categoryRows = categoryRes.rows.length
+    ? categoryRes.rows
+    : fallbackCategories.map((category) => ({
+        ...category,
+        active: category.active !== false,
+        metadata: {},
+      }));
+
+  const categories = categoryRows.map((dbCategory: any) => {
+    const slug = String(dbCategory.slug || '');
+    const fallback = fallbackCategoriesBySlug.get(slug);
+    const metadata = dbCategory.metadata && typeof dbCategory.metadata === 'object'
+      ? dbCategory.metadata as Record<string, unknown>
+      : {};
+    const metadataChildren = Array.isArray(metadata.children)
+      ? metadata.children as Category['children']
+      : [];
+    const children = fallback?.children?.length ? fallback.children : metadataChildren;
+    const metadataSubcategories = Array.isArray(metadata.subcategories)
+      ? metadata.subcategories.map((value) => String(value))
+      : [];
+    const subcategories = fallback?.subcategories?.length
+      ? fallback.subcategories
+      : metadataSubcategories.length
+        ? metadataSubcategories
+        : (children || []).map((node) => node.name);
+    const stats = menuStats.get(slug) || { familyCount: 0, skuCount: 0 };
+    const directSkuCount = directSkuCounts.get(slug) || 0;
+    const rawId = Number(dbCategory.id);
     return {
-      ...category,
-      icon: dbCategory?.icon || category.icon,
-      image: dbCategory?.image || category.image,
-      description: (dbCategory?.description && String(dbCategory.description).trim()) || category.description,
-      sortOrder: Number(dbCategory?.sortOrder ?? category.sortOrder ?? 0),
+      ...(fallback || {}),
+      id: fallback?.id ?? (Number.isFinite(rawId) ? rawId : Number(dbCategory.sortOrder) || 0),
+      slug,
+      name: String(dbCategory.name || fallback?.name || slug),
+      nameEn: fallback?.nameEn || '',
+      description: (dbCategory.description && String(dbCategory.description).trim()) || fallback?.description || '',
+      subcategories,
+      icon: dbCategory.icon || fallback?.icon || 'Package',
+      image: dbCategory.image || fallback?.image || undefined,
+      children,
+      menuSource: fallback?.menuSource || (typeof metadata.source === 'string' ? metadata.source : undefined),
+      sortOrder: Number(dbCategory.sortOrder ?? fallback?.sortOrder ?? 0),
       count: stats.familyCount,
       familyCount: stats.familyCount,
       directSkuCount,
       skuCount: stats.skuCount + directSkuCount,
-      active: true,
-    };
+      active: dbCategory.active !== false,
+    } as Category;
   });
 
   const groups = fallbackGroups.map((group) => {
     const dbGroup = groupRowsById.get(group.id);
+    const dbCategorySlugs = asArray<string>(dbGroup?.categorySlugs).map(String);
+    const categorySlugsForGroup = dbCategorySlugs.length
+      ? dbCategorySlugs
+      : activeCategorySlugs.filter((slug) => slug.startsWith(`${group.id}-`));
     return {
       ...group,
       title: dbGroup?.title || group.title,
       iconKey: dbGroup?.iconKey || group.iconKey,
       imageUrl: dbGroup?.imageUrl || group.imageUrl || null,
-      categorySlugs: Array.isArray(group.categorySlugs) ? group.categorySlugs : [],
+      categorySlugs: categorySlugsForGroup,
       sortOrder: Number(dbGroup?.sortOrder ?? group.sortOrder ?? 0),
       active: true,
     };
