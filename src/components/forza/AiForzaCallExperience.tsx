@@ -225,7 +225,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const statusRef = useRef<ForzaStatus>('idle');
   const historyRef = useRef<Turn[]>([]);
-  const activeTurnRef = useRef<{generation:number; abort:AbortController; markInterrupted?:()=>void}|null>(null);
+  const activeTurnRef = useRef<{generation:number; abort:AbortController; query?:string; markInterrupted?:()=>void}|null>(null);
   const generationRef = useRef(0);
   // Not an authentication credential; a per-page correlation label used for
   // fair rate limits and debugging. No speech, audio or identity is stored.
@@ -772,6 +772,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const interruptCurrentTurn = useCallback(() => {
     const active=activeTurnRef.current;
     if(!active || active.abort.signal.aborted){
+      turnDispatchPendingRef.current=false;
       // Manual replay has no LLM turn but must still be interruptible.
       if(continuousVoiceRef.current||isManualReplayPendingRef.current){
         stopAudio();
@@ -785,6 +786,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     // Invalidate callbacks before aborting. The old finally must not cancel
     // the new user's microphone, player or response.
     activeTurnRef.current=null;
+    turnDispatchPendingRef.current=false;
     active.abort.abort(new Error('forza_customer_interrupted'));
     stopAudio();
     // Preserve only the last 500ms of in-RAM mic pre-roll for the customer's
@@ -1219,7 +1221,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     async (textToSend?: string, audioBlob?: Blob | Blob[], audioMime?: string) => {
       const q = (textToSend || '').trim();
       if(callClosedRef.current)return;
-      if(turnDispatchPendingRef.current && !(q && forzaTurnIntent(q)==='stop'))return;
+      const activeQuery=String(activeTurnRef.current?.query||'').trim();
+      const duplicateActiveTurn=Boolean(q&&activeQuery&&
+        normalizePersianTranscript(q)===normalizePersianTranscript(activeQuery));
+      if(duplicateActiveTurn)return;
+      const canInterruptPendingTurn=Boolean(q&&(
+        forzaTurnIntent(q)==='stop'||isProcessingTurnRef.current||
+        isAiSpeakingRef.current||statusRef.current==='thinking'));
+      if(turnDispatchPendingRef.current&&!canInterruptPendingTurn)return;
       if (!q && !audioBlob) return;
       // No recognized words does not establish a failed user turn. VAD can
       // detect noise or residual speaker audio while WebSpeech is reconnecting.
@@ -1315,7 +1324,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       recognitionSessionBaseRef.current='';
       localSttFinalRef.current='';
       localSttAdmissionRef.current?.reset();
-      turnDispatchPendingRef.current=false;
+      // Keep ownership until this request finishes. A real barge-in releases it
+      // through interruptCurrentTurn; duplicate endpoint callbacks are ignored.
       heardSpeechEchoRef.current='';
       lastForzaPlaybackAtRef.current=0;
       isProcessingTurnRef.current = true;
@@ -1348,7 +1358,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       const pocketAbort=new AbortController();
       const generation=++generationRef.current;
-      activeTurnRef.current={generation,abort:pocketAbort};
+      activeTurnRef.current={generation,abort:pocketAbort,query:q};
       console.info('[FORZA_TURN] turn='+generation+
         ' phase=request_preparation_end_to_turn_ms='+
         (detectedSpeechEndAtRef.current?Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
@@ -1473,6 +1483,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Pocket fallback retains its one-request full-answer path.
         const turnStartedAt=performance.now();
         const resolvedUserQuery=String(payload.query||q).trim();
+        if(activeTurnRef.current?.generation===generation)
+          activeTurnRef.current.query=resolvedUserQuery;
         // The live hypothesis was already committed before asynchronous STT.
         // Replace only this last turn if Diba supplies a better final transcript;
         // earlier turns remain untouched across pauses and assistant replies.
@@ -1530,6 +1542,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             historyRef.current.push(heardEntry);
           }
           heardEntry.text=[heardEntry.text,phrase.trim()].filter(Boolean).join(' ').trim();
+        };
+        const commitAssistantReply=(text:string,playbackComplete:boolean)=>{
+          const clean=String(text||'').trim();
+          if(!clean)return;
+          const stored=playbackComplete?clean:
+            '[متن کامل پاسخ در زیرنویس نمایش داده شد؛ پخش صوت کامل نشد.] '+clean;
+          if(heardEntry)heardEntry.text=stored;
+          else{
+            heardEntry={role:'model',text:stored};
+            historyRef.current.push(heardEntry);
+          }
         };
         if(activeTurnRef.current?.generation===generation){
           activeTurnRef.current.markInterrupted=()=>{
@@ -1771,6 +1794,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 ' final_chars='+(finalPhrases.at(-1)?.length||0));
               for(const phrase of finalPhrases)queueSpeech(phrase);
               await activeNimaBuffer.finish();
+              commitAssistantReply(reply,true);
               console.info('[FORZA_LATENCY] phase=nima-incremental-finished phrases='+
                 activeNimaBuffer.statistics.scheduled+
                 ' audio_s='+activeNimaBuffer.statistics.totalBufferedSeconds.toFixed(2)+
@@ -1781,9 +1805,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 'call-'+callIdRef.current+'-turn-'+generation);
               recordHeard(reply);
             }
+            commitAssistantReply(reply,true);
             if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
               setVoiceOutputError(null);
           }catch(error:any){
+            if(!pocketAbort.signal.aborted&&activeTurnRef.current?.generation===generation)
+              commitAssistantReply(reply,false);
             if(activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted)
               setVoiceStage('error');
             if(pocketAbort.signal.aborted || activeTurnRef.current?.generation!==generation)
