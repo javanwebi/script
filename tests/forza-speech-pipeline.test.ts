@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   appendForzaSpeechSegment, checkpointForzaRecognition, extractPersianSpeechRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs,
   normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64, chooseForzaFinalTranscript,
+  canUseForzaServerFinalTranscript,
 } from '../src/utils/forzaSpeechPipeline.ts';
 
 function result(value:string, isFinal:boolean) {
@@ -106,6 +107,16 @@ test('FORZA response stream has no fixed total-duration cutoff',()=>{
   const source=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
   assert.doesNotMatch(source,/totalTimer|120000|بیش از دو دقیقه/);
   assert.match(source,/ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند/);
+});
+
+test('a partial server transcript never replaces the complete browser utterance after any segment fails',()=>{
+  assert.equal(canUseForzaServerFinalTranscript('تمام متن گفتار',0),true);
+  assert.equal(canUseForzaServerFinalTranscript('فقط بخش دوم گفتار',1),false);
+  assert.equal(canUseForzaServerFinalTranscript('فقط بخش سوم گفتار',2),false);
+  assert.equal(canUseForzaServerFinalTranscript('',0),false);
+  assert.equal(canUseForzaServerFinalTranscript('متن ناقص',Number.NaN),false);
+  const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
+  assert.match(ui,/canUseForzaServerFinalTranscript\(serverTranscript,failedSegments\)/);
 });
 
 test('AvalAI final transcript corrects a plausible but wrong browser product code',()=>{
