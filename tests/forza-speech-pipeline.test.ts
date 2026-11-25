@@ -25,14 +25,14 @@ test('Persian normalization preserves real product codes and numbers',()=>{
 });
 
 test('Adaptive endpointing speeds up complete turns and protects unfinished industrial phrases',()=>{
-  assert.equal(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false),2800);
-  assert.equal(forzaEndOfTurnPauseMs('مدل 6205',true),3400);
-  assert.equal(forzaEndOfTurnPauseMs('سلام',false),1350);
-  assert.equal(forzaEndOfTurnPauseMs('ممنون',false),1350);
-  assert.equal(forzaEndOfTurnPauseMs('مدل چند است؟',false),1350);
+  assert.equal(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false),4300);
+  assert.equal(forzaEndOfTurnPauseMs('مدل 6205',true),5200);
+  assert.equal(forzaEndOfTurnPauseMs('سلام',false),2200);
+  assert.equal(forzaEndOfTurnPauseMs('ممنون',false),2200);
+  assert.equal(forzaEndOfTurnPauseMs('مدل چند است؟',false),2200);
   assert.ok(forzaTurnRemainingWaitMs('مدل چند است؟',false,1000,1000)>0);
-  assert.equal(forzaTurnRemainingWaitMs('مدل چند است؟',false,1400,1400),0);
-  assert.equal(forzaEndOfTurnPauseMs('',false),5200);
+  assert.equal(forzaTurnRemainingWaitMs('مدل چند است؟',false,2200,2200),0);
+  assert.equal(forzaEndOfTurnPauseMs('',false),6500);
 });
 
 test('Only the spoken copy expands industrial codes, never the underlying SKU',()=>{
