@@ -25,12 +25,15 @@ test('category and family screens use the Supabase-backed POPD reference API', (
   assert.doesNotMatch(detail, /useCatalog\s*\(|CatalogContext/);
 });
 
-test('only category and family route components are switched to POPD-derived pages', () => {
+test('category and direct-SKU page appearance stays in SCRIPT while family detail uses POPD', () => {
   const app = read('src/App.tsx');
   const wrapper = read('src/pages/CategoryPage.tsx');
-  assert.match(app, /PopdAllCategoriesPage/);
-  assert.match(app, /PopdProductDetailPage/);
-  assert.match(wrapper, /PopdExcelMenuCategoryPage/);
+  assert.match(app, /pages\\/AllCategoriesPage/);
+  assert.match(app, /pages\\/DirectSkuDetailPage/);
+  assert.match(app, /pages\\/PopdProductDetailPage/);
+  assert.doesNotMatch(app, /PopdAllCategoriesPage/);
+  assert.match(wrapper, /ExcelMenuCategoryPage/);
+  assert.doesNotMatch(wrapper, /PopdExcelMenuCategoryPage/);
 });
 
 test('catalog price panel keeps POPD default-on persisted panel mode', () => {
