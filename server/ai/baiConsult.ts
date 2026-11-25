@@ -508,13 +508,18 @@ export async function streamAvalaiConsult(options: BaiConsultOptions) {
       }},endpoints[index],'avalai');
     }catch(error){
       lastError=error;
+      const failureCode=error instanceof BaiConsultError?error.code:'unknown';
+      console.warn('[FORZA_TEXT_STREAM] provider=avalai route_failed='+
+        new URL(endpoints[index]).host+' code='+failureCode);
       // Retry only a failure before the first visible token. The alternate
       // domain uses the same AvalAI key and model, never a second provider.
       // Once any text was emitted, replaying would duplicate spoken content.
       const retryable=error instanceof BaiConsultError&&
         ['upstream_network_error','upstream_timeout','provider_stream_incomplete'].includes(error.code);
       if(options.signal?.aborted||sentText||!retryable||index===endpoints.length-1)throw error;
-      console.info('[FORZA_TEXT_STREAM] provider=avalai route_failover=1 code='+error.code);
+      console.info('[FORZA_TEXT_STREAM] provider=avalai route_failover=1 from='+
+        new URL(endpoints[index]).host+' to='+new URL(endpoints[index+1]).host+
+        ' code='+error.code);
     }
   }
   throw lastError instanceof Error?lastError:new BaiConsultError('upstream_network_error');
