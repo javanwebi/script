@@ -638,7 +638,7 @@
   }
 
   .sanat-region-picker--viewer .sanat-region-picker__frame > img {
-    max-height: min(42dvh, 440px);
+    max-height: min(calc(54dvh - 115px), 440px);
   }
 }
 
@@ -683,7 +683,7 @@
   }
 
   .sanat-region-picker--viewer .sanat-region-picker__frame > img {
-    max-height: min(calc(48dvh - 82px), 420px);
+    max-height: min(calc(48dvh - 96px), 420px);
   }
 
   .sanat-region-picker--viewer .sanat-region-picker__viewer-actions button {
