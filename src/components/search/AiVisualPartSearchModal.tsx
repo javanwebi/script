@@ -836,9 +836,19 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       });
       if (sequence !== analysisSequenceRef.current) return;
       if (localRegionEnabled || result.localVisionMetrics) {
-        setLocalRegionEnabled(true); setQueryRegion(result.queryRegion || requestRegion);
-        if (!requestRegion) setCandidateRegions(result.queryRegions || []);
-        setFullImageSelected(requestFullImage); setRegionDetectionState("ready");
+        setLocalRegionEnabled(true);
+        if (clientCropFallback && selectedRegionForRequest) {
+          // The server saw a cropped image in this branch. Its returned proposal
+          // coordinates are relative to that crop, not the original customer photo.
+          // Preserve the original-image candidates and the exact crop the customer chose.
+          setQueryRegion(selectedRegionForRequest);
+          setFullImageSelected(false);
+        } else {
+          setQueryRegion(result.queryRegion || requestRegion);
+          if (!requestRegion) setCandidateRegions(result.queryRegions || []);
+          setFullImageSelected(requestFullImage);
+        }
+        setRegionDetectionState("ready");
       }
       if (activeImageEventId) {
         const matched = result.matchedProducts || [], similar = result.similarCandidates || [];
