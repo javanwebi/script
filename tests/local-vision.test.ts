@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import {localVisionResult,embedLocalImages,LOCAL_VISION_MODEL} from '../src/services/localVision';
+import {localVisionResult,embedLocalImages,LOCAL_VISION_MODEL,selectCachedQueryView} from '../src/services/localVision';
 import type {Product} from '../src/types';
 
 const products=[{code:'family',name:'خانواده واقعی',active:true,variants:[{code:'sku',name:'کالای واقعی',active:true,technicalSpecs:[{key:'سایز',value:'20'}]},{code:'other-size',active:true},{code:'inactive',active:false}]}] as Product[];
@@ -224,4 +224,29 @@ test('legacy DINO worker supports a full frame and one crop without inventing mu
   count=3;box=region;
   await assert.rejects(()=>describeLocalQuery(Buffer.from('photo'),env),/Missing query regions/);
  }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}
+});
+
+
+test('a selected cached region uses only its own embedding and never inherits OCR from a different crop',()=>{
+ const first={x:0.1,y:0.2,width:0.2,height:0.3};
+ const second={x:0.62,y:0.3,width:0.25,height:0.35};
+ const query={
+  model:LOCAL_VISION_MODEL,
+  vectors:[[1,0],[0,1],[0.5,0.5]],
+  viewRegions:[null,first,second],
+  region:first,
+  markings:[{text:'6203ZZ',confidence:96}],
+  ocrAvailable:true,
+ };
+ const selectedSecond=selectCachedQueryView(query,second);
+ assert.deepEqual(selectedSecond?.vectors,[[0.5,0.5]]);
+ assert.deepEqual(selectedSecond?.viewRegions,[second]);
+ assert.deepEqual(selectedSecond?.region,second);
+ assert.deepEqual(selectedSecond?.markings,[]);
+ assert.equal(selectedSecond?.ocrAvailable,false);
+ const selectedFirst=selectCachedQueryView(query,first);
+ assert.deepEqual(selectedFirst?.vectors,[[0,1]]);
+ assert.deepEqual(selectedFirst?.markings,[{text:'6203ZZ',confidence:96}]);
+ assert.equal(selectedFirst?.ocrAvailable,true);
+ assert.equal(selectCachedQueryView(query,{x:0.4,y:0.4,width:0.2,height:0.2}),undefined);
 });
