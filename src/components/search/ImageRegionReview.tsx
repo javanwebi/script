@@ -42,6 +42,7 @@ interface Props {
   progress?: number;
   compared?: number;
   total?: number;
+  analysisComplete?: boolean;
   results: VisionWorkspaceResult[];
   selectedProductId?: string;
   onRegionChange: (region: ImageRegion | undefined) => void;
@@ -65,6 +66,7 @@ export function ImageRegionReview({
   progress = 0,
   compared,
   total,
+  analysisComplete,
   results,
   selectedProductId,
   onRegionChange,
@@ -183,7 +185,7 @@ export function ImageRegionReview({
                 );
               })}
             </div>
-          ) : analysisBusy || preparing || busy ? (
+          ) : analysisBusy || preparing || busy || (!analysisComplete && !analysisError) ? (
             <div className="kiki-image-workspace__skeleton-grid" aria-label="در حال جستجوی کاتالوگ" data-testid="kiki-inline-results-loading">
               {Array.from({ length: 6 }, (_, index) => (
                 <div className="kiki-image-workspace__skeleton-card" key={index} aria-hidden="true">
@@ -194,7 +196,7 @@ export function ImageRegionReview({
                 </div>
               ))}
             </div>
-          ) : (
+          ) : analysisError ? null : (
             <div className="kiki-image-workspace__empty-results" data-testid="kiki-inline-results-empty">
               <strong>تطابق قابل اتکایی در کاتالوگ پیدا نشد</strong>
               <span>می‌توانید قطعه دیگری از همین تصویر را انتخاب کنید یا درخواست بررسی و ساخت سفارشی ثبت کنید.</span>
