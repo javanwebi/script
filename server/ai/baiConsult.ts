@@ -142,8 +142,8 @@ export function providerStreamTimeouts(provider: 'xkiro' | 'bai' | 'avalai', voi
     // Bound only connection establishment / first token and inactivity.
     // A healthy stream may run as long as the model keeps producing deltas.
     firstTokenMs: provider === 'xkiro' ? 4500 : provider === 'avalai'
-      ? (voice ? 8000 : 12000)
-      : (voice ? 10000 : 15000),
+      ? (voice ? 20000 : 18000)
+      : (voice ? 18000 : 20000),
     idleAfterDeltaMs: provider === 'xkiro' ? 1100 : 45000,
   };
 }
