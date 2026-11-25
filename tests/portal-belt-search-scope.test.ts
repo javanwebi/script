@@ -41,3 +41,12 @@ test('belt-selection code and catalogue links carry the belt-only search scope',
   assert.match(searchPage, /identify-part\?from=belt-selection/);
   assert.match(searchPage, /normalizedQuery/);
 });
+
+test('belt analysis is rendered in the automatic KIKI inline workspace', () => {
+  const modal = readFileSync(new URL('../src/components/search/AiVisualPartSearchModal.tsx', import.meta.url), 'utf8');
+  const review = readFileSync(new URL('../src/components/search/ImageRegionReview.tsx', import.meta.url), 'utf8');
+  assert.match(modal, /beltAnalysis=\{analysisResult\?\.beltAnalysis\}/);
+  assert.match(review, /data-testid="kiki-inline-belt-analysis"/);
+  assert.match(review, /beltAnalysis\.visualBeltConfirmed/);
+  assert.match(review, /beltAnalysis\.candidateFamilies/);
+});
