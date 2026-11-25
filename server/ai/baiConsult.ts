@@ -203,16 +203,20 @@ export function buildForzaConsultSystemMessage(voice: boolean): string {
     + '\nداده مرجع کاتالوگ (ممکن است خالی باشد):\n';
 }
 
-async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: string): Promise<{ text: string; model: string; firstTokenMs: number }> {
+async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: string, provider: ForzaTextProviderName): Promise<{ text: string; model: string; firstTokenMs: number }> {
   const {
     apiKey, model, query, history = [], catalogContext = '',
     voice = false, signal, fetchImpl = fetch, onDelta, firstTokenTimeoutMs,
     idleAfterDeltaTimeoutMs,
   } = options;
   const started = Date.now();
-  const isXkiro = endpoint === 'https://api.xkiro.com/v1/chat/completions';
-  const isAvalai = endpoint === 'https://api.avalai.ir/v1/chat/completions';
-  const budgets = providerStreamTimeouts(isXkiro ? 'xkiro' : isAvalai ? 'avalai' : 'bai', voice);
+  // Provider identity must not be inferred from the hostname: AvalAI's
+  // Cloudflare-backed api.avalai.org route is the same provider/model/key as
+  // api.avalai.ir and must receive the same low-latency request hints and
+  // first-token budget.
+  const isXkiro = provider === 'xkiro';
+  const isAvalai = provider === 'avalai';
+  const budgets = providerStreamTimeouts(provider, voice);
   const controller = new AbortController();
   let response: Response | undefined;
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
@@ -369,6 +373,7 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
       ' first_ms='+firstTokenMs+' last_ms='+lastTokenMs+
       ' done_ms='+(Date.now()-started)+
       ' ended_by='+(finishReason==='stop'?'finish_reason_stop':'done_frame')+
+      ' provider='+provider+' route='+new URL(endpoint).host+
       ' chars='+textSoFar.length);
     return { text: textSoFar, model, firstTokenMs };
   } catch (error) {
@@ -500,7 +505,7 @@ export async function streamAvalaiConsult(options: BaiConsultOptions) {
     try{
       return await streamOpenAiCompatible({...options,onDelta:(delta,text)=>{
         sentText=true;options.onDelta(delta,text);
-      }},endpoints[index]);
+      }},endpoints[index],'avalai');
     }catch(error){
       lastError=error;
       // Retry only a failure before the first visible token. The alternate
@@ -516,11 +521,11 @@ export async function streamAvalaiConsult(options: BaiConsultOptions) {
 }
 
 export function streamBaiConsult(options: BaiConsultOptions) {
-  return streamOpenAiCompatible(options, 'https://api.b.ai/v1/chat/completions');
+  return streamOpenAiCompatible(options, 'https://api.b.ai/v1/chat/completions', 'bai');
 }
 
 export function streamXkiroConsult(options: BaiConsultOptions) {
-  return streamOpenAiCompatible(options, 'https://api.xkiro.com/v1/chat/completions');
+  return streamOpenAiCompatible(options, 'https://api.xkiro.com/v1/chat/completions', 'xkiro');
 }
 
 /** Public actionable categories only; never surface upstream bodies or secrets. */
