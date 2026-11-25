@@ -147,14 +147,17 @@ test('KIKI results header stays within the independently scrollable catalogue pa
 });
 
 
-test('region selector blocks keyboard and action controls while image preparation or analysis is busy', () => {
+test('automatic viewer disables detected-region selection while busy and removes manual crop actions', () => {
   const picker = source('src/components/search/ImageRegionSelector.tsx');
   const review = source('src/components/search/ImageRegionReview.tsx');
-  assert.ok(picker.includes('disabled?:boolean;'));
-  assert.ok(picker.includes('tabIndex={disabled?-1:0}'));
-  assert.ok(picker.includes('if(disabled)return;'));
-  assert.ok(picker.includes('disabled={disabled || !value}'));
+  assert.ok(picker.includes('autoSelect?:boolean;'));
+  assert.ok(picker.includes('onClick={selectCandidateAtPoint}'));
+  assert.ok(picker.includes('if(autoSelect||disabled||event.button!==0||!event.isPrimary)return;'));
+  assert.ok(picker.includes('if(autoSelect){'));
   assert.ok(picker.includes('disabled={disabled}'));
-  assert.ok(review.includes('const selectorDisabled = preparing || Boolean(busy);'));
+  assert.ok(review.includes('const selectorDisabled = preparing || Boolean(busy) || Boolean(analysisBusy);'));
   assert.ok(review.includes('disabled={selectorDisabled}'));
+  assert.ok(review.includes('analysisBusy'));
+  assert.ok(!review.includes('onFullImageSearch'));
+  assert.ok(!review.includes('viewer-actions'));
 });
