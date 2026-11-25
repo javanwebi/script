@@ -458,11 +458,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   const handleRegionSelection = (region: ImageRegion | undefined) => {
+    autoAnalysisKeyRef.current=null;
     setQueryRegion(region);
     setFullImageSelected(!region);
     setSelectedProductId(undefined);
     setAnalysisResult(null);
     setErrorMessage('');
+    setCurrentStep(1);
   };
 
   // Upload once, detect object regions automatically, then start catalogue analysis without a crop-confirmation step.
@@ -809,26 +811,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
   };
 
-  const confirmFullImageAndAnalyze = () => {
-    if (!temporaryImageDataUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
-    setQueryRegion(undefined);
-    setFullImageSelected(true);
-    setErrorMessage('');
-    void handleAnalyze('quick', null);
-  };
-
   const goToStep2 = () => {
     if(selectedImage && !analysisResult?.requiredMeasurements){confirmRegionAndAnalyze();return;}
     setErrorMessage("");
     setCurrentStep(2);
-  };
-
-  // Selecting another crop never starts an expensive search implicitly.
-  // The customer reviews the crop and explicitly presses "search this part".
-  const searchRegion=(region:ImageRegion|undefined)=>{
-    setQueryRegion(region);
-    setFullImageSelected(!region);
-    setErrorMessage('');
   };
 
   // The original stays in the customer's local vault during identification.
@@ -1600,9 +1586,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   src={selectedImage}
                   value={queryRegion}
                   candidateRegions={candidateRegions}
-                  onChange={searchRegion}
-                  onSearch={() => { if(queryRegion)void handleAnalyze('quick', queryRegion); }}
-                  onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
+                  onChange={handleRegionSelection}
+                  autoSelect
+                  variant="viewer"
                 />}
                 {!localRegionEnabled && selectedImage && (
                   <div className="kiki-vision-image-evidence" data-testid="kiki-vision-image-evidence">
