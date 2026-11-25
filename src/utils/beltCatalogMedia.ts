@@ -230,7 +230,9 @@ export function buildBeltGalleryImages(
   ).trim();
   if (targetSku && !isExcludedBeltSku(targetSku)) {
     const activeSkuMedia = getProductSkuMedia(targetSku);
-    if (activeSkuMedia) {
+    // A generated profile drawing is not a substitute for the exact physical SKU photo.
+    // Publish the pair only when the same SKU has a verified real-product image.
+    if (activeSkuMedia?.realProductImage && activeSkuMedia.profileDrawingWebp) {
       pushUnique({
         id: `belt-sku-profile-${targetSku}`,
         url: activeSkuMedia.profileDrawingWebp,
