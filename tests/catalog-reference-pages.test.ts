@@ -177,7 +177,7 @@ test('Excel menu category pages use the authoritative POPD reference payload for
 });
 
 
-test('all category surfaces derive subnavigation from the same POPD families and active direct SKUs', () => {
+test('all category surfaces derive subnavigation only from POPD family assignments and archive-owned direct SKUs', () => {
   const api = read('server/catalogReferenceApi.ts');
   const detail = read('src/pages/ExcelMenuCategoryPage.tsx');
   const directory = read('src/pages/AllCategoriesPage.tsx');
@@ -187,11 +187,16 @@ test('all category surfaces derive subnavigation from the same POPD families and
   assert.match(api, /function referenceCategoryTaxonomy\(snapshot: Snapshot, category: Category\)/);
   assert.match(api, /snapshot\.products\.flatMap/);
   assert.match(api, /snapshot\.directSkuAssignments/);
+  assert.match(api, /payload\.directSkus/);
+  assert.doesNotMatch(api, /from public\.catalog_direct_skus/);
   assert.match(api, /const children = buildReferenceCategoryChildren\(\[\.\.\.familyAssignments, \.\.\.directSkuAssignments\]\)/);
   assert.match(api, /children,\s*subcategories: children\.map\(\(node\) => node\.name\)/);
   assert.doesNotMatch(api, /referenceChildren\.length\s*\?/);
   assert.match(api, /categories: snapshot\.categories\.map\(\(category\) => referenceCategoryTaxonomy\(snapshot, category\)\)/);
-  assert.match(api, /standaloneDirectSkuRows: directSkuAssignments\.length/);
+  assert.match(api, /standaloneDirectSkuRows: directSkus\.length/);
+  assert.match(api, /directSkus: snapshot\.directSkus\.filter/);
+  assert.match(detail, /const directSkus = data\?\.directSkus \|\| \[\]/);
+  assert.doesNotMatch(detail, /useDirectSkus\(slug\)/);
 
   assert.match(detail, /\/api\/catalog\/reference\/menu-category\//);
   assert.match(directory, /\/api\/catalog\/reference\/categories/);
