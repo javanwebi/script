@@ -112,8 +112,7 @@ function createPool() {
   }
   if (!isPrivateOrLocalHost(host)) fail(`Refusing non-local database host "${host}". Use the self-hosted VPS database.`);
 
-  const caPath = env.DATABASE_CA_CERT || join(process.cwd(),'certs','supabase-root-2021-ca.crt');
-  const ca = readFileSync(caPath,'utf8');
+  const ca = env.DATABASE_CA_CERT || readFileSync(join(process.cwd(),'certs','supabase-root-2021-ca.crt'),'utf8');
   return new Pool({
     connectionString:env.DATABASE_URL,
     max:2,
