@@ -2,6 +2,7 @@
 const SHOPPING_SECTION_PREFIXES = [
   "/products",
   "/categories",
+  "/belt-selection",
   "/category",
   "/product",
   "/direct-product",
