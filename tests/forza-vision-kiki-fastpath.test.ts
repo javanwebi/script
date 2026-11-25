@@ -24,6 +24,8 @@ test('local segmenter preserves aspect ratio and exposes ranked object candidate
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const segmentation = source('src/utils/clientAiSegmentation.ts');
   const foreground = source('src/utils/foregroundRegion.ts');
+  assert.ok(segmentation.includes('ort.env.wasm.proxy = true'));
+  assert.ok(segmentation.includes('const MAX_IMAGE_DIMENSION = 720'));
   assert.ok(modal.includes('getForegroundRegions(segmented)'));
   assert.ok(modal.includes('setCandidateRegions(detectedRegions.length ? detectedRegions : [region])'));
   assert.ok(segmentation.includes('const modelScale = Math.min(INPUT_SIZE / width, INPUT_SIZE / height)'));
@@ -117,6 +119,13 @@ test('multi-part lens auto-selects a detected object and starts catalog search w
   assert.ok(modal.includes('setSelectedProductId(undefined)'));
   assert.ok(review.includes('data-testid="kiki-inline-catalog-results"'));
   assert.ok(review.includes('onSelectProduct'));
+  assert.ok(review.includes('onOpenProduct'));
+  assert.ok(review.includes('onOpenProduct(item.id)'));
+  assert.ok(review.includes('مشاهده صفحه محصول و مشخصات'));
+  assert.ok(modal.includes("navigate('/product/'+encodeURIComponent(productCode))"));
+  assert.ok(styles.includes('.kiki-image-workspace__family-image-note'));
+  assert.ok(styles.includes('max-height: min(calc(48dvh - 82px), 420px)'));
+  assert.ok(styles.includes('background: transparent'));
   assert.ok(styles.includes('.kiki-image-workspace__result-card.is-selected'));
   assert.ok(styles.includes('.sanat-region-picker--viewer .sanat-region-picker__handles'));
   assert.ok(styles.includes('display: none !important'));
