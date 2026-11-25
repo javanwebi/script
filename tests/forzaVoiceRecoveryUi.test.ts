@@ -218,25 +218,25 @@ test('TTS rate-limit responses distinguish a shared network ceiling from a singl
 
 
 test('each completed utterance is a separate request while the previous user and assistant turns remain context',()=>{
-  assert.match(ui,/duplicateActiveTurn=Boolean\\(q&&activeQuery&&/);
-  assert.match(ui,/activeTurnRef\\.current=\\{generation,abort:pocketAbort,query:q\\}/);
-  assert.match(ui,/payload\\.history=previousHistory/);
-  assert.match(ui,/query:resolvedUserQuery,\\s+history:previousHistory/);
+  assert.match(ui,/duplicateActiveTurn=Boolean\(q&&activeQuery&&/);
+  assert.match(ui,/activeTurnRef\.current=\{generation,abort:pocketAbort,query:q\}/);
+  assert.match(ui,/payload\.history=previousHistory/);
+  assert.match(ui,/query:resolvedUserQuery,\s+history:previousHistory/);
   assert.match(consult,/هر بار که کاربر پس از پایان واقعی گفتار، دوباره صحبت می‌کند، آن گفتار یک پیام مستقل/);
   assert.match(consult,/تمام پیام‌های قبلی کاربر و پاسخ‌های کامل FORZA در تاریخچه همین تماس حفظ می‌شوند/);
-  assert.match(consult,/historyMessages = history\\.slice\\(-FORZA_CONVERSATION_HISTORY_LIMIT\\)/);
+  assert.match(consult,/historyMessages = history\.slice\(-FORZA_CONVERSATION_HISTORY_LIMIT\)/);
 });
 
 test('full assistant replies are retained in context after successful playback or text-only fallback',()=>{
-  assert.match(ui,/const commitAssistantReply=\\(text:string,playbackComplete:boolean\\)=>/);
-  assert.match(ui,/commitAssistantReply\\(reply,true\\)/);
-  assert.match(ui,/commitAssistantReply\\(reply,false\\)/);
+  assert.match(ui,/const commitAssistantReply=\(text:string,playbackComplete:boolean\)=>/);
+  assert.match(ui,/commitAssistantReply\(reply,true\)/);
+  assert.match(ui,/commitAssistantReply\(reply,false\)/);
   assert.match(ui,/متن کامل پاسخ در زیرنویس نمایش داده شد؛ پخش صوت کامل نشد/);
 });
 
 test('turn ownership prevents duplicate dispatch but a real interruption releases the next turn',()=>{
-  assert.match(ui,/if\\(duplicateActiveTurn\\)return/);
-  assert.match(ui,/turnDispatchPendingRef\\.current=false;\\s+active\\.abort\\.abort\\(new Error\\('forza_customer_interrupted'\\)\\)/);
-  assert.match(ui,/turnDispatchPendingRef\\.current=true/);
-  assert.match(ui,/turnDispatchPendingRef\\.current=false;\\s+setStatus\\('listening'\\)/);
+  assert.match(ui,/if\(duplicateActiveTurn\)return/);
+  assert.match(ui,/turnDispatchPendingRef\.current=false;\s+active\.abort\.abort\(new Error\('forza_customer_interrupted'\)\)/);
+  assert.match(ui,/turnDispatchPendingRef\.current=true/);
+  assert.match(ui,/turnDispatchPendingRef\.current=false;\s+setStatus\('listening'\)/);
 });
