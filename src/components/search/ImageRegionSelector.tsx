@@ -73,6 +73,17 @@ export function ImageRegionSelector({
             className="sanat-region-picker__frame sanat-region-picker__frame--automatic"
             dir="ltr"
             data-testid="vision-automatic-image-frame"
+            onClick={(event) => {
+              if (disabled) return;
+              const bounds = event.currentTarget.getBoundingClientRect();
+              if (!bounds.width || !bounds.height) return;
+              const x = (event.clientX - bounds.left) / bounds.width;
+              const y = (event.clientY - bounds.top) / bounds.height;
+              const hit = visibleRegions
+                .filter(region => x >= region.x && x <= region.x + region.width && y >= region.y && y <= region.y + region.height)
+                .sort((a, b) => a.width * a.height - b.width * b.height)[0];
+              if (hit) onChange(hit);
+            }}
           >
             <img
               src={src}
@@ -95,7 +106,7 @@ export function ImageRegionSelector({
                   aria-label={'انتخاب قطعه ' + toPersianNumber(index + 1)}
                   aria-pressed={selected}
                   disabled={disabled}
-                  onClick={() => onChange(region)}
+                  onClick={(event) => { event.stopPropagation(); onChange(region); }}
                 >
                   <span>{toPersianNumber(index + 1)}</span>
                   <i className="fv-lens-corner fv-lens-corner--tl" aria-hidden="true" />
