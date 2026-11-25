@@ -305,6 +305,9 @@ done
 test "$READY" = 1
 test "$(docker inspect "$CID" --format '{{.State.OOMKilled}}')" = false
 
+echo '===== SYNC PINNED POPD 869 SKU IMAGES INTO VERSIONED STORAGE ====='
+docker exec "$CID" node scripts/sync-popd-catalog-images.mjs
+
 echo '===== VERIFY FORZA STT JSON API BEFORE TRAFFIC SWITCH ====='
 python3 - "$NEXT" <<'PY'
 import json,sys,urllib.request,time
