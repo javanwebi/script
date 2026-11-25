@@ -191,7 +191,7 @@ const { chromium } = require('playwright');
     await page.getByRole('button', { name: 'انتخاب روی تصویر' }).click();
     assert.equal(await page.getByRole('button', { name: 'نتیجه منتخب' }).count(), 1);
 
-    await page.getByRole('button', { name: 'قطعه ۲' }).click();
+    await page.getByTestId('vision-region-candidates').getByRole('button', { name: 'قطعه ۲' }).click();
     await page.getByTestId('vision-inline-catalog-results').waitFor();
     await page.waitForFunction(() => document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy') === 'false');
     assert.equal(requests.length, 2, 'selecting another detected object must immediately rerun catalog analysis');
