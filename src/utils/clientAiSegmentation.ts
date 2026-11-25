@@ -1,7 +1,4 @@
-import {
-  CLIENT_AI_SEGMENTATION_INPUT_SIZE,
-  postprocessU2NetMask,
-} from './clientAiSegmentationShared';
+import { CLIENT_AI_SEGMENTATION_INPUT_SIZE } from './clientAiSegmentationShared';
 import type { ForegroundImageRegion } from './foregroundRegion';
 export { getForegroundRegion, getForegroundRegions } from './foregroundRegion';
 export { postprocessU2NetMask } from './clientAiSegmentationShared';
