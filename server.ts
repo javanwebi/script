@@ -951,6 +951,7 @@ function refreshLocalVisionStatusSnapshot():Promise<void>{
  return pending;
 }
 let nextVisualIndexBuild=0;
+let localVisionWarmupInProgress=false;
 let nextEmbeddingSlot=0;
 async function embedCatalogImages(buffers:Buffer[],publishImage:ImagePublisher):Promise<number[][]>{
  if(localVisionEnabled)return embedLocalImages(buffers);
@@ -976,8 +977,10 @@ async function embedCatalogImages(buffers:Buffer[],publishImage:ImagePublisher):
 function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus>,publishImage:ImagePublisher){
  if(Date.now()<nextVisualIndexBuild)return;
  nextVisualIndexBuild=Date.now()+60000;
+ localVisionWarmupInProgress=true;
  void catalogVisualIndex.update(corpus,row=>getCatalogImageBuffer(row.url,row.revision),buffers=>embedCatalogImages(buffers,publishImage))
  .then(()=>{
+  localVisionWarmupInProgress=false;
   const coverage=catalogVisualIndex.coverage(corpus);
   localVisionStatusSnapshot={...coverage,ready:corpus.length>0 && coverage.ready};
   localVisionStatusLastRefreshAt=Date.now();
@@ -986,6 +989,7 @@ function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus
   if(!coverage.ready)setTimeout(()=>warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),publishImage),65000).unref();
  })
  .catch((error)=>{
+   localVisionWarmupInProgress=false;
    const reason=error instanceof RecognitionServiceError ? error.code : String(error?.message || 'index_unavailable').slice(0,120);
    console.warn('[Visual index] Incomplete:',reason);
    void refreshLocalVisionStatusSnapshot();
@@ -4676,7 +4680,9 @@ let localVisionQueries=0;
 // stored rows and signature coverage) and continue polling until ready is true.
 app.get('/api/ai/local-vision-status', (_req,res)=>{
  if(!localVisionEnabled)return res.json({enabled:false});
- void refreshLocalVisionStatusSnapshot();
+ // Do not enumerate the catalogue a second time while the startup index warm-up
+ // is already doing the same work. Its completion publishes the next snapshot.
+ if(!localVisionWarmupInProgress)void refreshLocalVisionStatusSnapshot();
  const snapshot=localVisionStatusSnapshot || {
   total:0,indexed:0,ready:false,storedEntries:0,missing:0,signatureChanged:0
  };
