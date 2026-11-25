@@ -22,7 +22,6 @@ import { resolveCategorySlug } from '../data/categories';
 import { resolveDisplayBrand, productHasDisplayBrand } from '../utils/catalogBrands';
 import { toPersianDigits } from '../utils/formatters';
 import { getBeltFamilyMedia } from '../utils/beltCatalogMedia';
-import { resolveSiteProductImage } from '../utils/siteProductImages';
 import {
   buildCategoryFacetProfile,
   buildPaginationWindow,
@@ -317,7 +316,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     }
     if (prod?.images?.[0]) return prod.images[0];
     if (prod?.image) return prod.image;
-    return resolveSiteProductImage(prod, `${fam.name} ${fam.submenu || ''} ${resolvedCategory?.name || ''}`);
+    return '';
   };
 
   const stockStats = useMemo(() => {
@@ -801,14 +800,24 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                   to={detailHref}
                   className="w-28 aspect-[4/3] rounded-xl bg-white border border-slate-100 p-2.5 flex items-center justify-center shrink-0 overflow-hidden"
                 >
-                  <img
-                    src={artworkSrc}
-                    alt={family.name}
-                    loading="lazy"
-                    decoding="async"
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.04]"
-                  />
+                  {artworkSrc ? (
+                    <img
+                      src={artworkSrc}
+                      alt={family.name}
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.04]"
+                    />
+                  ) : (
+                    <div
+                      role="img"
+                      aria-label={`تصویر معتبر خانواده ${family.name} ثبت نشده`}
+                      className="w-full h-full bg-slate-50 flex items-center justify-center px-2 text-center text-[10px] font-medium text-slate-400"
+                    >
+                      تصویر معتبر ثبت نشده
+                    </div>
+                  )}
                 </Link>
                 <div className="flex-1 min-w-0 space-y-1">
                   <Link
@@ -842,14 +851,24 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                 to={detailHref}
                 className="aspect-[4/3] w-full bg-white border-b border-slate-100 p-5 flex items-center justify-center overflow-hidden"
               >
-                <img
-                  src={artworkSrc}
-                  alt={family.name}
-                  loading="lazy"
-                  decoding="async"
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.04]"
-                />
+                {artworkSrc ? (
+                    <img
+                      src={artworkSrc}
+                      alt={family.name}
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.04]"
+                    />
+                  ) : (
+                    <div
+                      role="img"
+                      aria-label={`تصویر معتبر خانواده ${family.name} ثبت نشده`}
+                      className="w-full h-full bg-slate-50 flex items-center justify-center px-2 text-center text-[10px] font-medium text-slate-400"
+                    >
+                      تصویر معتبر ثبت نشده
+                    </div>
+                  )}
               </Link>
 
               <div className="flex flex-1 flex-col p-4 gap-3">
