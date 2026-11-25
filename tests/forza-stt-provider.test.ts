@@ -129,4 +129,5 @@ test('the real VPS runtime selects AvalAI STT and requires a ready Diba fallback
   assert.match(server,/if\(hasForzaDibaSttModel\(\)\)/);
   assert.match(server,/sttProviderUsed='diba-fallback'/);
   assert.match(server,/transcribeForzaDibaAudio\(audioBase64/);
+  assert.match(server,/transcribeForzaDibaAudio\(cleanAudioData/);
 });
