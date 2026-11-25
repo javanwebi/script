@@ -47,6 +47,11 @@ test('belt-selection code and catalogue links carry the belt-only search scope',
 test('belt analysis is rendered in the automatic KIKI inline workspace', () => {
   const modal = readFileSync(new URL('../src/components/search/AiVisualPartSearchModal.tsx', import.meta.url), 'utf8');
   const review = readFileSync(new URL('../src/components/search/ImageRegionReview.tsx', import.meta.url), 'utf8');
+  const provider = readFileSync(new URL('../src/components/search/PartIdentificationProvider.tsx', import.meta.url), 'utf8');
+  const service = readFileSync(new URL('../src/services/aiVisualSearchService.ts', import.meta.url), 'utf8');
+  assert.ok(provider.includes("domainHint={entrySource === 'belt-selection' ? 'industrial-belt' : undefined}"));
+  assert.ok(modal.includes('domainHint,\n        imageBase64'));
+  assert.ok(service.includes("domainHint?: 'industrial-belt'"));
   assert.match(modal, /beltAnalysis=\{analysisResult\?\.beltAnalysis\}/);
   assert.match(review, /data-testid="kiki-inline-belt-analysis"/);
   assert.match(review, /beltAnalysis\.visualBeltConfirmed/);
