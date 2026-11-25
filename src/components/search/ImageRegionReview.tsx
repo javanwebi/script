@@ -150,6 +150,9 @@ export function ImageRegionReview({
             <div className="kiki-image-workspace__result-grid" data-testid="kiki-inline-catalog-results">
               {results.map((item, index) => {
                 const selected = selectedProductId === item.id;
+                const score = typeof item.similarityScore === 'number'
+                  ? Math.round(item.similarityScore <= 1 ? item.similarityScore * 100 : item.similarityScore)
+                  : undefined;
                 return (
                   <article className={'kiki-image-workspace__result-card' + (selected ? ' is-selected' : '')}
                     key={item.id} data-selected={selected || undefined}>
@@ -178,8 +181,8 @@ export function ImageRegionReview({
                           </span>
                         ) : null}
                         {item.matchLabel && <span className="kiki-image-workspace__result-match">{item.matchLabel}</span>}
-                        {typeof item.similarityScore === 'number' && (
-                          <span className="kiki-image-workspace__result-score">شباهت تصویری: {Math.round(item.similarityScore).toLocaleString('fa-IR')}٪</span>
+                        {typeof score === 'number' && (
+                          <span className="kiki-image-workspace__result-score">شباهت تصویری: {score.toLocaleString('fa-IR')}٪</span>
                         )}
                       </span>
                     </button>
