@@ -4,7 +4,7 @@
  */
 export type ForzaSttSelection =
   | {provider:'avalai';key:string;model:'gpt-transcribe';reason:'configured'}
-  | {provider:'diba';modelPath:string;reason:'configured'}
+  | {provider:'diba';modelPath:string;reason:'configured'|'avalai_key_missing_fallback'}
   | {provider:'gemini';key:string;reason:'configured'}
   | {provider:'none';reason:'disabled'|'not_configured'|'unsupported_provider'|'missing_gemini_key'|'missing_avalai_key'|'model_missing'};
 
@@ -15,8 +15,12 @@ export function selectForzaSttProvider(env:Record<string,string|undefined>):Forz
 
   if(setting==='avalai'){
     const key=String(env.AVALAI_API_KEY||'').trim().replace(/^['"]|['"]$/g,'');
-    if(!key || /^(MY_|YOUR_|PASTE_|SET_)/.test(key))
+    if(!key || /^(MY_|YOUR_|PASTE_|SET_)/.test(key)){
+      const fallbackModelPath=String(env.FORZA_STT_DIBA_MODEL_PATH||'').trim();
+      if(fallbackModelPath)
+        return {provider:'diba',modelPath:fallbackModelPath,reason:'avalai_key_missing_fallback'};
       return {provider:'none',reason:'missing_avalai_key'};
+    }
     return {provider:'avalai',key,model:'gpt-transcribe',reason:'configured'};
   }
 
