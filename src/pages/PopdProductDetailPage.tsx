@@ -29,6 +29,9 @@ import { Modal } from '../components/ui/Modal';
 import { formatPrice, toPersianDigits } from '../utils/formatters';
 import { resolveDisplayBrand } from '../utils/catalogBrands';
 import { getCleanVariantSpecs, isNonBeltFamilyProduct } from '../utils/nonBeltFamilyDisplay';
+const LegacyProductDetailPage = React.lazy(() =>
+  import('./ProductDetailPage').then((module) => ({ default: module.ProductDetailPage })),
+);
 import {
   buildBeltGalleryImages,
   getBeltFamilyMedia,
@@ -268,11 +271,25 @@ export const ProductDetailPage: React.FC = () => {
     );
   }
 
-  if (status === 'not-found' || status === 'error' || !product) {
+  // Keep pre-existing SCRIPT product links (orders, invoices and older SKUs) working
+  // when their code is outside the POPD reference archive.
+  if (status === 'not-found') {
+    return (
+      <React.Suspense fallback={
+        <div className="min-h-[50vh] flex items-center justify-center text-sm text-slate-500" role="status">
+          در حال بارگذاری اطلاعات کالای قبلی...
+        </div>
+      }>
+        <LegacyProductDetailPage />
+      </React.Suspense>
+    );
+  }
+
+  if (status === 'error' || !product) {
     return (
       <div
         dir="rtl"
-        className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-10 text-center space-y-4 max-w-xl mx-auto my-8 sm:my-12 shadow-xs"
+        className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-10 text-center space-y-4 max-w-xl w-full mx-auto my-8 sm:my-12 shadow-xs"
       >
         <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto text-slate-500">
           <AlertCircle className="w-7 h-7" />
