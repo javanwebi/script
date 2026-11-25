@@ -160,3 +160,18 @@ test('missing verified POPD family photos are synced from the pinned source befo
   assert.match(sync, /gitBlobSha/);
   assert.match(sync, /POPD_FAMILY_IMAGE_SHA_MISMATCH/);
 });
+
+
+test('Excel menu category pages use the authoritative POPD reference payload for families and products', () => {
+  const page = read('src/pages/ExcelMenuCategoryPage.tsx');
+  const api = read('server/catalogReferenceApi.ts');
+  assert.match(page, /\/api\/catalog\/reference\/menu-category\//);
+  assert.match(page, /Array\.isArray\(body\.products\)/);
+  assert.match(page, /\(data\?\.products \|\| \[\]\)/);
+  assert.doesNotMatch(page, /getAllProducts\(\)/);
+  assert.doesNotMatch(page, /\/api\/catalog\/menu-category\//);
+  assert.match(api, /function categoryPayload\(snapshot: Snapshot, slug: string\)/);
+  assert.match(api, /matchedProducts\.push\(/);
+  assert.match(api, /products: matchedProducts/);
+  assert.match(api, /snapshot\.assignmentsByFamily\.get\(product\.code\)/);
+});
