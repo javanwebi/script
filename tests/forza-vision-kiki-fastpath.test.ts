@@ -19,6 +19,21 @@ test('KIKI entry, camera, crop review and results share one real identification 
   assert.ok(modal.includes('aiVisualSearchService.analyzePartWithAi'));
 });
 
+test('local segmenter preserves aspect ratio and exposes ranked object candidates', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const segmentation = source('src/utils/clientAiSegmentation.ts');
+  const foreground = source('src/utils/foregroundRegion.ts');
+  assert.ok(modal.includes('getForegroundRegions(segmented)'));
+  assert.ok(modal.includes('setCandidateRegions(detectedRegions.length ? detectedRegions : [region])'));
+  assert.ok(segmentation.includes('const modelScale = Math.min(INPUT_SIZE / width, INPUT_SIZE / height)'));
+  assert.ok(segmentation.includes('modelLeft'));
+  assert.ok(segmentation.includes('modelTop'));
+  assert.ok(segmentation.includes('modelRect'));
+  assert.ok(foreground.includes('componentsAtThreshold'));
+  assert.ok(foreground.includes('new Int32Array(total)'));
+  assert.ok(foreground.includes('Eight-way connectivity'));
+});
+
 test('local segmenter is warmed and can win without serial server crop detection', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const fast = modal.slice(
@@ -91,12 +106,15 @@ test('real multi-part lens exposes KIKI quick-select buttons without auto-runnin
   assert.ok(picker.includes('data-testid="vision-region-candidates"'));
   assert.ok(picker.includes('candidates.length > 1'));
   assert.ok(picker.includes('onClick={() => { setDraft(undefined); onChange(region); }}'));
-  assert.ok(picker.includes('aria-pressed={sameRegion(selected, region)}'));
+  assert.ok(picker.includes('aria-pressed={sameRegion(selected,region)}'));
+  assert.ok(picker.includes("variant?:'default'|'viewer';"));
+  assert.ok(picker.includes('sanat-region-picker--viewer'));
+  assert.ok(picker.includes('mode:\'resize\''));
   assert.ok(modal.includes('data-testid="forza-vision-optical-toolbar"'));
   assert.ok(modal.includes('setMobileResultsExpanded(false); resetForm();'));
   assert.ok(modal.includes('resetForm(); setCameraFlowActive(true); void startCamera();'));
   assert.ok(optical.includes('.fv-kiki-optical-toolbar'));
-  assert.ok(review.includes('.kiki-region-review'));
+  assert.ok(review.includes('.kiki-vision-review-shell.kiki-image-workspace'));
   assert.ok(review.includes('.sanat-region-picker__canvas'));
   assert.ok(review.includes('.sanat-region-picker__search'));
   assert.ok(review.includes('.sanat-region-picker__full-image'));

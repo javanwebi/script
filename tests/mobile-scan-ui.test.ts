@@ -228,23 +228,31 @@ test("visual identification preserves the existing production image input path",
 });
 
 
-test("workspace vision entry, image review and results use the KIKI presentation without replacing the current recognition pipeline", () => {
+test("workspace vision entry, split image review and results use KIKI without replacing the recognition pipeline", () => {
   const review = source("src/components/search/ImageRegionReview.tsx");
   const reviewStyles = source("src/components/search/image-region-review.css");
-
+  const picker = source("src/components/search/ImageRegionSelector.tsx");
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const entry = source("src/components/search/VisionEntryPage.tsx");
   const styles = source("src/components/search/vision-camera-design.css");
-  assert.match(modal, /data-testid="kiki-vision-review-shell"/);
+
+  assert.match(modal, /<ImageRegionReview/);
   assert.match(modal, /data-testid="kiki-vision-results-shell"/);
   assert.doesNotMatch(modal, /sanat-visual-search-hero|sanat-visual-stepper|kiki-vision-review-shell__status/);
-  assert.match(review, /kiki-region-review/);
+  assert.match(review, /data-testid="image-region-review"/);
+  assert.match(review, /kiki-image-workspace/);
+  assert.match(review, /محصولات مشابه کاتالوگ/);
+  assert.match(review, /ثبت سفارش ساخت/);
+  assert.match(review, /onCamera/);
   assert.match(review, /onSearch=\{onConfirm\}/);
   assert.match(review, /onFullImageSearch=\{onFullImageSearch\}/);
-  assert.doesNotMatch(review, /تأیید تصویر و شروع تحلیل|تأیید برش و شروع تحلیل|sp-region-review__scanner-steps|دریافت تصویر|یافتن قطعه|آماده‌سازی برش/);
-  assert.doesNotMatch(review, /kiki-region-review__actions|kiki-region-review__primary/);
-  assert.match(reviewStyles, /\.kiki-region-review \.sanat-region-picker__canvas/);
+  assert.doesNotMatch(review, /تأیید تصویر و شروع تحلیل|تأیید برش و شروع تحلیل|sp-region-review__scanner-steps|دریافت تصویر|یافتن قطعه/);
+  assert.match(reviewStyles, /\.kiki-vision-review-shell\.kiki-image-workspace/);
+  assert.match(reviewStyles, /\.sanat-region-picker--viewer \.sanat-region-picker__canvas/);
   assert.doesNotMatch(reviewStyles, /background:\s*#172231|background:\s*#111b27/);
+  assert.match(picker, /sanat-region-picker--viewer/);
+  assert.match(picker, /sanat-region-picker__handle/);
+  assert.match(picker, /mode:'resize'/);
 
   assert.match(modal, /بازگشت به میزکار از نتایج شناسایی/);
   assert.doesNotMatch(modal, /sp-vision-journey/);
@@ -257,5 +265,4 @@ test("workspace vision entry, image review and results use the KIKI presentation
   assert.match(entry, /قطعه را با یک عکس بشناسید/);
   assert.match(entry, /تشخیص خودکار کانتور و کد فنی/);
   assert.match(styles, /sp-vision-result-panel:has\(> \.sanat-region-picker\)/);
-  assert.match(reviewStyles, /kiki-vision-review-shell__content/);
 });

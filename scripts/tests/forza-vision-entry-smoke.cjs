@@ -194,7 +194,7 @@ async function testUploadEntry(browser) {
         "base64",
       ),
     });
-    await page.getByTestId("identification-wizard").waitFor({ timeout: 15000 });
+    await page.getByTestId("image-region-review").waitFor({ timeout: 15000 });
     assert.equal(await page.getByTestId("forza-vision-entry").count(), 0,
       "Selecting an image must leave the VISION landing screen and enter the existing image-review flow");
     console.log("PASS FORZA VISION upload action opens the picker and enters the existing image-review flow");

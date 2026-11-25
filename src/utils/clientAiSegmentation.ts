@@ -1,17 +1,12 @@
 import * as ort from 'onnxruntime-web/wasm';
+export { getForegroundRegion, getForegroundRegions } from './foregroundRegion';
+export type { ForegroundImageRegion } from './foregroundRegion';
 
 export interface ClientAiSegmentationResult {
   width: number;
   height: number;
   alphaMask: Uint8Array;
   whiteBgDataUrl: string;
-}
-
-export interface ForegroundImageRegion {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
 }
 
 const MODEL_URL = '/models/u2netp.onnx';
@@ -68,6 +63,9 @@ export function postprocessU2NetMask(
   rawScores: ArrayLike<number>,
   targetWidth: number,
   targetHeight: number,
+  modelRect: { x: number; y: number; width: number; height: number } = {
+    x: 0, y: 0, width: INPUT_SIZE, height: INPUT_SIZE,
+  },
 ): Uint8Array | null {
   const plane = INPUT_SIZE * INPUT_SIZE;
   if (!targetWidth || !targetHeight || rawScores.length < plane) return null;
@@ -81,78 +79,39 @@ export function postprocessU2NetMask(
     max = Math.max(max, value);
   }
   const range = max - min;
-  if (max < 0.18 || range < 0.12) return null;
+  if (max < 0.14 || range < 0.09) return null;
 
+  // U2NET exports a sigmoid saliency map in [0,1]. Preserve its calibrated
+  // probabilities; normalize only non-probability model outputs.
+  const isProbabilityMap = min >= -0.001 && max <= 1.001;
   const normalized = new Float32Array(plane);
   for (let i = 0; i < plane; i++) {
-    normalized[i] = Math.max(0, Math.min(1, (Number(rawScores[i]) - min) / range));
+    const raw = Number(rawScores[i]);
+    normalized[i] = Math.max(0, Math.min(1, isProbabilityMap ? raw : (raw - min) / range));
   }
 
+  const left = Math.max(0, Math.min(INPUT_SIZE - 1, modelRect.x));
+  const top = Math.max(0, Math.min(INPUT_SIZE - 1, modelRect.y));
+  const right = Math.max(left + 1, Math.min(INPUT_SIZE, modelRect.x + modelRect.width));
+  const bottom = Math.max(top + 1, Math.min(INPUT_SIZE, modelRect.y + modelRect.height));
   const mask = new Uint8Array(targetWidth * targetHeight);
+
   for (let y = 0; y < targetHeight; y++) {
-    const fy = (y + 0.5) * (INPUT_SIZE / targetHeight) - 0.5;
-    const y0 = Math.max(0, Math.min(INPUT_SIZE - 1, Math.floor(fy)));
-    const y1 = Math.min(INPUT_SIZE - 1, y0 + 1);
+    const fy = top + (y + 0.5) * ((bottom - top) / targetHeight) - 0.5;
+    const y0 = Math.max(Math.floor(top), Math.min(Math.ceil(bottom) - 1, Math.floor(fy)));
+    const y1 = Math.max(y0, Math.min(Math.ceil(bottom) - 1, y0 + 1));
     const wy = Math.max(0, Math.min(1, fy - y0));
     for (let x = 0; x < targetWidth; x++) {
-      const fx = (x + 0.5) * (INPUT_SIZE / targetWidth) - 0.5;
-      const x0 = Math.max(0, Math.min(INPUT_SIZE - 1, Math.floor(fx)));
-      const x1 = Math.min(INPUT_SIZE - 1, x0 + 1);
+      const fx = left + (x + 0.5) * ((right - left) / targetWidth) - 0.5;
+      const x0 = Math.max(Math.floor(left), Math.min(Math.ceil(right) - 1, Math.floor(fx)));
+      const x1 = Math.max(x0, Math.min(Math.ceil(right) - 1, x0 + 1));
       const wx = Math.max(0, Math.min(1, fx - x0));
-      const top = normalized[y0 * INPUT_SIZE + x0] * (1 - wx) +
-        normalized[y0 * INPUT_SIZE + x1] * wx;
-      const bottom = normalized[y1 * INPUT_SIZE + x0] * (1 - wx) +
-        normalized[y1 * INPUT_SIZE + x1] * wx;
-      const value = Math.round((top * (1 - wy) + bottom * wy) * 255);
-      mask[y * targetWidth + x] = value < 22 ? 0 : value > 232 ? 255 : value;
+      const topValue = normalized[y0 * INPUT_SIZE + x0] * (1 - wx) + normalized[y0 * INPUT_SIZE + x1] * wx;
+      const bottomValue = normalized[y1 * INPUT_SIZE + x0] * (1 - wx) + normalized[y1 * INPUT_SIZE + x1] * wx;
+      mask[y * targetWidth + x] = Math.round((topValue * (1 - wy) + bottomValue * wy) * 255);
     }
   }
   return mask;
-}
-
-/** Returns a conservative padded bounding box, or null when the mask is empty or implausibly broad. */
-export function getForegroundRegion(
-  result: Pick<ClientAiSegmentationResult, 'width' | 'height' | 'alphaMask'>,
-  threshold = 110,
-): ForegroundImageRegion | null {
-  const { width, height, alphaMask } = result;
-  if (!width || !height || alphaMask.length < width * height) return null;
-
-  let minX = width;
-  let minY = height;
-  let maxX = -1;
-  let maxY = -1;
-  let foregroundPixels = 0;
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (alphaMask[y * width + x] < threshold) continue;
-      foregroundPixels++;
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    }
-  }
-
-  const total = width * height;
-  if (foregroundPixels < total * 0.004 || foregroundPixels > total * 0.96 || maxX < minX || maxY < minY) {
-    return null;
-  }
-
-  const padX = Math.max(2, Math.round(width * 0.025));
-  const padY = Math.max(2, Math.round(height * 0.025));
-  const left = Math.max(0, minX - padX);
-  const top = Math.max(0, minY - padY);
-  const right = Math.min(width, maxX + 1 + padX);
-  const bottom = Math.min(height, maxY + 1 + padY);
-  const region = {
-    x: left / width,
-    y: top / height,
-    width: (right - left) / width,
-    height: (bottom - top) / height,
-  };
-  if (region.width < 0.025 || region.height < 0.025 || region.width * region.height > 0.96) return null;
-  return region;
 }
 
 async function loadImage(src: string): Promise<HTMLImageElement> {
@@ -194,7 +153,20 @@ export async function segmentImageWithClientAi(src: string): Promise<ClientAiSeg
     inputCanvas.height = INPUT_SIZE;
     const inputContext = inputCanvas.getContext('2d', { willReadFrequently: true });
     if (!inputContext) return null;
-    inputContext.drawImage(sourceCanvas, 0, 0, INPUT_SIZE, INPUT_SIZE);
+
+    // Preserve the source aspect ratio. Stretching every portrait/landscape
+    // photo into a square distorts industrial parts and shifts the crop bounds.
+    const modelScale = Math.min(INPUT_SIZE / width, INPUT_SIZE / height);
+    const modelWidth = Math.max(1, Math.round(width * modelScale));
+    const modelHeight = Math.max(1, Math.round(height * modelScale));
+    const modelLeft = Math.floor((INPUT_SIZE - modelWidth) / 2);
+    const modelTop = Math.floor((INPUT_SIZE - modelHeight) / 2);
+    // Fill with ImageNet mean RGB so padding becomes neutral after normalization.
+    inputContext.fillStyle = 'rgb(124,116,104)';
+    inputContext.fillRect(0, 0, INPUT_SIZE, INPUT_SIZE);
+    inputContext.imageSmoothingEnabled = true;
+    inputContext.imageSmoothingQuality = 'high';
+    inputContext.drawImage(sourceCanvas, 0, 0, width, height, modelLeft, modelTop, modelWidth, modelHeight);
     const inputPixels = inputContext.getImageData(0, 0, INPUT_SIZE, INPUT_SIZE).data;
 
     const plane = INPUT_SIZE * INPUT_SIZE;
@@ -215,7 +187,7 @@ export async function segmentImageWithClientAi(src: string): Promise<ClientAiSeg
     const output = outputs[outputName];
     if (!output?.data) return null;
 
-    const alphaMask = postprocessU2NetMask(output.data as ArrayLike<number>, width, height);
+    const alphaMask = postprocessU2NetMask(output.data as ArrayLike<number>, width, height, { x: modelLeft, y: modelTop, width: modelWidth, height: modelHeight });
     if (!alphaMask) return null;
 
     const composite = new Uint8ClampedArray(width * height * 4);
