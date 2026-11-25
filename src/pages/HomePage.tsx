@@ -1,4 +1,5 @@
 import { HomeCategoryStrip, HomeTrustStrip, HomeForzaBanner } from "../components/storefront/HomeSequence";
+import { HomeBeltSelection } from "../components/storefront/HomeBeltSelection";
 import {HomeAiIntroduction,HomeIndustryShowcase,HomeMembership} from '../components/storefront/HomeDiscovery';
 import {HomeKnowledge} from './DiscoveryPages';
 import {
@@ -760,6 +761,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
       <HomeCategoryStrip />
+      <HomeBeltSelection />
       <OurClientsSection />
       <div id="home-utility-products" className="home-sequence-products"><HighUtilityProductsSection /></div>
       <HomeIndustryShowcase />
