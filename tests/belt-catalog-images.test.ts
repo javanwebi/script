@@ -197,5 +197,5 @@ test("POPD belt sync installs verified replacements before deleting stale photos
   const skuInstall = source.indexOf("for (const entry of skuEntries)");
   const staleCleanup = source.indexOf("Remove obsolete photos only after all verified replacements are installed.");
   assert.ok(familyInstall >= 0 && skuInstall > familyInstall && staleCleanup > skuInstall);
-  assert.match(source, /family-specifications|CAD drawings and specification sheets/i);
+  assert.match(source, /Preserve every CAD drawing and specification sheet/i);
 });
