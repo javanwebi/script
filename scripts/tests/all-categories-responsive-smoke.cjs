@@ -86,20 +86,25 @@ async function installApiRoutes(page, fallbackMode = false) {
   let databaseUnavailable = fallbackMode;
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
-    if (databaseUnavailable && (
-      url.pathname === '/api/catalog/categories' ||
-      url.pathname === '/api/catalog/navigation-groups'
-    )) {
+    const isCategoriesRoute = [
+      '/api/catalog/reference/categories',
+      '/api/catalog/categories',
+    ].includes(url.pathname);
+    const isGroupsRoute = [
+      '/api/catalog/reference/navigation-groups',
+      '/api/catalog/navigation-groups',
+    ].includes(url.pathname);
+    if (databaseUnavailable && (isCategoriesRoute || isGroupsRoute)) {
       return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ success: false }) });
     }
-    if (url.pathname === '/api/catalog/categories') {
+    if (isCategoriesRoute) {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ success: true, categories }),
       });
     }
-    if (url.pathname === '/api/catalog/navigation-groups') {
+    if (isGroupsRoute) {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
