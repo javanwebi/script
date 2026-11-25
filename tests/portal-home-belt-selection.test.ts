@@ -32,7 +32,8 @@ test("belt selection page connects image, code, pulley calculation and engineeri
   const page = read("src/pages/BeltSelectionPage.tsx");
 
   assert.match(page, /to="\/identify-part\?from=belt-selection"/);
-  assert.match(page, /navigate\(\`\/search\?q=\$\{encodeURIComponent\(query\)\}\`\)/);
+  assert.match(page, /navigate\(\`\/search\?q=\$\{encodeURIComponent\(query\)\}&scope=industrial-belt\`\)/);
+  assert.match(page, /scope=industrial-belt/);
   assert.match(page, /tool=belt-calculator/);
   assert.match(page, /prompt=\$\{encodeURIComponent\(BELT_ENGINEERING_PROMPT\)\}/);
 });

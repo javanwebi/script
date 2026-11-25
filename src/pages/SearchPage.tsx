@@ -110,7 +110,9 @@ export const SearchPage: React.FC = () => {
         item.skuCode, item.name, item.categoryName, item.submenu,
         item.subcategory, item.brand, specText,
       ].filter(Boolean).join(' ').toLowerCase();
-      return haystack.includes(q);
+      const normalizedQuery=q.replace(/[^a-z0-9]/g,'');
+      const normalizedHaystack=haystack.replace(/[^a-z0-9]/g,'');
+      return haystack.includes(q)||(normalizedQuery.length>=3&&normalizedHaystack.includes(normalizedQuery));
     }).slice(0, 24);
   }, [directSkus, queryParam, selectedCategory, onlyWithImage, onlyInStock, beltScoped]);
 
