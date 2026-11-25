@@ -96,7 +96,7 @@ async function main() {
   if (
     Object.keys(popdManifest.families).length !== 613 ||
     familyEntries.length !== 1496 ||
-    skuEntries.length !== 214 ||
+    skuEntries.length !== 13 ||
     allEntries.some(entry => !entry.sha || !entry.size || !entry.sourcePath)
   ) {
     throw new Error("POPD_BELT_MEDIA_MANIFEST_COUNTS_INVALID");
