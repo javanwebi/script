@@ -169,11 +169,12 @@ async function loadSnapshot(): Promise<Snapshot> {
     ) {
       throw new Error('The POPD e869 image mapping contains an invalid SKU or image URL');
     }
-    if (e869ImageBySku.has(skuCode) || e869ImageUrls.has(imageUrl)) {
+    const imageUrlKey = normalizeCode(imageUrl);
+    if (e869ImageBySku.has(skuCode) || e869ImageUrls.has(imageUrlKey)) {
       throw new Error('The POPD e869 image mapping contains a duplicate SKU or image URL: ' + skuCode);
     }
     e869ImageBySku.set(skuCode, imageUrl);
-    e869ImageUrls.add(imageUrl);
+    e869ImageUrls.add(imageUrlKey);
   }
   if (
     Number(e869Payload?.totalImages) !== 869 ||
@@ -355,8 +356,14 @@ async function loadSnapshot(): Promise<Snapshot> {
     familyImageOwnersByUrl.set(urlKey, owners);
   };
 
+  // Legacy e869 files are exclusively SKU-owned. Older family-example audit rows
+  // reused these URLs under unrelated family codes; never promote them to family artwork.
   for (const row of galleryRes.rows) {
-    if (row.scope === 'family-example' && row.identity_verified === true) {
+    if (
+      row.scope === 'family-example' &&
+      row.identity_verified === true &&
+      !e869ImageUrls.has(normalizeCode(row.url))
+    ) {
       addFamilyImageOwner(row.url, row.family_code);
     }
   }
@@ -396,6 +403,7 @@ async function loadSnapshot(): Promise<Snapshot> {
       for (const image of items || []) {
         if (!image.url || seenUrls.has(image.url)) continue;
         if (!image.identityVerified) continue;
+        if (e869ImageUrls.has(normalizeCode(image.url))) continue;
         if (image.scope === 'family' && !isUniqueFamilyImageFor(image, canonicalCode)) continue;
         seenUrls.add(image.url);
         matchedGallery.push(image);

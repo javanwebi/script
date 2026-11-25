@@ -56,6 +56,8 @@ test('POPD e869 SKU images are attached by exact SKU code while family artwork s
   assert.match(api, /e869_linked_catalog\\.json/);
   assert.match(api, /assignment\\?\\.targetKind !== 'variant'/);
   assert.match(api, /e869ImageBySku\\.get\\(variantKey\\)/);
+  assert.match(api, /!e869ImageUrls\\.has\\(normalizeCode\\(row\\.url\\)\\)/);
+  assert.match(api, /e869ImageUrls\\.has\\(normalizeCode\\(image\\.url\\)\\)/);
   assert.match(api, /const images = e869Image \\? \\[e869Image\\] : \\[\\]/);
   assert.match(api, /e869Assignments\\.length !== 869/);
   assert.match(api, /missingActiveE869Skus/);
