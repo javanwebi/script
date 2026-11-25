@@ -84,7 +84,6 @@ export const EXCEL_CATEGORY_ARTWORK_BY_SLUG: Record<string, string> = {
   'excel-v2-3-3': STORE_ASSETS.forzaSubFittings,
   'excel-v2-4-1': STORE_ASSETS.products.aluPulley,
   'excel-v2-4-2': STORE_ASSETS.forzaSubCoupling,
-  'excel-v2-4-2': STORE_ASSETS.forzaSubCoupling,
   'excel-v2-5-1': STORE_ASSETS.subcategories.industrialBrushes,
   'excel-v2-5-2': STORE_ASSETS.subcategories.industrialBrushes,
   'excel-v2-6-1': STORE_ASSETS.subcategories.guideRailsProfiles,
