@@ -92,6 +92,9 @@ test('all active Supabase categories and their database group assignments remain
   assert.match(api, /const activeGroupCategorySlugs = new Set/);
   assert.match(api, /dbGroup\?\.categorySlugs/);
   assert.match(api, /metadata\.children/);
+  assert.match(api, /hasMetadataChildren \? metadataChildren/);
+  assert.match(api, /hasMetadataSubcategories/);
+  assert.match(api, /categoryRowsBySlug\.get\(slug\)/);
   assert.match(api, /activeVerifiedVariantImageUrls/);
   assert.match(api, /verifiedVariantImageCount: activeVerifiedVariantImageUrls\.size/);
   assert.match(api, /categoryRows\.map\(\(dbCategory: any\)/);
