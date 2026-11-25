@@ -29,6 +29,15 @@ test('Gemini STT requires explicit opt-in and a dedicated Gemini credential',()=
     {provider:'gemini',key:'dedicated-key',reason:'configured'});
 });
 
+test('AvalAI GPT-Transcribe requires its dedicated key and selects the supported transcription model',()=>{
+  assert.deepEqual(selectForzaSttProvider({FORZA_STT_PROVIDER:'avalai'}),
+    {provider:'none',reason:'missing_avalai_key'});
+  assert.deepEqual(selectForzaSttProvider({FORZA_STT_PROVIDER:'avalai',AVALAI_API_KEY:'YOUR_AVALAI_API_KEY'}),
+    {provider:'none',reason:'missing_avalai_key'});
+  assert.deepEqual(selectForzaSttProvider({FORZA_STT_PROVIDER:'avalai',AVALAI_API_KEY:'private-avalai-key'}),
+    {provider:'avalai',key:'private-avalai-key',model:'gpt-transcribe',reason:'configured'});
+});
+
 test('legacy AI_FORZA_API_KEY and ai-forza cannot silently enable Gemini STT',()=>{
   assert.deepEqual(selectForzaSttProvider({
     FORZA_STT_PROVIDER:'gemini',
@@ -46,9 +55,9 @@ test('Diba Persian STT is the local default only when the server model is bundle
     {provider:'none',reason:'disabled'});
 });
 
-test('legacy private credentials cannot disable the image-provisioned Diba runtime',()=>{
+test('private config preserves AvalAI as primary and the bundled Diba fallback runtime',()=>{
   const env:Record<string,string|undefined>={
-    FORZA_STT_PROVIDER:'diba',
+    FORZA_STT_PROVIDER:'avalai',
     FORZA_STT_DIBA_MODEL_PATH:'/opt/diba-stt/model',
     FORZA_STT_PYTHON:'/opt/forza-pocket/bin/python',
     FORZA_STT_WORKERS:'2',
@@ -61,7 +70,7 @@ test('legacy private credentials cannot disable the image-provisioned Diba runti
     FORZA_VOICE_PROVIDER:'avalai',
     AVALAI_API_KEY:'private-key',
   });
-  assert.equal(env.FORZA_STT_PROVIDER,'diba');
+  assert.equal(env.FORZA_STT_PROVIDER,'avalai');
   assert.equal(env.FORZA_STT_DIBA_MODEL_PATH,'/opt/diba-stt/model');
   assert.equal(env.FORZA_STT_PYTHON,'/opt/forza-pocket/bin/python');
   assert.equal(env.FORZA_STT_WORKERS,'2');
@@ -77,9 +86,10 @@ test('the real single-port VPS runtime provisions and requires ready Diba STT',(
   const deploy=readFileSync(new URL('../ops/deploy-single-port-vps.sh',import.meta.url),'utf8');
   const runtime=readFileSync(new URL('../ops/Dockerfile.forza-stt-runtime',import.meta.url),'utf8');
   const canary=readFileSync(new URL('../ops/verify-single-port-canary.mjs',import.meta.url),'utf8');
+  const bluegreen=readFileSync(new URL('../ops/deploy-main-bluegreen-vps.sh',import.meta.url),'utf8');
   assert.match(runtime,/vosk==0\.3\.45/);
   assert.match(runtime,/Dibachain\/Diba-STT/);
-  assert.match(runtime,/FORZA_STT_PROVIDER=diba/);
+  assert.match(runtime,/FORZA_STT_PROVIDER=avalai/);
   assert.match(deploy,/docker build --progress=plain -t "\$STT_IMAGE"/);
   assert.match(deploy,/docker build --progress=plain --network=host -t "\$STT_IMAGE"/);
   assert.match(deploy,/STT_RUNTIME_KEY=.*sha256sum/);
@@ -107,7 +117,12 @@ test('the real single-port VPS runtime provisions and requires ready Diba STT',(
   assert.match(runtime,/FORZA_STT_PYTHON=\/opt\/forza-pocket\/bin\/python/);
   assert.match(deploy,/"\$STT_IMAGE" node --import tsx server\.ts/);
   assert.doesNotMatch(deploy,/node:22-bookworm node --import tsx server\.ts/);
-  assert.match(deploy,/FORZA_STT_PROVIDER=diba/);
-  assert.match(canary,/assert\.equal\(stt\.serverSttProvider, "diba"\)/);
+  assert.match(deploy,/FORZA_STT_PROVIDER=avalai/);
+  assert.match(canary,/assert\.equal\(stt\.serverSttProvider, "avalai"\)/);
   assert.match(canary,/assert\.equal\(stt\.serverSttReady, true\)/);
+  assert.match(canary,/assert\.equal\(stt\.serverSttFallbackProvider, "diba"\)/);
+  assert.match(canary,/assert\.equal\(stt\.serverSttFallbackReady, true\)/);
+  assert.match(bluegreen,/info\.get\('serverSttProvider'\) == 'avalai'/);
+  assert.match(bluegreen,/stt_info\.get\('serverSttProvider'\) == 'avalai'/);
+  assert.match(bluegreen,/serverSttFallbackProvider/);
 });
