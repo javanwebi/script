@@ -60,7 +60,7 @@ export class ForzaSpeechAdmission {
     }
     // A slightly lower adaptive gate admits normal conversational mic levels
     // without lowering the stricter anti-echo threshold during FORZA playback.
-    const threshold=Math.max(playback?0.004:0.0009,this.floor*(playback?3.5:1.35));
+    const threshold=Math.max(playback?0.004:0.0015,this.floor*(playback?3.5:1.8));
     if(this.calibrated&&value>threshold){
       // A late main-thread tick is not an observed silent frame. The separate
       // 250ms discontinuity guard above rejects genuinely stale sampling.
@@ -77,8 +77,7 @@ export class ForzaSpeechAdmission {
   decide(text:string,final:boolean,playback:boolean,now:number):SpeechAdmission{
     if((playback&&!this.mode)||now-this.lastSample>250||!this.calibrated)return 'reject';
     const intent=forzaTurnIntent(text);
-    const needed=playback&&intent!=='stop'?280:100;
-    const minimumFrames=playback&&intent!=='stop'?3:2;
+    const needed=playback&&intent!=='stop'?280:160;
     // A final may arrive slightly after acoustic silence. Interim words need
     // much fresher evidence; an old loud syllable must not admit a bystander.
     // Keep final evidence bounded too: an old nearby utterance must not
@@ -89,7 +88,7 @@ export class ForzaSpeechAdmission {
     if(!fresh)return 'reject';
     const continuing=this.utteranceLatched&&this.utteranceStartedAt!==null&&
       now-this.utteranceStartedAt>=needed;
-    if(!continuing&&(this.duration<needed||this.strongFrames<minimumFrames))
+    if(!continuing&&(this.duration<needed||this.strongFrames<3))
       return this.onset!==null?'wait':'reject';
     if(playback&&intent==='question'&&text.trim().split(/\s+/).length<2)return 'wait';
     // Latch only after recognized words pass acoustic admission. High TTS echo
@@ -116,7 +115,7 @@ export class ForzaSpeechAdmission {
     // A loud TTS echo can satisfy the raw RMS threshold. Do not let it become
     // VAD evidence until an actual recognized customer phrase is admitted.
     return (!this.mode||this.utteranceLatched)&&
-      this.onset!==null&&this.duration>=100&&this.strongFrames>=2;
+      this.onset!==null&&this.duration>=160&&this.strongFrames>=3;
   }
   reset(){
     this.levels=[];this.floor=0.001;this.lastSample=-Infinity;this.onset=null;
