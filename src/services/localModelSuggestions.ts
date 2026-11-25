@@ -68,9 +68,12 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
    const familyOwners=ownersByFamily.get(family.code) || new Set<string>();
    if(!binding.code){
     if(familyOwners.size===0 || allOwners.size>1 || boundFamilies.size>1){
-     putFamily(family,hit,visualRank,familyOwners.size>1 || allOwners.size>1
+     const hasActiveSku=(family.variants || []).some(variant=>variant.active!==false&&Boolean(variant.code?.trim()));
+     putFamily(family,hit,visualRank,familyOwners.size>1 || allOwners.size>1 || boundFamilies.size>1
       ? 'این تصویر میان چند کد یا خانواده مشترک است؛ فقط شباهت در سطح خانواده قابل ارائه است و کد SKU دقیق تأیید نشده است.'
-      : 'تصویر به خانواده واقعی محصول متصل است، نه به یک کد SKU مشخص؛ مدل و سایز دقیق تأیید نشده است.');
+      : !hasActiveSku
+       ? 'تصویر به خانواده واقعی محصول متصل است و برای این خانواده کد SKU فعال ثبت نشده است؛ مدل یا سایز دقیق تأیید نشده است.'
+       : 'تصویر به خانواده متصل است، نه به یک کد SKU مشخص؛ این شباهت در سطح خانواده است و مدل یا سایز دقیق تأیید نشده است.');
     }else if(!bestFamily.has(family.code)){
      bestFamily.set(family.code,{score:visualRank,image:familyImage(family)});
     }
