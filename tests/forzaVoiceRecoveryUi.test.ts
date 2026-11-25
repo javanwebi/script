@@ -134,9 +134,10 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 });
 
 
-test('server AvalAI/Diba STT is recovery-only and never delays a finalized live transcript',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true &&\s+\(!q \|\| speechInterimRef\.current\)/);
+test('server AvalAI/Diba STT is recovery-only and never delays any usable live transcript',()=>{
+  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true &&\s+!q/);
   assert.match(ui,/if\(audioBlob && needsServerFinal\)/);
+  assert.match(ui,/source=live_transcript server_verifier=skipped/);
   assert.match(ui,/transcribeOnly:true/);
   assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
   assert.match(ui,/provider==='avalai'\|\|provider==='diba'\|\|provider==='gemini'/);
@@ -163,10 +164,10 @@ test('a two-second pause preserves the same live transcript across browser recog
   assert.match(ui,/recognitionSessionBaseRef=useRef<string>\(''\)/);
   assert.match(ui,/recognitionSessionBaseRef\.current=activeTranscriptRef\.current\.trim\(\)/);
   assert.match(ui,/appendForzaSpeechSegment\(recognitionSessionBaseRef\.current,currentSpeech\)/);
-  assert.match(ui,/: 6500;/);
-  assert.match(ui,/Math\.max\(6500,pauseMs\)-acousticSilence/);
-  assert.match(speechPipeline,/hasInterim\?3200:1350/);
-  assert.match(speechPipeline,/hasInterim\?5200:4300/);
+  assert.match(ui,/: 3200;/);
+  assert.match(ui,/Math\.max\(3200,pauseMs\)-acousticSilence/);
+  assert.match(speechPipeline,/hasInterim\?850:Math\.max\(600,analysis\.recommendedPauseMs\)/);
+  assert.match(speechPipeline,/Math\.max\(analysis\.recommendedPauseMs,hasInterim\?2200:1600\)/);
 });
 
 test('FORZA hair animation remains visible during the spoken greeting despite microphone echo cancellation',()=>{
@@ -191,8 +192,8 @@ test('local Diba keeps one recognizer and appends finalized segments across repl
 });
 
 test('VAD waits for delayed speech text before stopping an empty transcript recording',()=>{
-  assert.match(ui,/: 6500;/);
-  assert.match(ui,/Math\.max\(0,Math\.max\(6500,pauseMs\)-acousticSilence\)/);
+  assert.match(ui,/: 3200;/);
+  assert.match(ui,/Math\.max\(0,Math\.max\(3200,pauseMs\)-acousticSilence\)/);
   assert.match(ui,/turnDispatchPendingRef\.current=true/);
   assert.match(ui,/const canInterruptPendingTurn=Boolean\(q&&\(/);
   assert.match(ui,/if\(turnDispatchPendingRef\.current&&!canInterruptPendingTurn\)return/);
@@ -200,7 +201,9 @@ test('VAD waits for delayed speech text before stopping an empty transcript reco
 
 test('Nima phrase requests are serialized to match the private single-worker CPU engine',()=>{
   assert.match(ui,/maxConcurrent:1/);
-  assert.match(ui,/maxAheadPhrases:2/);
+  assert.match(ui,/maxAheadPhrases:3/);
+  assert.match(ui,/initialBufferSeconds:1\.6/);
+  assert.match(ui,/maximumInitialWaitMs:450/);
   assert.match(ui,/AbortSignal\.timeout\(65000\)/);
   assert.match(ui,/phase=http_error status=/);
 });
@@ -213,12 +216,15 @@ test('server AvalAI final verification with Diba fallback preserves browser text
   assert.match(ui,/A failed final verifier must never erase a usable live transcript/);
 });
 
-test('voice warmup belongs to the active abortable turn so a customer can barge in during lookup',()=>{
+test('voice readiness never blocks the first conversational text request',()=>{
   const from=ui.indexOf('const handleUserFinishedSpeaking = useCallback(');
   const to=ui.indexOf('// Setup MediaRecorder',from);
   const turn=ui.slice(from,to);
-  assert.ok(turn.indexOf('activeTurnRef.current={generation,abort:pocketAbort,query:q,startedAt:Date.now()}')<
-    turn.indexOf('await ensureVoiceMode()'));
+  const claim=turn.indexOf('activeTurnRef.current={generation,abort:pocketAbort,query:q,startedAt:Date.now()}');
+  const request=turn.indexOf("fetch('/api/ai/consult-stream'");
+  assert.ok(claim>=0&&request>claim);
+  assert.doesNotMatch(turn,/await ensureVoiceMode\(\)/);
+  assert.doesNotMatch(ui,/voiceInfoPromiseRef|ensureVoiceMode/);
   assert.match(turn,/if\(pocketAbort\.signal\.aborted \|\| activeTurnRef\.current\?\.generation!==generation\)return/);
 });
 
