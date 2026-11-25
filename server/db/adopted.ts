@@ -277,40 +277,148 @@ export async function persistAdoptedUsers(client:SqlClient,users:Row[]){
   for(const a of user.addresses || [])await client.query('insert into public.user_addresses(user_id,legacy_id,title,province,city,full_address,postal_code,recipient_name,recipient_phone) values($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict(user_id,legacy_id) do update set title=excluded.title,province=excluded.province,city=excluded.city,full_address=excluded.full_address,postal_code=excluded.postal_code,recipient_name=excluded.recipient_name,recipient_phone=excluded.recipient_phone,active=true',[user.authUserId,a.id,a.title || '',a.province || '',a.city || '',a.fullAddress || '',a.postalCode || '',a.recipientName || '',a.recipientPhone || '']);
  }
 }
-export async function readAdoptedProducts(client:SqlClient,options:{includeTechnicalReviews?:boolean}={}){
+export async function readAdoptedProducts(client:SqlClient,options:{
+ includeTechnicalReviews?:boolean;
+ includePopdCatalog?:boolean;
+ includeUnverifiedImages?:boolean;
+}={}){
  const includeTechnicalReviews=options.includeTechnicalReviews!==false;
+ const includePopdCatalog=options.includePopdCatalog===true;
+ const includeUnverifiedImages=options.includeUnverifiedImages!==false;
  // These projections are independent. Run them together so the 10k-SKU catalogue
  // does not pay three sequential database round trips before the UI can render.
- // Routine runtime hydration omits the large per-SKU review JSON; the editor
- // retrieves one selected SKU's saved report through /api/catalog/variant-review.
  const variantColumns=includeTechnicalReviews
   ? 'v.*'
   : "v.code,v.family_code,v.name,v.size,v.model,v.brand,v.unit,v.active,v.images,v.technical_specs,v.sort_order,coalesce((to_jsonb(v)->'runtime_payload')-'technicalReview','{}'::jsonb) as runtime_payload";
  const [familyResult,variantResult,imageResult]=await Promise.all([
   client.query('select * from public.catalog_families where is_active and not is_deleted order by code'),
   client.query(`select ${variantColumns},c.price,c.base_price,c.retail_price,c.wholesale_price,c.dealer_price,c.stock,c.stock_reserved,c.stock_known,c.inquiry_only,c.currency from public.catalog_variants v left join public.variant_commercial_specs c on c.variant_code=v.code where v.active order by v.sort_order,v.code`),
-  client.query('select * from public.catalog_gallery_images order by sort_order,id')
+  client.query('select * from public.catalog_gallery_images where ($1::boolean or identity_verified=true) order by sort_order,id',[includeUnverifiedImages])
  ]);
  const families=familyResult.rows,variants=variantResult.rows,images=imageResult.rows;
- const byFamily=new Map<string,Row[]>(),gallery=new Map<string,Row[]>();
- for(const v of variants){const prices={base:toman(v.base_price,v.currency),retail:toman(v.retail_price || v.price,v.currency),wholesale:toman(v.wholesale_price,v.currency),dealer:toman(v.dealer_price,v.currency)};const dto={...v.runtime_payload,code:v.code,name:v.name,size:v.size || '',model:v.model,brand:v.brand,unit:v.unit,active:v.active,images:v.images,technicalSpecs:v.technical_specs,...(includeTechnicalReviews?{technicalReview:v.technical_review}:{}),prices,price:prices.retail,stock:Math.max(0,Number(v.stock || 0)-Number(v.stock_reserved || 0)),stockKnown:v.stock_known===true,inquiryOnly:v.inquiry_only!==false};const list=byFamily.get(v.family_code) || [];list.push(dto);byFamily.set(v.family_code,list);}
- for(const i of images){const list=gallery.get(i.family_code) || [];list.push({id:i.id,url:i.url,fileName:i.file_name,scope:i.scope,variantCode:i.variant_code,identityVerified:i.identity_verified===true,title:i.title,order:i.sort_order});gallery.set(i.family_code,list);}
- return families.map(f=>{
-  const vs=byFamily.get(f.code) || [];
-  const familyGallery=gallery.get(f.code) || [];
+ const byFamily=new Map<string,Row[]>(),byVariant=new Map<string,Row[]>(),gallery=new Map<string,Row[]>(),galleryByVariant=new Map<string,Row[]>(),galleryByUrl=new Map<string,Row>();
+ const normalizeScope=(scope:string)=>scope==='family-example'?'family':scope;
+ for(const v of variants){
+  const prices={base:toman(v.base_price,v.currency),retail:toman(v.retail_price || v.price,v.currency),wholesale:toman(v.wholesale_price,v.currency),dealer:toman(v.dealer_price,v.currency)};
+  const dto={...v.runtime_payload,code:v.code,name:v.name,size:v.size || '',model:v.model,brand:v.brand,unit:v.unit,active:v.active,images:v.images,technicalSpecs:v.technical_specs,...(includeTechnicalReviews?{technicalReview:v.technical_review}:{}),prices,price:prices.retail,stock:Math.max(0,Number(v.stock || 0)-Number(v.stock_reserved || 0)),stockKnown:v.stock_known===true,inquiryOnly:v.inquiry_only!==false};
+  const familyList=byFamily.get(v.family_code)||[];
+  familyList.push(dto);byFamily.set(v.family_code,familyList);
+  byVariant.set(v.code,dto);
+ }
+ for(const i of images){
+  const image={id:i.id,url:i.url,fileName:i.file_name,scope:normalizeScope(i.scope),variantCode:i.variant_code,identityVerified:i.identity_verified===true,title:i.title,order:i.sort_order};
+  const familyList=gallery.get(i.family_code)||[];
+  familyList.push(image);gallery.set(i.family_code,familyList);
+  if(i.variant_code){
+   const variantList=galleryByVariant.get(i.variant_code)||[];
+   variantList.push(image);galleryByVariant.set(i.variant_code,variantList);
+  }
+  if(i.url&&!galleryByUrl.has(i.url))galleryByUrl.set(i.url,image);
+ }
+
+ let popdFamilies:Row[]=[];
+ let popdMappings:Row[]=[];
+ let popdDirectCodes:string[]=[];
+ if(includePopdCatalog){
+  try{
+   const [popdFamilyResult,popdMappingResult,popdDirectResult]=await Promise.all([
+    client.query(`select f.*,c.name as category_name
+      from app_private.catalog_popd_families f
+      left join public.catalog_categories c on c.slug=f.category_slug
+      where f.is_active=true
+      order by f.category_slug,f.submenu,f.family_name,f.source_family_code`),
+    client.query(`select m.source_family_code,m.variant_code,m.sort_order
+      from app_private.catalog_popd_family_variants m
+      join app_private.catalog_popd_families f on f.source_family_code=m.source_family_code and f.is_active=true
+      order by m.source_family_code,m.sort_order,m.variant_code`),
+    client.query('select sku_code from app_private.catalog_popd_direct_skus')
+   ]);
+   popdFamilies=popdFamilyResult.rows;
+   popdMappings=popdMappingResult.rows;
+   popdDirectCodes=popdDirectResult.rows.map((row:Row)=>String(row.sku_code));
+  }catch(error:any){
+   // Code can be deployed before the one-time production migration. In that case
+   // keep the existing catalogue active and let the migration/importer be applied later.
+   if(error?.code!=='42P01'&&error?.code!=='3F000')throw error;
+  }
+ }
+ const popdReady=includePopdCatalog&&popdFamilies.length>0&&popdMappings.length>0;
+ const coveredSkuCodes=new Set<string>(popdReady?[
+  ...popdMappings.map((row:Row)=>String(row.variant_code)),
+  ...popdDirectCodes
+ ]:[]);
+ const legacyProducts=families.map(f=>{
+  const originalVariants=byFamily.get(f.code)||[];
+  const vs=popdReady?originalVariants.filter(variant=>!coveredSkuCodes.has(String(variant.code))):originalVariants;
+  if(popdReady&&originalVariants.length>0&&vs.length===0)return null;
+  const removedPopdVariants=popdReady&&vs.length!==originalVariants.length;
+  const familyGallery=gallery.get(f.code)||[];
   const familyGalleryUrls=familyGallery.filter(image=>image.scope==='family').map(image=>image.url);
   const variantGalleryUrls=new Set(familyGallery.filter(image=>image.scope==='variant').map(image=>image.url));
-  // The scoped gallery is authoritative when present. For legacy rows, remove
-  // any known SKU-only URLs from the old family.images fallback.
-  const familyImages=[...new Set([...familyGalleryUrls,...(Array.isArray(f.images)?f.images:[]).filter((url:string)=>!variantGalleryUrls.has(url))])];
+  // Public products use only verified gallery records. Legacy arrays are retained
+  // for staff review only; SKU-only images are never promoted to family images.
+  const familyImages=removedPopdVariants?[]:[...new Set([
+   ...familyGalleryUrls,
+   ...(includeUnverifiedImages?(Array.isArray(f.images)?f.images:[]).filter((url:string)=>!variantGalleryUrls.has(url)):[])
+  ])];
+  const remainingCodes=new Set(vs.map(variant=>String(variant.code)));
   const normalizedVariants:Row[]=vs.map((variant:Row):Row=>{
-   const skuGalleryImages=familyGallery.filter(image=>image.scope==='variant'&&image.variantCode===variant.code).map(image=>image.url).filter((url:string)=>!familyImages.includes(url));
-   const skuImages=skuGalleryImages.length?skuGalleryImages:(Array.isArray(variant.images)?variant.images:[]).filter((url:string)=>!familyImages.includes(url));
+   const skuGalleryImages=(galleryByVariant.get(variant.code)||[]).filter(image=>image.scope==='variant').map(image=>image.url).filter((url:string)=>!familyImages.includes(url));
+   const skuImages=skuGalleryImages.length?skuGalleryImages:(includeUnverifiedImages?(Array.isArray(variant.images)?variant.images:[]).filter((url:string)=>!familyImages.includes(url)):[]);
    return {...variant,images:skuImages};
   });
   const first:Row|undefined=normalizedVariants[0];
-  return {...f.runtime_payload,code:f.code,name:f.name,brand:f.brand,categorySlug:f.category_slug,categoryName:f.category_name,subcategory:f.subcategory || '',submenu:f.submenu,unit:f.unit,description:f.description,sourceRow:f.source_row,active:f.is_active,images:familyImages,technicalSpecs:f.technical_specs,tags:f.tags,hasCatalogueImage:f.has_catalogue_image,imageScope:f.image_scope,galleryImages:familyGallery,variants:normalizedVariants,prices:first?.prices || {base:0,retail:0,wholesale:0,dealer:0},stock:normalizedVariants.reduce((n,v)=>n+v.stock,0),stockKnown:normalizedVariants.length>0 && normalizedVariants.every(v=>v.stockKnown),inquiryOnly:!normalizedVariants.length || normalizedVariants.every(v=>v.inquiryOnly)};
+  const visibleGallery=removedPopdVariants
+   ?familyGallery.filter(image=>image.scope==='variant'&&image.variantCode&&remainingCodes.has(String(image.variantCode)))
+   :familyGallery;
+  return {...f.runtime_payload,code:f.code,name:f.name,brand:f.brand,categorySlug:f.category_slug,categoryName:f.category_name,subcategory:f.subcategory || '',submenu:f.submenu,unit:f.unit,description:f.description,sourceRow:f.source_row,active:f.is_active,images:familyImages,technicalSpecs:f.technical_specs,tags:f.tags,hasCatalogueImage:familyImages.length>0||normalizedVariants.some(variant=>Array.isArray(variant.images)&&variant.images.length>0),imageScope:familyImages.length?'family-example':f.image_scope,galleryImages:visibleGallery,variants:normalizedVariants,prices:first?.prices || {base:0,retail:0,wholesale:0,dealer:0},stock:normalizedVariants.reduce((n,v)=>n+v.stock,0),stockKnown:normalizedVariants.length>0 && normalizedVariants.every(v=>v.stockKnown),inquiryOnly:!normalizedVariants.length || normalizedVariants.every(v=>v.inquiryOnly)};
+ }).filter(Boolean) as Row[];
+ if(!popdReady)return legacyProducts;
+
+ const mappingsByFamily=new Map<string,string[]>();
+ for(const mapping of popdMappings){
+  const code=String(mapping.source_family_code);
+  const list=mappingsByFamily.get(code)||[];
+  list.push(String(mapping.variant_code));
+  mappingsByFamily.set(code,list);
+ }
+ const popdProducts=popdFamilies.map(f=>{
+  const codes=mappingsByFamily.get(String(f.source_family_code))||[];
+  const normalizedVariants:Row[]=codes.map(code=>byVariant.get(code)).filter(Boolean).map((variant:Row)=>{
+   const skuGalleryImages=(galleryByVariant.get(String(variant.code))||[]).filter(image=>image.scope==='variant');
+   const skuImages=skuGalleryImages.length?skuGalleryImages.map(image=>image.url):(includeUnverifiedImages&&Array.isArray(variant.images)?variant.images:[]);
+   return {...variant,images:[...new Set(skuImages)]};
+  });
+  const familyImageUrls=Array.isArray(f.family_image_urls)?f.family_image_urls.filter((url:unknown)=>typeof url==='string'&&url.length>0):[];
+  const familyGalleryImages=familyImageUrls.map((url:string,index:number)=>galleryByUrl.get(url)||{
+   id:`popd-family:${f.source_family_code}:${index}`,url,fileName:null,scope:'family',variantCode:null,identityVerified:true,title:null,order:index
+  });
+  const variantGalleryImages=normalizedVariants.flatMap(variant=>(galleryByVariant.get(String(variant.code))||[]).filter(image=>image.scope==='variant'));
+  const galleryImages=[...familyGalleryImages,...variantGalleryImages];
+  const variantImageUrls=normalizedVariants.flatMap(variant=>Array.isArray(variant.images)?variant.images:[]);
+  const productImages=[...new Set([...familyImageUrls,...variantImageUrls])];
+  const first:Row|undefined=normalizedVariants[0];
+  const metadata=f.metadata&&typeof f.metadata==='object'?f.metadata:{};
+  return {
+   code:f.source_family_code,name:f.family_name,brand:f.brand||first?.brand||'',
+   categorySlug:f.category_slug,categoryName:f.category_name||'',
+   subcategory:f.leaf||f.submenu||'',submenu:f.submenu||'',unit:first?.unit||'عدد',
+   description:metadata.description||f.family_name,active:f.is_active===true,
+   images:productImages,image:productImages[0]||undefined,
+   technicalSpecs:Array.isArray(metadata.technicalSpecs)?metadata.technicalSpecs:(first?.technicalSpecs||[]),
+   tags:Array.isArray(metadata.tags)?metadata.tags:[],
+   hasCatalogueImage:productImages.length>0,
+   imageScope:familyImageUrls.length?'family-example':(variantImageUrls.length?'sku-verified':undefined),
+   galleryImages,variants:normalizedVariants,
+   prices:first?.prices||{base:0,retail:0,wholesale:0,dealer:0},
+   stock:normalizedVariants.reduce((total,variant)=>total+Number(variant.stock||0),0),
+   stockKnown:normalizedVariants.length>0&&normalizedVariants.every(variant=>variant.stockKnown),
+   inquiryOnly:!normalizedVariants.length||normalizedVariants.every(variant=>variant.inquiryOnly),
+   catalogSource:'popd',sourceKind:f.source_kind,declaredVariantCount:Number(f.declared_variant_count)||0,
+   resolvedDbFamilyCode:f.resolved_db_family_code||null,resolutionStatus:f.resolution_status||'UNRESOLVED'
+  };
  });
+ return [...legacyProducts,...popdProducts];
 }
 export async function saveAdoptedProducts(client:SqlClient,products:Row[]){
  const skus=new Set<string>();for(const p of products)for(const v of p.variants || []){if(skus.has(v.code))throw new Error('Duplicate inventory SKU');skus.add(v.code);}
