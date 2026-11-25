@@ -404,8 +404,8 @@
   display: flex;
   overflow: hidden;
   border-radius: 19px;
-  background: #7c7e80;
-  box-shadow: 0 2px 7px rgba(31,36,42,.14);
+  background: #f1f3f4;
+  box-shadow: none;
 }
 
 .kiki-image-workspace__viewer-hint {
@@ -447,23 +447,30 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 15px;
+  padding: 8px;
   border: 0;
   border-radius: 18px;
-  background: #7c7e80;
+  background: transparent;
 }
 
 .sanat-region-picker--viewer .sanat-region-picker__frame {
   max-width: 100%;
   max-height: 100%;
-  border-radius: 5px;
-  background: #fff;
+  border: 0;
+  outline: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   cursor: crosshair;
 }
 
 .sanat-region-picker--viewer .sanat-region-picker__frame > img {
+  display: block;
   max-width: min(100%, 600px);
   max-height: min(65dvh, 650px);
+  border: 0;
+  outline: 0;
+  box-shadow: none;
   object-fit: contain;
 }
 
@@ -637,7 +644,7 @@
 
 @media (max-width: 580px) {
   .kiki-vision-review-shell.kiki-image-workspace {
-    grid-template-rows: minmax(285px, 43dvh) minmax(360px, 1fr);
+    grid-template-rows: minmax(260px, 48dvh) minmax(360px, 1fr);
   }
 
   .kiki-image-workspace__viewer {
@@ -671,12 +678,12 @@
   }
 
   .sanat-region-picker--viewer .sanat-region-picker__canvas {
-    padding: 8px;
+    padding: 4px;
     border-radius: 15px;
   }
 
   .sanat-region-picker--viewer .sanat-region-picker__frame > img {
-    max-height: min(34dvh, 330px);
+    max-height: min(calc(48dvh - 82px), 420px);
   }
 
   .sanat-region-picker--viewer .sanat-region-picker__viewer-actions button {
@@ -822,6 +829,7 @@
   border: 0;
   color: inherit;
   background: transparent;
+  font-family: inherit;
   text-align: right;
   cursor: pointer;
 }
@@ -904,6 +912,24 @@
   color: #187647;
   font-weight: 800;
 }
+.kiki-image-workspace__family-image-note {
+  display: block;
+  padding: 5px 7px;
+  border-radius: 7px;
+  color: #87511f;
+  background: #fff5e9;
+  font-size: 9px;
+  line-height: 1.7;
+}
+.kiki-image-workspace__result-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  color: #e06518;
+  font-size: 10px;
+  font-weight: 900;
+}
 .kiki-image-workspace__empty-results {
   min-height: 150px;
   display: grid;
@@ -940,7 +966,7 @@
 .sanat-region-picker--viewer .sanat-region-picker__candidate.is-selected {
   border: 2px solid #e06518;
   background: rgba(224,101,24,.09);
-  box-shadow: 0 0 0 2px rgba(255,255,255,.82),0 0 0 4px rgba(224,101,24,.25);
+  box-shadow: 0 0 0 3px rgba(224,101,24,.18);
 }
 .sanat-region-picker--viewer .sanat-region-picker__candidate span {
   display: flex;
