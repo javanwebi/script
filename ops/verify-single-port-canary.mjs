@@ -193,14 +193,13 @@ console.log("===== POPD REFERENCE CATALOGUE CANARY =====");
 const referenceStatus = await json(candidate, "/api/catalog/reference/status");
 assert.equal(referenceStatus.sourcePath, "github/javanwebi/POPD/server/data/engineeredCatalog.json",
   "POPD_REFERENCE_ARCHIVE_SOURCE_MISMATCH");
-assert.ok(referenceStatus.familyCount >= 492, "POPD_REFERENCE_FAMILY_COUNT_BELOW_AUDITED_BASELINE");
-assert.ok(referenceStatus.skuCount >= 10308, "POPD_REFERENCE_SKU_COUNT_BELOW_AUDITED_BASELINE");
-assert.ok(referenceStatus.categoryCount >= 40, "POPD_REFERENCE_CATEGORY_COUNT_BELOW_AUDITED_BASELINE");
-assert.ok(referenceStatus.groupCount >= 14, "POPD_REFERENCE_GROUP_COUNT_BELOW_AUDITED_BASELINE");
-assert.ok(Number.isInteger(referenceStatus.quarantinedSkuCount) && referenceStatus.quarantinedSkuCount >= 0,
-  "POPD_REFERENCE_QUARANTINE_COUNT_INVALID");
-assert.ok(referenceStatus.rawDirectSkuCount >= 678, "POPD_REFERENCE_DIRECT_AUDIT_COUNT_BELOW_AUDITED_BASELINE");
-assert.equal(referenceStatus.standaloneDirectSkuRows, 0, "POPD_REFERENCE_DUPLICATE_DIRECT_SKU_ROWS");
+assert.equal(referenceStatus.familyCount, 492, "POPD_REFERENCE_FAMILY_COUNT_MISMATCH");
+assert.equal(referenceStatus.skuCount, 10308, "POPD_REFERENCE_SKU_COUNT_MISMATCH");
+assert.equal(referenceStatus.categoryCount, 40, "POPD_REFERENCE_CATEGORY_COUNT_MISMATCH");
+assert.equal(referenceStatus.groupCount, 14, "POPD_REFERENCE_GROUP_COUNT_MISMATCH");
+assert.equal(referenceStatus.quarantinedSkuCount, 127, "POPD_REFERENCE_QUARANTINE_COUNT_MISMATCH");
+assert.equal(referenceStatus.rawDirectSkuCount, 678, "POPD_REFERENCE_DIRECT_AUDIT_COUNT_MISMATCH");
+assert.equal(referenceStatus.standaloneDirectSkuRows, 0, "POPD_REFERENCE_STANDALONE_SKU_COUNT_MISMATCH");
 assert.ok(referenceStatus.verifiedFamilyImageCount >= 28, "POPD_REFERENCE_FAMILY_IMAGE_COUNT_BELOW_VERIFIED_BASELINE");
 assert.equal(referenceStatus.e869SourcePath, "github/javanwebi/POPD/deliverables/catalog-869-audit/e869_linked_catalog.json",
   "POPD_E869_IMAGE_SOURCE_MISMATCH");
