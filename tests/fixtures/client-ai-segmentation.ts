@@ -1,5 +1,5 @@
 import fixtureUrl from '../../src/assets/images/hero_timing_belt_studio_1794523125679.jpg?url';
-import { getForegroundRegion, segmentImageWithClientAi } from '../../src/utils/clientAiSegmentation';
+import { segmentImageWithClientAi } from '../../src/utils/clientAiSegmentation';
 
 type VisionSmokeResult = {
   ok: boolean;
@@ -20,10 +20,8 @@ void (async () => {
   const status = document.getElementById('status');
   try {
     const result = await segmentImageWithClientAi(fixtureUrl);
-    const region = result ? getForegroundRegion(result) : null;
-    const foregroundPixels = result
-      ? result.alphaMask.reduce((count, alpha) => count + Number(alpha >= 110), 0)
-      : 0;
+    const region = result?.regions[0] || null;
+    const foregroundPixels = result?.foregroundPixels || 0;
     const ok = Boolean(
       result &&
       region &&

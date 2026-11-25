@@ -92,7 +92,7 @@ const {chromium}=require('playwright');
   }
   // Mount the actual modal and verify the new automatic detect -> search -> inline results flow.
   await fs.writeFile(path.join(fixture,'modal.html'),'<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="./modal.tsx"></script>');
-  await fs.writeFile(path.join(fixture,'modal.tsx'),`import React from 'react';import {createRoot} from 'react-dom/client';import {MemoryRouter} from 'react-router-dom';import {AiVisualPartSearchModal} from '/src/components/search/AiVisualPartSearchModal.tsx';import '/src/index.css';createRoot(document.getElementById('root')).render(<MemoryRouter><AiVisualPartSearchModal isOpen={true} onClose={()=>{}}/></MemoryRouter>);`);
+  await fs.writeFile(path.join(fixture,'modal.tsx'),`import React from 'react';import {createRoot} from 'react-dom/client';import {MemoryRouter,useLocation} from 'react-router-dom';import {AiVisualPartSearchModal} from '/src/components/search/AiVisualPartSearchModal.tsx';import '/src/index.css';function RouteProbe(){const location=useLocation();window.__kikiPath=location.pathname;return null;}createRoot(document.getElementById('root')).render(<MemoryRouter><RouteProbe/><AiVisualPartSearchModal isOpen={true} onClose={()=>{}}/></MemoryRouter>);`);
   const page=await browser.newPage({viewport:{width:1280,height:960}});
   let uploads=0;
   const detections=[],queries=[],errors=[];
@@ -130,7 +130,9 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('.sanat-region-picker__full-image').count(),0,'manual full-image action must be removed');
   const selectedProduct=page.getByRole('button',{name:/تسمه وی شکل A-49/});
   await selectedProduct.click();
-  assert.equal(await selectedProduct.getAttribute('aria-pressed'),'true','catalog result must be selectable in the same workspace');
+  assert.equal(await selectedProduct.getAttribute('aria-pressed'),'true','catalog result must remain accessible as selected');
+  await page.waitForFunction(()=>window.__kikiPath==='/product/TEST-A49');
+  assert.equal(await page.evaluate(()=>window.__kikiPath),'/product/TEST-A49','catalog result must open its own product detail page');
   await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-desktop.png'),fullPage:true});
 
   const candidateButtons=page.getByTestId('vision-region-candidates').getByRole('button');
@@ -152,6 +154,26 @@ const {chromium}=require('playwright');
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(120);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'mobile workspace must not overflow horizontally');
+  const mobileImage=page.locator('.sanat-region-picker--viewer .sanat-region-picker__frame > img');
+  await mobileImage.waitFor({state:'visible'});
+  const mobileFit=await page.locator('.sanat-region-picker--viewer .sanat-region-picker__frame').evaluate(frame=>{
+   const image=frame.querySelector('img');
+   const imageRect=image.getBoundingClientRect(),frameRect=frame.getBoundingClientRect();
+   const imageStyle=getComputedStyle(image),frameStyle=getComputedStyle(frame);
+   return {
+    naturalWidth:image.naturalWidth,naturalHeight:image.naturalHeight,
+    width:imageRect.width,height:imageRect.height,frameWidth:frameRect.width,frameHeight:frameRect.height,
+    objectFit:imageStyle.objectFit,imageBorder:imageStyle.borderTopWidth,frameBorder:frameStyle.borderTopWidth,
+    frameShadow:frameStyle.boxShadow,displayRatio:imageRect.width/imageRect.height,
+    naturalRatio:image.naturalWidth/image.naturalHeight
+   };
+  });
+  assert.equal(mobileFit.objectFit,'contain','mobile viewer must preserve the complete uploaded image');
+  assert.equal(mobileFit.imageBorder,'0px','uploaded image must not have an added white border');
+  assert.equal(mobileFit.frameBorder,'0px','image holder must not draw an extra border');
+  assert.equal(mobileFit.frameShadow,'none','image holder must not add a white frame shadow');
+  assert.ok(mobileFit.width>0&&mobileFit.height>0&&mobileFit.width<=mobileFit.frameWidth+1&&mobileFit.height<=mobileFit.frameHeight+1,JSON.stringify(mobileFit));
+  assert.ok(Math.abs(mobileFit.displayRatio-mobileFit.naturalRatio)<0.03,'mobile viewer must show the entire image without cropping or stretching');
   await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-mobile.png'),fullPage:true});
   assert.equal(await page.getByTestId('kiki-inline-catalog-results').count(),1,'results stay beside the selected image without a separate results page');
   assert.equal(uploads,0);

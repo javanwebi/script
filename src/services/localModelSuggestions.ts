@@ -14,23 +14,17 @@ const familyImage=(family:Product)=>
  (family.galleryImages || []).filter(image=>image.scope==='family').map(image=>usable(image.url)).find(Boolean) ||
  (family.images || []).map(usable).find(Boolean) || '';
 
-/** Strongest independent image evidence first. SKU siblings with shared family photos
- * remain unscored; a family-bound photo without a SKU binding can carry a family-level
- * visual score even when that family also contains coded SKUs. No SKU is fabricated.
+/**
+ * SKU-level visual suggestions require one independently bound catalogue photo.
+ * Shared family photos are represented once at family level; they never fan out
+ * into several unverified sibling SKU cards.
  */
 export function localModelSuggestions(hits:Hit[],products:Product[],markings:{text:string;confidence:number}[]=[],minSimilarity=0.65,limit=24):CatalogModelSuggestion[]{
  const families=new Map(products.filter(p=>p.active!==false).map(p=>[p.code,p]));
  const variants=new Map<string,{family:Product;variant:ProductVariant}>();
  for(const family of families.values())for(const variant of family.variants || [])if(variant.active!==false && variant.code?.trim())variants.set(variant.code,{family,variant});
- const eligible=hits.filter(hit=>hit.eligible!==false&&Number.isFinite(hit.score)&&(hit.visualScore ?? hit.score)>=minSimilarity).sort((a,b)=>(b.visualScore ?? b.score)-(a.visualScore ?? a.score) || b.score-a.score || a.row.id.localeCompare(b.row.id));
- // A lower-scoring photo may order a related model without promoting it to a
- // visual match. Unscored/shared-photo siblings remain explicitly unranked.
- const relatedPhotoScores=new Map<string,number>();
- for(const hit of hits){
-  if(!Number.isFinite(hit.score))continue;
-  const owners=[...new Set(hit.row.bindings.flatMap(b=>b.code&&variants.get(b.code)?.family.code===b.familyCode?[b.code]:[]))];
-  if(owners.length===1)relatedPhotoScores.set(owners[0],Math.max(relatedPhotoScores.get(owners[0]) ?? -Infinity,hit.visualScore ?? hit.score));
- }
+ const eligible=hits.filter(hit=>hit.eligible!==false&&Number.isFinite(hit.score)&&(hit.visualScore ?? hit.score)>=minSimilarity)
+  .sort((a,b)=>(b.visualScore ?? b.score)-(a.visualScore ?? a.score) || b.score-a.score || a.row.id.localeCompare(b.row.id));
  const bestFamily=new Map<string,{score:number;image:string}>();
  const cards=new Map<string,Ranked>();
  const make=(family:Product,variant:ProductVariant,image:string,imageScope:CatalogModelSuggestion['imageScope'],matchBasis:CatalogModelSuggestion['matchBasis'],reason:string):CatalogModelSuggestion=>({
@@ -44,70 +38,77 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
   const previous=cards.get(key);
   if(!previous || priority(item)<priority(previous.item) || (priority(item)===priority(previous.item)&&(score>previous.score || (score===previous.score&&tieScore>previous.tieScore))))cards.set(key,{item,score,tieScore});
  };
+ const putFamily=(family:Product,hit:Hit,visualRank:number,reason:string)=>{
+  put({
+   name:family.name,familyCode:family.code,familyName:family.name,brand:family.brand,
+   image:hit.row.url,imageScope:'family',matchBasis:'visual',
+   visualScore:Math.round(Math.max(0,Math.min(1,visualRank))*100),specs:[],reason
+  },visualRank,hit.score);
+  const previous=bestFamily.get(family.code);
+  if(!previous || visualRank>previous.score)bestFamily.set(family.code,{score:visualRank,image:hit.row.url});
+ };
  for(const hit of eligible){
   const visualRank=hit.visualScore ?? hit.score;
-  const bindings=hit.row.bindings.filter(b=>families.has(b.familyCode));
-  const owners=new Set(bindings.flatMap(b=>b.code&&variants.get(b.code)?.family.code===b.familyCode?[b.code]:[]));
+  const bindings=hit.row.bindings.filter(binding=>families.has(binding.familyCode));
+  const ownersByFamily=new Map<string,Set<string>>();
+  const allOwners=new Set<string>();
+  const boundFamilies=new Set(bindings.map(binding=>binding.familyCode));
+  for(const binding of bindings){
+   if(!binding.code)continue;
+   const owner=variants.get(binding.code);
+   if(!owner || owner.family.code!==binding.familyCode)continue;
+   const ownerKey=binding.familyCode+':'+binding.code;
+   allOwners.add(ownerKey);
+   const owners=ownersByFamily.get(binding.familyCode) || new Set<string>();
+   owners.add(ownerKey);
+   ownersByFamily.set(binding.familyCode,owners);
+  }
   for(const binding of bindings){
    const family=families.get(binding.familyCode)!;
-   const activeVariants=(family.variants || []).filter(variant=>variant.active!==false && Boolean(variant.code?.trim()));
+   const familyOwners=ownersByFamily.get(family.code) || new Set<string>();
    if(!binding.code){
-    const hasSpecificSkuOwner=[...owners].some(code=>variants.get(code)?.family.code===family.code);
-    if(!hasSpecificSkuOwner){
-     put({name:family.name,familyCode:family.code,familyName:family.name,brand:family.brand,image:hit.row.url,
-      imageScope:'family',matchBasis:'visual',visualScore:Math.round(Math.max(0,Math.min(1,visualRank))*100),specs:[],
-      reason:activeVariants.length===0
-       ? 'تصویر به خانوادهٔ واقعی محصول متصل است و برای این خانواده کد SKU فعال ثبت نشده است؛ مدل یا سایز دقیق تأیید نشده است.'
-       : 'تصویر به خانواده متصل است، نه به یک کد SKU مشخص؛ این شباهت در سطح خانواده است و مدل یا سایز دقیق تأیید نشده است.'},visualRank,hit.score);
+    if(familyOwners.size===0 || allOwners.size>1 || boundFamilies.size>1){
+     const hasActiveSku=(family.variants || []).some(variant=>variant.active!==false&&Boolean(variant.code?.trim()));
+     putFamily(family,hit,visualRank,familyOwners.size>1 || allOwners.size>1 || boundFamilies.size>1
+      ? 'این تصویر میان چند کد یا خانواده مشترک است؛ فقط شباهت در سطح خانواده قابل ارائه است و کد SKU دقیق تأیید نشده است.'
+      : !hasActiveSku
+       ? 'تصویر به خانواده واقعی محصول متصل است و برای این خانواده کد SKU فعال ثبت نشده است؛ مدل یا سایز دقیق تأیید نشده است.'
+       : 'تصویر به خانواده متصل است، نه به یک کد SKU مشخص؛ این شباهت در سطح خانواده است و مدل یا سایز دقیق تأیید نشده است.');
+    }else if(!bestFamily.has(family.code)){
+     bestFamily.set(family.code,{score:visualRank,image:familyImage(family)});
     }
-    if(!bestFamily.has(family.code))bestFamily.set(family.code,{score:visualRank,image:hit.row.url});
     continue;
    }
-   if(!bestFamily.has(family.code))bestFamily.set(family.code,{score:visualRank,image:!binding.code?hit.row.url:familyImage(family)});
-   else if(!bestFamily.get(family.code)!.image && !binding.code)bestFamily.get(family.code)!.image=hit.row.url;
-   const owner=binding.code?variants.get(binding.code):undefined;
+   const owner=variants.get(binding.code);
    if(!owner || owner.family.code!==family.code)continue;
-   const independent=owners.size===1;
-   const item=make(family,owner.variant,hit.row.url,independent?'variant':'family',independent?'visual':'family',independent?
-    'عکس متصل به این مدل با تصویر شما مقایسه شده است؛ مشخصات فنی را کنترل کنید.':
-    'این عکس بین چند کد مشترک است؛ شباهت مستقل این مدل و سایز تأیید نشده است.');
-   if(independent)item.visualScore=Math.round(Math.max(0,Math.min(1,visualRank))*100);
+   const independent=familyOwners.size===1 && allOwners.size===1 && boundFamilies.size===1;
+   if(!independent){
+    putFamily(family,hit,visualRank,'تصویر کاتالوگ بین چند کد مشترک است؛ این نتیجه فقط خانواده را نشان می‌دهد و مدل یا سایز مستقل تأیید نشده است.');
+    continue;
+   }
+   const item=make(family,owner.variant,hit.row.url,'variant','visual',
+    'تصویر اختصاصی متصل به این کد با عکس شما مقایسه شده است؛ ابعاد و سازگاری فنی همچنان باید کنترل شوند.');
+   item.visualScore=Math.round(Math.max(0,Math.min(1,visualRank))*100);
    put(item,visualRank,hit.score);
+   if(!bestFamily.has(family.code))bestFamily.set(family.code,{score:visualRank,image:familyImage(family)});
   }
  }
- // OCR can suggest a real unique code, but does not fabricate a photo binding.
+ // OCR may suggest a real, unique code only after its family has visual evidence.
+ // It never borrows a sibling SKU photograph.
  for(const marking of markings.filter(m=>m.confidence>=85)){
   const matches=[...variants.values()].filter(({variant})=>codeKey(variant.code)===codeKey(marking.text));
   if(matches.length!==1)continue;
   const {family,variant}=matches[0],evidence=bestFamily.get(family.code);
   if(!evidence)continue;
   const own=ownImage(family,variant);
-  put(make(family,variant,own || evidence.image,own?'variant':evidence.image?'family':'none','read_code',
-   'کد خوانده‌شده به این محصول اشاره دارد؛ نوشته و مشخصات را پیش از انتخاب کنترل کنید.'),evidence.score,evidence.score);
+  const familyPhoto=familyImage(family);
+  const image=own || familyPhoto;
+  put(make(family,variant,image,own?'variant':familyPhoto?'family':'none','read_code',
+   'کد خوانده‌شده به این محصول اشاره دارد و خانواده نیز شباهت تصویری دارد؛ نوشته، ابعاد و سازگاری را پیش از انتخاب کنترل کنید.'),evidence.score,evidence.score);
  }
- // Existing siblings without their own scored photograph are available for comparison,
- // with an explicit family-example image, never a copied similarity percentage.
- const familyOrder=[...bestFamily.entries()].sort((a,b)=>b[1].score-a[1].score || a[0].localeCompare(b[0]));
- const topScore=familyOrder[0]?.[1].score ?? 0;
- const relevant=familyOrder.filter(([,e])=>e.score>=topScore-0.12).slice(0,4);
- for(const [code,evidence] of relevant){
-  const family=families.get(code)!;
-  for(const variant of family.variants || []){
-   if(variant.active===false || !variant.code?.trim() || cards.has(variant.code))continue;
-   const own=ownImage(family,variant);
-   put(make(family,variant,own || evidence.image,own?'variant':evidence.image?'family':'none','family',
-    own?'مدل ثبت‌شده در خانوادهٔ نزدیک برای مقایسه؛ شباهت تصویری مستقل آن تأیید نشده است.':
-    'مدل ثبت‌شده در خانوادهٔ نزدیک؛ عکس نمونهٔ خانواده است و شباهت مستقل این مدل بررسی نشده است.'),relatedPhotoScores.get(variant.code) ?? evidence.score-2);
-  }
- }
- const ranked=[...cards.values()].sort((a,b)=>priority(a.item)-priority(b.item) || b.score-a.score || b.tieScore-a.tieScore || (a.item.code || a.item.familyCode).localeCompare(b.item.code || b.item.familyCode));
- const confirmed=ranked.filter(row=>row.item.matchBasis!=='family').slice(0,limit);
- const queues=new Map<string,Ranked[]>();
- for(const row of ranked.filter(row=>row.item.matchBasis==='family')){const queue=queues.get(row.item.familyCode)||[];queue.push(row);queues.set(row.item.familyCode,queue);}
- const result=confirmed.map(row=>row.item);
- // Round robin only among unranked family alternatives; visual results keep strict order.
- while(result.length<limit){let added=false;for(const queue of queues.values()){
-  const next=queue.shift();if(next){result.push(next.item);added=true;}if(result.length===limit)break;
- }if(!added)break;}
- return result;
+ return [...cards.values()]
+  .sort((a,b)=>priority(a.item)-priority(b.item) || b.score-a.score || b.tieScore-a.tieScore ||
+    (a.item.code || a.item.familyCode).localeCompare(b.item.code || b.item.familyCode))
+  .slice(0,limit)
+  .map(row=>row.item);
 }

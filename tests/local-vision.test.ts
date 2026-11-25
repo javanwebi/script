@@ -29,10 +29,34 @@ test('a family-bound photo is scored at family level when no SKU-specific bindin
 test('only active, explicitly bound real SKUs are returned, even when the photo is identity verified',()=>{
  const result=localVisionResult([hit([{familyCode:'family',code:'sku',verified:true},{familyCode:'family',code:'invented',verified:true},{familyCode:'family',code:'inactive',verified:true},{familyCode:'deleted',code:'sku',verified:true}])],products,coverage,'/customer');
  assert.deepEqual(result.similarCandidates!.map(p=>p.code),['sku']);
+ assert.equal(result.similarCandidates![0].imageScope,'variant');
  assert.deepEqual(result.similarCandidates![0].specs,[{key:'سایز',value:'20'}]);
  assert.equal(result.similarCandidates![0].visualVerdict,'very_similar');
  assert.deepEqual(result.matchedProducts,[]);
  assert.equal(result.catalogImageMatches![0].bindings.length,1);
+});
+
+test('one catalogue photo shared by multiple SKU bindings returns a family card, never several SKU candidates',()=>{
+ const result=localVisionResult([hit([
+  {familyCode:'family',code:'sku',verified:false},
+  {familyCode:'family',code:'other-size',verified:false}
+ ])],products,coverage,'/customer');
+ assert.deepEqual(result.similarCandidates,[]);
+ assert.equal(result.modelSuggestions!.length,1);
+ assert.equal(result.modelSuggestions![0].familyCode,'family');
+ assert.equal(result.modelSuggestions![0].code,undefined);
+ assert.equal(result.modelSuggestions![0].imageScope,'family');
+ assert.equal(result.modelSuggestions![0].matchBasis,'visual');
+});
+
+test('a photo shared by a SKU and a second family cannot identify the SKU',()=>{
+ const result=localVisionResult([hit([
+  {familyCode:'family',code:'sku',verified:false},
+  {familyCode:'other-family',verified:false}
+ ])],[...products,{code:'other-family',name:'خانواده دوم',active:true,variants:[]}] as Product[],coverage,'/customer');
+ assert.deepEqual(result.similarCandidates,[]);
+ assert.equal(result.modelSuggestions!.length,2);
+ assert.ok(result.modelSuggestions!.every(item=>!item.code&&item.imageScope==='family'));
 });
 test('weak or invalid similarity yields no invented nearest match or absence/stock claim',()=>{
  const result=localVisionResult([hit([],0.4),hit([],NaN)],products,coverage,'/customer');
@@ -130,9 +154,9 @@ test('moderate MobileCLIP evidence needs multiple distinct photos in one family;
  assert.deepEqual(duplicate.modelSuggestions,[]);
  const second={...bound,score:0.56,row:{...bound.row,id:'second-photo',url:'/storage/second-photo.webp'}};
  const supported=localVisionResult([bound,second],products,coverage,'/customer',0.55,query);
- assert.equal(supported.catalogImageMatches!.length,2);assert.equal(supported.modelSuggestions!.length,3);
+ assert.equal(supported.catalogImageMatches!.length,2);assert.equal(supported.modelSuggestions!.length,1);
  assert.equal(supported.modelSuggestions![0].code,undefined);assert.equal(supported.modelSuggestions![0].matchBasis,'visual');
- assert.deepEqual(supported.modelSuggestions!.slice(1).map(item=>item.code),['other-size','sku']);
+ assert.equal(supported.modelSuggestions![0].imageScope,'family');
  assert.equal(supported.catalogImageMatches![0].score,57);assert.deepEqual(supported.matchedProducts,[]);
  const inactive=localVisionResult([bound,second],products.map(p=>({...p,active:false})),coverage,'/customer',0.55,query);
  assert.deepEqual(inactive.modelSuggestions,[]);
@@ -143,8 +167,9 @@ test('opt-in nearest catalogue suggestions are unconfirmed, bounded and separate
  const low=hit([{familyCode:'family',verified:false}],0.31);
  const result=localVisionResult([low],products,coverage,'/customer',0.65,undefined,true);
  assert.deepEqual(result.catalogImageMatches,[]);assert.deepEqual(result.matchedProducts,[]);assert.deepEqual(result.similarCandidates,[]);
- assert.equal(result.nearestCatalogSuggestions!.length,3);
- assert.ok(result.nearestCatalogSuggestions!.some(m=>m.code===undefined&&m.familyCode==='family'));
+ assert.equal(result.nearestCatalogSuggestions!.length,1);
+ assert.equal(result.nearestCatalogSuggestions![0].code,undefined);
+ assert.equal(result.nearestCatalogSuggestions![0].familyCode,'family');
  assert.ok(result.nearestCatalogSuggestions!.every(m=>m.matchBasis==='explore'&&m.visualScore===undefined&&m.code!=='inactive'));
  const strong=localVisionResult([hit([{familyCode:'family',verified:false}],0.9)],products,coverage,'/customer',0.65,undefined,true);
  assert.equal(strong.nearestCatalogSuggestions,undefined);
