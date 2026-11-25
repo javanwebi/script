@@ -48,6 +48,8 @@ test('only explicit control commands bypass the adaptive endpoint', () => {
   for (const phrase of ['وایسا', 'صبر کن', 'بس کن', 'توقف', 'ساکت شو', 'ادامه بده']) {
     assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 850, phrase);
   }
+  assert.equal(forzaTurnRemainingWaitMs('صبر کن',false,700,null),0,
+    'explicit stop commands must not inherit the long no-VAD fallback');
   for (const phrase of ['سلام', 'درود', 'ممنون']) {
     assert.equal(forzaEndOfTurnPauseMs(phrase, false), 1350);
     assert.ok(forzaTurnRemainingWaitMs(phrase, false, 1000, 1000) > 0);
