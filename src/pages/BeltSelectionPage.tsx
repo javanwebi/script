@@ -137,8 +137,8 @@ export function BeltSelectionPage() {
 
         <div className="bsp-catalog-note">
           <p>نوع تسمه را می‌شناسید و فقط می‌خواهید محصولات را ببینید؟</p>
-          <Link to="/categories">
-            مشاهده دسته‌بندی و کاتالوگ تسمه‌ها
+          <Link to="/search?q=تسمه">
+            مشاهده تسمه‌های کاتالوگ
             <ArrowLeft size={15} aria-hidden="true" />
           </Link>
         </div>
