@@ -146,7 +146,7 @@ test('multi-part lens auto-selects a detected object and starts catalog search w
   assert.ok(styles.includes('.kiki-image-workspace__family-image-note'));
   assert.ok(styles.includes('max-height: min(calc(58dvh - 145px), 480px)'));
   assert.ok(styles.includes('max-height: min(calc(54dvh - 145px), 480px)'));
-  assert.ok(styles.includes('border: 1px solid rgba(224,101,30,.58)'));
+  assert.ok(styles.includes('border: 1px solid rgba(224,101,24,.58)'));
   assert.ok(styles.includes('background: transparent'));
   assert.ok(styles.includes('display: none !important'));
   assert.ok(styles.includes('.kiki-image-workspace__result-card.is-selected'));
