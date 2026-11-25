@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ProductCard } from "../product/ProductCard";
 import { resolveDisplayBrand } from "../../utils/catalogBrands";
 import type { Product, TechnicalSpec } from "../../types";
+import { getBeltSkuMedia } from "../../utils/beltCatalogMedia";
 
 export type DirectSku = {
   skuCode: string;
@@ -60,8 +61,13 @@ export function useDirectSkus(categorySlug?: string, categoryPrefix?: string) {
   return items;
 }
 
+function directSkuImage(item: DirectSku): string {
+  return (typeof item.imageUrl === "string" ? item.imageUrl : "") ||
+    getBeltSkuMedia(item.sourceFamilyCode, item.skuCode)?.realProductImage || "";
+}
+
 export function toDirectSkuProduct(item: DirectSku): Product {
-  const image = typeof item.imageUrl === "string" ? item.imageUrl : "";
+  const image = directSkuImage(item);
   return {
     code: item.skuCode,
     name: item.name || item.skuCode,
@@ -146,7 +152,7 @@ export function DirectSkuProducts({
     return all.filter((item) => {
       if (item.categorySlug !== categorySlug || !directSkuMatchesSubcategory(item, selectedSub)) return false;
       if (selectedBrands.length && !selectedBrands.includes(resolveDisplayBrand(item.brand, item.name))) return false;
-      if (imageOnly && !item.imageUrl) return false;
+      if (imageOnly && !directSkuImage(item)) return false;
       // The public direct-SKU endpoint does not expose authoritative stock.
       if (inStockOnly) return false;
       if (query) {
