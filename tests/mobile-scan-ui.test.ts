@@ -220,6 +220,7 @@ test("KIKI workspace auto-detects image regions, searches immediately and render
   assert.match(modal, /onOpenProduct=\{\(id\)/);
   assert.match(modal, /navigate\('\/product\/'\+encodeURIComponent\(productCode\)\)/);
   assert.match(review, /onOpenProduct/);
+  assert.match(review, /aria-pressed=\{selected\}/);
   assert.match(review, /مشاهده صفحه محصول و مشخصات/);
   assert.match(review, /data-testid="kiki-inline-catalog-results"/);
   assert.match(review, /onSelectProduct/);
