@@ -16,6 +16,7 @@ const loaders: Record<string, () => Promise<unknown>> = {
   '/identify-part': () => import('../search/AiVisualPartSearchModal'),
   '/products': () => import('../../pages/ProductsPage'),
   '/categories': () => import('../../pages/AllCategoriesPage'),
+  '/belt-selection': () => import('../../pages/BeltSelectionPage'),
   '/cart': () => import('../../pages/CartPage'),
   '/checkout': () => import('../../pages/CheckoutPage'),
   '/industry-template': () => import('../../pages/IndustryTemplatePage'),
