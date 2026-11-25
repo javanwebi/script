@@ -139,14 +139,17 @@ async function installApiRoutes(page, initiallyUnavailable = false) {
   let menuUnavailable = initiallyUnavailable;
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
-    if (url.pathname.startsWith('/api/catalog/menu-category/')) {
+    const isMenuCategoryRoute =
+      url.pathname.startsWith('/api/catalog/reference/menu-category/') ||
+      url.pathname.startsWith('/api/catalog/menu-category/');
+    if (isMenuCategoryRoute) {
       if (menuUnavailable) {
         return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ success: false }) });
       }
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, category, families }),
+        body: JSON.stringify({ success: true, category, families, products }),
       });
     }
     if (url.pathname === '/api/catalog/direct-skus') {

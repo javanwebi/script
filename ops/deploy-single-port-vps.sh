@@ -12,6 +12,9 @@ flock -w 15 9 || { echo "DEPLOY_LOCK_BUSY"; exit 1; }
 test "$(git -C "$APP" remote get-url origin)" = https://github.com/javanwebi/script.git
 test "$(git -C "$APP" cat-file -t "$EXPECTED")" = commit
 
+POPD_CATALOG_SOURCE_COMMIT="e81218f2a248f1db9a72349a67e46af55c7977ee"
+POPD_CATALOG_IMAGE_RELEASE_ID="${POPD_CATALOG_SOURCE_COMMIT}-${EXPECTED}"
+
 # Resolve the actual Nginx vhosts. Older VPS images used sites-enabled;
 # the current Hostino layout keeps the domain and IP vhosts under conf.d.
 if [[ -f /etc/nginx/sites-enabled/default && \
@@ -731,10 +734,32 @@ else
  # Removing the marker must also disable the local mode inherited from the old container.
  sed -i '/^PART_RECOGNITION_MODE=local-embedding$/d' "$ENV_FILE"
 fi
+POPD_CATALOG_STORAGE_ROOT="$(python3 - "$ENV_FILE" <<'PYPRODUCTSTORAGE'
+from pathlib import Path
+import sys
+values={}
+for line in Path(sys.argv[1]).read_text().splitlines():
+ key,sep,value=line.partition('=')
+ if sep: values[key.strip()]=value.strip().strip('"').strip("'")
+root=values.get('PRODUCT_STORAGE_DIR') or '/data/storage/products'
+if not root.startswith('/data/'):
+ raise SystemExit('PRODUCT_STORAGE_DIR_MUST_BE_ON_PERSISTENT_DATA_VOLUME')
+print(root.rstrip('/'))
+PYPRODUCTSTORAGE
+)"
+POPD_CATALOG_IMAGE_RELEASE_DIR="${POPD_CATALOG_STORAGE_ROOT}/catalog-releases/${POPD_CATALOG_IMAGE_RELEASE_ID}"
+echo '===== STAGE AND VERIFY PINNED POPD 869 SKU IMAGES (NO LIVE LINK SWITCH) ====='
+docker run --rm --network "$NETWORK" --workdir /app --cpus=1.5 --memory=3g --memory-swap=3g \
+ -e "PRODUCT_STORAGE_DIR=$POPD_CATALOG_STORAGE_ROOT" \
+ -e "CATALOG_IMAGE_RELEASE_ID=$POPD_CATALOG_IMAGE_RELEASE_ID" \
+ -e CATALOG_IMAGE_ACTIVATE=false "${MOUNTS[@]}" "$STT_IMAGE" node scripts/sync-popd-catalog-images.mjs
+docker exec "$OLD" sh -c "test -d '$POPD_CATALOG_IMAGE_RELEASE_DIR'"
+echo "POPD_CATALOG_IMAGE_RELEASE_STAGED=$POPD_CATALOG_IMAGE_RELEASE_DIR"
+
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
- "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=avalai -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_DIBA_BROWSER_ARCHIVE=/opt/diba-stt/diba-stt-fa-small.tar.gz -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e "CATALOG_IMAGE_READ_DIR=$POPD_CATALOG_IMAGE_RELEASE_DIR" -e "CATALOG_IMAGE_RELEASE_ID=$POPD_CATALOG_IMAGE_RELEASE_ID" -e CATALOG_IMAGE_ACTIVATE=false -e FORZA_STT_PROVIDER=avalai -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_DIBA_BROWSER_ARCHIVE=/opt/diba-stt/diba-stt-fa-small.tar.gz -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
  "${MOUNTS[@]}" "$STT_IMAGE" node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do

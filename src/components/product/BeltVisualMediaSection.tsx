@@ -36,43 +36,31 @@ export const BeltVisualMediaSection: React.FC<BeltVisualMediaSectionProps> = ({
   onOpenDocModal,
   onJumpToFamilyGallery,
 }) => {
-  const familyPhotoCards = [
-    {
-      id: "overview",
-      url: beltFamilyMedia.familyPhotos[0],
-      svgUrl: beltFamilyMedia.familyPhotos[0],
-      title: "تصویر اول: نمای کلی",
-      subtitle: "عکس واقعی تسمه",
-    },
-    {
-      id: "teeth",
-      url: beltFamilyMedia.familyPhotos[1],
-      svgUrl: beltFamilyMedia.familyPhotos[1],
-      title: "تصویر دوم: نمای دندانه",
-      subtitle: "عکس واقعی ساختار",
-    },
-    {
-      id: "cutaway",
-      url: beltFamilyMedia.familyPhotos[2],
-      svgUrl: beltFamilyMedia.familyPhotos[2],
-      title: "تصویر سوم: نمای مقطع و کورد",
-      subtitle: "ساختار داخلی و لایه‌ها",
-    },
-    {
+  const familyPhotoTitles = ["نمای اصلی خانواده", "نمای زاویه‌ای", "جزئیات ساختار"];
+  const familyPhotoCards = beltFamilyMedia.familyPhotos.slice(0, 3).map((url, index) => ({
+    id: `family-photo-${index + 1}`,
+    url,
+    svgUrl: url,
+    title: familyPhotoTitles[index] || `تصویر مرجع خانواده ${index + 1}`,
+    subtitle: "تصویر اختصاصی خانواده از مرجع POPD",
+  }));
+  if (beltFamilyMedia.hasVerifiedSpecSheet && beltFamilyMedia.specSheetWebp) {
+    familyPhotoCards.push({
       id: "spec-sheet",
       url: beltFamilyMedia.specSheetWebp,
       svgUrl: beltFamilyMedia.specSheetSvg,
-      title: "تصویر چهارم: مشخصات فنی و استاندارد",
-      subtitle: "ابعاد و استاندارد خانواده",
-    },
-  ];
+      title: "جدول مشخصات فنی خانواده",
+      subtitle: "ابعاد و استانداردهای خانواده",
+    });
+  }
 
   return (
     <section
       aria-label="تصاویر خانواده تسمه و تصاویر اختصاصی هر کد کالا"
       className="space-y-6"
     >
-      {/* ۱. تصاویر خانواده تسمه (۴ تصویر برای هر خانواده) */}
+      {/* ۱. فقط تصاویر مرجع واقعاً موجود خانواده */}
+      {familyPhotoCards.length > 0 && (
       <div className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-6 space-y-4 shadow-xs">
         <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">
@@ -84,12 +72,12 @@ export const BeltVisualMediaSection: React.FC<BeltVisualMediaSectionProps> = ({
                 ۱. تصاویر خانواده تسمه
               </h2>
               <p className="text-xs text-slate-500">
-                ۴ تصویر مرجع اختصاصی بر اساس نام، نوع دندانه، ساختار داخلی و استاندارد ابعادی خانواده ({beltFamilyMedia.familyCode})
+                تصاویر مرجع تأییدشده خانواده ({beltFamilyMedia.familyCode})
               </p>
             </div>
           </div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
-            ۴ تصویر برای هر خانواده
+            {familyPhotoCards.length} تصویر موجود
           </span>
         </div>
 
@@ -152,9 +140,10 @@ export const BeltVisualMediaSection: React.FC<BeltVisualMediaSectionProps> = ({
           ))}
         </div>
       </div>
+      )}
 
-      {/* ۲. تصاویر هر کد کالا (۲ تصویر برای هر SKU) */}
-      {beltSkuMedia && (
+      {/* ۲. تصاویر SKU فقط وقتی عکس واقعی همان کد موجود است */}
+      {beltSkuMedia?.realProductImage && beltSkuMedia.realImageStatus === "EXACT_SKU_IMAGE_FOUND" && (
         <div
           id="belt-sku-media-section"
           className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-6 space-y-4 shadow-xs"

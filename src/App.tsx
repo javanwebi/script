@@ -32,7 +32,7 @@ const CategoryPage = lazy(() =>
 const AllCategoriesPage = lazy(() => import("./pages/AllCategoriesPage").then(m => ({default:m.AllCategoriesPage})));
 const DirectSkuDetailPage = lazy(() => import("./pages/DirectSkuDetailPage"));
 const ProductDetailPage = lazy(() =>
-  import("./pages/ProductDetailPage").then((module) => ({
+  import('./pages/PopdProductDetailPage').then((module) => ({
     default: module.ProductDetailPage,
   })),
 );
