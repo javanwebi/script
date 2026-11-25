@@ -96,6 +96,9 @@ const { chromium } = require('playwright');
     const requests = [];
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
+    // This integration test verifies the server fallback deterministically;
+    // the dedicated U2Net browser-inference job validates the local model.
+    await page.route('**/*.onnx', route => route.abort());
     await page.route('**/api/**', async route => {
       const pathname = new URL(route.request().url()).pathname;
       let body = { success: true };
