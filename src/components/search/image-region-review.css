@@ -779,6 +779,7 @@
 .sanat-region-picker--viewer .sanat-region-picker__candidate {
   position: absolute;
   z-index: 6;
+  pointer-events: auto;
   display: block;
   padding: 0;
   overflow: visible;
