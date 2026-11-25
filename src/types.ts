@@ -60,6 +60,9 @@ export interface Product {
   categoryName: string;
   category?: string;
   subcategory: string;        // V-Belt, Timing, Roller, Filter, etc.
+  /** Family-level profile summary from the authoritative catalogue. */
+  profiles?: string;
+  sizesSummary?: string;
   technicalSpecs: TechnicalSpec[];
   prices: PriceTiers;
   discountPercent?: number;   // درصد تخفیف نمایش عمومی (در صورت وجود)
@@ -94,6 +97,9 @@ export interface ProductVariant {
   stock?: number;                   // موجودی انبار این کد
   stockKnown?: boolean;             // آیا وضعیت موجودی مشخص است؟
   technicalSpecs?: TechnicalSpec[]; // مشخصات فنی اختصاصی این کد
+  /** Read-only catalogue identity metadata; hydrated only for industrial-belt families. */
+  identitySpecs?: Record<string, unknown>;
+  variableSpecs?: Record<string, unknown>;
   images?: string[];                // تصاویر اختصاصی متصل به این کد
   description?: string;             // توضیحات اختصاصی این کد
   active?: boolean;                 // فعال یا غیرفعال موقت

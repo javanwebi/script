@@ -10,6 +10,8 @@ import { apiUrl, assertBackendConfigured } from '../config/apiConfig';
 export type AiAnalysisStage = 'quick' | 'refined';
 
 export interface AiPartAnalysisRequest {
+  /** Restricts analysis to the industrial-belt recognition path when explicitly selected. */
+  domainHint?: 'industrial-belt';
   includeNearest?:boolean;
   region?:{x:number;y:number;width:number;height:number};
   detectionId?:string;
@@ -95,7 +97,21 @@ export interface CatalogModelSuggestion {
   specs:{key:string;value:string}[];
   reason:string;
 }
+export interface BeltRecognitionAnalysis {
+  beltType: 'v-belt'|'timing'|'ribbed'|'unknown';
+  beltTypeLabel: string;
+  profile?: string;
+  nominalPitchMm?: number;
+  lengthMarking?: string;
+  brandMarking?: string;
+  codeMatches: string[];
+  profileMatchStatus: 'matched'|'unverified'|'not-matched'|'not-read';
+  candidateFamilies: {familyCode:string;familyName:string;profile?:string;basis:'profile'|'visual-family'|'read-code'}[];
+  evidence: string[];
+  note: string;
+}
 export interface AiPartAnalysisResult {
+  beltAnalysis?: BeltRecognitionAnalysis;
   nearestCatalogSuggestions?:CatalogModelSuggestion[];
   modelSuggestions?:CatalogModelSuggestion[];
   queryRegion?:{x:number;y:number;width:number;height:number}|null;
