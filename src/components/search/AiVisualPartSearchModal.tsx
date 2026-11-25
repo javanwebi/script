@@ -411,12 +411,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     // must drive both the preview and the cached catalogue query. The browser
     // saliency model is only a fallback for deployments without that encoder.
     const statusPromise=localVisionStatusPromiseRef.current;
-    const serverPreferred=localVisionServerEnabledRef.current || (statusPromise
-      ? await Promise.race([
-          statusPromise,
-          new Promise<boolean>(resolve=>setTimeout(()=>resolve(false),350)),
-        ])
-      : false);
+    const serverPreferred=localVisionServerEnabledRef.current || (statusPromise ? await statusPromise : false);
     let serverAttempted=false;
 
     const commitServerDetection=(detection:{
