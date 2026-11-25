@@ -52,6 +52,7 @@ test('active local catalogue encoder owns region proposals; browser segmentation
   assert.ok(modal.includes('if(!enabled)void preloadClientAiSegmentation()'));
   assert.ok(fast.includes('const serverPreferred='));
   assert.ok(fast.includes('await statusPromise'));
+  assert.ok(fast.includes('if(sequence!==regionDetectionSequenceRef.current || !isOpen)return;'));
   assert.ok(fast.includes('if(serverPreferred){'));
   assert.ok(fast.includes('const localDetection = segmentImageWithClientAi(imageUrl)'));
   assert.ok(fast.includes('aiVisualSearchService.detectImageRegions(imageUrl)'));
