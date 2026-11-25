@@ -34,7 +34,19 @@ import {
   buildBeltGalleryImages,
   getBeltFamilyMedia,
 } from '../utils/beltCatalogMedia';
-import type { TechnicalReviewPayload } from '../utils/partMeasurements';
+type TechnicalReviewPayload = {
+  categoryPath?: string[];
+  note?: string;
+  ownerCatalogue?: { printedPage?: string | number; pdfPage?: string | number };
+  researchWarnings?: string[];
+  references?: Array<{ title: string; url: string }>;
+  comparisonReferences?: Array<{ title: string; url: string; condition?: string }>;
+  missing?: string[];
+  summary?: string;
+  standards?: string[];
+  applications?: string[];
+  notes?: string;
+};
 
 type ProductDetailResponse = {
   success: boolean;

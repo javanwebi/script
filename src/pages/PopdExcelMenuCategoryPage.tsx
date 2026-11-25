@@ -256,7 +256,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
       const count = families.filter((fam) => matchesSelection(fam, cleanName, visibleSubnodes)).length;
       if (count > 0) {
         seen.add(normName);
-        populated.push({ key: node.slug || cleanName, name: cleanName, count });
+        populated.push({ key: node.value || cleanName, name: cleanName, count });
       }
     }
 
