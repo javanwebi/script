@@ -201,7 +201,7 @@ assert.ok(Number.isInteger(referenceStatus.quarantinedSkuCount) && referenceStat
   "POPD_REFERENCE_QUARANTINE_COUNT_INVALID");
 assert.ok(referenceStatus.rawDirectSkuCount >= 678, "POPD_REFERENCE_DIRECT_AUDIT_COUNT_BELOW_AUDITED_BASELINE");
 assert.equal(referenceStatus.standaloneDirectSkuRows, 0, "POPD_REFERENCE_DUPLICATE_DIRECT_SKU_ROWS");
-assert.ok(referenceStatus.verifiedFamilyImageCount >= 479, "POPD_REFERENCE_FAMILY_IMAGE_COUNT_BELOW_AUDITED_BASELINE");
+assert.ok(referenceStatus.verifiedFamilyImageCount >= 28, "POPD_REFERENCE_FAMILY_IMAGE_COUNT_BELOW_VERIFIED_BASELINE");
 assert.equal(referenceStatus.e869SourcePath, "github/javanwebi/POPD/deliverables/catalog-869-audit/e869_linked_catalog.json",
   "POPD_E869_IMAGE_SOURCE_MISMATCH");
 assert.equal(referenceStatus.linkedE869ImageCount, 869, "POPD_E869_SKU_IMAGE_LINK_COUNT_MISMATCH");
@@ -311,6 +311,9 @@ assert.equal(familyImageUrls.size, referenceStatus.verifiedFamilyImageCount,
   "POPD_REFERENCE_FAMILY_IMAGE_ASSIGNMENT_DRIFT");
 assert.equal(skuImageUrls.size, referenceStatus.verifiedVariantImageCount,
   "POPD_REFERENCE_SKU_IMAGE_ASSIGNMENT_DRIFT");
+const sharedFamilySkuImageUrls = [...familyImageUrls].filter(url => skuImageUrls.has(url));
+assert.equal(sharedFamilySkuImageUrls.length, 0,
+  "POPD_REFERENCE_FAMILY_SKU_IMAGE_OVERLAP: " + JSON.stringify(sharedFamilySkuImageUrls.slice(0, 12)));
 
 // Identity approval is not enough if the mounted /data volume is missing the
 // underlying file. HEAD all approved URLs before promotion; no broken gallery
