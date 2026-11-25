@@ -41,23 +41,45 @@ test('local segmenter preserves aspect ratio and exposes ranked object candidate
   assert.ok(foreground.includes('Eight-way connectivity'));
 });
 
-test('local segmenter is warmed and can win without serial server crop detection', () => {
+test('active local catalogue encoder owns region proposals; browser segmentation is fallback only', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const fast = modal.slice(
     modal.indexOf('const detectUploadedImageRegions'),
     modal.indexOf('const uploadAndPrepareImage'),
   );
-  assert.ok(modal.includes('preloadClientAiSegmentation()'));
+  assert.ok(modal.includes('localVisionServerEnabledRef'));
+  assert.ok(modal.includes('localVisionStatusPromiseRef'));
+  assert.ok(modal.includes('if(!enabled)void preloadClientAiSegmentation()'));
+  assert.ok(fast.includes('const serverPreferred='));
+  assert.ok(fast.includes('await statusPromise'));
+  assert.ok(fast.includes('if(sequence!==regionDetectionSequenceRef.current || !isOpen)return;'));
+  assert.ok(fast.includes('if(serverPreferred){'));
   assert.ok(fast.includes('const localDetection = segmentImageWithClientAi(imageUrl)'));
-  assert.ok(fast.includes('Promise.race'));
   assert.ok(fast.includes('aiVisualSearchService.detectImageRegions(imageUrl)'));
-  assert.ok(fast.includes('sequence !== regionDetectionSequenceRef.current'));
-  assert.ok(fast.includes('const region = detectedRegions[0]'));
-  assert.ok(fast.indexOf('const localDetection') < fast.indexOf('aiVisualSearchService.detectImageRegions'));
+  assert.ok(fast.includes('sequence!==regionDetectionSequenceRef.current'));
+  assert.ok(fast.includes('commitServerDetection(detection)'));
+  assert.ok(fast.indexOf('if(serverPreferred){') < fast.indexOf('const localDetection'));
   assert.ok(modal.includes('saveCustomerDeviceImage(blob'));
   assert.ok(modal.includes('customerImageBlobToDataUrl(blob)'));
   assert.ok(modal.includes('Promise.all(['));
   assert.ok(modal.includes('temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob)'));
+  assert.ok(modal.includes('React.useMemo<VisionWorkspaceResult[]>'));
+  const server=source('server.ts');
+  const status=server.slice(server.indexOf("app.get('/api/ai/local-vision-status'"),server.indexOf('const localVisionDetectionCache'));
+  assert.ok(status.includes('app.get(\'/api/ai/local-vision-status\', (_req,res)=>'));
+  assert.ok(status.includes('void refreshLocalVisionStatusSnapshot()'));
+  assert.ok(!status.includes('await refreshLocalVisionStatusSnapshot'));
+  assert.ok(!status.includes('buildCatalogImageCorpus'));
+  assert.ok(status.includes('namespace:VISUAL_INDEX_NAMESPACE'));
+  assert.ok(status.includes("persistence:databaseEnabled()?'postgres':'file'"));
+  assert.ok(server.includes('localVisionStatusSnapshot={...coverage,ready:corpus.length>0 && coverage.ready}'));
+  assert.ok(server.includes('localVisionStatusRefresh:Promise<void>|null=null'));
+  assert.ok(server.includes('localVisionStatusLastRefreshAt<=refreshStartedAt'));
+  assert.ok(server.includes('if(!localVisionWarmupInProgress)void refreshLocalVisionStatusSnapshot()'));
+  assert.ok(server.includes('localVisionWarmupInProgress=true'));
+  assert.ok(server.includes('localVisionWarmupInProgress=false'));
+  assert.ok(server.includes('canReuseLocalVisionQuery(cachedDetection,body.region,body.fullImage===true)'));
+  assert.ok(server.includes('body.fullImage===true ? [] : body.region ? [body.region]'));
 });
 
 test('mobile KIKI result sheet supports pull-up while region changes return to automatic inline analysis', () => {
@@ -123,15 +145,19 @@ test('multi-part lens auto-selects a detected object and starts catalog search w
   assert.ok(modal.includes('setSelectedProductId(undefined)'));
   assert.ok(review.includes('data-testid="kiki-inline-catalog-results"'));
   assert.ok(review.includes('onSelectProduct'));
-  assert.ok(review.includes('onOpenProduct'));
-  assert.ok(review.includes('onOpenProduct(item.id)'));
-  assert.ok(review.includes('مشاهده صفحه محصول و مشخصات'));
-  assert.ok(modal.includes('const productCode=item?.code || item?.familyCode'));
-  assert.ok(modal.includes("navigate('/product/'+encodeURIComponent(productCode))"));
+  assert.ok(review.includes("import { Link } from 'react-router-dom'"));
+  assert.ok(review.includes('to={productHref}'));
+  assert.ok(review.includes('onSelectProduct(item.id)'));
+  assert.ok(review.includes('onClose();'),'opening a product must close the image review overlay');
+  assert.ok(review.includes("aria-label={'مشاهده صفحه محصول ' + item.name}"));
+  assert.ok(!review.includes('onOpenProduct'));
+  assert.ok(!modal.includes('onOpenProduct='));
   assert.ok(styles.includes('.kiki-image-workspace__family-image-note'));
-  assert.ok(styles.includes('max-height: min(calc(58dvh - 210px), 420px)'));
-  assert.ok(styles.includes('max-height: min(calc(54dvh - 210px), 440px)'));
+  assert.ok(styles.includes('max-height: min(calc(58dvh - 145px), 480px)'));
+  assert.ok(styles.includes('max-height: min(calc(54dvh - 145px), 480px)'));
+  assert.ok(styles.includes('border: 1px solid rgba(224,101,24,.58)'));
   assert.ok(styles.includes('background: transparent'));
+  assert.ok(styles.includes('display: none !important'));
   assert.ok(styles.includes('.kiki-image-workspace__result-card.is-selected'));
   assert.ok(styles.includes('.sanat-region-picker--viewer .sanat-region-picker__handles'));
   assert.ok(styles.includes('display: none !important'));

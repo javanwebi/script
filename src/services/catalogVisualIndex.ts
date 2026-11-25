@@ -21,14 +21,28 @@ export class CatalogVisualIndex {
  private loaded=false;
  private writes:Promise<void>=Promise.resolve();
  private building?:Promise<void>;
+ private loading?:Promise<void>;
  constructor(private file:string, private persistence?:VisualIndexPersistence, private options:VisualIndexOptions=defaults){}
  async load(){
   if(this.loaded)return;
-  try{const saved=this.persistence?{model:this.options.model,entries:await this.persistence.loadEntries()}:JSON.parse(await fs.readFile(this.file,'utf8'));if(saved.model===this.options.model)for(const [id,entry] of Object.entries(saved.entries || {}) as [string,Entry][]){
-   try{this.entries.set(id,{signature:entry.signature,vector:normalized(entry.vector,this.options.dimensions)});}catch{}
-  }
-  this.loaded=true;
-  }catch(error){if(this.persistence)throw error;this.loaded=true;}
+  if(this.loading)return this.loading;
+  const pending=(async()=>{
+   try{
+    const saved=this.persistence
+      ? {model:this.options.model,entries:await this.persistence.loadEntries()}
+      : JSON.parse(await fs.readFile(this.file,'utf8'));
+    if(saved.model===this.options.model)for(const [id,entry] of Object.entries(saved.entries || {}) as [string,Entry][]){
+     try{this.entries.set(id,{signature:entry.signature,vector:normalized(entry.vector,this.options.dimensions)});}catch{}
+    }
+    this.loaded=true;
+   }catch(error){
+    if(this.persistence)throw error;
+    this.loaded=true;
+   }
+  })();
+  this.loading=pending;
+  try{await pending;}
+  finally{if(this.loading===pending)this.loading=undefined;}
  }
  coverage(images:CatalogImageRecord[]){
   let indexed=0,missing=0,signatureChanged=0;

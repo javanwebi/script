@@ -217,10 +217,11 @@ test("KIKI workspace auto-detects image regions, searches immediately and render
   assert.match(modal, /analysisBusy=\{inlineAnalysisBusy\}/);
   assert.match(modal, /void handleAnalyze\('quick',region,localImageId,true\)/);
   assert.match(modal, /onSelectProduct=\{\(id\)/);
-  assert.match(modal, /onOpenProduct=\{\(id\)/);
-  assert.match(modal, /navigate\('\/product\/'\+encodeURIComponent\(productCode\)\)/);
-  assert.match(review, /onOpenProduct/);
-  assert.match(review, /aria-pressed=\{selected\}/);
+  assert.doesNotMatch(modal, /onOpenProduct=/);
+  assert.match(review, /import \{ Link \} from 'react-router-dom'/);
+  assert.match(review, /to=\{productHref\}/);
+  assert.match(review, /aria-current=\{selected \? 'page' : undefined\}/);
+  assert.match(review, /onSelectProduct\(item.id\)/);
   assert.match(review, /مشاهده صفحه محصول و مشخصات/);
   assert.match(review, /data-testid="kiki-inline-catalog-results"/);
   assert.match(review, /onSelectProduct/);

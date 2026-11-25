@@ -7,6 +7,25 @@ import sharp from 'sharp';
 import {CatalogVisualIndex} from '../src/services/catalogVisualIndex';
 const row=(id:string,revision='1')=>({id,url:'https://example.org/'+id,label:id,revision,bindings:[]});
 const vector=(index:number)=>Array.from({length:768},(_,i)=>i===index?1:0);
+
+test('concurrent visual index loads share one persistence read',async()=>{
+ let calls=0;
+ let release:(entries:Record<string,{signature:string;vector:number[]}>)=>void=()=>{};
+ const persistence={
+  loadEntries(){
+   calls++;
+   return new Promise<Record<string,{signature:string;vector:number[]}>>(resolve=>{release=resolve;});
+  },
+  async saveEntries(){}
+ };
+ const index=new CatalogVisualIndex('unused',persistence,{model:'shared-load',dimensions:2});
+ const first=index.load();
+ const second=index.load();
+ assert.equal(calls,1,'a status prewarm and the first image query must share the same load');
+ release({});
+ await Promise.all([first,second]);
+ assert.equal(calls,1);
+});
 test('persistent visual index ranks every indexed image, reuses vectors and requires new images to be indexed',async()=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'atlas-index-'));const file=path.join(dir,'index.json');
  const image=await sharp({create:{width:24,height:24,channels:3,background:'white'}}).jpeg().toBuffer();

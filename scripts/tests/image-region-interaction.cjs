@@ -92,7 +92,7 @@ const {chromium}=require('playwright');
   }
   // Mount the actual modal and verify the new automatic detect -> search -> inline results flow.
   await fs.writeFile(path.join(fixture,'modal.html'),'<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="./modal.tsx"></script>');
-  await fs.writeFile(path.join(fixture,'modal.tsx'),`import React from 'react';import {createRoot} from 'react-dom/client';import {MemoryRouter,useLocation} from 'react-router-dom';import {AiVisualPartSearchModal} from '/src/components/search/AiVisualPartSearchModal.tsx';import '/src/index.css';function RouteProbe(){const location=useLocation();window.__kikiPath=location.pathname;return null;}createRoot(document.getElementById('root')).render(<MemoryRouter><RouteProbe/><AiVisualPartSearchModal isOpen={true} onClose={()=>{}}/></MemoryRouter>);`);
+  await fs.writeFile(path.join(fixture,'modal.tsx'),`import React from 'react';import {createRoot} from 'react-dom/client';import {MemoryRouter,useLocation} from 'react-router-dom';import {AiVisualPartSearchModal} from '/src/components/search/AiVisualPartSearchModal.tsx';import '/src/index.css';function RouteProbe(){const location=useLocation();window.__kikiPath=location.pathname;return null;}window.__kikiClosed=false;createRoot(document.getElementById('root')).render(<MemoryRouter><RouteProbe/><AiVisualPartSearchModal isOpen={true} onClose={()=>{window.__kikiClosed=true;}}/></MemoryRouter>);`);
   const page=await browser.newPage({viewport:{width:1280,height:960}});
   let uploads=0;
   const detections=[],queries=[],errors=[];
@@ -120,19 +120,23 @@ const {chromium}=require('playwright');
   await page.getByTestId('image-region-review').waitFor();
   await page.getByTestId('kiki-inline-catalog-results').waitFor({timeout:45000});
   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
-  await page.getByRole('button',{name:/تسمه وی شکل A-49/}).waitFor();
+  await page.getByRole('link',{name:/تسمه وی شکل A-49/}).waitFor();
+  assert.equal(detections.length,1,'active local-vision pipeline must provide the region proposals');
   assert.equal(queries.length,1,'catalog analysis must start automatically after image detection');
+  assert.equal(queries[0].detectionId,'test-detection-id','analysis must reuse the exact server detection and cached query');
   assert.match(queries[0].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
   assert.ok(queries[0].region||queries[0].fullImage,'automatic analysis must use a detected region or the safe full-image fallback');
   assert.equal(queries[0].includeNearest,false);
   assert.equal(uploads,0,'customer image must remain in the browser-local vault');
   assert.equal(await page.locator('.sanat-region-picker__search').count(),0,'manual crop-confirm action must be removed');
   assert.equal(await page.locator('.sanat-region-picker__full-image').count(),0,'manual full-image action must be removed');
-  const selectedProduct=page.getByRole('button',{name:/تسمه وی شکل A-49/});
+  const selectedProduct=page.getByRole('link',{name:/تسمه وی شکل A-49/});
+  assert.equal(await selectedProduct.getAttribute('href'),'/product/TEST-A49','the whole result card must link to the matching product detail route');
   await selectedProduct.click();
-  assert.equal(await selectedProduct.getAttribute('aria-pressed'),'true','catalog result must remain accessible as selected');
+  assert.equal(await selectedProduct.getAttribute('aria-current'),'page','catalog result link must remain accessible as the selected product');
   await page.waitForFunction(()=>window.__kikiPath==='/product/TEST-A49');
   assert.equal(await page.evaluate(()=>window.__kikiPath),'/product/TEST-A49','catalog result must open its own product detail page');
+  assert.equal(await page.evaluate(()=>window.__kikiClosed),true,'opening a catalogue product must close the image review overlay');
   await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-desktop.png'),fullPage:true});
 
   const candidateButtons=page.getByTestId('vision-region-candidates').getByRole('button');

@@ -1,6 +1,25 @@
 import type { QueryEvidence } from './localVision';
 import type { ImageRegion } from '../utils/imageRegion';
 
+/** Reuse the expensive query only when the request still targets the
+ * server-selected crop. A different user-selected crop must be encoded alone;
+ * full-image requests must never inherit hidden object-crop vectors.
+ */
+export function canReuseLocalVisionQuery(
+  entry: LocalVisionDetectionEntry | undefined,
+  requestedRegion?: ImageRegion,
+  fullImage = false,
+): boolean {
+  if (!entry || fullImage) return false;
+  if (!requestedRegion) return true;
+  const selected = entry.selectedRegion;
+  if (!selected) return false;
+  return Math.abs(selected.x - requestedRegion.x) < 0.002
+    && Math.abs(selected.y - requestedRegion.y) < 0.002
+    && Math.abs(selected.width - requestedRegion.width) < 0.002
+    && Math.abs(selected.height - requestedRegion.height) < 0.002;
+}
+
 export interface LocalVisionDetectionEntry {
   imageFingerprint: string;
   model: string;
