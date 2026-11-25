@@ -8,6 +8,20 @@ const E869_SOURCE_PATH = 'github/javanwebi/POPD/deliverables/catalog-869-audit/e
 const CACHE_TTL_MS = 45_000;
 
 type AliasRecord = { newFamilyCode?: string; directSkuCode?: string };
+type ReferenceDirectSku = {
+  skuCode: string;
+  name: string;
+  categorySlug: string;
+  categoryName: string;
+  submenu: string;
+  subcategory: string;
+  brand: string;
+  imageUrl: string | null;
+  technicalSpecs: unknown[];
+  priceSnapshot: Record<string, unknown>;
+  sourceFamilyCode: string | null;
+  active: boolean;
+};
 type NavigationGroup = {
   id: string;
   title: string;
@@ -20,6 +34,7 @@ type NavigationGroup = {
 type Snapshot = {
   loadedAt: number;
   products: Product[];
+  directSkus: ReferenceDirectSku[];
   categories: Category[];
   groups: NavigationGroup[];
   productByCode: Map<string, Product>;
@@ -100,7 +115,7 @@ async function loadSnapshot(): Promise<Snapshot> {
   if (!databaseEnabled()) throw new Error('PostgreSQL catalog backend is not enabled');
 
   const db = database();
-  const [archiveRes, e869Res, groupRes, categoryRes, commercialRes, galleryRes, aliasRes, directSkuRes] = await Promise.all([
+  const [archiveRes, e869Res, groupRes, categoryRes, commercialRes, galleryRes, aliasRes] = await Promise.all([
     db.query(
       'select payload, sha256, imported_at from app_private.source_archives where source_path = $1 order by imported_at desc limit 1',
       [ENGINEERED_SOURCE_PATH],
@@ -142,12 +157,6 @@ async function loadSnapshot(): Promise<Snapshot> {
     ),
     db.query(
       'select old_family_code, new_family_code, direct_sku_code from public.catalog_family_aliases',
-    ),
-    db.query(
-      `select category_slug as "categorySlug", submenu as "submenuName", subcategory as "leafName"
-       from public.catalog_direct_skus
-       where is_active = true and category_slug is not null
-       order by category_slug, submenu, subcategory, sku_code`,
     ),
   ]);
 
@@ -468,11 +477,58 @@ async function loadSnapshot(): Promise<Snapshot> {
     }
   }
 
-  const directSkuAssignments = directSkuRes.rows.map((row: any) => ({
-    categorySlug: normalizeCode(row.categorySlug),
-    submenuName: String(row.submenuName || '').trim() || null,
-    leafName: String(row.leafName || '').trim() || null,
-  })).filter((row) => row.categorySlug);
+  // Independent SKUs must come from the pinned POPD archive, never from the
+  // legacy catalog_direct_skus projection. That table contains family-variant
+  // duplicates and stale/quarantined rows which can create phantom subcategories.
+  const directSkuCodes = new Set<string>();
+  const directSkus: ReferenceDirectSku[] = asArray<any>(payload.directSkus)
+    .filter((row) => row && row.active !== false && row.is_active !== false)
+    .map((row: any) => {
+      const assignment = row.resolvedAssignment || row.assignment || row;
+      const skuCode = String(row.skuCode || row.sku_code || row.code || '').trim();
+      const codeKey = normalizeCode(skuCode);
+      const categorySlug = normalizeCode(
+        assignment.categorySlug || assignment.category_slug || row.categorySlug || row.category_slug,
+      );
+      if (!codeKey || !categorySlug || !categorySlugs.has(categorySlug)) {
+        throw new Error('A POPD standalone SKU is missing its code or valid category assignment');
+      }
+      if (productByVariantCode.has(codeKey)) {
+        throw new Error('A POPD standalone SKU duplicates a family variant: ' + skuCode);
+      }
+      if (directSkuCodes.has(codeKey)) {
+        throw new Error('Duplicate standalone SKU code in POPD archive: ' + skuCode);
+      }
+      directSkuCodes.add(codeKey);
+      const category = categoryRowsBySlug.get(categorySlug) || fallbackCategoriesBySlug.get(categorySlug);
+      const rawImage = String(row.imageUrl || row.image_url || '').trim();
+      const verifiedImage = e869ImageBySku.get(codeKey) ||
+        (row.identityVerified === true || row.identity_verified === true ? rawImage : '');
+      const technicalSpecs = Array.isArray(row.technicalSpecs)
+        ? row.technicalSpecs
+        : Array.isArray(row.technical_specs) ? row.technical_specs : [];
+      return {
+        skuCode,
+        name: String(row.name || row.title || skuCode),
+        categorySlug,
+        categoryName: String(category?.name || row.categoryName || row.category_name || ''),
+        submenu: String(assignment.submenuName || assignment.submenu_name || row.submenu || '').trim(),
+        subcategory: String(assignment.leafName || assignment.leaf_name || row.subcategory || '').trim(),
+        brand: String(row.brand || ''),
+        imageUrl: verifiedImage || null,
+        technicalSpecs,
+        priceSnapshot: {},
+        sourceFamilyCode: row.sourceFamilyCode || row.source_family_code
+          ? String(row.sourceFamilyCode || row.source_family_code)
+          : null,
+        active: true,
+      };
+    });
+  const directSkuAssignments = directSkus.map((item) => ({
+    categorySlug: normalizeCode(item.categorySlug),
+    submenuName: item.submenu || null,
+    leafName: item.subcategory || null,
+  }));
   const directSkuCounts = new Map<string, number>();
   for (const direct of directSkuAssignments) {
     directSkuCounts.set(direct.categorySlug, (directSkuCounts.get(direct.categorySlug) || 0) + 1);
@@ -566,6 +622,7 @@ async function loadSnapshot(): Promise<Snapshot> {
   return {
     loadedAt: Date.now(),
     products,
+    directSkus,
     categories,
     groups,
     productByCode,
@@ -668,7 +725,12 @@ function categoryPayload(snapshot: Snapshot, slug: string) {
     });
   }
   const categoryWithReferenceTaxonomy = referenceCategoryTaxonomy(snapshot, category);
-  return { category: categoryWithReferenceTaxonomy, families, products: matchedProducts };
+  return {
+    category: categoryWithReferenceTaxonomy,
+    families,
+    products: matchedProducts,
+    directSkus: snapshot.directSkus.filter((item) => item.categorySlug === slug),
+  };
 }
 
 function legacyCategoryPayload(snapshot: Snapshot, slug: string) {
