@@ -124,7 +124,7 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
    image:photo.image,imageScope:'variant' as const,similarityScore:photo.score,matchReason:photo.reason,matchType:'visual' as const,
    visualVerdict:'very_similar' as const,isVisualMatch:true,specs:variant.technicalSpecs || [],
    distinction:'تصویر اختصاصی متصل به این کد مشابه است؛ یکسان‌بودن سایز و سازگاری فنی هنوز تأیید نشده است.'}];
- });
+ }).slice(0,12);
  // A readable code can suggest a real SKU within a visually retrieved family;
  // it is not an invented photo binding and never becomes an exact identity claim.
  for(const marking of query?.markings || []){
