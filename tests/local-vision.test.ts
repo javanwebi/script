@@ -29,10 +29,24 @@ test('a family-bound photo is scored at family level when no SKU-specific bindin
 test('only active, explicitly bound real SKUs are returned, even when the photo is identity verified',()=>{
  const result=localVisionResult([hit([{familyCode:'family',code:'sku',verified:true},{familyCode:'family',code:'invented',verified:true},{familyCode:'family',code:'inactive',verified:true},{familyCode:'deleted',code:'sku',verified:true}])],products,coverage,'/customer');
  assert.deepEqual(result.similarCandidates!.map(p=>p.code),['sku']);
+ assert.equal(result.similarCandidates![0].imageScope,'variant');
  assert.deepEqual(result.similarCandidates![0].specs,[{key:'سایز',value:'20'}]);
  assert.equal(result.similarCandidates![0].visualVerdict,'very_similar');
  assert.deepEqual(result.matchedProducts,[]);
  assert.equal(result.catalogImageMatches![0].bindings.length,1);
+});
+
+test('one catalogue photo shared by multiple SKU bindings returns a family card, never several SKU candidates',()=>{
+ const result=localVisionResult([hit([
+  {familyCode:'family',code:'sku',verified:false},
+  {familyCode:'family',code:'other-size',verified:false}
+ ])],products,coverage,'/customer');
+ assert.deepEqual(result.similarCandidates,[]);
+ assert.equal(result.modelSuggestions!.length,1);
+ assert.equal(result.modelSuggestions![0].familyCode,'family');
+ assert.equal(result.modelSuggestions![0].code,undefined);
+ assert.equal(result.modelSuggestions![0].imageScope,'family');
+ assert.equal(result.modelSuggestions![0].matchBasis,'visual');
 });
 test('weak or invalid similarity yields no invented nearest match or absence/stock claim',()=>{
  const result=localVisionResult([hit([],0.4),hit([],NaN)],products,coverage,'/customer');
