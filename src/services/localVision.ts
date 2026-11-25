@@ -65,6 +65,13 @@ export function selectCachedQueryView(query:QueryEvidence,region:Region):QueryEv
   ocrAvailable:markingsBelongToRegion&&query.ocrAvailable,
  };
 }
+export type LocalMarkingsEvidence={markings:{text:string;confidence:number}[];ocrAvailable:boolean};
+export async function readLocalMarkings(image:Buffer,env=process.env):Promise<LocalMarkingsEvidence>{
+ const data=await localRequest('/markings',{image:image.toString('base64')},env,1200);
+ if(data.pipeline!==localVisionProfile(env).pipeline||!Array.isArray(data.markings))throw new Error('Invalid local OCR response');
+ const markings=data.markings.filter((m:any)=>typeof m.text==='string'&&m.text.length<=32&&Number.isFinite(m.confidence)&&m.confidence>=85&&m.confidence<=100).slice(0,12);
+ return {markings,ocrAvailable:data.ocrAvailable===true};
+}
 export async function describeLocalQuery(image:Buffer,env=process.env):Promise<QueryEvidence>{
  // DINOv2 inference can exceed the generic 4.5s transport budget on a cold CPU worker.
  // Keep the browser responsive with a bounded 12s request and a manual-crop fallback.
