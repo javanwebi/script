@@ -645,7 +645,7 @@ export const ProductDetailPage: React.FC = () => {
                           .join(" "),
                       )
                 }
-                disableFallback={Boolean(beltFamilyMedia)}
+                disableFallback={Boolean(beltFamilyMedia) || product.catalogSource === "popd"}
                 alt={currentGalleryImage?.title || requestedProduct.name}
                 className="absolute inset-0 w-full h-full object-contain p-6 sm:p-8 group-hover:scale-105 transition-transform duration-300"
               />
@@ -808,7 +808,7 @@ export const ProductDetailPage: React.FC = () => {
                                     .join(" "),
                                 )
                           }
-                          disableFallback={Boolean(beltFamilyMedia)}
+                          disableFallback={Boolean(beltFamilyMedia) || product.catalogSource === "popd"}
                           alt=""
                           loading="lazy"
                           className="absolute inset-0 w-full h-full object-contain p-2 pb-5"
