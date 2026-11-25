@@ -619,6 +619,29 @@ function buildReferenceCategoryChildren(
   return Array.from(bySubmenu.values());
 }
 
+function referenceCategoryTaxonomy(snapshot: Snapshot, category: Category): Category {
+  const familyAssignments = snapshot.products.flatMap((product) => {
+    const assignment = snapshot.assignmentsByFamily.get(product.code);
+    if (!assignment || assignment.categorySlug !== category.slug) return [];
+    return [{
+      submenu: assignment.submenuName || null,
+      leaf: assignment.leafName || null,
+    }];
+  });
+  const directSkuAssignments = snapshot.directSkuAssignments
+    .filter((item) => item.categorySlug === category.slug)
+    .map((item) => ({ submenu: item.submenuName, leaf: item.leafName }));
+  const children = buildReferenceCategoryChildren([...familyAssignments, ...directSkuAssignments]);
+
+  // The same resolved POPD assignments drive both the category index and its
+  // detail page. An empty result is intentional: never resurrect stale DB nodes.
+  return {
+    ...category,
+    children,
+    subcategories: children.map((node) => node.name),
+  };
+}
+
 function categoryPayload(snapshot: Snapshot, slug: string) {
   const category = snapshot.categories.find((item) => item.slug === slug);
   if (!category) return null;
@@ -644,20 +667,7 @@ function categoryPayload(snapshot: Snapshot, slug: string) {
       })),
     });
   }
-  // Supabase metadata can contain stale/empty subcategories. For a populated POPD
-  // category, the resolved POPD family assignments and active direct-SKU records
-  // are the source of truth: expose only submenus/leaves that own a real catalogue item.
-  const directSkuAssignments = snapshot.directSkuAssignments
-    .filter((item) => item.categorySlug === slug)
-    .map((item) => ({ submenu: item.submenuName, leaf: item.leafName }));
-  const referenceChildren = buildReferenceCategoryChildren([...families, ...directSkuAssignments]);
-  const categoryWithReferenceTaxonomy = referenceChildren.length
-    ? {
-        ...category,
-        children: referenceChildren,
-        subcategories: referenceChildren.map((node) => node.name),
-      }
-    : { ...category, children: category.children || [] };
+  const categoryWithReferenceTaxonomy = referenceCategoryTaxonomy(snapshot, category);
   return { category: categoryWithReferenceTaxonomy, families, products: matchedProducts };
 }
 
@@ -735,7 +745,9 @@ export function registerCatalogReferenceApi(app: Express): void {
   });
 
   app.get('/api/catalog/reference/categories', async (_req: Request, res: Response) => {
-    await withSnapshot(res, (snapshot) => ({ categories: snapshot.categories }));
+    await withSnapshot(res, (snapshot) => ({
+      categories: snapshot.categories.map((category) => referenceCategoryTaxonomy(snapshot, category)),
+    }));
   });
 
   app.get('/api/catalog/reference/menu-category/:slug', async (req: Request, res: Response) => {
