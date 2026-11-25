@@ -85,6 +85,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
   extractPersianSpeechSince,checkpointForzaRecognition,recognitionCheckpointRef:ref({count:0,interim:{}}),recognitionConsumedInterimRef:ref({}),recognitionRetryRef:ref(0),recognitionRetryTimerRef:ref(null),
   recognitionFailedRef:ref(false),webSpeechFailedRef:ref(false),
   setMicrophoneError:()=>{},setErrorNotice:()=>{},
+  activeTurnRef:ref(null),
   isProcessingTurnRef:ref(true),isAiSpeakingRef:ref(true),
   isManualReplayPendingRef:ref(false),vadRef:ref({heardSpeech:false}),lastMicActivityRef:ref(Date.now()),
   likelySpeakerEcho:()=>echo,interruptRequestRef:ref(()=>interrupted++),
