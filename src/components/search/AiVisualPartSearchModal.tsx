@@ -5,7 +5,7 @@ import {apiUrl} from '../../config/apiConfig';
 import { preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState, type VisionWorkspaceResult} from './ImageRegionReview';
-import { imageRegionToPixelBounds, type ImageRegion } from '../../utils/imageRegion';
+import { imageRegionToPixelBounds, matchesCachedImageRegion, type ImageRegion } from '../../utils/imageRegion';
 import { buildVisionConsultationPrompt } from '../../utils/visionConsultationPrompt';
 import {measurementError} from '../../utils/partMeasurements';
 import { memberPath } from "../storefront/MemberAccess";
@@ -775,10 +775,15 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     const selectedRegionForRequest = regionOverride === null || (regionOverride === undefined && fullImageSelected)
       ? undefined
       : regionOverride || queryRegion;
-    // Only a live server detection ID proves that the backend has the source-frame
-    // coordinates cached. Otherwise crop the customer's original image locally.
-    const requestRegion = regionDetectionId ? selectedRegionForRequest : undefined;
-    const clientCropFallback = Boolean(selectedRegionForRequest) && !regionDetectionId;
+    // Reuse server-side embeddings only when the selection matches a cached
+    // detection proposal. A hand-drawn rectangle has no cached view, so crop the
+    // original customer image locally and bypass the stale detection ID.
+    const requestRegionIsCached = Boolean(
+      regionDetectionId && selectedRegionForRequest &&
+      matchesCachedImageRegion(selectedRegionForRequest, candidateRegions),
+    );
+    const requestRegion = requestRegionIsCached ? selectedRegionForRequest : undefined;
+    const clientCropFallback = Boolean(selectedRegionForRequest) && !requestRegionIsCached;
     const requestFullImage = regionOverride === null || (!requestRegion && (fullImageSelected || clientCropFallback));
     analysisBusyRef.current = true;
     const sequence = ++analysisSequenceRef.current;
