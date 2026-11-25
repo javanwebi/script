@@ -15,7 +15,7 @@ export function BeltSelectionPage() {
     event.preventDefault();
     const query = beltCode.trim();
     if (!query) return;
-    navigate(`/search?q=${encodeURIComponent(query)}`);
+    navigate(`/search?q=${encodeURIComponent(query)}&scope=industrial-belt`);
   };
 
   const engineeringUrl = `/ai-consult?prompt=${encodeURIComponent(BELT_ENGINEERING_PROMPT)}`;
@@ -137,7 +137,7 @@ export function BeltSelectionPage() {
 
         <div className="bsp-catalog-note">
           <p>نوع تسمه را می‌شناسید و فقط می‌خواهید محصولات را ببینید؟</p>
-          <Link to="/search?q=تسمه">
+          <Link to="/search?q=تسمه&scope=industrial-belt">
             مشاهده تسمه‌های کاتالوگ
             <ArrowLeft size={15} aria-hidden="true" />
           </Link>
