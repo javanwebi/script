@@ -118,7 +118,7 @@ async function main() {
   const imageNames = new Set();
   for (const assignment of assignments) {
     const sku = String(assignment?.skuCode || "").trim();
-    const match = String(assignment?.url || "").match(/^\/storage\/products\/catalog\/e\(([1-9]\\d{0,3})\)\.png$/);
+    const match = String(assignment?.url || "").match(/^\/storage\/products\/catalog\/e\(([1-9]\d{0,3})\)\.png$/);
     if (assignment?.targetKind !== "variant" || !sku || !match) {
       throw new Error("POPD_E869_MAPPING_ENTRY_INVALID: " + sku);
     }
@@ -128,7 +128,7 @@ async function main() {
     skuCodes.add(sku);
     imageNames.add(`e(${match[1]}).png`);
   }
-  if (skuCodes.size !== 869 || imageNames.size !== 869) {
+  if (skuCodes.size !== 869 || imageNames.size !== 869 || [...Array(869)].some((_, index) => !imageNames.has(`e(${index + 1}).png`))) {
     throw new Error("POPD_E869_MAPPING_UNIQUENESS_INVALID");
   }
 
@@ -143,13 +143,15 @@ async function main() {
     files.some(file => !Number.isInteger(file.size) || file.size <= 1000 || !/^[a-f0-9]{40}$/.test(file.sha))
   ) throw new Error("POPD_E869_SOURCE_TREE_INVALID");
 
-  const releaseDir = path.join(RELEASES_DIR, POPD_COMMIT);
+  let releaseDir = path.join(RELEASES_DIR, POPD_COMMIT);
   if (await validateExistingRelease(releaseDir, files)) {
     await switchCurrentLink(releaseDir);
     console.log("POPD_CATALOG_IMAGE_SYNC_OK", `sourceCommit=${POPD_COMMIT}`, "images=869", "downloaded=0", "reused=869");
     return;
   }
 
+  const existingRelease = await fs.lstat(releaseDir).catch(() => null);
+  if (existingRelease) releaseDir = path.join(RELEASES_DIR, `${POPD_COMMIT}-${Date.now()}`);
   const stageDir = await fs.mkdtemp(path.join(RELEASES_DIR, ".staging-"));
   let downloaded = 0;
   try {
@@ -163,7 +165,6 @@ async function main() {
       throw new Error("POPD_E869_STAGED_RELEASE_FAILED_FINAL_INTEGRITY_CHECK");
     }
 
-    await fs.rm(releaseDir, { recursive: true, force: true });
     await fs.rename(stageDir, releaseDir);
     await switchCurrentLink(releaseDir);
     console.log(
