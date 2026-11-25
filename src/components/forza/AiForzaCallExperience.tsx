@@ -32,7 +32,6 @@ import { ForzaPlaybackEchoHistory, forzaTurnIntent, shouldIgnoreForzaSpeakerEcho
 import { getForzaAudioContext } from '../../utils/forzaAudioUnlock';
 import { FORZA_CONVERSATION_HISTORY_LIMIT, prepareForzaConversationTurn } from '../../utils/forzaConversationHistory';
 import { ForzaConversationEngine } from '../../utils/forzaConversationEngine';
-import { forzaVoiceCallReadinessMessage, type ForzaVoiceTextStatus } from '../../utils/forzaVoiceReadiness';
 const AiVisualPartSearchModal = lazy(() => import('../search/AiVisualPartSearchModal').then(module=>({default:module.AiVisualPartSearchModal})));
 type LazyParticleAvatarProps = ParticleAvatarProps & { ref?: React.Ref<ParticleAvatarRef> };
 const ParticleAvatar = lazy(async () => {
@@ -77,59 +76,39 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // Visual scene & humanoid character states
   const callClosedRef = useRef(false);
   const stopAcknowledgementRef=useRef<ForzaStopAcknowledgement|null>(null);
-  const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'|'piper-amir-medium'>('pocket-farsi-v2');
-  const voiceTextStatusRef=useRef<ForzaVoiceTextStatus|null>(null);
-  const voiceInfoPromiseRef=useRef<Promise<void>>(Promise.resolve());
-  const [activeVoiceLabel,setActiveVoiceLabel]=useState('در حال بررسی موتور صوتی');
+  // Nima is the production call voice. The public health probe may refine
+  // the label/mode, but it must never gate the customer's text request.
+  const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'|'piper-amir-medium'>('piper-nima-gyro-medium');
+  const [activeVoiceLabel,setActiveVoiceLabel]=useState('نیما (Piper فارسی)');
   useEffect(()=>{
     let mounted=true;
     const controller=new AbortController();
     const timeout=window.setTimeout(()=>controller.abort(),2500);
-    const task=(async()=>{
+    void (async()=>{
       try{
         const response=await fetch('/api/ai/forza-voice-info',{cache:'no-store',signal:controller.signal});
         if(!response.ok)throw new Error('voice_info_http_'+response.status);
         const data=await response.json();
         if(!mounted)return;
-        voiceTextStatusRef.current={
-          provider:data?.textProvider,
-          requestedProvider:data?.textProviderRequested,
-          configured:data?.textProviderConfigured,
-          reason:data?.textProviderReason,
-          model:data?.textModel,
-          voice:data?.voice,
-          voiceReady:data?.ready,
-        };
         if(data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true){
           voiceModeRef.current='piper-nima-gyro-medium';
           setActiveVoiceLabel('نیما (Piper فارسی)');
         }else if(data?.voice==='piper-amir-medium'){
           voiceModeRef.current='piper-amir-medium';
           setActiveVoiceLabel('امیر (Piper فارسی)');
-        }else{
+        }else if(data?.voice==='pocket-farsi-v2'){
           voiceModeRef.current='pocket-farsi-v2';
-          setActiveVoiceLabel(data?.voice==='pocket-farsi-v2'
-            ?'Pocket TTS فارسی v2':'موتور فعلی سرور');
+          setActiveVoiceLabel('Pocket TTS فارسی v2');
+        }else{
+          setActiveVoiceLabel('موتور فعلی سرور');
         }
       }catch{
-        if(mounted)setActiveVoiceLabel('موتور فعلی سرور');
+        if(mounted)setActiveVoiceLabel('نیما (Piper فارسی)');
       }finally{
         window.clearTimeout(timeout);
       }
     })();
-    voiceInfoPromiseRef.current=task;
     return()=>{mounted=false;controller.abort();window.clearTimeout(timeout);};
-  },[]);
-  const ensureVoiceMode=useCallback(async()=>{
-    let timer:number|undefined;
-    await Promise.race([
-      voiceInfoPromiseRef.current,
-      new Promise<void>(resolve=>{timer=window.setTimeout(resolve,2600);}),
-    ]);
-    if(timer!==undefined)window.clearTimeout(timer);
-    const readinessError=forzaVoiceCallReadinessMessage(voiceTextStatusRef.current);
-    if(readinessError)throw new Error(readinessError);
-    return voiceModeRef.current;
   },[]);
   useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; }; }, []);
   const avatarRef = useRef<ParticleAvatarRef | null>(null);
@@ -1381,10 +1360,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       let terminalIdleTimer:number|null=null;
       let conversationLease:ReturnType<ForzaConversationEngine['beginAssistantResponse']>|null=null;
       try {
-        // A slow voice-health probe must not create an unowned gap before the
-        // turn controller exists. This turn is already abortable and the mic
-        // remains live, so the customer can interrupt even during warmup.
-        await ensureVoiceMode();
+        // Voice readiness is probed in the background on page entry. Never
+        // wait for that optional health check before dispatching the text turn.
         if(pocketAbort.signal.aborted || activeTurnRef.current?.generation!==generation)return;
         const payload: any = {
           history: historyRef.current.slice(-FORZA_CONVERSATION_HISTORY_LIMIT),
@@ -1396,13 +1373,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        // A finalized live transcript is already the completed user turn.
-        // Never hold the LLM request while a second STT provider re-transcribes
-        // the same audio. Server AvalAI/Diba is used only when live recognition
-        // produced no text or only an interim hypothesis, never for a final.
+        // A usable live transcript is the turn. Do not put a second, potentially
+        // 25-55s server transcription in front of the LLM just because Chrome
+        // marked the last hypothesis interim. The acoustic endpoint + stable
+        // transcript guard already decided the customer finished speaking.
+        // Server AvalAI/Diba transcription is recovery-only when no live text
+        // exists at all; it must never delay a valid spoken query.
         const needsServerFinal = Boolean(audioBlob) &&
           serverSttConfiguredRef.current === true &&
-          (!q || speechInterimRef.current);
+          !q;
+        if(audioBlob&&q){
+          console.info('[FORZA_STT] turn='+generation+
+            ' source=live_transcript server_verifier=skipped interim='+
+            Number(speechInterimRef.current)+' chars='+q.length);
+        }
         if(audioBlob && needsServerFinal){
           const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
           const sttStartedAt=performance.now();
@@ -1677,9 +1661,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Two parallel phrase requests can fill its 2.5s FIFO waiter and
           // make the second phrase fail, cancelling the rest of the answer.
           maxConcurrent:1,
-          maxAheadPhrases:2,
-          initialBufferSeconds:2,
-          maximumInitialWaitMs:120,
+          maxAheadPhrases:3,
+          initialBufferSeconds:1.6,
+          maximumInitialWaitMs:450,
           onBuffered:info=>console.info('[FORZA_NIMA_BUFFER] audio_s='+
             info.bufferedSeconds.toFixed(2)+' phrases='+info.queuedPhrases+
             ' started='+Number(info.started)),
@@ -1739,7 +1723,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         };
         try {
           const streamController=new AbortController();
-          let streamTimer=window.setTimeout(()=>streamController.abort(new Error('شروع دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),30000);
+          let streamTimer=window.setTimeout(()=>streamController.abort(new Error('شروع دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),20000);
           try{
             console.info('[FORZA_LATENCY] phase=llm_request_sent turn='+generation+
               ' endToRequestMs='+(detectedSpeechEndAtRef.current
@@ -1884,7 +1868,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, startListening, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted,ensureVoiceMode]
+    [setStatus, startListening, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
