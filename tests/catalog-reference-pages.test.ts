@@ -44,3 +44,29 @@ test('belt family media can resolve canonical families through legacy family cod
   assert.match(media, /legacyFamilyCodes/);
   assert.match(media, /hasVerifiedRealPhoto/);
 });
+
+
+test('family and SKU artwork only use identity-verified matches and never generic fallbacks', () => {
+  const api = read('server/catalogReferenceApi.ts');
+  const category = read('src/pages/PopdExcelMenuCategoryPage.tsx');
+  const detail = read('src/pages/PopdProductDetailPage.tsx');
+  const media = read('src/utils/beltCatalogMedia.ts');
+
+  assert.match(api, /matchedGallery[\s\S]*filter\(\(image\) => image\.scope === 'family' && image\.identityVerified === true/);
+  assert.match(api, /product\.image = familyImages\[0\] \|\| ''/);
+  assert.doesNotMatch(api, /product\.image = familyImages\[0\] \|\| product\.image/);
+  assert.doesNotMatch(category, /resolveSiteProductImage/);
+  assert.match(category, /تصویر معتبر ثبت نشده/);
+  assert.doesNotMatch(detail, /resolveSiteProductImage/);
+  assert.match(detail, /disableFallback=\{true\}/);
+  assert.match(media, /hasVerifiedRealPhoto: Boolean\(dbImg\)/);
+  assert.match(media, /familyPhotos: \['', '', ''\]/);
+  assert.doesNotMatch(media, /familyMedia\.familyPhotos\.forEach/);
+});
+
+test('legacy family image rows are attached by their original family code', () => {
+  const api = read('server/catalogReferenceApi.ts');
+  assert.match(api, /legacyCodesByCanonical/);
+  assert.match(api, /attachGallery\(galleryByFamily\.get\(candidate\)\)/);
+  assert.doesNotMatch(api, /familyByOldCode\.get\(directKey\)/);
+});
