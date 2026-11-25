@@ -200,6 +200,7 @@ test('manual selection is encoded as a real cropped image when server region det
   assert.ok(modal.includes('clientCropFallback'));
   assert.ok(modal.includes('Boolean(selectedRegionForRequest) && !regionDetectionId'));
   assert.ok(modal.includes('const requestRegion = regionDetectionId ? selectedRegionForRequest : undefined'));
+  assert.ok(modal.includes('detectionId: requestRegion ? regionDetectionId || undefined : undefined'));
   assert.ok(modal.includes("analysisMimeType = 'image/jpeg'"));
   assert.ok(region.includes('imageRegionToPixelBounds'));
   assert.ok(region.includes('Math.floor(region.x * width)'));
