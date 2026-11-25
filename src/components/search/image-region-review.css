@@ -1106,3 +1106,205 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+
+/* Keep manual crop feedback and resize handles available in the automatic viewer. */
+.sanat-region-picker--viewer .sanat-region-picker__frame {
+  touch-action: none !important;
+  cursor: crosshair;
+}
+.sanat-region-picker--viewer .sanat-region-picker__draft {
+  display: block !important;
+}
+.sanat-region-picker--viewer.is-manual-crop .sanat-region-picker__handles {
+  display: block !important;
+}
+
+/* Mobile KIKI: the submitted photo remains behind a draggable catalogue sheet. */
+.kiki-image-workspace__sheet-handle { display: none; }
+@media (max-width: 767px) {
+  .kiki-vision-review-shell.kiki-image-workspace {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    background: #f1f3f4;
+  }
+  .kiki-image-workspace__viewer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: max(8px, env(safe-area-inset-top)) 10px 10px;
+    background: #f1f3f4;
+  }
+  .kiki-image-workspace__toolbar {
+    min-height: 44px;
+    flex: 0 0 auto;
+    margin-bottom: 8px;
+  }
+  .kiki-image-workspace__toolbar-actions button {
+    min-height: 38px;
+    padding: 6px 10px;
+  }
+  .kiki-image-workspace__close {
+    width: 38px;
+    min-height: 38px;
+    flex-basis: 38px;
+  }
+  .kiki-image-workspace__stage {
+    min-height: 0;
+    flex: 1 1 auto;
+    border-radius: 16px;
+  }
+  .kiki-image-workspace__viewer-hint {
+    position: absolute;
+    inset-inline: 10px;
+    bottom: calc(110px + env(safe-area-inset-bottom));
+    z-index: 3;
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid rgba(223, 227, 230, .9);
+    border-radius: 12px;
+    color: #5d6268;
+    background: rgba(255, 255, 255, .94);
+    box-shadow: 0 4px 16px rgba(35, 39, 44, .08);
+    font-size: 9px;
+    line-height: 1.75;
+    text-align: center;
+    pointer-events: none;
+    transition: opacity .18s ease;
+  }
+  .kiki-image-workspace[data-sheet-expanded="true"] .kiki-image-workspace__viewer-hint { opacity: 0; }
+  .kiki-image-workspace__catalog {
+    --kiki-sheet-base-offset: calc(100% - 104px);
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 56dvh;
+    min-height: 240px;
+    max-height: min(68dvh, 580px);
+    overflow: hidden;
+    border: 1px solid #dfe3e6;
+    border-bottom: 0;
+    border-radius: 22px 22px 0 0;
+    background: #fff;
+    box-shadow: 0 -12px 36px rgba(32, 38, 45, .16);
+    transform: translate3d(0, calc(var(--kiki-sheet-base-offset) + var(--kiki-sheet-drag-offset, 0px)), 0);
+    transition: transform 260ms cubic-bezier(.2, .8, .2, 1);
+    will-change: transform;
+  }
+  .kiki-image-workspace[data-sheet-expanded="true"] .kiki-image-workspace__catalog { --kiki-sheet-base-offset: 0px; }
+  .kiki-image-workspace[data-sheet-dragging="true"] .kiki-image-workspace__catalog {
+    transition: none;
+    user-select: none;
+  }
+  .kiki-image-workspace__sheet-handle {
+    display: flex;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 34px;
+    padding: 4px 12px 0;
+    border: 0;
+    color: #777d83;
+    background: #fff;
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1.4;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
+  }
+  .kiki-image-workspace__sheet-handle:active { cursor: grabbing; }
+  .kiki-image-workspace__sheet-grip {
+    display: block;
+    width: 38px;
+    height: 4px;
+    flex: 0 0 38px;
+    border-radius: 999px;
+    background: #cfd4d8;
+  }
+  .kiki-image-workspace__catalog-header {
+    min-height: 66px;
+    flex: 0 0 auto;
+    padding: 7px 11px;
+    gap: 8px;
+  }
+  .kiki-image-workspace__catalog-identity { gap: 9px; }
+  .kiki-image-workspace__catalog-identity > img {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+  }
+  .kiki-image-workspace__catalog-identity h2 { font-size: 12px; }
+  .kiki-image-workspace__catalog-identity p { font-size: 9px; }
+  .kiki-image-workspace__catalog-mark { font-size: 9px; }
+  .kiki-image-workspace__catalog-body {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 9px 10px;
+  }
+  .kiki-image-workspace__status {
+    min-height: 25px;
+    margin-bottom: 9px;
+    font-size: 9px;
+  }
+  .kiki-image-workspace__manufacture-rail {
+    position: relative;
+    flex: 0 0 auto;
+    min-height: 62px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 10px calc(7px + env(safe-area-inset-bottom));
+  }
+  .kiki-image-workspace__manufacture-copy { gap: 2px; }
+  .kiki-image-workspace__manufacture-copy strong { font-size: 9px; }
+  .kiki-image-workspace__manufacture-copy span { display: none; }
+  .kiki-image-workspace__manufacture-actions { gap: 5px; }
+  .kiki-image-workspace__manufacture-actions a,
+  .kiki-image-workspace__manufacture-actions button {
+    min-height: 35px;
+    padding: 5px 8px;
+    font-size: 9px;
+  }
+  .sanat-region-picker--viewer .sanat-region-picker__canvas { padding: 4px; }
+  .sanat-region-picker--viewer .sanat-region-picker__frame,
+  .sanat-region-picker--viewer .sanat-region-picker__frame > img {
+    max-width: 100%;
+    max-height: calc(100dvh - 112px);
+  }
+  .sanat-region-picker--viewer .sanat-region-picker__frame { touch-action: none !important; }
+}
+@media (max-width: 380px) {
+  .kiki-image-workspace__catalog { height: 58dvh; }
+  .kiki-image-workspace__catalog-identity p {
+    max-width: 23ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .kiki-image-workspace__manufacture-copy strong {
+    max-width: 15ch;
+    line-height: 1.5;
+  }
+}
