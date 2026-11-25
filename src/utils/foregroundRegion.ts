@@ -22,6 +22,18 @@ type Component = {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
+function componentBoxIou(a: Component, b: Component): number {
+  const left = Math.max(a.minX, b.minX);
+  const top = Math.max(a.minY, b.minY);
+  const right = Math.min(a.maxX + 1, b.maxX + 1);
+  const bottom = Math.min(a.maxY + 1, b.maxY + 1);
+  const intersection = Math.max(0, right - left) * Math.max(0, bottom - top);
+  const areaA = (a.maxX - a.minX + 1) * (a.maxY - a.minY + 1);
+  const areaB = (b.maxX - b.minX + 1) * (b.maxY - b.minY + 1);
+  const union = areaA + areaB - intersection;
+  return union > 0 ? intersection / union : 0;
+}
+
 /**
  * Splits a saliency mask into independently selectable foreground objects.
  * Eight-way connectivity keeps diagonal edges of circular/mechanical parts intact.
@@ -31,7 +43,7 @@ function componentsAtThreshold(source: MaskSource, threshold: number): Component
   const total = width * height;
   const visited = new Uint8Array(total);
   const queue = new Int32Array(total);
-  const minimumPixels = Math.max(18, Math.floor(total * 0.0012));
+  const minimumPixels = Math.max(18, Math.floor(total * 0.0008));
   const components: Component[] = [];
 
   for (let seed = 0; seed < total; seed++) {
@@ -79,7 +91,7 @@ function componentsAtThreshold(source: MaskSource, threshold: number): Component
     const boxArea = boxWidth * boxHeight;
     const areaRatio = pixels / total;
     const boxRatio = boxArea / total;
-    if (boxWidth < width * 0.018 || boxHeight < height * 0.018 || boxRatio > 0.965) continue;
+    if (boxWidth < width * 0.012 || boxHeight < height * 0.012 || boxRatio > 0.965) continue;
 
     components.push({
       minX,
@@ -108,11 +120,18 @@ export function getForegroundRegions(
   const { width, height, alphaMask } = source;
   if (!width || !height || alphaMask.length < width * height) return [];
   const total = width * height;
-  let components: Component[] = [];
-
+  const components: Component[] = [];
+  // A single strong object must not prevent darker or smaller parts from being
+  // discovered at softer saliency thresholds in the same photograph.
   for (const candidateThreshold of [threshold, Math.max(76, threshold - 24), Math.max(58, threshold - 42)]) {
-    components = componentsAtThreshold(source, candidateThreshold);
-    if (components.length) break;
+    for (const candidate of componentsAtThreshold(source, candidateThreshold)) {
+      const duplicateIndex = components.findIndex(existing => componentBoxIou(existing, candidate) > 0.78);
+      if (duplicateIndex < 0) components.push(candidate);
+      else if (candidate.confidence > components[duplicateIndex].confidence * 1.12) {
+        components[duplicateIndex] = candidate;
+      }
+    }
+    if (components.length >= Math.max(12, limit * 2)) break;
   }
   if (!components.length) return [];
 

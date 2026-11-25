@@ -7,6 +7,7 @@ import json
 import os
 import threading
 import unittest
+from unittest.mock import patch
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
@@ -103,6 +104,25 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(len(result['viewRegions']), 4)
         self.assertGreaterEqual(len([box for box in result['viewRegions'] if box]), 2)
         self.assertTrue(all(box['width'] >= 0.03 and box['height'] >= 0.03 for box in result['viewRegions'] if box))
+
+    def test_selected_crop_markings_endpoint_is_authenticated_and_bounded(self):
+        from retrieval import jpeg
+        image = self.worker_image()
+        raw = jpeg(image)
+        with patch.object(worker, 'markings', return_value=([{'text': '6203ZZ', 'confidence': 96}], True)) as read:
+            with self.request({'image': raw}, path='/markings') as response:
+                result = json.load(response)
+        self.assertEqual(result['model'], worker.MODEL_ID)
+        self.assertEqual(result['pipeline'], worker.PIPELINE)
+        self.assertEqual(result['markings'], [{'text': '6203ZZ', 'confidence': 96}])
+        self.assertTrue(result['ocrAvailable'])
+        read.assert_called_once()
+
+    @staticmethod
+    def worker_image():
+        import numpy as np
+        image = np.full((120, 180, 3), 255, dtype=np.uint8)
+        return image
 
     def test_busy_is_bounded(self):
         worker.slot.acquire()

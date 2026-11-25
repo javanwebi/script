@@ -155,7 +155,15 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
           aria-expanded={sheetOpen}
           aria-label="مشاوره و راه‌های ارتباطی FORZA"
         >
-          <CognivoGeometricLogo size={29} />
+          <img
+            src="/images/brand/forza-workspace-logo.svg"
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            decoding="async"
+            className="h-[21px] w-8 object-contain shrink-0"
+            data-testid="forza-workspace-launcher-logo"
+          />
           <span>میزکار FORZA</span>
         </button>
       )}

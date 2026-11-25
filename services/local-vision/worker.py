@@ -71,7 +71,7 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200, {'status': 'ok', 'model': MODEL_ID, 'dimensions': DIMENSIONS, 'pipeline': PIPELINE})
 
     def do_POST(self):
-        if self.path not in ('/embed', '/query', '/rerank'):
+        if self.path not in ('/embed', '/query', '/rerank', '/markings'):
             return self.reply(404, {})
         expected = 'Bearer ' + os.environ['LOCAL_VISION_TOKEN']
         if not hmac.compare_digest(self.headers.get('Authorization', ''), expected):
@@ -87,7 +87,12 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.connection.settimeout(5)
             data = json.loads(self.rfile.read(size))
-            if self.path == '/query':
+            if self.path == '/markings':
+                image = decode(data['image'])
+                text, available = markings(image)
+                self.reply(200, {'model': MODEL_ID, 'pipeline': PIPELINE,
+                                 'markings': text, 'ocrAvailable': available})
+            elif self.path == '/query':
                 image = decode(data['image'])
                 boxes = regions(image, limit=3)
                 box = boxes[0] if boxes else None

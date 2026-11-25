@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { matchesCachedImageRegion } from '../src/utils/imageRegion';
 
 const source = (relative: string) =>
   readFileSync(fileURLToPath(new URL('../' + relative, import.meta.url)), 'utf8');
@@ -162,17 +163,114 @@ test('KIKI results header stays within the independently scrollable catalogue pa
 });
 
 
-test('automatic viewer disables detected-region selection while busy and removes manual crop actions', () => {
+test('automatic viewer keeps manual drag-to-crop available when automatic segmentation misses a part', () => {
   const picker = source('src/components/search/ImageRegionSelector.tsx');
   const review = source('src/components/search/ImageRegionReview.tsx');
+  const styles = source('src/components/search/image-region-review.css');
   assert.ok(picker.includes('autoSelect?:boolean;'));
   assert.ok(picker.includes('onClick={selectCandidateAtPoint}'));
-  assert.ok(picker.includes('if(autoSelect||disabled||event.button!==0||!event.isPrimary)return;'));
-  assert.ok(picker.includes('if(autoSelect){'));
-  assert.ok(picker.includes('disabled={disabled}'));
-  assert.ok(review.includes('const selectorDisabled = preparing || Boolean(busy) || Boolean(analysisBusy);'));
-  assert.ok(review.includes('disabled={selectorDisabled}'));
-  assert.ok(review.includes('analysisBusy'));
-  assert.ok(!review.includes('onFullImageSearch'));
-  assert.ok(!review.includes('viewer-actions'));
+  assert.ok(picker.includes('const canMoveSelection=Boolean(value&&inside&&(!autoSelect||manualSelection))'));
+  assert.ok(picker.includes("mode:canMoveSelection?'move':'draw'"));
+  assert.ok(picker.includes('suppressNextClickRef'));
+  assert.ok(picker.includes('data-manual-crop-enabled={!disabled}'));
+  assert.doesNotMatch(picker, /if\(autoSelect\|\|disabled\|\|event\.button/);
+  assert.ok(review.includes('kiki-mobile-results-sheet-handle'));
+  assert.ok(review.includes('onPointerMove={handleSheetPointerMove}'));
+  assert.ok(review.includes('kiki-manual-crop-hint'));
+  assert.ok(styles.includes('touch-action: none !important'));
+  assert.ok(styles.includes('.sanat-region-picker--viewer .sanat-region-picker__draft'));
+  assert.ok(styles.includes('.sanat-region-picker--viewer.is-manual-crop .sanat-region-picker__handles'));
+});
+
+test('mobile catalogue results float over the submitted photo in a draggable half-screen sheet', () => {
+  const review = source('src/components/search/ImageRegionReview.tsx');
+  const styles = source('src/components/search/image-region-review.css');
+  assert.ok(review.includes('data-sheet-expanded={sheetExpanded}'));
+  assert.ok(review.includes('data-sheet-dragging={sheetDragging}'));
+  assert.ok(review.includes('aria-expanded={sheetExpanded}'));
+  assert.ok(review.includes('setPointerCapture(event.pointerId)'));
+  assert.ok(styles.includes('height: 56dvh'));
+  assert.ok(styles.includes('overflow-y: auto'));
+  assert.ok(styles.includes('translate3d(0, calc(var(--kiki-sheet-base-offset)'));
+  assert.ok(styles.includes('data-sheet-expanded="true"'));
+});
+
+test('manual selection is encoded as a real cropped image even when server region detection is available', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const region = source('src/utils/imageRegion.ts');
+  assert.ok(modal.includes('cropImageDataUrlToRegion(imageBase64, selectedRegionForRequest)'));
+  assert.ok(modal.includes('clientCropFallback'));
+  assert.ok(modal.includes('matchesCachedImageRegion(selectedRegionForRequest, candidateRegions)'));
+  assert.ok(modal.includes('const requestRegion = requestRegionIsCached ? selectedRegionForRequest : undefined'));
+  assert.ok(modal.includes('Boolean(regionSelectionExplicit && selectedRegionForRequest) && !requestRegionIsCached'));
+  assert.ok(region.includes('export function matchesCachedImageRegion'));
+  assert.ok(modal.includes('detectionId: requestDetectionId'));
+  assert.ok(modal.includes('if (clientCropFallback && selectedRegionForRequest)'));
+  assert.ok(modal.includes('setQueryRegion(selectedRegionForRequest)'));
+  assert.ok(modal.includes('setFullImageSelected(false)'));
+  assert.ok(modal.includes('not the original customer photo'));
+  assert.ok(modal.includes("analysisMimeType = 'image/jpeg'"));
+  assert.ok(region.includes('imageRegionToPixelBounds'));
+  assert.ok(region.includes('Math.floor(region.x * width)'));
+  assert.ok(region.includes('Math.ceil((region.x + region.width) * width)'));
+});
+
+
+test('nearest catalogue results are requested and displayed as unconfirmed exploration, not exact identification', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const review = source('src/components/search/ImageRegionReview.tsx');
+  const styles = source('src/components/search/image-region-review.css');
+  assert.ok(modal.includes('includeNearest: true'));
+  assert.ok(modal.includes('analysisResult?.nearestCatalogSuggestions'));
+  assert.ok(modal.includes("matchBasis:'explore' as const"));
+  assert.ok(modal.includes('گزینه نزدیک برای بررسی؛ تطبیق قطعی نیست'));
+  assert.ok(review.includes("item.matchBasis === 'explore'"));
+  assert.ok(review.includes('data-match-basis={item.matchBasis ||'));
+  assert.ok(styles.includes('[data-match-basis="explore"]'));
+});
+
+
+test('server isolates a cached multi-view query to the exact customer-selected region', () => {
+  const server = source('server.ts');
+  const localVision = source('src/services/localVision.ts');
+  assert.ok(server.includes('selectCachedQueryView(cachedDetection.query,requestedRegion)'));
+  assert.ok(server.includes('const cachedDetection=body.fullImage===true?undefined:typeof body.detectionId'));
+  assert.ok(server.includes('cachedSelectedQuery || await describeLocalQuery(queryImage)'));
+  assert.ok(server.includes('A selected candidate must be compared on its own'));
+  assert.ok(localVision.includes('vectors:[query.vectors[index]]'));
+  assert.ok(localVision.includes('markings:markingsBelongToRegion?query.markings:[]'));
+});
+
+
+test('secondary cached crops read OCR from the selected region without re-embedding the image', () => {
+  const server = source('server.ts');
+  const vision = source('src/services/localVision.ts');
+  const worker = source('services/local-vision/worker.py');
+  assert.ok(server.includes('readLocalMarkings(queryImage)'));
+  assert.ok(server.includes('cachedOcrMatchesRegion'));
+  assert.ok(vision.includes("localRequest('/markings'"));
+  assert.ok(worker.includes("'/markings'"));
+  assert.ok(worker.includes("text, available = markings(image)"));
+});
+
+
+test('only an exact cached proposal may reuse the server detection ID; a hand-drawn crop must bypass it', () => {
+  const automatic = { x: 0.18, y: 0.22, width: 0.34, height: 0.41 };
+  const manual = { x: 0.24, y: 0.28, width: 0.26, height: 0.31 };
+  assert.equal(matchesCachedImageRegion(automatic, [automatic]), true);
+  assert.equal(matchesCachedImageRegion({ ...automatic, x: automatic.x + 0.001 }, [automatic]), true);
+  assert.equal(matchesCachedImageRegion(manual, [automatic]), false);
+  assert.equal(matchesCachedImageRegion(undefined, [automatic]), false);
+});
+
+test('automatic analysis ranks all detected views before pinning a customer-selected region', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const vision = source('src/services/localVision.ts');
+  assert.ok(modal.includes('const [regionSelectionExplicit,setRegionSelectionExplicit]=useState(false)'));
+  assert.ok(modal.includes('regionSelectionExplicit && regionDetectionId && selectedRegionForRequest'));
+  assert.ok(modal.includes('const requestDetectionId = !clientCropFallback ? regionDetectionId || undefined : undefined'));
+  assert.ok(modal.includes('detectionId: requestDetectionId'));
+  assert.ok(modal.includes("'automatic-catalog-ranking'"));
+  assert.ok(modal.includes('setRegionSelectionExplicit(true)'));
+  assert.ok(vision.includes('selectBestQueryRegion(query.viewRegions,viewScores,query.region)'));
 });

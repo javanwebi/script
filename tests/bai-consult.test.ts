@@ -416,7 +416,9 @@ test('AvalAI recovers an empty transport failure through its alternate domain wi
    assert.equal(String(url),calls===1
     ?'https://api.avalai.ir/v1/chat/completions'
     :'https://api.avalai.org/v1/chat/completions');
-   assert.equal(JSON.parse(String(init?.body)).model,'glm-5.3-flash');
+   const body=JSON.parse(String(init?.body));
+   assert.equal(body.model,'glm-5.3-flash');
+   assert.equal(body.reasoning_effort,'low','both AvalAI domains must use the same low-latency GLM request settings');
    if(calls===1)return fakeStream([]);
    return fakeStream(['data: {"choices":[{"delta":{"content":"سلام"},"finish_reason":"stop"}]}\n\n']);
   }) as typeof fetch,onDelta:d=>deltas.push(d)});
@@ -429,9 +431,7 @@ test('AvalAI fails over to its Cloudflare-backed route after a first-token timeo
   query:'برای خط تولید تسمه لازم دارم',voice:true,firstTokenTimeoutMs:15,
   fetchImpl:(async(url,init)=>{
    calls++;
-   const body=JSON.parse(String(init?.body));
-   assert.equal(body.model,'glm-5.3-flash');
-   assert.equal(body.reasoning_effort,'low','both AvalAI domains must use the same low-latency GLM request settings');
+   assert.equal(JSON.parse(String(init?.body)).model,'glm-5.3-flash');
    assert.match(String((init?.headers as Record<string,string>|undefined)?.Authorization||''),/Bearer same-private-key/);
    if(calls===1){
     assert.equal(String(url),'https://api.avalai.ir/v1/chat/completions');

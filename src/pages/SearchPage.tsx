@@ -9,6 +9,7 @@ import { ProductCard } from '../components/product/ProductCard';
 import { toDirectSkuProduct, useDirectSkus } from '../components/catalog/DirectSkuProducts';
 import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
 import type { Product } from '../types';
+import { isIndustrialBeltDirectSku, isIndustrialBeltProduct } from '../utils/industrialBeltScope';
 import {
   Search,
   ChevronLeft,
@@ -38,13 +39,17 @@ const POPULAR_TERMS = [
   'AT-E001',
   'کاسه نمد',
 ];
+const BELT_POPULAR_TERMS = ['SPZ', 'SPA', 'SPB', 'SPC', 'HTD 8M', 'T5', 'AT10', 'PJ'];
 
 type SortMode = 'relevance' | 'code_asc' | 'name_asc' | 'stock_desc';
 
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get('q') || '';
-  const categoryParam = searchParams.get('category') || 'all';
+  const scopeParam = searchParams.get('scope') || '';
+  const beltScoped = scopeParam === 'industrial-belt';
+  const requestedCategory = searchParams.get('category') || 'all';
+  const categoryParam = beltScoped && requestedCategory !== 'all' && !/^excel-v2-1-[1-4]$/i.test(requestedCategory) ? 'all' : requestedCategory;
   const brandParam = searchParams.get('brand') || 'all';
 
   const [localQuery, setLocalQuery] = useState(queryParam);
@@ -80,16 +85,28 @@ export const SearchPage: React.FC = () => {
     void catalogVersion;
     return getManagedCategories();
   }, [catalogVersion]);
+  const visibleCategories = useMemo(() => beltScoped
+    ? categories.filter(category => /^excel-v2-1-[1-4]$/i.test(category.slug))
+    : categories, [categories, beltScoped]);
 
   const rawResults = useMemo(() => {
     void catalogVersion;
-    return searchProducts(queryParam, 240);
-  }, [queryParam, catalogVersion]);
+    if (beltScoped && !queryParam.trim()) {
+      const candidates = [...searchProducts('تسمه', 1200), ...searchProducts('belt', 1200)];
+      return [...new Map(candidates.map(product => [product.code, product])).values()];
+    }
+    // The industrial-belt catalogue contains more than the generic search cap.
+    return searchProducts(queryParam, beltScoped ? 1200 : 240);
+  }, [queryParam, catalogVersion, beltScoped]);
+  const scopedRawResults = useMemo(() => beltScoped
+    ? rawResults.filter(isIndustrialBeltProduct)
+    : rawResults, [rawResults, beltScoped]);
 
   const directSkuQueryMatches = useMemo(() => {
     const q = queryParam.trim().toLowerCase();
     if (!q) return [];
     return directSkus.filter(item => {
+      if (beltScoped && !isIndustrialBeltDirectSku(item)) return false;
       if (selectedCategory !== 'all' && item.categorySlug !== selectedCategory) return false;
       if (onlyWithImage && !item.imageUrl) return false;
       if (onlyInStock) return false; // Direct SKU endpoint has no authoritative stock field.
@@ -98,9 +115,15 @@ export const SearchPage: React.FC = () => {
         item.skuCode, item.name, item.categoryName, item.submenu,
         item.subcategory, item.brand, specText,
       ].filter(Boolean).join(' ').toLowerCase();
-      return haystack.includes(q);
+      const normalizeCode=(value:string)=>value
+        .replace(/[۰-۹]/g,digit=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+        .replace(/[٠-٩]/g,digit=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+        .toLowerCase().replace(/[^a-z0-9]/g,'');
+      const normalizedQuery=normalizeCode(q);
+      const normalizedHaystack=normalizeCode(haystack);
+      return haystack.includes(q)||(normalizedQuery.length>=3&&normalizedHaystack.includes(normalizedQuery));
     }).slice(0, 24);
-  }, [directSkus, queryParam, selectedCategory, onlyWithImage, onlyInStock]);
+  }, [directSkus, queryParam, selectedCategory, onlyWithImage, onlyInStock, beltScoped]);
 
   const availableBrands = useMemo(() => {
     const counts = new Map<string, number>();
@@ -108,18 +131,18 @@ export const SearchPage: React.FC = () => {
       if (!brand) return;
       counts.set(brand, (counts.get(brand) || 0) + 1);
     };
-    rawResults.forEach(product => getProductDisplayBrands(product).forEach(add));
+    scopedRawResults.forEach(product => getProductDisplayBrands(product).forEach(add));
     directSkuQueryMatches.forEach(item =>
       getProductDisplayBrands(toDirectSkuProduct(item)).forEach(add),
     );
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
       .map(([brand, count]) => ({ brand, count }));
-  }, [rawResults, directSkuQueryMatches]);
+  }, [scopedRawResults, directSkuQueryMatches]);
 
   const filteredResults = useMemo(() => {
-    const list = rawResults.filter(product => {
-      if (selectedCategory !== 'all' && product.category !== selectedCategory) {
+    const list = scopedRawResults.filter(product => {
+      if (selectedCategory !== 'all' && product.category !== selectedCategory && product.categorySlug !== selectedCategory) {
         return false;
       }
       if (selectedBrand !== 'all' && !productHasDisplayBrand(product, selectedBrand)) {
@@ -148,7 +171,7 @@ export const SearchPage: React.FC = () => {
       });
     }
     return list;
-  }, [rawResults, selectedCategory, selectedBrand, onlyInStock, onlyWithImage, sortBy]);
+  }, [scopedRawResults, selectedCategory, selectedBrand, onlyInStock, onlyWithImage, sortBy]);
 
   const matchingDirectSkus = useMemo(
     () => directSkuQueryMatches.filter(item =>
@@ -192,6 +215,7 @@ export const SearchPage: React.FC = () => {
     if (nextQuery.trim()) params.q = nextQuery.trim();
     if (nextCat !== 'all') params.category = nextCat;
     if (nextBrand !== 'all') params.brand = nextBrand;
+    if (beltScoped) params.scope = 'industrial-belt';
     setSearchParams(params);
   };
 
@@ -213,6 +237,7 @@ export const SearchPage: React.FC = () => {
     setSortBy('relevance');
     const params: Record<string, string> = {};
     if (queryParam.trim()) params.q = queryParam.trim();
+    if (beltScoped) params.scope = 'industrial-belt';
     setSearchParams(params);
   };
 
@@ -242,24 +267,24 @@ export const SearchPage: React.FC = () => {
             صفحه اصلی
           </Link>
           <ChevronLeft className="h-3.5 w-3.5 text-slate-400" />
-          <Link to="/products" className="font-semibold text-[#55565A] transition-colors hover:text-[#E06518]">
-            کاتالوگ قطعات
+          <Link to={beltScoped ? '/belt-selection' : '/products'} className="font-semibold text-[#55565A] transition-colors hover:text-[#E06518]">
+            {beltScoped ? 'انتخاب هوشمند تسمه' : 'کاتالوگ قطعات'}
           </Link>
           <ChevronLeft className="h-3.5 w-3.5 text-slate-400" />
-          <span className="font-bold text-[#23262B]">جستجوی فنی و مهندسی</span>
+          <span className="font-bold text-[#23262B]">{beltScoped ? 'جستجوی تسمه صنعتی' : 'جستجوی فنی و مهندسی'}</span>
         </div>
 
         <div className="flex items-center gap-3 text-[11px]">
           <Link
-            to="/categories"
+            to={beltScoped ? '/belt-selection' : '/categories'}
             className="inline-flex items-center gap-1 font-bold text-[#55565A] transition-colors hover:text-[#E06518]"
           >
             <Layers className="h-3.5 w-3.5 text-[#E06518]" />
-            مرور دسته‌بندی‌ها
+            {beltScoped ? 'بازگشت به انتخاب تسمه' : 'مرور دسته‌بندی‌ها'}
           </Link>
           <span className="text-slate-300">|</span>
           <Link
-            to="/identify-part"
+            to={beltScoped ? '/identify-part?from=belt-selection' : '/identify-part'}
             className="inline-flex items-center gap-1 font-bold text-[#E06518] transition-colors hover:text-[#C95210]"
           >
             <Camera className="h-3.5 w-3.5" />
@@ -274,17 +299,17 @@ export const SearchPage: React.FC = () => {
           <div className="space-y-4 lg:col-span-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3.5 py-1 text-[11px] font-extrabold text-[#c85612]">
               <Search className="h-3.5 w-3.5 text-[#E56B1E]" />
-              موتور جستجوی فنی کاتالوگ صنعت پیش
+              {beltScoped ? 'جستجوی تخصصی تسمه‌های صنعتی' : 'موتور جستجوی فنی کاتالوگ صنعت پیش'}
             </div>
 
             <h1 className="text-xl font-black tracking-tight text-[#23262B] md:text-2xl">
               {queryParam ? (
                 <>
-                  نتایج جستجوی فنی برای{' '}
+                  {beltScoped ? 'نتایج جستجوی تسمه صنعتی برای' : 'نتایج جستجوی فنی برای'}{' '}
                   <span className="text-[#E56B1E]">«{queryParam}»</span>
                 </>
               ) : (
-                'جستجوی دقیق قطعات صنعتی بر اساس کد فنی، استاندارد، سایز یا برند'
+                (beltScoped ? 'جستجوی تخصصی تسمه صنعتی بر اساس کد، پروفیل، اندازه یا برند' : 'جستجوی دقیق قطعات صنعتی بر اساس کد فنی، استاندارد، سایز یا برند')
               )}
             </h1>
 
@@ -295,8 +320,8 @@ export const SearchPage: React.FC = () => {
                   type="text"
                   value={localQuery}
                   onChange={e => setLocalQuery(e.target.value)}
-                  placeholder="کد فنی (مانند AT-E045 یا 1800001001)، نام قطعه، استاندارد یا برند..."
-                  aria-label="عبارت جستجوی فنی"
+                  placeholder={beltScoped ? 'کد یا مارکینگ تسمه (مانند SPB 2000، HTD 8M 1200، T5)...' : 'کد فنی (مانند AT-E045 یا 1800001001)، نام قطعه، استاندارد یا برند...'}
+                  aria-label={beltScoped ? 'جستجوی کد و مارکینگ تسمه' : 'عبارت جستجوی فنی'}
                   className="h-12 w-full rounded-xl border border-slate-200 bg-[#F8FAFC] pr-11 pl-10 text-sm font-medium text-[#23262B] placeholder:text-slate-400 focus:border-[#E56B1E] focus:bg-white focus:outline-none"
                 />
                 {localQuery && (
@@ -326,9 +351,9 @@ export const SearchPage: React.FC = () => {
             {/* Quick Suggested Search Terms */}
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
               <span className="text-[11px] font-bold text-[#55565A] ml-1">
-                جستجوهای پرتکرار صنعتی:
+                {beltScoped ? 'پروفیل‌های پرکاربرد تسمه:' : 'جستجوهای پرتکرار صنعتی:'}
               </span>
-              {POPULAR_TERMS.map(term => {
+              {(beltScoped ? BELT_POPULAR_TERMS : POPULAR_TERMS).map(term => {
                 const isActive = queryParam.trim() === term;
                 return (
                   <button
@@ -400,11 +425,11 @@ export const SearchPage: React.FC = () => {
                 setSelectedCategory(val);
                 updateQueryParam(localQuery, val, selectedBrand);
               }}
-              aria-label="فیلتر بر اساس دسته‌بندی"
+              aria-label={beltScoped ? 'فیلتر بر اساس زیرگروه تسمه' : 'فیلتر بر اساس دسته‌بندی'}
               className="h-9 rounded-lg border border-[#CBD2D8] bg-[#F8FAFC] px-3 text-xs font-bold text-[#23262B] focus:border-[#E06518] focus:outline-none"
             >
-              <option value="all">همه گروه‌های صنعتی ({toPersianDigits(categories.length)})</option>
-              {categories.map(cat => (
+              <option value="all">{beltScoped ? 'همه زیرگروه‌های تسمه' : `همه گروه‌های صنعتی (${toPersianDigits(categories.length)})`}</option>
+              {visibleCategories.map(cat => (
                 <option key={cat.slug} value={cat.slug}>
                   {cat.name}
                 </option>
@@ -607,7 +632,7 @@ export const SearchPage: React.FC = () => {
               )}
 
               <Link
-                to="/identify-part"
+                to={beltScoped ? '/identify-part?from=belt-selection' : '/identify-part'}
                 className="inline-flex items-center gap-2 rounded-xl border border-[#CBD2D8] bg-[#F8FAFC] px-4 py-2.5 text-xs font-extrabold text-[#23262B] transition-colors hover:border-[#E06518] hover:text-[#E06518]"
               >
                 <Camera className="h-4 w-4 text-[#E06518]" />
