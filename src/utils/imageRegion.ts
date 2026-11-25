@@ -7,6 +7,15 @@ export function validImageRegion(region:unknown):region is ImageRegion{
   r.x+r.width<=1.000001 && r.y+r.height<=1.000001;
 }
 
+/** True only when a selected rectangle corresponds to a server-cached detection view. */
+export function matchesCachedImageRegion(region: unknown, candidates: unknown): region is ImageRegion {
+ if (!validImageRegion(region) || !Array.isArray(candidates)) return false;
+ return candidates.some((candidate) => validImageRegion(candidate) &&
+  Math.abs(candidate.x - region.x) < 0.002 &&
+  Math.abs(candidate.y - region.y) < 0.002 &&
+  Math.abs(candidate.width - region.width) < 0.002 &&
+  Math.abs(candidate.height - region.height) < 0.002);
+}
 
 export interface ImagePixelBounds {
  x: number;
