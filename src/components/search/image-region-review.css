@@ -966,9 +966,6 @@
 .sanat-region-picker--viewer .sanat-region-picker__viewer-actions {
   display: none !important;
 }
-.sanat-region-picker--viewer .fv-region-candidates {
-  display: none;
-}
 .sanat-region-picker--viewer .sanat-region-picker__frame {
   cursor: pointer;
 }
