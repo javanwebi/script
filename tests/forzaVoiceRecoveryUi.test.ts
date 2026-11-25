@@ -146,14 +146,17 @@ test('server AvalAI/Diba STT is recovery-only and never delays a valid live tran
   assert.match(ui,/تشخیص گفتار: \{serverSttLabel\}/);
 });
 
-test('native browser transcripts are not discarded by the RMS gate while FORZA is listening',()=>{
+test('native browser transcripts use a microphone-sensitive near-field gate while TTS barge-in stays strict',()=>{
   const from=ui.indexOf('rec.onresult = (event: any) => {');
   const to=ui.indexOf('if(admitted.waiting&&!retryExpired)',from);
   assert.ok(from>0&&to>from);
   const admission=ui.slice(from,to);
   assert.match(admission,/if\(retryExpired\|\|likelySpeakerEcho\(words\)\)return 'reject';/);
-  assert.match(admission,/if\(!playback\)return 'accept';/);
   assert.match(admission,/speechAdmissionRef\.current\.decide\(words,final,playback,Date\.now\(\)\)/);
+  assert.doesNotMatch(admission,/if\(!playback\)return 'accept';/);
+  const gate=readFileSync(new URL('../src/utils/forzaSpeechAdmission.ts',import.meta.url),'utf8');
+  assert.match(gate,/playback\?0\.004:0\.0009/);
+  assert.match(gate,/playback\?280:100/);
 });
 
 test('a two-second pause preserves the same live transcript across browser recognizer restarts',()=>{
