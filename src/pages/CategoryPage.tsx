@@ -1,7 +1,7 @@
 import '../category-showcase.css';
 import { STORE_ASSETS } from '../assets/images';
 import { matchesProductSearch, categorySlugFor } from '../data/userProducts';
-import { ExcelMenuCategoryPage } from './PopdExcelMenuCategoryPage';
+import { ExcelMenuCategoryPage } from './ExcelMenuCategoryPage';
 import { PulleyCatalogPage } from './PulleyCatalogPage';
 import { subscribeCatalogChanges } from '../data/mockGenerator';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
