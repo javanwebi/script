@@ -25,7 +25,7 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
-import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
+import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,selectCachedQueryView,type QueryEvidence} from './src/services/localVision';
 import {applyBeltRecognition} from './src/services/beltRecognition';
 import {LocalVisionDetectionCache} from './src/services/localVisionDetectionCache';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
@@ -4738,23 +4738,31 @@ app.post('/api/ai/analyze-part', async (req, res) => {
         return res.status(503).json({error:{code:'INDEX_NOT_READY',message:`نمایه تصاویر در حال آماده‌سازی است (${coverage.indexed} از ${coverage.total}). کمی بعد دوباره تلاش کنید.`},retrieval:coverage});
       }
       const started=Date.now();
-      const queryImage=await prepareLocalQuery(uploaded.buffer,body.region);
+      const requestedRegion=body.fullImage===true?undefined:body.region;
+      const queryImage=await prepareLocalQuery(uploaded.buffer,requestedRegion);
       const cachedDetection=typeof body.detectionId==='string'
         ? localVisionDetectionCache.get(body.detectionId,imageFingerprint,localProfile.model)
         : undefined;
-      const cachedRegionMatches=!body.region || Boolean(cachedDetection?.queryRegions.some(region=>
-        Math.abs(region.x-body.region.x)<0.002 && Math.abs(region.y-body.region.y)<0.002 &&
-        Math.abs(region.width-body.region.width)<0.002 && Math.abs(region.height-body.region.height)<0.002
+      const cachedRegionMatches=!requestedRegion || Boolean(cachedDetection?.queryRegions.some(region=>
+        Math.abs(region.x-requestedRegion.x)<0.002 && Math.abs(region.y-requestedRegion.y)<0.002 &&
+        Math.abs(region.width-requestedRegion.width)<0.002 && Math.abs(region.height-requestedRegion.height)<0.002
       ));
+      const cachedSelectedQuery=cachedDetection&&cachedRegionMatches&&requestedRegion
+        ? selectCachedQueryView(cachedDetection.query,requestedRegion)
+        : undefined;
+      // A selected candidate must be compared on its own, not with the full frame
+      // and sibling candidates still mixed into the cached multi-view query.
       const query=cachedDetection && cachedRegionMatches
-        ? cachedDetection.query
+        ? requestedRegion
+          ? cachedSelectedQuery || await describeLocalQuery(queryImage)
+          : cachedDetection.query
         : await describeLocalQuery(queryImage);
       const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
       const viewScores=bestBoundQueryViewScores(retrieved,products);
-      const selectedRegion=body.fullImage===true ? undefined : body.region || selectBestQueryRegion(query.viewRegions,viewScores,query.region);
-      const detailImage=body.fullImage===true || body.region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
+      const selectedRegion=body.fullImage===true ? undefined : requestedRegion || selectBestQueryRegion(query.viewRegions,viewScores,query.region);
+      const detailImage=body.fullImage===true || requestedRegion || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
       let geometryComplete=false;
       try{
         const candidates=await Promise.all(hits.slice(0,6).map(async hit=>{
@@ -4775,7 +4783,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : localProfile.minSimilarity;
       const visualResult=localVisionResult(hits,products,coverage,'',threshold,query,body.includeNearest===true);
       const result=body.domainHint==='industrial-belt' ? applyBeltRecognition(visualResult,products,query.markings) : visualResult;
-      const queryRegions=body.region ? [body.region] : cachedDetection?.queryRegions || (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
+      const queryRegions=requestedRegion ? [requestedRegion] : cachedDetection?.queryRegions || (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
       const responsePayload=publicCatalog({...result,customerImageUrl:undefined,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")});
       if(typeof body.detectionId==='string')localVisionDetectionCache.delete(body.detectionId);
       return res.json(responsePayload);
