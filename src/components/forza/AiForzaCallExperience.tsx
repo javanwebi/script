@@ -1452,9 +1452,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(serverTranscript && (q || failedSegments===0)){
               const preferAvalaiFinal=serverSttProviderRef.current==='avalai'&&!serverUsedDibaFallback;
               payload.query=chooseForzaFinalTranscript(q,serverTranscript,preferAvalaiFinal);
-              console.info('[FORZA_STT] turn='+generation+' provider=diba-vosk duration_ms='+
+              const finalSttProvider=serverUsedDibaFallback
+                ?'diba-fallback'
+                :serverSttProviderRef.current==='avalai'?'avalai-gpt-transcribe'
+                :serverSttProviderRef.current||'server';
+              console.info('[FORZA_STT] turn='+generation+' provider='+finalSttProvider+' duration_ms='+
                 Math.round(performance.now()-sttStartedAt)+' segments='+audioBlobs.length+
-                ' failed='+failedSegments+' source='+(payload.query===q?'browser_guarded':'server_final')+
+                ' failed='+failedSegments+' source='+(preferAvalaiFinal?'avalai_final':payload.query===q?'browser_guarded':'server_final')+
                 ' transcript_chars='+serverTranscript.length);
               setUserText(q
                 ?replaceForzaLastSessionTurn(sessionTranscriptRef.current,q,payload.query)
