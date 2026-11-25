@@ -498,6 +498,17 @@ async function loadSnapshot(): Promise<Snapshot> {
     };
   });
 
+  // Count only exact-SKU images that actually attach to active variants in this
+  // engineered catalog; audited images for retired/out-of-scope SKUs stay hidden.
+  const activeVerifiedVariantImageUrls = new Set<string>();
+  for (const product of products) {
+    for (const variant of product.variants || []) {
+      for (const url of variant.images || []) {
+        if (url) activeVerifiedVariantImageUrls.add(url);
+      }
+    }
+  }
+
   return {
     loadedAt: Date.now(),
     products,
@@ -516,7 +527,7 @@ async function loadSnapshot(): Promise<Snapshot> {
     rawDirectSkuCount: Number(payload.stats?.directSkus || 0),
     standaloneDirectSkuRows: asArray(payload.directSkus).length,
     verifiedFamilyImageCount: Array.from(familyImageOwnersByUrl.values()).filter((owners) => owners.size === 1).length,
-    verifiedVariantImageCount: galleryRes.rows.filter((row: any) => row.scope === 'variant' && row.identity_verified === true).length,
+    verifiedVariantImageCount: activeVerifiedVariantImageUrls.size,
   };
 }
 
