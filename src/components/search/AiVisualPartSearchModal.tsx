@@ -412,6 +412,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     // saliency model is only a fallback for deployments without that encoder.
     const statusPromise=localVisionStatusPromiseRef.current;
     const serverPreferred=localVisionServerEnabledRef.current || (statusPromise ? await statusPromise : false);
+    if(sequence!==regionDetectionSequenceRef.current || !isOpen)return;
     let serverAttempted=false;
 
     const commitServerDetection=(detection:{
