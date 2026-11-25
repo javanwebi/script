@@ -166,7 +166,8 @@ export function ImageRegionSelector({
       const bounds={left:frameBounds.left,top:frameBounds.top,width:frameBounds.width,height:frameBounds.height};
       const p=point(event,bounds);
       const inside=Boolean(value&&p.x>=value.x&&p.x<=value.x+value.width&&p.y>=value.y&&p.y<=value.y+value.height);
-      interaction.current={mode:autoSelect?'draw':inside?'move':'draw',start:p,clientX:event.clientX,clientY:event.clientY,bounds,origin:!autoSelect&&inside&&value?{...value}:undefined};
+      const canMoveSelection=Boolean(value&&inside&&(!autoSelect||manualSelection));
+      interaction.current={mode:canMoveSelection?'move':'draw',start:p,clientX:event.clientX,clientY:event.clientY,bounds,origin:canMoveSelection&&value?{...value}:undefined};
       event.currentTarget.setPointerCapture(event.pointerId);
       setDraft(undefined);
      }}
