@@ -92,8 +92,9 @@ export const NonBeltFamilyGrid: React.FC<NonBeltFamilyGridProps> = ({
         wholesale: variant.prices?.wholesale ?? unitPrice,
         dealer: variant.prices?.dealer ?? unitPrice,
       },
-      images: uniqueImageUrl ? [uniqueImageUrl] : product.images?.slice(0, 1) || [],
-      image: uniqueImageUrl || product.image,
+      // Never substitute a family photo when the selected SKU has no verified photo.
+      images: uniqueImageUrl ? [uniqueImageUrl] : [],
+      image: uniqueImageUrl || undefined,
     };
     addToCart(cartProduct, 1);
     setRecentlyAddedCode(variant.code);
