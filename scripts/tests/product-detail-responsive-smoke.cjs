@@ -5,14 +5,14 @@ const { chromium } = require('playwright');
 
 const baseUrl = process.env.PRODUCT_DETAIL_PREVIEW_URL || 'http://127.0.0.1:4173';
 const familyCode = 'TEST-BRG-FAMILY';
-const categorySlug = 'بلبرینگ-و-یاتاقان';
+const categorySlug = 'excel-v2-1-2';
 const familyProduct = {
   code: familyCode,
-  name: 'بلبرینگ آزمایشی شیار عمیق',
-  nameEn: 'Test Deep Groove Bearing Family',
+  name: 'تسمه تایمینگ آزمایشی',
+  nameEn: 'Test Timing Belt Family',
   brand: 'Test Bearing',
   categorySlug,
-  categoryName: 'بلبرینگ و یاتاقان',
+  categoryName: 'تسمه‌های صنعتی',
   submenu: 'بلبرینگ',
   subcategory: 'بلبرینگ',
   technicalSpecs: [
@@ -58,7 +58,7 @@ const familyProduct = {
   variants: [
     {
       code: 'TEST-BRG-001',
-      name: 'بلبرینگ آزمایشی شیار عمیق 6205',
+      name: 'تسمه تایمینگ آزمایشی 6205',
       size: '25 × 52 × 15 mm',
       model: '6205-2RS',
       brand: 'Test Bearing',
@@ -74,7 +74,7 @@ const familyProduct = {
     },
     {
       code: 'TEST-BRG-002',
-      name: 'بلبرینگ آزمایشی شیار عمیق 6206',
+      name: 'تسمه تایمینگ آزمایشی 6206',
       size: '30 × 62 × 16 mm',
       model: '6206-2RS',
       brand: 'Test Bearing',
@@ -134,7 +134,7 @@ const viewports = [
             body: JSON.stringify({
               success: true,
               product: familyProduct,
-              categoryMeta: { slug: categorySlug, name: 'بلبرینگ و یاتاقان' },
+              categoryMeta: { slug: categorySlug, name: 'تسمه‌های صنعتی' },
               similarProducts: [],
             }),
           });
@@ -158,14 +158,14 @@ const viewports = [
       }));
 
       await page.goto(baseUrl + '/product/TEST-BRG-001?source=responsive-smoke', { waitUntil: 'domcontentloaded' });
-      await page.locator('.product-detail-premium').waitFor();
+      await page.locator('[data-testid="popd-product-detail"]').waitFor();
       await page.locator('h1').filter({ hasText: '6205' }).waitFor({ timeout: 25000 });
 
-      const mainImage = page.locator('.product-detail-image img').first();
+      const mainImage = page.locator('[data-testid="product-detail-image"] img').first();
       await mainImage.waitFor({ state: 'visible' });
       await mainImage.evaluate(image => image.decode());
       assert.ok(await mainImage.evaluate(image => image.complete && image.naturalWidth > 0), 'selected SKU image should load');
-      assert.ok((await page.locator('.product-detail-image').innerText()).includes('TEST-BRG-001'), 'main gallery should identify the exact selected SKU image');
+      assert.equal((await page.locator('[data-testid="active-sku-code"]').innerText()).trim(), 'TEST-BRG-001', 'main gallery must be paired with the exact selected SKU');
 
       const initialLayout = await page.evaluate(() => ({
         viewport: window.innerWidth,
@@ -175,37 +175,36 @@ const viewports = [
       assert.ok(initialLayout.document <= initialLayout.viewport + 1, 'unexpected horizontal document overflow: ' + JSON.stringify(initialLayout));
       assert.ok(initialLayout.body <= initialLayout.viewport + 1, 'unexpected horizontal body overflow: ' + JSON.stringify(initialLayout));
 
-      const secondVariant = page.getByRole('button', { name: /انتخاب کد کالا TEST-BRG-002/ });
+      const secondVariant = viewport.width < 768
+        ? page.getByRole('button', { name: /انتخاب کد کالا TEST-BRG-002/ })
+        : page.locator('[data-testid="belt-sku-selector"] tbody tr').filter({ hasText: 'TEST-BRG-002' }).first();
       await secondVariant.click();
-      await page.waitForURL(/TEST-BRG-002/);
-      assert.equal(new URL(page.url()).searchParams.get('source'), 'responsive-smoke', 'SKU navigation should preserve existing query parameters');
-      await page.locator('h1').filter({ hasText: '6206' }).waitFor();
-      assert.ok((await page.locator('.product-detail-breadcrumbs').innerText()).includes('TEST-BRG-002'), 'breadcrumb should reflect the selected SKU');
+      await page.waitForFunction(() => document.querySelector('[data-testid="active-sku-code"]')?.textContent?.trim() === 'TEST-BRG-002');
+      assert.equal(new URL(page.url()).searchParams.get('source'), 'responsive-smoke', 'SKU selection should preserve existing query parameters');
+      assert.equal((await page.locator('[data-testid="active-sku-code"]').innerText()).trim(), 'TEST-BRG-002', 'the active SKU label should update without leaving the family page');
 
       const familyThumbnail = page.getByRole('button', { name: /نمایش تصویر عمومی خانواده/ }).first();
       await familyThumbnail.click();
-      assert.ok((await page.locator('.product-detail-image').innerText()).includes('تصویر عمومی خانواده محصول'), 'family reference image must be clearly labelled');
-      assert.ok((await page.locator('.product-detail-breadcrumbs').innerText()).includes('TEST-BRG-002'), 'choosing a family image must not silently change the selected SKU');
-      assert.ok(page.url().includes('TEST-BRG-002'), 'family image selection should keep the selected SKU route');
+      assert.equal(await familyThumbnail.getAttribute('aria-pressed'), 'true', 'family reference thumbnail should become active');
+      assert.equal((await page.locator('[data-testid="active-sku-code"]').innerText()).trim(), 'TEST-BRG-002', 'choosing a family image must not silently change the selected SKU');
 
       const firstVariantThumbnail = page.getByRole('button', { name: /انتخاب تصویر کد TEST-BRG-001/ }).first();
       await firstVariantThumbnail.click();
-      await page.waitForURL(/TEST-BRG-001/);
-      await page.locator('h1').filter({ hasText: '6205' }).waitFor();
+      await page.waitForFunction(() => document.querySelector('[data-testid="active-sku-code"]')?.textContent?.trim() === 'TEST-BRG-001');
 
-      await page.getByRole('tab', { name: /شناسنامه کد و تطبیق با کاتالوگ/ }).click();
-      await page.getByText('شناسه‌ها و مدارک محصول').waitFor();
-      assert.ok((await page.locator('#product-detail-tab-panel').innerText()).includes('TEST-BRG-001'), 'catalogue tab should show the selected SKU identifier');
+      await page.getByRole('tab', { name: /مشخصات فنی کد و خانواده/ }).click();
+      await page.getByText(/مشخصات کد انتخاب‌شده/).waitFor();
+      assert.ok((await page.locator('[data-testid="active-sku-code"]').innerText()).includes('TEST-BRG-001'), 'technical tab should remain bound to the selected SKU');
 
-      await page.getByRole('tab', { name: /انبارداری یزد/ }).click();
-      await page.getByText('انبارداری، لجستیک و تحویل کالا از انبار مرکزی یزد').waitFor();
-      await page.getByRole('tab', { name: /مشخصات فنی/ }).click();
+      await page.getByRole('tab', { name: /شرایط تأمین، برش و ارسال/ }).click();
+      await page.getByText('ارسال فوری از انبار مرکزی یزد').waitFor();
+      await page.getByRole('tab', { name: /مشخصات فنی کد و خانواده/ }).click();
 
       if (viewport.width < 1024) {
-        assert.ok(await page.locator('.product-detail-mobile-action').isVisible(), 'mobile/tablet sticky purchase access should be visible');
+        assert.ok(await page.locator('[data-testid="belt-mobile-sticky-bar"]').isVisible(), 'mobile/tablet sticky purchase access should be visible');
       } else {
         assert.equal(await page.locator('.product-detail-mobile-action').isVisible(), false, 'desktop should not show the mobile sticky bar');
-        const galleryPosition = await page.locator('.product-detail-gallery').evaluate(element => getComputedStyle(element).position);
+        const galleryPosition = await page.locator('[data-testid="product-detail-gallery-sticky"]').evaluate(element => getComputedStyle(element).position);
         assert.equal(galleryPosition, 'sticky', 'desktop gallery should remain sticky while scrolling');
       }
 
