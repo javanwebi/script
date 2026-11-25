@@ -1110,6 +1110,10 @@
 
 /* Keep manual crop feedback and resize handles available in the automatic viewer. */
 .sanat-region-picker--viewer .sanat-region-picker__frame {
+  display: inline-block;
+  width: fit-content;
+  height: fit-content;
+  flex: 0 1 auto;
   touch-action: none !important;
   cursor: crosshair;
 }
