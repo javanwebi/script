@@ -103,7 +103,9 @@ async function handleRequest(request: WorkerRequest): Promise<void> {
       composite[offset + 3] = 255;
     }
 
-    if (foregroundPixels < width * height * 0.004) {
+    // The previous 0.4% cutoff discarded small industrial parts in wide photos.
+    // Keep a noise floor while accepting foreground masks down to 0.08% of the image.
+    if (foregroundPixels < Math.max(18, Math.floor(width * height * 0.0008))) {
       throw new Error('client_segmentation_foreground_too_small');
     }
     if (!regions.length) {
