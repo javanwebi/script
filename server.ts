@@ -84,10 +84,15 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.sms'), quiet: true });
 // Server-only staff administration key. Never include it in Vite assets or the browser.
 dotenv.config({ path: path.resolve(process.cwd(), '.env.staff'), quiet: true });
 loadLocalVisionConfig(process.cwd());
-// Warm the offline Persian STT model before the first customer call. The worker
-// keeps model state in RAM and accepts audio only through stdin pipes.
-if(selectForzaSttProvider(process.env).provider==='diba'){
-  void warmForzaDibaStt().then(ready=>console.info('[FORZA_STT] provider=diba ready='+Number(ready)))
+// Warm the offline Persian Diba model before the first customer call.
+// It is primary only when explicitly selected, and remains hot as a local
+// fallback when AvalAI GPT-Transcribe is the production primary.
+const bootSttSelection=selectForzaSttProvider(process.env);
+if(bootSttSelection.provider==='diba'||
+  (bootSttSelection.provider==='avalai'&&hasForzaDibaSttModel())){
+  void warmForzaDibaStt().then(ready=>console.info(
+    '[FORZA_STT] provider='+(bootSttSelection.provider==='avalai'?'diba-fallback':'diba')+
+    ' ready='+Number(ready)))
     .catch(()=>console.warn('[FORZA_STT] provider=diba warmup_failed=1'));
 }
 // Example configuration is documentation only; never load placeholder defaults into runtime.
