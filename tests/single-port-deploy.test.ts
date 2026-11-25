@@ -463,3 +463,32 @@ test("release bundle gates match automatic KIKI camera capture and inline result
   assert.doesNotMatch(launcher, /عکس‌برداری مجدد|تأیید و جستجوی قطعه/);
   assert.doesNotMatch(launcher, /grep -qF 'عکس‌برداری مجدد'/);
 });
+
+test("the production canary verifies the POPD reference archive and every approved image before promotion", () => {
+  const canary = file("ops/verify-single-port-canary.mjs");
+  for (const marker of [
+    "/api/catalog/reference/status",
+    "/api/catalog/reference/categories",
+    "/api/catalog/reference/navigation-groups",
+    "/api/catalog/reference/menu-category/",
+    "/api/catalog/reference/product/",
+    "POPD_REFERENCE_FAMILY_COUNT_MISMATCH",
+    "POPD_REFERENCE_SKU_COUNT_MISMATCH",
+    "POPD_REFERENCE_CATEGORY_COUNT_MISMATCH",
+    "POPD_REFERENCE_GROUP_COUNT_MISMATCH",
+    "POPD_REFERENCE_CATEGORY_MUST_BELONG_TO_EXACTLY_ONE_GROUP",
+    "POPD_REFERENCE_STORAGE_IMAGES_MISSING",
+    "POPD_REFERENCE_STORAGE_IMAGES_OK",
+    'method: "HEAD"',
+  ]) {
+    assert.ok(canary.includes(marker), "production catalogue canary is missing " + marker);
+  }
+  const start = canary.indexOf("===== POPD REFERENCE CATALOGUE CANARY =====");
+  const end = canary.indexOf('for (const [route, key] of [', start);
+  assert.ok(start >= 0 && end > start);
+  const referenceGate = canary.slice(start, end);
+  assert.ok(referenceGate.indexOf("POPD_REFERENCE_STORAGE_IMAGES_OK") <
+    referenceGate.indexOf("POPD_REFERENCE_CATEGORY_FAMILY_SKU_ROUTES_OK"));
+  assert.ok(one.indexOf("node ops/verify-single-port-canary.mjs") <
+    one.indexOf("===== PROMOTE ON SAME FIXED PORT"));
+});
