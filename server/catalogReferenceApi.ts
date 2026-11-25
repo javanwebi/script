@@ -586,6 +586,27 @@ async function getSnapshot(): Promise<Snapshot> {
   return snapshotInFlight;
 }
 
+function buildReferenceCategoryChildren(
+  families: Array<{ submenu: string | null; leaf: string | null }>,
+): NonNullable<Category['children']> {
+  const bySubmenu = new Map<string, { name: string; children: Array<{ name: string }> }>();
+  for (const family of families) {
+    const submenu = String(family.submenu || family.leaf || '').trim();
+    if (!submenu) continue;
+    let parent = bySubmenu.get(normalizeCode(submenu));
+    if (!parent) {
+      parent = { name: submenu, children: [] };
+      bySubmenu.set(normalizeCode(submenu), parent);
+    }
+    const leaf = String(family.leaf || '').trim();
+    if (leaf && normalizeCode(leaf) !== normalizeCode(submenu) &&
+        !parent.children.some((child) => normalizeCode(child.name) === normalizeCode(leaf))) {
+      parent.children.push({ name: leaf });
+    }
+  }
+  return Array.from(bySubmenu.values());
+}
+
 function categoryPayload(snapshot: Snapshot, slug: string) {
   const category = snapshot.categories.find((item) => item.slug === slug);
   if (!category) return null;
@@ -611,7 +632,18 @@ function categoryPayload(snapshot: Snapshot, slug: string) {
       })),
     });
   }
-  return { category: { ...category, children: category.children || [] }, families, products: matchedProducts };
+  // Supabase metadata can contain stale/empty subcategories. For a populated POPD
+  // category, the resolved assignments in the pinned engineered archive are the
+  // source of truth: expose only submenus/leaves that actually own a family.
+  const referenceChildren = buildReferenceCategoryChildren(families);
+  const categoryWithReferenceTaxonomy = referenceChildren.length
+    ? {
+        ...category,
+        children: referenceChildren,
+        subcategories: referenceChildren.map((node) => node.name),
+      }
+    : { ...category, children: category.children || [] };
+  return { category: categoryWithReferenceTaxonomy, families, products: matchedProducts };
 }
 
 function legacyCategoryPayload(snapshot: Snapshot, slug: string) {
