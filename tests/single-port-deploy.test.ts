@@ -446,3 +446,19 @@ ${huge}location / {
     assert.ok(clean.includes("limit_except GET { deny all; }"));
   } finally { fs.rmSync(sandbox,{recursive:true,force:true}); }
 });
+
+
+test("deployment camera asset gates match the current full-screen scanner UI instead of removed legacy buttons", () => {
+  const mobileScan = file("tests/mobile-scan-ui.test.ts");
+  for (const script of [one, launcher]) {
+    assert.match(script, /grep -RlF 'full-screen-camera-experience'/);
+    assert.match(script, /grep -RlF 'شناسایی قطعه با دوربین'/);
+    assert.match(script, /grep -RlF 'ثبت عکس قطعه'/);
+    assert.doesNotMatch(script, /grep -RlF 'عکس‌برداری مجدد'/);
+    assert.doesNotMatch(script, /grep -RlF 'تأیید و جستجوی قطعه'/);
+  }
+  assert.match(mobileScan, /assert\.doesNotMatch\(modal, \/cameraReview\|confirmCameraPhoto\|retakeCameraPhoto\|تأیید و جستجوی قطعه\//);
+  assert.match(launcher, /grep -qF 'شناسایی قطعه با دوربین' \/tmp\/sanatpish-fullscreen-camera-canary\.js/);
+  assert.match(launcher, /grep -qF 'ثبت عکس قطعه' \/tmp\/sanatpish-fullscreen-camera-canary\.js/);
+  assert.doesNotMatch(launcher, /grep -qF 'عکس‌برداری مجدد'/);
+});
