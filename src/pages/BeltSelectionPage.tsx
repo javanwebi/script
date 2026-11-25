@@ -21,7 +21,7 @@ export function BeltSelectionPage() {
   const engineeringUrl = `/ai-consult?prompt=${encodeURIComponent(BELT_ENGINEERING_PROMPT)}`;
 
   return (
-    <main className="belt-selection-page" dir="rtl">
+    <div className="belt-selection-page" dir="rtl">
       <div className="bsp-container">
         <nav className="bsp-breadcrumb" aria-label="مسیر راهنما">
           <Link to="/">صفحه اصلی</Link>
@@ -143,6 +143,6 @@ export function BeltSelectionPage() {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
