@@ -1711,7 +1711,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       <div className="rounded-xl border border-orange-100 bg-white p-3"><span className="block text-[10px] text-slate-500">مارکینگ طول</span><strong className="mt-1 block text-sm text-slate-800" dir="ltr">{analysisResult.beltAnalysis.lengthMarking || "خوانده نشد"}</strong></div>
                     </div>
                     {analysisResult.beltAnalysis.brandMarking && <p className="text-xs text-slate-700">نشان خوانده‌شده: <strong dir="ltr">{analysisResult.beltAnalysis.brandMarking}</strong></p>}
-                    {!!analysisResult.beltAnalysis.candidateFamilies.length && <p className="text-xs leading-6 text-slate-700">خانواده‌های قابل بررسی: {analysisResult.beltAnalysis.candidateFamilies.map(item => item.familyName).join("، ")}</p>}
+                    {!!analysisResult.beltAnalysis.codeMatches.length && <p className="text-xs text-slate-700">کدهای دقیق منطبق در کاتالوگ: <strong dir="ltr">{analysisResult.beltAnalysis.codeMatches.join("، ")}</strong></p>}
+                    {!!analysisResult.beltAnalysis.candidateFamilies.length && <p className="text-xs leading-6 text-slate-700">خانواده‌های قابل بررسی: {analysisResult.beltAnalysis.candidateFamilies.map(item => [item.familyName, item.profile && "پروفیل " + item.profile, item.sizesSummary && "اندازه‌ها: " + item.sizesSummary].filter(Boolean).join(" · ")).join("، ")}</p>}
                     <p className="text-xs leading-6 text-slate-600">{analysisResult.beltAnalysis.note}</p>
                   </section>
                 )}

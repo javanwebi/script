@@ -46,6 +46,19 @@ test('exploratory nearest neighbours do not confirm that the photographed object
 });
 test('welding tools and ambiguous service families are excluded from belt identity',()=>{
  const tool={code:'tool-family',name:'دستگاه جوش تسمه',brand:'',categorySlug:'excel-v2-1-1',categoryName:'تسمه و انتقال نیرو',subcategory:'تجهیزات جوش',active:true,variants:[{code:'TOOL-1',name:'دستگاه جوش تسمه',active:true,variableSpecs:{beltDivision:'belt-welding-tool'}}]} as unknown as Product;
- const result=applyBeltRecognition(resultFor('belt-family','SPB-2000'),[...products,tool],[{text:'SPB 2000',confidence:97}]);
+ const ambiguous={code:'ambiguous-family',name:'تسمه صنعتی',brand:'',categorySlug:'excel-v2-1-1',categoryName:'تسمه و انتقال نیرو',subcategory:'تسمه',active:true,variants:[{code:'AMB-1',name:'تسمه صنعتی',active:true,variableSpecs:{beltDivision:'service-ambiguous'}}]} as unknown as Product;
+ const base=resultFor('belt-family','SPB-2000');
+ base.modelSuggestions?.push(
+  {code:'TOOL-1',name:'دستگاه جوش تسمه',familyCode:'tool-family',familyName:tool.name,imageScope:'variant',matchBasis:'visual',specs:[],reason:'visual'},
+  {code:'AMB-1',name:'تسمه صنعتی',familyCode:'ambiguous-family',familyName:ambiguous.name,imageScope:'variant',matchBasis:'visual',specs:[],reason:'visual'}
+ );
+ base.similarCandidates?.push(
+  {code:'TOOL-1',name:'دستگاه جوش تسمه',brand:'',type:tool.name,similarityScore:90,matchReason:'visual',specs:[],matchType:'visual',isVisualMatch:true},
+  {code:'AMB-1',name:'تسمه صنعتی',brand:'',type:ambiguous.name,similarityScore:90,matchReason:'visual',specs:[],matchType:'visual',isVisualMatch:true}
+ );
+ base.catalogImageMatches?.[0].bindings.push({familyCode:'tool-family',code:'TOOL-1',verified:true},{familyCode:'ambiguous-family',code:'AMB-1',verified:true});
+ const result=applyBeltRecognition(base,[...products,tool,ambiguous],[{text:'SPB 2000',confidence:97}]);
  assert.equal(result.beltAnalysis?.candidateFamilies.some(item=>item.familyCode==='tool-family'),false);
+ assert.equal(result.beltAnalysis?.candidateFamilies.some(item=>item.familyCode==='ambiguous-family'),false);
+ assert.equal(result.modelSuggestions?.some(item=>item.familyCode==='tool-family'||item.familyCode==='ambiguous-family'),false);
 });

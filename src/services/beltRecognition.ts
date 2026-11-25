@@ -137,7 +137,7 @@ export function applyBeltRecognition(result:AiPartAnalysisResult,products:Produc
  for(const item of nearestCatalogSuggestions)visibleFamilyCodes.add(item.familyCode);
  const candidateFamilies=[...visibleFamilyCodes].map(code=>families.get(code)).filter((family):family is Product=>Boolean(family)).sort((a,b)=>familyOrder(a.code)-familyOrder(b.code)).slice(0,6).map(family=>{
   const status=statuses.get(family.code)||'unknown',readCode=[...codeMatches].some(code=>variants.get(code)?.family.code===family.code),profiles=catalogProfiles(family);
-  return {familyCode:family.code,familyName:family.name,profile:profiles.join(' / ')||undefined,basis:readCode?'read-code' as const:status==='match'?'profile' as const:'visual-family' as const};
+  return {familyCode:family.code,familyName:family.name,profile:profiles.join(' / ')||undefined,sizesSummary:family.sizesSummary||undefined,basis:readCode?'read-code' as const:status==='match'?'profile' as const:'visual-family' as const};
  });
  const profileMatchStatus:BeltRecognitionAnalysis['profileMatchStatus']=!parsed?.profile?'not-read':!hasVisualBeltEvidence?'unverified':candidateFamilies.some(item=>statuses.get(item.familyCode)==='match')?'matched':candidateFamilies.some(item=>statuses.get(item.familyCode)==='unknown')?'unverified':'not-matched';
  const codeList=[...codeMatches].slice(0,6),evidence=[...(parsed?.evidence?['مارکینگ خوانده‌شده: '+parsed.evidence]:[]),...(parsed?.profile?['پروفیل استخراج‌شده: '+parsed.profile]:[]),...(codeList.length?['کدهای یکتای متصل به خانواده تصویری: '+codeList.join('، ')]:[])];

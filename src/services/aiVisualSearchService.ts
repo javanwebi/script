@@ -107,7 +107,7 @@ export interface BeltRecognitionAnalysis {
   brandMarking?: string;
   codeMatches: string[];
   profileMatchStatus: 'matched'|'unverified'|'not-matched'|'not-read';
-  candidateFamilies: {familyCode:string;familyName:string;profile?:string;basis:'profile'|'visual-family'|'read-code'}[];
+  candidateFamilies: {familyCode:string;familyName:string;profile?:string;sizesSummary?:string;basis:'profile'|'visual-family'|'read-code'}[];
   evidence: string[];
   note: string;
 }
