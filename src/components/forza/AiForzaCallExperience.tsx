@@ -1396,13 +1396,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        // A usable live transcript is already the completed user turn.
+        // A finalized live transcript is already the completed user turn.
         // Never hold the LLM request while a second STT provider re-transcribes
-        // the same audio. Server AvalAI/Diba is strictly a recovery path when
-        // the live browser/local recognizer produced no text.
+        // the same audio. Server AvalAI/Diba is used only when live recognition
+        // produced no text or only an interim hypothesis, never for a final.
         const needsServerFinal = Boolean(audioBlob) &&
           serverSttConfiguredRef.current === true &&
-          !q;
+          (!q || speechInterimRef.current);
         if(audioBlob && needsServerFinal){
           const audioBlobs=Array.isArray(audioBlob)?audioBlob:[audioBlob];
           const sttStartedAt=performance.now();
