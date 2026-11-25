@@ -91,10 +91,16 @@ export function applyBeltRecognition(result:AiPartAnalysisResult,products:Produc
   const bindings=photo.bindings||[];
   const familyCodes=[...new Set(bindings.map(binding=>binding.familyCode).filter(Boolean))];
   if(!familyCodes.length||familyCodes.some(code=>!families.has(code)))continue;
+  const familyBindings=bindings.filter(binding=>!binding.code);
+  const skuBindings=bindings.filter(binding=>Boolean(binding.code));
+  // An unverified SKU-only attachment is not evidence of either that SKU or
+  // its family. A family-scoped image is family evidence; a SKU image becomes
+  // trusted only after its exact image-to-SKU identity has been verified.
+  const hasTrustedBinding=familyBindings.length>0||skuBindings.some(binding=>binding.verified===true);
+  if(!hasTrustedBinding)continue;
   safePhotoIds.add(photo.imageId);
   for(const code of familyCodes)candidateCodes.add(code);
-  const skuBindings=bindings.filter(binding=>Boolean(binding.code));
-  if(familyCodes.length===1&&skuBindings.length===1){
+  if(familyCodes.length===1&&skuBindings.length===1&&skuBindings[0].verified===true){
    const binding=skuBindings[0],owner=binding.code?variants.get(binding.code):undefined;
    if(owner&&owner.family.code===binding.familyCode)safeVisualSkuKeys.add(binding.familyCode+':'+binding.code);
   }
@@ -132,10 +138,17 @@ export function applyBeltRecognition(result:AiPartAnalysisResult,products:Produc
   return {...item,matchReason:item.matchReason+' '+note};
  }).sort((a,b)=>familyOrder(familyByVariant.get(a.code)||'')-familyOrder(familyByVariant.get(b.code)||''));
  const catalogImageMatches=(result.catalogImageMatches||[]).filter(photo=>safePhotoIds.has(photo.imageId)).flatMap(photo=>{
-  const bindings=(photo.bindings||[]).filter(binding=>allowedCodes.has(binding.familyCode));if(!bindings.length)return [];
-  return [{...photo,bindings,familyNames:[...new Set(bindings.map(binding=>families.get(binding.familyCode)?.name).filter((name):name is string=>Boolean(name)))]}];
+  const originalBindings=photo.bindings||[];
+  const bindings=originalBindings.filter(binding=>allowedCodes.has(binding.familyCode)&&(!binding.code||safeVisualSkuKeys.has(binding.familyCode+':'+binding.code)));
+  const displayBindings=[...bindings];
+  const photoFamilyCodes=[...new Set(originalBindings.map(binding=>binding.familyCode).filter(code=>allowedCodes.has(code)))];
+  // If a trusted photo supports a family but cannot uniquely prove one SKU,
+  // expose it as family-level evidence rather than leaking an ambiguous SKU.
+  for(const code of photoFamilyCodes)if(!displayBindings.some(binding=>binding.familyCode===code))displayBindings.push({familyCode:code,verified:false});
+  if(!displayBindings.length)return [];
+  return [{...photo,bindings:displayBindings,familyNames:[...new Set(displayBindings.map(binding=>families.get(binding.familyCode)?.name).filter((name):name is string=>Boolean(name)))]}];
  });
- const nearestCatalogSuggestions=(result.nearestCatalogSuggestions||[]).filter(item=>allowedCodes.has(item.familyCode)),visibleFamilyCodes=new Set<string>();
+ const nearestCatalogSuggestions=(result.nearestCatalogSuggestions||[]).filter(item=>allowedCodes.has(item.familyCode)),visibleFamilyCodes=new Set<string>(candidateCodes);
  for(const item of modelSuggestions)visibleFamilyCodes.add(item.familyCode);
  for(const photo of catalogImageMatches)for(const binding of photo.bindings)visibleFamilyCodes.add(binding.familyCode);
  for(const item of similarCandidates){const code=familyByVariant.get(item.code);if(code)visibleFamilyCodes.add(code);}

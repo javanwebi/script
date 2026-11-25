@@ -64,3 +64,11 @@ test('belt-scoped image analysis fails closed instead of falling back to generic
   assert.match(server, /BELT_VISION_UNAVAILABLE/);
   assert.match(server, /domainHint==='industrial-belt' && !localVisionEnabled/);
 });
+
+test('belt-scoped catalog search is not truncated by the generic 240-family limit and remains populated after clearing the query', () => {
+  const searchPage = readFileSync(new URL('../src/pages/SearchPage.tsx', import.meta.url), 'utf8');
+  assert.match(searchPage, /beltScoped && !queryParam\\.trim\\(\\)/);
+  assert.match(searchPage, /searchProducts\\('تسمه', 1200\\)/);
+  assert.match(searchPage, /searchProducts\\('belt', 1200\\)/);
+  assert.match(searchPage, /searchProducts\\(queryParam, beltScoped \\? 1200 : 240\\)/);
+});

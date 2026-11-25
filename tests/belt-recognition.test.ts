@@ -52,7 +52,31 @@ test('a shared photo across two SKUs confirms only the belt family, not either S
  assert.deepEqual(result.beltAnalysis?.candidateFamilies.map(item=>item.familyCode),['belt-family']);
  assert.deepEqual(result.similarCandidates,[]);
  assert.equal(result.modelSuggestions?.some(item=>Boolean(item.code)),false);
+ assert.deepEqual(result.catalogImageMatches?.[0].bindings,[{familyCode:'belt-family',verified:false}]);
  assert.deepEqual(result.beltAnalysis?.codeMatches,['SPB-2000']);
+});
+
+test('an unverified SKU-only photo cannot confirm a belt family or SKU',()=>{
+ const base=resultFor('belt-family','SPB-2000');
+ base.catalogImageMatches=[{imageId:'unverified-sku-photo',image:'/storage/unverified.webp',label:'تسمه',score:98,reason:'unverified',bindings:[{familyCode:'belt-family',code:'SPB-2000',verified:false}]}];
+ const result=applyBeltRecognition(base,products,[{text:'SPB 2000',confidence:97}]);
+ assert.equal(result.beltAnalysis?.visualBeltConfirmed,false);
+ assert.equal(result.beltAnalysis?.profileMatchStatus,'unverified');
+ assert.deepEqual(result.beltAnalysis?.candidateFamilies,[]);
+ assert.deepEqual(result.modelSuggestions,[]);
+ assert.deepEqual(result.similarCandidates,[]);
+ assert.deepEqual(result.catalogImageMatches,[]);
+});
+
+test('a family-scoped photo confirms the family but never an individual SKU',()=>{
+ const base=resultFor('belt-family','SPB-2000');
+ base.catalogImageMatches=[{imageId:'family-photo',image:'/storage/family.webp',label:'تسمه V شکل',score:98,reason:'family photo',bindings:[{familyCode:'belt-family',verified:false}]}];
+ const result=applyBeltRecognition(base,products,[{text:'SPB 2000',confidence:97}]);
+ assert.equal(result.beltAnalysis?.visualBeltConfirmed,true);
+ assert.deepEqual(result.beltAnalysis?.candidateFamilies.map(item=>item.familyCode),['belt-family']);
+ assert.deepEqual(result.modelSuggestions,[]);
+ assert.deepEqual(result.similarCandidates,[]);
+ assert.deepEqual(result.catalogImageMatches?.[0].bindings,[{familyCode:'belt-family',verified:false}]);
 });
 
 test('nonvisual SKU siblings are not promoted by a visually matched family',()=>{

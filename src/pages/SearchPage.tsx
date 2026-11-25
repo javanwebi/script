@@ -91,8 +91,13 @@ export const SearchPage: React.FC = () => {
 
   const rawResults = useMemo(() => {
     void catalogVersion;
-    return searchProducts(queryParam, 240);
-  }, [queryParam, catalogVersion]);
+    if (beltScoped && !queryParam.trim()) {
+      const candidates = [...searchProducts('تسمه', 1200), ...searchProducts('belt', 1200)];
+      return [...new Map(candidates.map(product => [product.code, product])).values()];
+    }
+    // The industrial-belt catalogue contains more than the generic search cap.
+    return searchProducts(queryParam, beltScoped ? 1200 : 240);
+  }, [queryParam, catalogVersion, beltScoped]);
   const scopedRawResults = useMemo(() => beltScoped
     ? rawResults.filter(isIndustrialBeltProduct)
     : rawResults, [rawResults, beltScoped]);
