@@ -160,7 +160,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const specRows = extractCardSpecs(product, hasVariants);
 
   const isInStock = product.stockKnown && product.stock > 0 && !product.inquiryOnly;
-  const shouldDisableSiteFallback = disableSiteFallback || product.catalogSource === "popd";
+  const shouldDisableSiteFallback = disableSiteFallback || product.catalogSource === "popd" || product.code.startsWith("PFAM-");
   const resolvedImage = shouldDisableSiteFallback ? "" : resolveSiteProductImage(product);
   const rawPrimaryImage = product.images?.[0] || product.image || "";
   const beltFamilyMedia = getBeltFamilyMedia(product.code, rawPrimaryImage);
