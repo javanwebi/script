@@ -99,23 +99,24 @@ export function getBeltFamilyMedia(
   const clean = candidates.find((candidate) => isRealBeltFamily(candidate)) || '';
   if (!clean) return null;
   const entry = manifest.families[clean];
-  const dbImg = normalizeOfficialDbImage(existingImageOverride) || normalizeOfficialDbImage(entry.db);
+  // The manifest's legacy db/p fields are not proof of family-level identity.
+  // Only an image already filtered by the verified family gallery API is trusted.
+  const dbImg = normalizeOfficialDbImage(existingImageOverride);
   const base = `/src/assets/catalog/belts/families/${encodeURIComponent(clean)}`;
-  const photo1 = `${base}/family-image-01.webp`;
-  const photo2 = `${base}/family-image-02.webp`;
-  const photo3 = `${base}/family-image-03.webp`;
 
   return {
     familyCode: clean,
     menuCategorySlug: entry.s,
     dominantDivision: entry.d,
     existingDbImage: dbImg,
-    primaryThumbnail: dbImg || photo1,
-    familyPhotos: [photo1, photo2, photo3],
+    primaryThumbnail: dbImg || '',
+    // Generated master triplets are illustrative assets, not family-specific photographs.
+    // Keep them out of the public gallery until exact-family photos are verified.
+    familyPhotos: ['', '', ''],
     specSheetWebp: `${base}/family-specifications.webp`,
     specSheetSvg: `${base}/family-specifications.svg`,
-    hasVerifiedRealPhoto: Boolean(entry.p?.some(Boolean)),
-    hasVerifiedSpecSheet: true,
+    hasVerifiedRealPhoto: Boolean(dbImg),
+    hasVerifiedSpecSheet: Boolean(dbImg),
   };
 }
 
@@ -190,26 +191,16 @@ export function buildBeltGalleryImages(
     });
   }
 
-  // 2. Append the 4 family visuals (3 verified real photos + 1 standard dimensions spec sheet)
-  const photoLabels = [
-    'نمای کلی تسمه',
-    'نمای ساختار و دندانه',
-    'مقطع لایه‌ها و ساختار داخلی',
-  ];
-  familyMedia.familyPhotos.forEach((url, idx) => {
+  // 2. Append a family-specific specification sheet only when the family itself
+  // has a verified family-level image. Never publish shared master triplets as family photos.
+  if (familyMedia.hasVerifiedSpecSheet && familyMedia.specSheetWebp) {
     pushUnique({
-      id: `belt-fam-${product.code}-${idx + 1}`,
-      url,
+      id: `belt-fam-spec-${product.code}`,
+      url: familyMedia.specSheetWebp,
       scope: 'family',
-      title: `تصویر واقعی خانواده ${product.name} — ${photoLabels[idx]}`,
+      title: `جدول مشخصات و استاندارد ابعاد خانواده ${product.name}`,
     });
-  });
-  pushUnique({
-    id: `belt-fam-spec-${product.code}`,
-    url: familyMedia.specSheetWebp,
-    scope: 'family',
-    title: `جدول مشخصات و استاندارد ابعاد خانواده ${product.name}`,
-  });
+  }
 
   // 3. Preserve any existing non-belt variant DB images cleanly
   for (const img of baseGallery) {
