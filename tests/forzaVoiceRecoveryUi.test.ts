@@ -192,7 +192,7 @@ test('local Diba keeps one recognizer and appends finalized segments across repl
 });
 
 test('VAD waits for delayed speech text before stopping an empty transcript recording',()=>{
-  assert.match(ui,/: 6500;/);
+  assert.match(ui,/: 3200;/);
   assert.match(ui,/Math\.max\(0,Math\.max\(3200,pauseMs\)-acousticSilence\)/);
   assert.match(ui,/turnDispatchPendingRef\.current=true/);
   assert.match(ui,/const canInterruptPendingTurn=Boolean\(q&&\(/);
