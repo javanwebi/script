@@ -225,3 +225,14 @@ test('nearest catalogue results are requested and displayed as unconfirmed explo
   assert.ok(review.includes('data-match-basis={item.matchBasis ||'));
   assert.ok(styles.includes('[data-match-basis="explore"]'));
 });
+
+
+test('server isolates a cached multi-view query to the exact customer-selected region', () => {
+  const server = source('server.ts');
+  const localVision = source('src/services/localVision.ts');
+  assert.ok(server.includes('selectCachedQueryView(cachedDetection.query,requestedRegion)'));
+  assert.ok(server.includes('cachedSelectedQuery || await describeLocalQuery(queryImage)'));
+  assert.ok(server.includes('A selected candidate must be compared on its own'));
+  assert.ok(localVision.includes('vectors:[query.vectors[index]]'));
+  assert.ok(localVision.includes('markings:markingsBelongToRegion?query.markings:[]'));
+});
