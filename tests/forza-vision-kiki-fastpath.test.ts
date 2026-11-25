@@ -15,7 +15,8 @@ test('KIKI entry, camera, crop review and results share one real identification 
   assert.ok(modal.includes('forza-vision-catalog-sheet-header'));
   assert.ok(modal.includes('forza-vision-catalog-results'));
   assert.ok(modal.includes('src={selectedImage}'));
-  assert.ok(modal.includes('onConfirm={confirmRegionAndAnalyze}'));
+  assert.ok(modal.includes('onRegionChange={searchRegion}'));
+  assert.ok(modal.includes("handleAnalyze('quick', queryRegion || null, localImageId, { keepWorkspace: true })"));
   assert.ok(modal.includes('aiVisualSearchService.analyzePartWithAi'));
 });
 
@@ -61,8 +62,9 @@ test('mobile KIKI result sheet supports pull-up and image-return without droppin
   assert.ok(modal.includes('aria-expanded={mobileResultsExpanded}'));
   assert.ok(modal.includes('setMobileResultsExpanded(true)'));
   assert.ok(modal.includes('setMobileResultsExpanded(false)'));
-  assert.ok(modal.includes('onFullImageSearch'));
-  assert.ok(modal.includes('onRegionChange={handleRegionSelection}'));
+  assert.ok(modal.includes('autoAnalysisKeyRef.current === localImageId'));
+  assert.ok(modal.includes('onChange={searchRegion}'));
+  assert.ok(modal.includes('disabled={inlineAnalysisBusy}'));
   assert.ok(css.includes('KIKI mobile results: swipe up to expand'));
   assert.ok(css.includes('data-sheet-expanded="true"'));
   assert.ok(css.includes('prefers-reduced-motion'));
@@ -97,27 +99,34 @@ test('VISION entry uses original KIKI portal layout while retaining real image h
   assert.ok(!entry.includes('/src/assets/'));
 });
 
-test('real multi-part lens exposes KIKI quick-select buttons without auto-running analysis', () => {
+test('multi-part lens selects only model-detected boxes and immediately searches the selected region', () => {
   const picker = source('src/components/search/ImageRegionSelector.tsx');
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const optical = source('src/components/search/vision-camera-design.css');
   const review = source('src/components/search/image-region-review.css');
   const styles = source('src/components/search/industrial-scan.css');
+  const workspace = source('src/components/search/ImageRegionReview.tsx');
   assert.ok(picker.includes('data-testid="vision-region-candidates"'));
-  assert.ok(picker.includes('candidates.length > 1'));
-  assert.ok(picker.includes('onClick={() => { setDraft(undefined); onChange(region); }}'));
-  assert.ok(picker.includes('aria-pressed={sameRegion(selected,region)}'));
-  assert.ok(picker.includes("variant?:'default'|'viewer';"));
-  assert.ok(picker.includes('sanat-region-picker--viewer'));
-  assert.ok(picker.includes('mode:\'resize\''));
-  assert.ok(modal.includes('data-testid="forza-vision-optical-toolbar"'));
-  assert.ok(modal.includes('setMobileResultsExpanded(false); resetForm();'));
-  assert.ok(modal.includes('resetForm(); setCameraFlowActive(true); void startCamera();'));
+  assert.ok(picker.includes('visibleRegions.map'));
+  assert.ok(picker.includes('onClick={() => onChange(region)}'));
+  assert.ok(picker.includes('aria-pressed={selected}'));
+  assert.ok(picker.includes('sanat-region-picker__frame--automatic'));
+  assert.ok(!picker.includes('onSearch'));
+  assert.ok(!picker.includes('onFullImageSearch'));
+  assert.ok(!picker.includes('mode:\'resize\''));
+  assert.ok(!picker.includes('onPointerDown'));
+  assert.ok(modal.includes('autoAnalysisKeyRef.current === localImageId'));
+  assert.ok(modal.includes("handleAnalyze('quick', region, localImageId || undefined, { keepWorkspace: true })"));
+  assert.ok(modal.includes('onChange={searchRegion}'));
+  assert.ok(modal.includes('fv-match-select-on-image'));
+  assert.ok(workspace.includes('vision-inline-catalog-results'));
+  assert.ok(workspace.includes('onSelectProduct(item.code)'));
+  assert.ok(workspace.includes('مشاهده تحلیل کامل و مشخصات فنی'));
   assert.ok(optical.includes('.fv-kiki-optical-toolbar'));
   assert.ok(review.includes('.kiki-vision-review-shell.kiki-image-workspace'));
   assert.ok(review.includes('.sanat-region-picker__canvas'));
-  assert.ok(review.includes('.sanat-region-picker__search'));
-  assert.ok(review.includes('.sanat-region-picker__full-image'));
+  assert.ok(review.includes('pointer-events: auto'));
+  assert.ok(review.includes('.kiki-image-workspace__result-card.is-selected'));
   assert.ok(styles.includes('.fv-region-candidates__item.is-active'));
 });
 
