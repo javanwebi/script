@@ -457,9 +457,10 @@ async function loadSnapshot(): Promise<Snapshot> {
       ? metadata.children as Category['children']
       : [];
     const children = hasMetadataChildren ? metadataChildren : (fallback?.children || []);
-    const hasMetadataSubcategories = Array.isArray(metadata.subcategories);
+    const metadataSubcategoriesRaw = metadata.subcategories;
+    const hasMetadataSubcategories = Array.isArray(metadataSubcategoriesRaw);
     const metadataSubcategories = hasMetadataSubcategories
-      ? metadata.subcategories.map((value) => String(value))
+      ? (metadataSubcategoriesRaw as unknown[]).map((value: unknown) => String(value))
       : [];
     const subcategories = hasMetadataSubcategories
       ? metadataSubcategories
