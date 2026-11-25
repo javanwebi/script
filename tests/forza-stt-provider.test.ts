@@ -82,11 +82,12 @@ test('private config preserves AvalAI as primary and the bundled Diba fallback r
   assert.equal(nonBundledEnv.FORZA_STT_PROVIDER,'gemini');
 });
 
-test('the real single-port VPS runtime provisions and requires ready Diba STT',()=>{
+test('the real VPS runtime selects AvalAI STT and requires a ready Diba fallback',()=>{
   const deploy=readFileSync(new URL('../ops/deploy-single-port-vps.sh',import.meta.url),'utf8');
   const runtime=readFileSync(new URL('../ops/Dockerfile.forza-stt-runtime',import.meta.url),'utf8');
   const canary=readFileSync(new URL('../ops/verify-single-port-canary.mjs',import.meta.url),'utf8');
   const bluegreen=readFileSync(new URL('../ops/deploy-main-bluegreen-vps.sh',import.meta.url),'utf8');
+  const server=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
   assert.match(runtime,/vosk==0\.3\.45/);
   assert.match(runtime,/Dibachain\/Diba-STT/);
   assert.match(runtime,/FORZA_STT_PROVIDER=avalai/);
@@ -125,4 +126,7 @@ test('the real single-port VPS runtime provisions and requires ready Diba STT',(
   assert.match(bluegreen,/info\.get\('serverSttProvider'\) == 'avalai'/);
   assert.match(bluegreen,/stt_info\.get\('serverSttProvider'\) == 'avalai'/);
   assert.match(bluegreen,/serverSttFallbackProvider/);
+  assert.match(server,/if\(hasForzaDibaSttModel\(\)\)/);
+  assert.match(server,/sttProviderUsed='diba-fallback'/);
+  assert.match(server,/transcribeForzaDibaAudio\(audioBase64/);
 });
