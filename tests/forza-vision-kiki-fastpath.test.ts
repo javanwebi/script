@@ -262,3 +262,15 @@ test('only an exact cached proposal may reuse the server detection ID; a hand-dr
   assert.equal(matchesCachedImageRegion(manual, [automatic]), false);
   assert.equal(matchesCachedImageRegion(undefined, [automatic]), false);
 });
+
+test('automatic analysis ranks all detected views before pinning a customer-selected region', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const vision = source('src/services/localVision.ts');
+  assert.ok(modal.includes('const [regionSelectionExplicit,setRegionSelectionExplicit]=useState(false)'));
+  assert.ok(modal.includes('regionSelectionExplicit && regionDetectionId && selectedRegionForRequest'));
+  assert.ok(modal.includes('const requestDetectionId = !clientCropFallback ? regionDetectionId || undefined : undefined'));
+  assert.ok(modal.includes('detectionId: requestDetectionId'));
+  assert.ok(modal.includes("'automatic-catalog-ranking'"));
+  assert.ok(modal.includes('setRegionSelectionExplicit(true)'));
+  assert.ok(vision.includes('selectBestQueryRegion(query.viewRegions,viewScores,query.region)'));
+});
