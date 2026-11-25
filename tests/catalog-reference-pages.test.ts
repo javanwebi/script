@@ -86,6 +86,17 @@ test('legacy family image rows are attached by their original family code', () =
 });
 
 
+
+test('all six database-added category artworks match POPD', () => {
+  const artwork = read('src/utils/excelCategoryCatalog.ts');
+  assert.match(artwork, /excel-v2-1-5.*vbeltRibbedHero/);
+  assert.match(artwork, /excel-v2-4-2.*forzaSubCoupling/);
+  assert.match(artwork, /excel-v2-7-4.*refractoryPtfeCord/);
+  assert.match(artwork, /excel-v2-7-5.*forzaSubFittings/);
+  assert.match(artwork, /excel-v2-9-5.*categories\.chains/);
+  assert.match(artwork, /excel-v2-10-3.*ceramicGlazeRotary/);
+});
+
 test('all active Supabase categories and their database group assignments remain visible', () => {
   const api = read('server/catalogReferenceApi.ts');
   assert.match(api, /const activeCategorySlugs = categoryRes\.rows\.length/);
