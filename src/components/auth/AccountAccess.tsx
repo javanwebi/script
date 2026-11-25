@@ -4,9 +4,7 @@ import {
   ArrowLeft,
   Eye,
   EyeOff,
-  Layers,
-  CheckCircle2,
-  ShieldCheck,
+    ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { IRAN_PROVINCES, ACTIVITY_FIELDS } from "../../data/iranLocations";
@@ -207,33 +205,28 @@ export function AccountAccess({
   );
   return (
     <div className="account-access">
-      <aside className="account-access-story">
-        <img src={mode === "register" ? (A.bannerAuthRegister || A.authIndustrialHero) : (A.bannerAuthLogin || A.authIndustrialHero)} alt="" />
-        <div>
-          <span className="account-symbol" aria-hidden="true"><Layers size={26} /></span>
-          <span className="inline-flex items-center justify-center w-36 h-14 rounded-xl bg-white/95 p-2">
+      <aside className="account-access-story" data-mode={mode} aria-label={mode === "register" ? "شروع همکاری با صنعت پیش" : "ورود به حساب مشتریان صنعت پیش"}>
+        <img
+          src={mode === "register" ? (A.bannerAuthRegister || A.authIndustrialHero) : (A.bannerAuthLogin || A.authIndustrialHero)}
+          alt=""
+        />
+        <div className="account-access-story-content">
+          <span className="account-access-story-brand">
             <SanatPishLogo className="w-full h-full object-contain" alt="لوگوی صنعت پیش" />
           </span>
+          <span className="account-access-story-eyebrow">
+            {mode === "register" ? "شروع همکاری با صنعت پیش" : "حساب مشتریان صنعت پیش"}
+          </span>
           <h2>
-            {mode === "register" ? "از اولین استعلام" : "خوش آمدید به صنعت پیش"}
-            <br />
-            {mode === "register" ? "تا تأمین مطمئن قطعات" : "از جست‌وجو تا خرید مطمئن"}
+            {mode === "register"
+              ? "همکاری صنعتی را هوشمندانه شروع کنید"
+              : "قطعات، استعلام‌ها و سفارش‌هایتان یک‌جا در دسترس است"}
           </h2>
-          <ul>
-            {[
-              "قیمت و موجودی در پنل شما",
-              "استعلام با کد دقیق کالا",
-              "پیگیری سفارش و باشگاه مشتریان",
-            ].map((t) => (
-              <li key={t}>
-                <CheckCircle2 size={17} />
-                {t}
-              </li>
-            ))}
-          </ul>
-          <Link to="/about" onClick={onDone}>
-            آشنایی با صنعت پیش <ArrowLeft size={17} />
-          </Link>
+          <p>
+            {mode === "register"
+              ? "حساب بسازید تا قطعات را جست‌وجو و شناسایی کنید، استعلام بگیرید و مسیر تأمین را پیگیری کنید."
+              : "وارد شوید و استعلام‌ها، سفارش‌ها و مسیر تأمین قطعات خود را سریع و یک‌جا دنبال کنید."}
+          </p>
         </div>
       </aside>
       <section className="account-access-form">
