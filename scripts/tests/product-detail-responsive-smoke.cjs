@@ -163,8 +163,10 @@ const viewports = [
 
       const mainImage = page.locator('[data-testid="product-detail-image"] img').first();
       await mainImage.waitFor({ state: 'visible' });
+      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('test-bearing-001.webp'));
       await mainImage.evaluate(image => image.decode());
       assert.ok(await mainImage.evaluate(image => image.complete && image.naturalWidth > 0), 'selected SKU image should load');
+      assert.ok((await mainImage.evaluate(image => image.src)).includes('test-bearing-001.webp'), 'main gallery must use the exact selected SKU image');
       assert.equal((await page.locator('[data-testid="active-sku-code"]').innerText()).trim(), 'TEST-BRG-001', 'main gallery must be paired with the exact selected SKU');
 
       const initialLayout = await page.evaluate(() => ({
@@ -180,17 +182,20 @@ const viewports = [
         : page.locator('[data-testid="belt-sku-selector"] tbody tr').filter({ hasText: 'TEST-BRG-002' }).first();
       await secondVariant.click();
       await page.waitForFunction(() => document.querySelector('[data-testid="active-sku-code"]')?.textContent?.trim() === 'TEST-BRG-002');
+      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('test-bearing-002.webp'));
       assert.equal(new URL(page.url()).searchParams.get('source'), 'responsive-smoke', 'SKU selection should preserve existing query parameters');
       assert.equal((await page.locator('[data-testid="active-sku-code"]').innerText()).trim(), 'TEST-BRG-002', 'the active SKU label should update without leaving the family page');
 
       const familyThumbnail = page.getByRole('button', { name: /نمایش تصویر عمومی خانواده/ }).first();
       await familyThumbnail.click();
+      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('test-bearing-family.webp'));
       assert.equal(await familyThumbnail.getAttribute('aria-pressed'), 'true', 'family reference thumbnail should become active');
       assert.equal((await page.locator('[data-testid="active-sku-code"]').innerText()).trim(), 'TEST-BRG-002', 'choosing a family image must not silently change the selected SKU');
 
       const firstVariantThumbnail = page.getByRole('button', { name: /انتخاب تصویر کد TEST-BRG-001/ }).first();
       await firstVariantThumbnail.click();
       await page.waitForFunction(() => document.querySelector('[data-testid="active-sku-code"]')?.textContent?.trim() === 'TEST-BRG-001');
+      await page.waitForFunction(() => document.querySelector('[data-testid="product-detail-image"] img')?.src.includes('test-bearing-001.webp'));
 
       await page.getByRole('tab', { name: /مشخصات فنی کد و خانواده/ }).click();
       await page.getByText(/مشخصات کد انتخاب‌شده/).waitFor();
