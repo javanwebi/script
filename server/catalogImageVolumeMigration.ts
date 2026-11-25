@@ -12,7 +12,7 @@ import crypto from 'node:crypto';
 import {Readable} from 'node:stream';
 import {createWriteStream} from 'node:fs';
 import {pipeline} from 'node:stream/promises';
-import {transaction,databaseEnabled} from './db/connection';
+import {transaction,databaseEnabled,database} from './db/connection';
 
 type GithubFile={path:string;size:number;sha:string;type:string};
 export type ImageImportSource={
@@ -35,25 +35,27 @@ async function fileGitSha(filename:string):Promise<string>{
  return crypto.createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
 }
 async function githubTree(source:ImageImportSource):Promise<GithubFile[]>{
- // When the pinned originals have been vendored into javanwebi/script, derive
- // the manifest locally instead of making any GitHub API call on startup.
- if(source.repo==='javanweb/imagesatlas' || source.repo==='javanweb/IMAGE'){
-  const manifestFile=source.repo==='javanweb/imagesatlas'
-    ? path.join(process.cwd(),'storage','products','catalog','manifest.json')
-    : path.join(process.cwd(),'storage','products','manifests','image-jpg.json');
-  try{
-   const manifest=JSON.parse(await fs.readFile(manifestFile,'utf8'));
+ // Image manifests are authoritative in Supabase, not JSON files in Git.
+ if(databaseEnabled()){
+  const sourcePath=source.repo==='javanweb/imagesatlas'
+   ? 'storage/products/catalog/manifest.json'
+   : 'storage/products/manifests/image-jpg.json';
+  const result=await database().query(
+   'select payload from app_private.source_archives where source_path=$1 order by imported_at desc limit 1',
+   [sourcePath]);
+  const manifest=result.rows[0]?.payload;
+  if(manifest){
    if(manifest.sourceRepo!==source.repo || manifest.sourceCommit!==source.commit ||
-      !Array.isArray(manifest.files) || manifest.files.length!==source.count)
-    throw new Error('Bundled imagesatlas manifest is invalid');
+     !Array.isArray(manifest.files) || manifest.files.length!==source.count)
+    throw new Error('Database catalog image manifest is invalid');
    const files:GithubFile[]=manifest.files.map((f:any)=>({
-    path:String(f.name),size:Number(f.size),sha:String(f.gitBlobSha),type:'blob'
+     path:String(f.name),size:Number(f.size),sha:String(f.gitBlobSha),type:'blob'
    }));
-   if(files.some(f=>!safeFileName(f.path,source) || !Number.isSafeInteger(f.size) ||
-      f.size<1 || !/^[a-f0-9]{40}$/.test(f.sha)))
-    throw new Error('Bundled imagesatlas manifest has invalid entries');
+   if(files.some(f=>!safeFileName(f.path,source)||!Number.isSafeInteger(f.size)||
+      f.size<1||!/^[a-f0-9]{40}$/.test(f.sha)))
+    throw new Error('Database catalog image manifest contains invalid entries');
    return files;
-  }catch(error:any){if(error?.code!=='ENOENT')throw error;}
+  }
  }
  const url=`https://api.github.com/repos/${source.repo}/git/trees/${source.commit}?recursive=1`;
  const response=await fetch(url,{headers:{'Accept':'application/vnd.github+json','User-Agent':'sanatpish-catalog-volume-migration'},signal:AbortSignal.timeout(30000)});
