@@ -51,6 +51,7 @@ test('active local catalogue encoder owns region proposals; browser segmentation
   assert.ok(modal.includes('localVisionStatusPromiseRef'));
   assert.ok(modal.includes('if(!enabled)void preloadClientAiSegmentation()'));
   assert.ok(fast.includes('const serverPreferred='));
+  assert.ok(fast.includes('await statusPromise'));
   assert.ok(fast.includes('if(serverPreferred){'));
   assert.ok(fast.includes('const localDetection = segmentImageWithClientAi(imageUrl)'));
   assert.ok(fast.includes('aiVisualSearchService.detectImageRegions(imageUrl)'));
@@ -62,6 +63,13 @@ test('active local catalogue encoder owns region proposals; browser segmentation
   assert.ok(modal.includes('Promise.all(['));
   assert.ok(modal.includes('temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob)'));
   assert.ok(modal.includes('React.useMemo<VisionWorkspaceResult[]>'));
+  const server=source('server.ts');
+  const status=server.slice(server.indexOf("app.get('/api/ai/local-vision-status'"),server.indexOf('const localVisionDetectionCache'));
+  assert.ok(status.includes('app.get(\'/api/ai/local-vision-status\', (_req,res)=>'));
+  assert.ok(!status.includes('catalogVisualIndex.load'));
+  assert.ok(!status.includes('buildCatalogImageCorpus'));
+  assert.ok(server.includes('canReuseLocalVisionQuery(cachedDetection,body.region,body.fullImage===true)'));
+  assert.ok(server.includes('body.fullImage===true ? [] : body.region ? [body.region]'));
 });
 
 test('mobile KIKI result sheet supports pull-up while region changes return to automatic inline analysis', () => {
