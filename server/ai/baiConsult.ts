@@ -1,8 +1,9 @@
 /**
  * B.AI's OpenAI-compatible Chat Completions SSE bridge for FORZA.
  * This module is server-only. Never expose the API key to the browser.
- * No cross-provider or paid retry. xKiro's free path may make one bounded,
- * same-model non-stream verification after an incomplete SSE response.
+ * No cross-provider fallback. AvalAI may retry once through its documented
+ * alternate domain only before the first visible token; xKiro's free path may
+ * make one bounded, same-model non-stream verification after incomplete SSE.
  */
 import { FORZA_CONVERSATION_HISTORY_LIMIT } from '../../src/utils/forzaConversationHistory';
 
