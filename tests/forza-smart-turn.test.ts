@@ -84,7 +84,11 @@ test('stable complete turns dispatch quickly while unfinished clauses survive a 
   assert.equal(required,750);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,500,500)>0);
   assert.equal(forzaTurnRemainingWaitMs(phrase,false,1000,1000),0);
-  assert.ok(forzaTurnRemainingWaitMs('این تسمه را می‌خواهم چون',false,2000,2000)>0);
+  const unfinished='این تسمه را می‌خواهم چون';
+  assert.equal(forzaEndOfTurnPauseMs(unfinished,false),2250);
+  assert.equal(forzaEndOfTurnPauseMs(unfinished,true),2400);
+  assert.equal(forzaTurnRemainingWaitMs(unfinished,false,2000,2000),250,
+    'a clause ending in چون must remain open after a two-second pause');
 });
 
 test('recognition restarts append the next partial segment without losing or duplicating words', () => {
