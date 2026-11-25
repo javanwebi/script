@@ -146,7 +146,7 @@ export function ImageRegionSelector({
      tabIndex={disabled?-1:0}
      className="sanat-region-picker__frame"
      dir="ltr"
-     aria-label={autoSelect?'برای انتخاب قطعه دیگر، روی کادر شناسایی‌شده بزنید':'انتخاب محدوده قطعه'}
+     aria-label={autoSelect?'برای انتخاب قطعه دیگر، روی کادر شناسایی‌شده بزنید':'انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت'}
      onClick={selectCandidateAtPoint}
      onPointerDown={event=>{
       if(autoSelect||disabled||event.button!==0||!event.isPrimary)return;
