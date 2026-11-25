@@ -63,6 +63,12 @@ test('family and SKU artwork only use identity-verified matches and never generi
   assert.match(category, /تصویر معتبر ثبت نشده/);
   assert.doesNotMatch(detail, /resolveSiteProductImage/);
   assert.match(detail, /disableFallback=\{true\}/);
+  assert.match(detail, /image\.scope === 'variant'/);
+  assert.match(detail, /String\(image\.variantCode \|\| ''\)\.toLowerCase\(\) === activeSkuCode\.toLowerCase\(\)/);
+  const nonBelt = read('src/components/product/NonBeltFamilyGrid.tsx');
+  assert.match(nonBelt, /images: uniqueImageUrl \? \[uniqueImageUrl\] : \[\]/);
+  assert.match(nonBelt, /image: uniqueImageUrl \|\| undefined/);
+  assert.doesNotMatch(nonBelt, /product\.images\?\.slice\(0, 1\)/);
   assert.match(media, /hasVerifiedRealPhoto: Boolean\(dbImg\)/);
   assert.match(media, /familyPhotos: \['', '', ''\]/);
   assert.doesNotMatch(media, /familyMedia\.familyPhotos\.forEach/);
