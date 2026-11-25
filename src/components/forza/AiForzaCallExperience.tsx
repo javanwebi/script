@@ -1405,6 +1405,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           );
           let serverTranscript='';
           let failedSegments=0;
+          let serverUsedDibaFallback=false;
           try{
             // Each MediaRecorder rotation is a complete WebM container. Decode
             // segments in parallel (the server has two bounded Diba workers),
@@ -1429,6 +1430,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 signal:AbortSignal.any([sttAbort.signal,pocketAbort.signal]),
               });
               const sttData:any=await sttResponse.json().catch(()=>null);
+              if(sttData?.sttProvider==='diba-fallback')serverUsedDibaFallback=true;
               const transcript=String(sttData?.userTranscript||sttData?.text||'').trim();
               if(!sttResponse.ok||!sttData?.success||!transcript){
                 throw new Error('diba_segment_http_'+sttResponse.status+'_'+
@@ -1448,7 +1450,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             }
             serverTranscript=serverTranscript.trim();
             if(serverTranscript && (q || failedSegments===0)){
-              payload.query=chooseForzaFinalTranscript(q,serverTranscript);
+              const preferAvalaiFinal=serverSttProviderRef.current==='avalai'&&!serverUsedDibaFallback;
+              payload.query=chooseForzaFinalTranscript(q,serverTranscript,preferAvalaiFinal);
               console.info('[FORZA_STT] turn='+generation+' provider=diba-vosk duration_ms='+
                 Math.round(performance.now()-sttStartedAt)+' segments='+audioBlobs.length+
                 ' failed='+failedSegments+' source='+(payload.query===q?'browser_guarded':'server_final')+
