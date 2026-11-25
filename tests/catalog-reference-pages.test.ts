@@ -81,3 +81,14 @@ test('legacy family image rows are attached by their original family code', () =
   assert.match(api, /attachGallery\(galleryByFamily\.get\(candidate\)\)/);
   assert.doesNotMatch(api, /familyByOldCode\.get\(directKey\)/);
 });
+
+
+test('all active Supabase categories and their database group assignments remain visible', () => {
+  const api = read('server/catalogReferenceApi.ts');
+  assert.match(api, /const activeCategorySlugs = categoryRes\.rows\.length/);
+  assert.match(api, /const activeGroupCategorySlugs = new Set/);
+  assert.match(api, /dbGroup\?\.categorySlugs/);
+  assert.match(api, /metadata\.children/);
+  assert.match(api, /categoryRows\.map\(\(dbCategory: any\)/);
+  assert.match(api, /ungrouped\.length \|\| unknownGroupCategories\.length/);
+});
