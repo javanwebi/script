@@ -113,7 +113,10 @@ async function loadSnapshot(): Promise<Snapshot> {
     db.query(
       `select
         gi.id,
-        gi.family_code,
+        case
+          when gi.scope = 'variant' then ia.family_code
+          else gi.family_code
+        end as family_code,
         gi.variant_code,
         gi.file_name,
         gi.url,
