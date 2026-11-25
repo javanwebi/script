@@ -639,7 +639,7 @@ async function loadSnapshot(): Promise<Snapshot> {
     skuCount: skuCodes.size,
     quarantinedSkuCount,
     rawDirectSkuCount: Number(payload.stats?.directSkus || 0),
-    standaloneDirectSkuRows: directSkuAssignments.length,
+    standaloneDirectSkuRows: directSkus.length,
     verifiedFamilyImageCount: activeVerifiedFamilyImageUrls.size,
     verifiedVariantImageCount: activeVerifiedVariantImageUrls.size,
   };
