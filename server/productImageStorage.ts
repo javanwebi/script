@@ -15,6 +15,12 @@ export const productStorageDirectory = () =>
   process.env.PRODUCT_STORAGE_DIR ||
   (process.env.NODE_ENV==='production' ? '/data/storage/products' : path.join(process.cwd(),'storage','products'));
 
+async function activeCatalogDirectory(root:string){
+ const current=path.join(root,"catalog-current");
+ const currentIsDirectory=await fs.stat(current).then(info=>info.isDirectory()).catch(()=>false);
+ return currentIsDirectory?current:path.join(root,"catalog");
+}
+
 export async function prepareProductStorage(){
  const root=productStorageDirectory();
  if(process.env.NODE_ENV==='production' && !path.isAbsolute(root))
@@ -68,7 +74,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   const file=String(req.params.file||'');
   const match=/^e\(([1-9]\d{0,3})\)\.png$/.exec(file);
   if(!match||Number(match[1])>869)return res.status(404).end();
-  const persistentRoot=path.join(root,'catalog');
+  const persistentRoot=await activeCatalogDirectory(root);
   // The mounted /data volume is authoritative. Never fall back to checked-in
   // GitHub images when an original is missing: return 404 for repair instead.
   const onVolume=await fs.stat(path.join(persistentRoot,file))
@@ -103,7 +109,8 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   const match=/^e\(([1-9]\d{0,3})\)\.webp$/.exec(name);
   if(!match||Number(match[1])>869)return res.status(404).end();
   const sourceName='e('+match[1]+').png';
-  const onVolume=path.join(root,'catalog',sourceName);
+  const catalogRoot=await activeCatalogDirectory(root);
+  const onVolume=path.join(catalogRoot,sourceName);
   const destination=path.join(root,'thumbs',name);
   try{
    if(!(await fs.stat(destination).then(s=>s.isFile()&&s.size>0).catch(()=>false))){
