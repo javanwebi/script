@@ -241,7 +241,13 @@ export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number
     return hasInterim?850:Math.max(600,analysis.recommendedPauseMs);
   // Keep a real continuation window for unfinished clauses and industrial codes,
   // while avoiding the old 4.3-5.2s delay on ordinary speech.
-  if(analysis.isMidThought)return hasInterim?2200:1600;
+  if(analysis.isMidThought){
+    // Preserve the analyzer's explicit continuation signal. In particular,
+    // clauses ending in "چون/برای/تا" must not be shortened to 1.6s or
+    // dispatched during a natural two-second pause. Interim hypotheses keep
+    // the full 2.4s correction window.
+    return Math.max(analysis.recommendedPauseMs,hasInterim?2400:1600);
+  }
   // Ambiguous fragments (for example a request ending in "را") stay open
   // long enough for the next clause without freezing a completed sentence.
   return hasInterim?2400:1500;
