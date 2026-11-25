@@ -148,7 +148,7 @@ export function applyBeltRecognition(result:AiPartAnalysisResult,products:Produc
   if(!displayBindings.length)return [];
   return [{...photo,bindings:displayBindings,familyNames:[...new Set(displayBindings.map(binding=>families.get(binding.familyCode)?.name).filter((name):name is string=>Boolean(name)))]}];
  });
- const nearestCatalogSuggestions=(result.nearestCatalogSuggestions||[]).filter(item=>allowedCodes.has(item.familyCode)),visibleFamilyCodes=new Set<string>(candidateCodes);
+ const nearestCatalogSuggestions=(result.nearestCatalogSuggestions||[]).filter(item=>allowedCodes.has(item.familyCode)),visibleFamilyCodes=new Set<string>(allowedCodes);
  for(const item of modelSuggestions)visibleFamilyCodes.add(item.familyCode);
  for(const photo of catalogImageMatches)for(const binding of photo.bindings)visibleFamilyCodes.add(binding.familyCode);
  for(const item of similarCandidates){const code=familyByVariant.get(item.code);if(code)visibleFamilyCodes.add(code);}
