@@ -177,15 +177,25 @@ test('Excel menu category pages use the authoritative POPD reference payload for
 });
 
 
-test('POPD category subnavigation is derived from assigned families and omits stale empty database nodes', () => {
+test('all category surfaces derive subnavigation from the same POPD families and active direct SKUs', () => {
   const api = read('server/catalogReferenceApi.ts');
+  const detail = read('src/pages/ExcelMenuCategoryPage.tsx');
+  const directory = read('src/pages/AllCategoriesPage.tsx');
+  const megaMenu = read('src/components/catalog/ReferenceMegaMenu.tsx');
+
   assert.match(api, /function buildReferenceCategoryChildren\(/);
-  assert.match(api, /const referenceChildren = buildReferenceCategoryChildren\(\[\.\.\.families, \.\.\.directSkuAssignments\]\)/);
-  assert.match(api, /children: referenceChildren/);
-  assert.match(api, /subcategories: referenceChildren\.map\(\(node\) => node\.name\)/);
-  assert.match(api, /only submenus\\/leaves that own a real catalogue item/);
-  assert.match(api, /from public\.catalog_direct_skus/);
-  assert.match(api, /directSkuAssignments/);
-  assert.match(api, /buildReferenceCategoryChildren\(\[\.\.\.families, \.\.\.directSkuAssignments\]\)/);
+  assert.match(api, /function referenceCategoryTaxonomy\(snapshot: Snapshot, category: Category\)/);
+  assert.match(api, /snapshot\.products\.flatMap/);
+  assert.match(api, /snapshot\.directSkuAssignments/);
+  assert.match(api, /const children = buildReferenceCategoryChildren\(\[\.\.\.familyAssignments, \.\.\.directSkuAssignments\]\)/);
+  assert.match(api, /children,\s*subcategories: children\.map\(\(node\) => node\.name\)/);
+  assert.doesNotMatch(api, /referenceChildren\.length\s*\?/);
+  assert.match(api, /categories: snapshot\.categories\.map\(\(category\) => referenceCategoryTaxonomy\(snapshot, category\)\)/);
   assert.match(api, /standaloneDirectSkuRows: directSkuAssignments\.length/);
+
+  assert.match(detail, /\/api\/catalog\/reference\/menu-category\//);
+  assert.match(directory, /\/api\/catalog\/reference\/categories/);
+  assert.match(directory, /\/api\/catalog\/reference\/navigation-groups/);
+  assert.match(megaMenu, /\/api\/catalog\/reference\/categories/);
+  assert.match(megaMenu, /\/api\/catalog\/reference\/navigation-groups/);
 });
