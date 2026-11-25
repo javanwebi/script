@@ -2,7 +2,7 @@ import {LocalModelResults} from './LocalModelResults';
 import {CatalogResultImage} from './CatalogResultImage';
 import { loadVisionRecentSearches, recordVisionRecentSearch, type VisionRecentSearchItem } from './visionRecentHistory';
 import {apiUrl} from '../../config/apiConfig';
-import { getForegroundRegion, getForegroundRegions, preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
+import { preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState, type VisionWorkspaceResult} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
@@ -280,24 +280,27 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     !analysisResult?.modelSuggestions?.length || photo.bindings.length===0);
   const workspaceResults:VisionWorkspaceResult[]=[
     ...(analysisResult?.matchedProducts||[]).map(item=>({
-      id:'sku:'+item.code,code:item.code,name:item.name,brand:item.brand,
+      id:'sku:'+item.code,code:item.code,familyCode:item.catalogProduct?.code,name:item.name,brand:item.brand,
       image:item.image||item.catalogProduct?.image||item.catalogProduct?.images?.[0],
-      imageScope:item.catalogProduct?.imageScope==='family-example'?'family' as const:item.catalogProduct?.imageScope==='sku-verified'?'variant' as const:'none' as const,
+      imageScope:item.imageScope || (item.catalogProduct?.imageScope==='family-example'?'family' as const:item.catalogProduct?.imageScope==='sku-verified'?'variant' as const:'none' as const),
+      matchBasis:'visual' as const,
       familyName:item.catalogProduct?.categoryName,specs:item.specs,
       similarityScore:item.similarityScore,matchLabel:item.visualVerdictFarsi||item.matchReason||item.distinction,
       reason:item.matchReason,
     })),
     ...(analysisResult?.similarCandidates||[]).map(item=>({
-      id:'sku:'+item.code,code:item.code,name:item.name,brand:item.brand,
+      id:'sku:'+item.code,code:item.code,familyCode:item.catalogProduct?.code,name:item.name,brand:item.brand,
       image:item.image||item.catalogProduct?.image||item.catalogProduct?.images?.[0],
-      imageScope:item.catalogProduct?.imageScope==='family-example'?'family' as const:item.catalogProduct?.imageScope==='sku-verified'?'variant' as const:'none' as const,
+      imageScope:item.imageScope || (item.catalogProduct?.imageScope==='family-example'?'family' as const:item.catalogProduct?.imageScope==='sku-verified'?'variant' as const:'none' as const),
+      matchBasis:item.matchType==='code'?'read_code' as const:'visual' as const,
       familyName:item.catalogProduct?.categoryName,specs:item.specs,
       similarityScore:item.similarityScore,matchLabel:item.visualVerdictFarsi||item.matchReason||item.distinction,
       reason:item.matchReason,
     })),
     ...(analysisResult?.modelSuggestions||[]).map(item=>({
       id:item.code?'sku:'+item.code:'family:'+item.familyCode+':'+item.name,
-      code:item.code,name:item.name,brand:item.brand,image:item.image,imageScope:item.imageScope,
+      code:item.code,familyCode:item.familyCode,name:item.name,brand:item.brand,image:item.image,imageScope:item.imageScope,
+      matchBasis:item.matchBasis,
       familyName:item.familyName,model:item.model,size:item.size,specs:item.specs,
       similarityScore:item.visualScore,matchLabel:item.matchBasis==='explore'?'برای بررسی؛ تأیید نشده':item.reason,
       reason:item.reason,
@@ -393,8 +396,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     // first without waiting for the server's detection round-trip.
     const localDetection = segmentImageWithClientAi(imageUrl).then(segmented => {
       if (sequence !== regionDetectionSequenceRef.current || serverCommitted || !segmented) return false;
-      const detectedRegions = getForegroundRegions(segmented);
-      const region = getForegroundRegion(segmented) || detectedRegions[0];
+      const detectedRegions = segmented.regions;
+      const region = detectedRegions[0];
       if (!region) return false;
       localSucceeded = true;
       localSegmentationRef.current = { source: imageUrl, result: segmented, region };
@@ -1077,6 +1080,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             const code=workspaceResults.find(item=>item.id===id)?.code;
             if(code&&imageEventId)void selectCustomerImageProduct(imageEventId,code).catch(error=>console.warn('[Customer image history] selected product sync unavailable',error));
           }}
+          onOpenProduct={(id) => {
+            const item=workspaceResults.find(result=>result.id===id);
+            const productCode=item?.code || item?.familyCode;
+            if(!productCode)return;
+            navigate('/product/'+encodeURIComponent(productCode));
+            onClose();
+          }}
           onRetryAnalysis={() => {
             setErrorMessage('');
             if(!localImageId&&selectedImage){void uploadAndPrepareImage(selectedImage,'camera-capture.jpg');return;}
@@ -1688,25 +1698,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       {analysisResult.catalogSearchWarning}
                     </span>
                   </div>
-                )}
-
-                {analysisResult.beltAnalysis && (
-                  <section className="rounded-2xl border border-orange-200 bg-orange-50/70 p-4 space-y-3" aria-label="تحلیل تخصصی تسمه">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <strong className="text-sm text-slate-800">بررسی تخصصی تسمه</strong>
-                      <span className="text-[10px] font-bold tracking-wide text-orange-700">FORZA BELT INTELLIGENCE</span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <div className="rounded-xl border border-orange-100 bg-white p-3"><span className="block text-[10px] text-slate-500">نوع تسمه</span><strong className="mt-1 block text-sm text-slate-800">{analysisResult.beltAnalysis.beltTypeLabel}</strong></div>
-                      <div className="rounded-xl border border-orange-100 bg-white p-3"><span className="block text-[10px] text-slate-500">پروفیل خوانده‌شده</span><strong className="mt-1 block text-sm text-slate-800" dir="ltr">{analysisResult.beltAnalysis.profile || "خوانده نشد"}</strong></div>
-                      <div className="rounded-xl border border-orange-100 bg-white p-3"><span className="block text-[10px] text-slate-500">گام اسمی پروفیل</span><strong className="mt-1 block text-sm text-slate-800">{analysisResult.beltAnalysis.nominalPitchMm ? toPersianDigits(String(analysisResult.beltAnalysis.nominalPitchMm)) + " mm" : "مشخص نشد"}</strong></div>
-                      <div className="rounded-xl border border-orange-100 bg-white p-3"><span className="block text-[10px] text-slate-500">مارکینگ طول</span><strong className="mt-1 block text-sm text-slate-800" dir="ltr">{analysisResult.beltAnalysis.lengthMarking || "خوانده نشد"}</strong></div>
-                    </div>
-                    {analysisResult.beltAnalysis.brandMarking && <p className="text-xs text-slate-700">نشان خوانده‌شده: <strong dir="ltr">{analysisResult.beltAnalysis.brandMarking}</strong></p>}
-                    {!!analysisResult.beltAnalysis.codeMatches.length && <p className="text-xs text-slate-700">کدهای دقیق منطبق در کاتالوگ: <strong dir="ltr">{analysisResult.beltAnalysis.codeMatches.join("، ")}</strong></p>}
-                    {!!analysisResult.beltAnalysis.candidateFamilies.length && <p className="text-xs leading-6 text-slate-700">خانواده‌های قابل بررسی: {analysisResult.beltAnalysis.candidateFamilies.map(item => [item.familyName, item.profile && "پروفیل " + item.profile, item.sizesSummary && "اندازه‌ها: " + item.sizesSummary].filter(Boolean).join(" · ")).join("، ")}</p>}
-                    <p className="text-xs leading-6 text-slate-600">{analysisResult.beltAnalysis.note}</p>
-                  </section>
                 )}
 
                 {/* Summary Bar */}
