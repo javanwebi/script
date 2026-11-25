@@ -4625,10 +4625,11 @@ app.get('/api/ai/recognition-jobs/:id',(req,res)=>{
 // stage: 'quick'   = image-only instant identification (step 1)
 //        'refined' = image + dimensions + application (steps 2-3)
 let localVisionQueries=0;
-// This is a lightweight configuration probe for the browser. Do not load the
-// catalogue index or scan image bindings here; detect/analyze endpoints own readiness checks.
+// Keep the browser capability probe cheap. Warm the in-memory index in the
+// background, while the detect/analyze endpoints remain responsible for readiness.
 app.get('/api/ai/local-vision-status', (_req,res)=>{
  if(!localVisionEnabled)return res.json({enabled:false});
+ void catalogVisualIndex.load().catch(()=>undefined);
  return res.json({enabled:true,model:localProfile.model,pipeline:localProfile.pipeline});
 });
 
