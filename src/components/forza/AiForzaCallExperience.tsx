@@ -1910,10 +1910,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(wasRotation){
             if(hadSpeech&&!rejectedSpeech&&chunks.length){
               const completedSegment=new Blob(chunks,{type:safeMime});
-              if(completedSegment.size>1200&&!localSttActiveRef.current){
-                // Local Diba already consumes the microphone stream continuously;
-                // only retain WebM for the server fallback when local STT is absent.
-                // Never discard an earlier segment from a long browser-fallback turn.
+              if(completedSegment.size>1200&&
+                (!localSttActiveRef.current||serverSttProviderRef.current==='avalai')){
+                // Local Diba consumes the mic continuously, but AvalAI still
+                // needs the complete WebM segments as its final-transcript verifier.
+                // Never discard earlier safe segments from a long user utterance.
                 audioSegmentsRef.current.push(completedSegment);
               }
             }
