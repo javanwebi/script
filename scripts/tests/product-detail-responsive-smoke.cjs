@@ -203,7 +203,7 @@ const viewports = [
       if (viewport.width < 1024) {
         assert.ok(await page.locator('[data-testid="belt-mobile-sticky-bar"]').isVisible(), 'mobile/tablet sticky purchase access should be visible');
       } else {
-        assert.equal(await page.locator('.product-detail-mobile-action').isVisible(), false, 'desktop should not show the mobile sticky bar');
+        assert.equal(await page.locator('[data-testid="belt-mobile-sticky-bar"]').isVisible(), false, 'desktop should not show the mobile sticky bar');
         const galleryPosition = await page.locator('[data-testid="product-detail-gallery-sticky"]').evaluate(element => getComputedStyle(element).position);
         assert.equal(galleryPosition, 'sticky', 'desktop gallery should remain sticky while scrolling');
       }
