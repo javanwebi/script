@@ -99,7 +99,7 @@ export function ReferenceMegaMenu({
           : (next[0]?.slug || "excel-v2-1-1")
       );
     };
-    const loadCategories = () => fetch("/api/catalog/categories", { credentials: "same-origin", cache: "no-store" })
+    const loadCategories = () => fetch("/api/catalog/reference/categories", { credentials: "same-origin", cache: "no-store" })
       .then(response => response.ok ? response.json() : null)
       .then(data => {
         if (mounted && data?.success && Array.isArray(data.categories)) applyCategories(data.categories);
@@ -110,7 +110,7 @@ export function ReferenceMegaMenu({
       void loadCategories();
     };
     const loadGroups = () => {
-      fetch("/api/catalog/navigation-groups", { credentials: "same-origin", cache: "no-store" })
+      fetch("/api/catalog/reference/navigation-groups", { credentials: "same-origin", cache: "no-store" })
         .then(response => response.ok ? response.json() : null)
         .then(data => {
           if (mounted && data?.success && Array.isArray(data.groups)) {
