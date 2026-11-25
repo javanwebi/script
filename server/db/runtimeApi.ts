@@ -147,14 +147,14 @@ export async function runtimeApi(req:Request,res:Response){
    let visibleProducts:unknown=[];
    if(includeProducts){
     const products=identity.staff
-     ? (canStaff(identity,'products')?await getAdminCatalogProducts():[])
+     ? (canStaff(identity,'products')?await readProducts({includeTechnicalReviews:true,includePopdCatalog:true,includeUnverifiedImages:true}):[])
      : !identity.user && !identity.admin ? guestProducts : adoptedSchema() && !identity.admin && identity.user?await transaction(async client=>{
-     const data=await readAdoptedProducts(client,{includeTechnicalReviews:false});await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
+     const data=await readAdoptedProducts(client,{includeTechnicalReviews:false,includePopdCatalog:true,includeUnverifiedImages:false});await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
      const rows=(await client.query('select c.variant_code,c.currency,app_private.current_variant_price(c.variant_code) as amount from public.variant_commercial_specs c')).rows;
      const prices=new Map(rows.map(row=>[row.variant_code,toman(row.amount,row.currency)]));
      for(const family of data){for(const variant of family.variants){const amount=identity.user!.canViewPrices?prices.get(variant.code) || 0:0;variant.prices={base:amount,retail:amount,wholesale:amount,dealer:amount};variant.price=amount;if(!identity.user!.canViewStock){variant.stock=0;variant.stockKnown=false;}}family.prices=family.variants[0]?.prices || {base:0,retail:0,wholesale:0,dealer:0};family.stock=family.variants.reduce((s:number,v:any)=>s+v.stock,0);family.stockKnown=family.variants.every((v:any)=>v.stockKnown);}
      return data;
-    }):identity.admin?await getAdminCatalogProducts():await readProducts({includeTechnicalReviews:false});
+    }):identity.admin?await readProducts({includeTechnicalReviews:true,includePopdCatalog:true,includeUnverifiedImages:true}):await readProducts({includeTechnicalReviews:false,includePopdCatalog:true,includeUnverifiedImages:false});
     visibleProducts=identity.staff && !canStaff(identity,'products','prices')
      ? publicCatalog(products)
      : identity.canReadCommerce?products:(!identity.user && !identity.admin ? products : publicCatalog(products));
