@@ -179,6 +179,7 @@ const {chromium}=require('playwright');
   if(unselectedCandidate){
    const beforeTap=queries.length;
    await page.mouse.click(unselectedCandidate.x,unselectedCandidate.y);
+   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='true',null,{timeout:10000});
    await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
    await page.waitForTimeout(250);
    assert.equal(queries.length,beforeTap+1,'one tap on a detected image box must trigger exactly one catalogue analysis');
