@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {resolveForzaQuickVoiceReply} from '../server/ai/forzaQuickReply';
 
 test('a first greeting is answered immediately without requiring a remote model request',()=>{
@@ -25,4 +26,15 @@ test('technical questions and greetings embedded in real requests still go to th
   assert.equal(resolveForzaQuickVoiceReply('سلام، تسمه تایمینگ عرض ۲۰ میلی‌متر',[]),null);
   assert.equal(resolveForzaQuickVoiceReply('برای خط تولید بلبرینگ می‌خواهم',[]),null);
   assert.equal(resolveForzaQuickVoiceReply('کد 6203 ZZ را بررسی کن',[]),null);
+});
+
+test('the voice SSE route dispatches quick greetings before catalog retrieval and remote provider selection',()=>{
+  const server=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
+  const from=server.indexOf('const quickReply=resolveForzaQuickVoiceReply');
+  const catalog=server.indexOf('let catalogContext=consultantCatalogContext',from);
+  assert.ok(from>0&&catalog>from);
+  const fastPath=server.slice(from,catalog);
+  assert.match(fastPath,/sendEvent\(\{type:'text_chunk',responseId,chunk:quickReply,textSoFar:quickReply\}\)/);
+  assert.match(fastPath,/sendEvent\(\{type:'done',responseId,fullText:quickReply\}\)/);
+  assert.match(fastPath,/return res\.end\(\)/);
 });
