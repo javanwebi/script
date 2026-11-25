@@ -191,7 +191,7 @@ export function ImageRegionReview({
                         ) : null}
                         {item.imageScope === 'family' && (
                           <span className="kiki-image-workspace__family-image-note">
-                            تصویر نمونه خانواده است؛ مدل و کد SKU دقیق از این عکس تأیید نشده است.
+                            تصویر نمونه خانواده است؛ نه عکس اختصاصی این مدل.
                           </span>
                         )}
                         {item.matchLabel && <span className="kiki-image-workspace__result-match">{item.matchLabel}</span>}
