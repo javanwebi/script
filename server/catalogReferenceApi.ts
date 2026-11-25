@@ -26,6 +26,7 @@ type Snapshot = {
   productByVariantCode: Map<string, Product>;
   aliasMap: Map<string, AliasRecord>;
   assignmentsByFamily: Map<string, { categorySlug: string; submenuName: string; leafName: string | null; method?: string }>;
+  directSkuAssignments: Array<{ categorySlug: string; submenuName: string | null; leafName: string | null }>;
   sourceSha256: string | null;
   e869SourceSha256: string | null;
   linkedE869ImageCount: number;
@@ -99,7 +100,7 @@ async function loadSnapshot(): Promise<Snapshot> {
   if (!databaseEnabled()) throw new Error('PostgreSQL catalog backend is not enabled');
 
   const db = database();
-  const [archiveRes, e869Res, groupRes, categoryRes, commercialRes, galleryRes, aliasRes] = await Promise.all([
+  const [archiveRes, e869Res, groupRes, categoryRes, commercialRes, galleryRes, aliasRes, directSkuRes] = await Promise.all([
     db.query(
       'select payload, sha256, imported_at from app_private.source_archives where source_path = $1 order by imported_at desc limit 1',
       [ENGINEERED_SOURCE_PATH],
@@ -141,6 +142,12 @@ async function loadSnapshot(): Promise<Snapshot> {
     ),
     db.query(
       'select old_family_code, new_family_code, direct_sku_code from public.catalog_family_aliases',
+    ),
+    db.query(
+      `select category_slug as "categorySlug", submenu as "submenuName", subcategory as "leafName"
+       from public.catalog_direct_skus
+       where is_active = true and category_slug is not null
+       order by category_slug, submenu, subcategory, sku_code`,
     ),
   ]);
 
@@ -461,10 +468,14 @@ async function loadSnapshot(): Promise<Snapshot> {
     }
   }
 
+  const directSkuAssignments = directSkuRes.rows.map((row: any) => ({
+    categorySlug: normalizeCode(row.categorySlug),
+    submenuName: String(row.submenuName || '').trim() || null,
+    leafName: String(row.leafName || '').trim() || null,
+  })).filter((row) => row.categorySlug);
   const directSkuCounts = new Map<string, number>();
-  for (const direct of asArray<any>(payload.directSkus)) {
-    const slug = normalizeCode(direct.categorySlug);
-    if (slug) directSkuCounts.set(slug, (directSkuCounts.get(slug) || 0) + 1);
+  for (const direct of directSkuAssignments) {
+    directSkuCounts.set(direct.categorySlug, (directSkuCounts.get(direct.categorySlug) || 0) + 1);
   }
 
   const categoryRows = categoryRes.rows.length
@@ -561,6 +572,7 @@ async function loadSnapshot(): Promise<Snapshot> {
     productByVariantCode,
     aliasMap: aliases,
     assignmentsByFamily,
+    directSkuAssignments,
     sourceSha256: archive.sha256 ? String(archive.sha256) : null,
     e869SourceSha256: e869Archive.sha256 ? String(e869Archive.sha256) : null,
     linkedE869ImageCount: activeVerifiedVariantImageUrls.size,
@@ -570,7 +582,7 @@ async function loadSnapshot(): Promise<Snapshot> {
     skuCount: skuCodes.size,
     quarantinedSkuCount,
     rawDirectSkuCount: Number(payload.stats?.directSkus || 0),
-    standaloneDirectSkuRows: asArray(payload.directSkus).length,
+    standaloneDirectSkuRows: directSkuAssignments.length,
     verifiedFamilyImageCount: activeVerifiedFamilyImageUrls.size,
     verifiedVariantImageCount: activeVerifiedVariantImageUrls.size,
   };
@@ -635,7 +647,10 @@ function categoryPayload(snapshot: Snapshot, slug: string) {
   // Supabase metadata can contain stale/empty subcategories. For a populated POPD
   // category, the resolved assignments in the pinned engineered archive are the
   // source of truth: expose only submenus/leaves that actually own a family.
-  const referenceChildren = buildReferenceCategoryChildren(families);
+  const directSkuAssignments = snapshot.directSkuAssignments
+    .filter((item) => item.categorySlug === slug)
+    .map((item) => ({ submenu: item.submenuName, leaf: item.leafName }));
+  const referenceChildren = buildReferenceCategoryChildren([...families, ...directSkuAssignments]);
   const categoryWithReferenceTaxonomy = referenceChildren.length
     ? {
         ...category,
