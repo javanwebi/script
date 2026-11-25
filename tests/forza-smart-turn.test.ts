@@ -104,7 +104,8 @@ test('missing VAD analyser uses a longer text-only guard without blocking foreve
   const pause=forzaEndOfTurnPauseMs(phrase,false);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,pause+50,null)>0,
     'a browser interim stall must not be mistaken for acoustic silence');
-  assert.equal(forzaTurnRemainingWaitMs(phrase,false,6050,null),0);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,6050,null),450);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,6500,null),0);
   assert.ok(forzaTurnRemainingWaitMs(phrase,false,0,null)>0);
 });
 
