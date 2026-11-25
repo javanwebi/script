@@ -734,7 +734,7 @@ fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
- "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_DIBA_BROWSER_ARCHIVE=/opt/diba-stt/diba-stt-fa-small.tar.gz -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=avalai -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_DIBA_BROWSER_ARCHIVE=/opt/diba-stt/diba-stt-fa-small.tar.gz -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
  "${MOUNTS[@]}" "$STT_IMAGE" node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do
@@ -868,7 +868,7 @@ docker stop -t 12 "$OLD" >/dev/null
 CID="$(docker run -d --name "$NAME" --restart unless-stopped \
  --network "$NETWORK" --workdir /app --cpus=1.5 --memory=3g --memory-swap=3g \
  -p "127.0.0.1:$FIXED_PORT:3000" --env-file "$ENV_FILE" \
- "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=avalai -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
  "${MOUNTS[@]}" "$STT_IMAGE" node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 60); do
@@ -1122,7 +1122,10 @@ try:
 except Exception as exc:
  raise AssertionError('FORZA_STT_PUBLIC_API_RETURNED_NON_JSON') from exc
 assert stt_info.get('serverSttConfigured') is True, ('FORZA_STT_PUBLIC_NOT_CONFIGURED',stt_info)
-assert stt_info.get('serverSttProvider') == 'diba', ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
+assert stt_info.get('serverSttProvider') == 'avalai', ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
+assert stt_info.get('serverSttReady') is True, ('FORZA_STT_PUBLIC_NOT_READY',stt_info)
+assert stt_info.get('serverSttFallbackProvider') == 'diba', ('FORZA_STT_DIBA_FALLBACK_MISSING',stt_info)
+assert stt_info.get('serverSttFallbackReady') is True, ('FORZA_STT_DIBA_FALLBACK_NOT_READY',stt_info)
 assert stt_info.get('serverSttReady') is True, ('FORZA_STT_PUBLIC_NOT_READY',stt_info)
 print('PUBLIC_FORZA_STT_DIBA_READY_OK')
 print('PUBLIC_HTTPS_AND_DATABASE_OK domain='+domain+' sni=correct')
