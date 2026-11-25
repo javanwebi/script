@@ -157,7 +157,7 @@ test("belt gallery includes only exact POPD family and SKU photos", () => {
   );
 });
 
-test("on-disk belt photos exactly match POPD: 613 families, 214 SKUs, and no stale fallback photos", () => {
+test("on-disk belt photos exactly match POPD: 613 families, 18 verified SKUs, and no stale fallback photos", () => {
   assert.equal(fs.existsSync(path.join(BELTS_ROOT, "_candidates")), false);
   assert.equal(fs.existsSync(path.join(BELTS_ROOT, "_master")), false);
 
