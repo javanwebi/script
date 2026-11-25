@@ -19,6 +19,16 @@ test('Persian digits and V-belt profile are read without inventing pitch',()=>{c
 test('timing profile pitch is separated from printed length marking',()=>{const parsed=parseBeltMarkings([{text:'GATES HTD 8M 1200',confidence:96}]);assert.equal(parsed?.profile,'8M');assert.equal(parsed?.kind,'timing');assert.equal(parsed?.nominalPitchMm,8);assert.equal(parsed?.lengthMarking,'1200');});
 test('lone letters and low-confidence OCR do not create a profile',()=>{assert.equal(parseBeltMarkings([{text:'INDUSTRIAL PART A',confidence:98}]),undefined);assert.equal(parseBeltMarkings([{text:'SPB 2000',confidence:84}]),undefined);});
 test('belt scope filters non-belt candidates and ranks matching profile evidence',()=>{const result=applyBeltRecognition(resultFor('belt-family','SPB-2000'),products,[{text:'SPB 2000',confidence:97}]);assert.equal(result.summary.detectedPartType,'تسمه V شکل');assert.equal(result.summary.detectedProfile,'SPB');assert.equal(result.beltAnalysis?.profileMatchStatus,'matched');assert.deepEqual(result.beltAnalysis?.codeMatches,['SPB-2000']);assert.deepEqual(result.modelSuggestions?.map(item=>item.familyCode),['belt-family']);assert.deepEqual(result.similarCandidates?.map(item=>item.code),['SPB-2000']);assert.deepEqual(result.catalogImageMatches?.[0].bindings.map(item=>item.familyCode),['belt-family']);});
+test('nonvisual SKU siblings are not promoted by a visually matched family',()=>{
+ const extendedProducts=products.map(family=>family.code==='belt-family'
+  ? {...family,variants:[...(family.variants||[]),{code:'SPB-2100',name:'SPB 2100',active:true,identitySpecs:{profile:'SPB'}}]}
+  : family) as Product[];
+ const base=resultFor('belt-family','SPB-2000');
+ base.similarCandidates?.push({code:'SPB-2100',name:'SPB 2100',brand:'SWR',type:'تسمه V شکل صنعتی',similarityScore:80,matchReason:'family-only candidate',specs:[],matchType:'similar',isVisualMatch:false});
+ const result=applyBeltRecognition(base,extendedProducts,[{text:'SPB 2000',confidence:97}]);
+ assert.deepEqual(result.similarCandidates?.map(item=>item.code),['SPB-2000']);
+});
+
 test('conflicting profile removes the visual family from primary candidates',()=>{const result=applyBeltRecognition(resultFor('timing-family','HTD-8M-1200'),products,[{text:'SPB 2000',confidence:97}]);assert.equal(result.beltAnalysis?.profileMatchStatus,'not-matched');assert.deepEqual(result.modelSuggestions,[]);assert.deepEqual(result.similarCandidates,[]);assert.deepEqual(result.catalogImageMatches,[]);assert.equal(result.summary.catalogAvailability?.status,'custom_order_available');});
 test('missing family profile metadata is shown as unverified rather than matched',()=>{const unknown=[{...products[0],profiles:'',variants:[{code:'SPB-2000',name:'تسمه صنعتی',active:true}]}] as Product[];const result=applyBeltRecognition(resultFor('belt-family','SPB-2000'),unknown,[{text:'SPB 2000',confidence:97}]);assert.equal(result.beltAnalysis?.profileMatchStatus,'unverified');assert.equal(result.modelSuggestions?.length,1);assert.match(result.beltAnalysis!.note,/کامل نیست/);});
 test('OCR-only and family-sibling suggestions cannot confirm a belt without visual family evidence',()=>{
