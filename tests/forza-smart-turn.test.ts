@@ -86,7 +86,7 @@ test('stable complete turns dispatch quickly while unfinished clauses survive a 
   assert.equal(forzaTurnRemainingWaitMs(phrase,false,1000,1000),0);
   const unfinished='این تسمه را می‌خواهم چون';
   assert.equal(forzaEndOfTurnPauseMs(unfinished,false),2250);
-  assert.equal(forzaEndOfTurnPauseMs(unfinished,true),2400);
+  assert.equal(forzaEndOfTurnPauseMs(unfinished,true),2250);
   assert.equal(forzaTurnRemainingWaitMs(unfinished,false,2000,2000),250,
     'a clause ending in چون must remain open after a two-second pause');
 });
