@@ -56,6 +56,8 @@ test('family and SKU artwork only use identity-verified matches and never generi
   assert.match(api, /image\.identityVerified === true/);
   assert.match(api, /product\.image = familyImages\[0\] \|\| ''/);
   assert.match(api, /image\.scope === 'variant'/);
+  assert.match(api, /when gi\.scope = 'variant' then ia\.family_code/);
+  assert.match(api, /auditedCanonicalOwner === canonicalCode/);
   assert.match(api, /familyImageOwnersByUrl/);
   assert.match(api, /owners\.size === 1/);
   assert.doesNotMatch(api, /product\.image = familyImages\[0\] \|\| product\.image/);
