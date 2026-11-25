@@ -19,22 +19,32 @@ test('the best photograph wins when one real model has multiple candidate photos
  const list=localModelSuggestions([lower,best],[p]);
  assert.equal(list.length,1);assert.equal(list[0].image,best.row.url);assert.equal(list[0].visualScore,93);
 });
-test('family-only photos show one scored family result plus honest unscored SKU alternatives',()=>{
+test('family-only photos produce one family result and never fan out into sibling SKU cards',()=>{
  const p=family('gear',3);p.variants![0].images=[];p.variants![2].active=false;
  const list=localModelSuggestions([hit('gear',undefined,0.9)],[p]);
- assert.equal(list[0].code,undefined);assert.equal(list[0].matchBasis,'visual');assert.equal(list[0].visualScore,90);
- assert.equal(list[0].image,'/storage/products/catalog/e(1).png'); // matched family photo
+ assert.equal(list.length,1);
+ assert.equal(list[0].code,undefined);assert.equal(list[0].familyCode,'gear');
+ assert.equal(list[0].matchBasis,'visual');assert.equal(list[0].visualScore,90);
+ assert.equal(list[0].image,'/storage/products/catalog/e(1).png');
  assert.equal(list[0].imageScope,'family');
- assert.deepEqual(list.slice(1).map(i=>i.code),['gear-0','gear-1']);
- assert.equal(list[1].image,'/storage/products/catalog/e(1).png');assert.equal(list[1].imageScope,'family');
- assert.equal(list[2].image,'/storage/products/catalog/e(2).png');assert.equal(list[2].imageScope,'variant');
- assert.ok(list.slice(1).every(i=>i.matchBasis==='family'&&i.visualScore===undefined));
 });
-test('a shared photo never becomes multiple independently ranked model scores',()=>{
+test('a shared photo produces one family-level suggestion, not multiple SKU matches',()=>{
  const p=family('gear',2);const shared=hit('gear','gear-0',0.97);
  shared.row.bindings.push({familyCode:'gear',code:'gear-1',verified:false});
  const list=localModelSuggestions([shared],[p]);
- assert.equal(list.length,2);assert.ok(list.every(i=>i.matchBasis==='family'&&i.imageScope==='family'&&i.visualScore===undefined));
+ assert.equal(list.length,1);
+ assert.equal(list[0].familyCode,'gear');assert.equal(list[0].code,undefined);
+ assert.equal(list[0].matchBasis,'visual');assert.equal(list[0].imageScope,'family');
+ assert.equal(list[0].visualScore,97);
+});
+
+test('a photo shared between a SKU and another family is not assigned to the SKU',()=>{
+ const p=family('gear',1),other=family('other',1);
+ const shared=hit('gear','gear-0',0.95);
+ shared.row.bindings.push({familyCode:'other',code:undefined,verified:false});
+ const list=localModelSuggestions([shared],[p,other]);
+ assert.deepEqual(list.map(item=>item.familyCode),['gear','other']);
+ assert.ok(list.every(item=>!item.code&&item.imageScope==='family'));
 });
 test('weak photos, inactive families and non-existent SKU bindings do not produce visual suggestions',()=>{
  const active=family('gear',2),inactive={...family('hidden'),active:false};
@@ -47,21 +57,21 @@ test('weak photos, inactive families and non-existent SKU bindings do not produc
 test('visual ranking precedes OCR-only and family alternatives; unique OCR codes remain unconfirmed suggestions',()=>{
  const p=family('gear',3);
  const list=localModelSuggestions([hit('gear','gear-0',0.85)],[p],[{text:'gear-2',confidence:96}]);
- assert.deepEqual(list.map(i=>i.code),['gear-0','gear-2','gear-1']);
+ assert.deepEqual(list.map(i=>i.code),['gear-0','gear-2']);
  assert.equal(list[0].matchBasis,'visual');assert.equal(list[1].matchBasis,'read_code');
  assert.equal(list[1].visualScore,undefined);
 });
-test('family alternatives are bounded and share slots across visually eligible families',()=>{
+test('family-level results are deduplicated once per family',()=>{
  const list=localModelSuggestions([hit('a',undefined,0.9),hit('b',undefined,0.87)],[family('a',100),family('b',100)]);
- assert.equal(list.length,24);assert.equal(new Set(list.map(i=>i.code || i.familyCode)).size,24);
- assert.equal(list[0].familyCode,'a');assert.equal(list[1].familyCode,'b');
+ assert.equal(list.length,2);
+ assert.deepEqual(list.map(item=>item.familyCode),['a','b']);
+ assert.ok(list.every(item=>!item.code&&item.imageScope==='family'));
 });
-test('lower-confidence photographed siblings follow their relative image scores but remain family alternatives',()=>{
+test('lower-confidence sibling photos do not get promoted by a stronger family-only photo',()=>{
  const p=family('gear',3);
  const list=localModelSuggestions([hit('gear',undefined,0.9),hit('gear','gear-0',0.51),hit('gear','gear-1',0.62),hit('gear','gear-2',0.57)],[p]);
+ assert.equal(list.length,1);
  assert.equal(list[0].code,undefined);assert.equal(list[0].matchBasis,'visual');assert.equal(list[0].visualScore,90);
- assert.deepEqual(list.slice(1).map(item=>item.code),['gear-1','gear-2','gear-0']);
- assert.ok(list.slice(1).every(item=>item.matchBasis==='family'&&item.visualScore===undefined));
 });
 
 test('uncoded family-level products are included and ranked above lower-scoring coded products',()=>{
@@ -87,7 +97,7 @@ test('raw visual similarity remains the primary order when geometry or OCR bonus
  assert.deepEqual(list.slice(0,2).map(item=>item.visualScore),[91,86]);
 });
 
-test('a family-only photo remains a scored result even when the family also has coded SKUs',()=>{
+test('a family-only photo stays one family result even when the family contains coded SKUs',()=>{
  const coded=family('coded',1);
  const familyWithSkus=family('uncoded',1);
  const familyPhoto=hit('uncoded',undefined,0.96,'uncoded-family-photo');
@@ -97,5 +107,5 @@ test('a family-only photo remains a scored result even when the family also has 
  assert.equal(list[0].matchBasis,'visual');
  assert.equal(list[0].visualScore,96);
  assert.ok(list[0].reason?.includes('نه به یک کد SKU مشخص'));
- assert.ok(list.some(item=>item.code==='uncoded-0'&&item.matchBasis==='family'));
+ assert.ok(!list.some(item=>item.code==='uncoded-0'));
 });

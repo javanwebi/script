@@ -2,7 +2,7 @@ import {LocalModelResults} from './LocalModelResults';
 import {CatalogResultImage} from './CatalogResultImage';
 import { loadVisionRecentSearches, recordVisionRecentSearch, type VisionRecentSearchItem } from './visionRecentHistory';
 import {apiUrl} from '../../config/apiConfig';
-import { getForegroundRegion, getForegroundRegions, preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
+import { preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState, type VisionWorkspaceResult} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
@@ -278,24 +278,27 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     !analysisResult?.modelSuggestions?.length || photo.bindings.length===0);
   const workspaceResults:VisionWorkspaceResult[]=[
     ...(analysisResult?.matchedProducts||[]).map(item=>({
-      id:'sku:'+item.code,code:item.code,name:item.name,brand:item.brand,
+      id:'sku:'+item.code,code:item.code,familyCode:item.catalogProduct?.code,name:item.name,brand:item.brand,
       image:item.image||item.catalogProduct?.image||item.catalogProduct?.images?.[0],
-      imageScope:item.catalogProduct?.imageScope==='family-example'?'family' as const:item.catalogProduct?.imageScope==='sku-verified'?'variant' as const:'none' as const,
+      imageScope:item.imageScope || (item.catalogProduct?.imageScope==='family-example'?'family' as const:item.catalogProduct?.imageScope==='sku-verified'?'variant' as const:'none' as const),
+      matchBasis:'visual' as const,
       familyName:item.catalogProduct?.categoryName,specs:item.specs,
       similarityScore:item.similarityScore,matchLabel:item.visualVerdictFarsi||item.matchReason||item.distinction,
       reason:item.matchReason,
     })),
     ...(analysisResult?.similarCandidates||[]).map(item=>({
-      id:'sku:'+item.code,code:item.code,name:item.name,brand:item.brand,
+      id:'sku:'+item.code,code:item.code,familyCode:item.catalogProduct?.code,name:item.name,brand:item.brand,
       image:item.image||item.catalogProduct?.image||item.catalogProduct?.images?.[0],
-      imageScope:item.catalogProduct?.imageScope==='family-example'?'family' as const:item.catalogProduct?.imageScope==='sku-verified'?'variant' as const:'none' as const,
+      imageScope:item.imageScope || (item.catalogProduct?.imageScope==='family-example'?'family' as const:item.catalogProduct?.imageScope==='sku-verified'?'variant' as const:'none' as const),
+      matchBasis:item.matchType==='code'?'read_code' as const:'visual' as const,
       familyName:item.catalogProduct?.categoryName,specs:item.specs,
       similarityScore:item.similarityScore,matchLabel:item.visualVerdictFarsi||item.matchReason||item.distinction,
       reason:item.matchReason,
     })),
     ...(analysisResult?.modelSuggestions||[]).map(item=>({
       id:item.code?'sku:'+item.code:'family:'+item.familyCode+':'+item.name,
-      code:item.code,name:item.name,brand:item.brand,image:item.image,imageScope:item.imageScope,
+      code:item.code,familyCode:item.familyCode,name:item.name,brand:item.brand,image:item.image,imageScope:item.imageScope,
+      matchBasis:item.matchBasis,
       familyName:item.familyName,model:item.model,size:item.size,specs:item.specs,
       similarityScore:item.visualScore,matchLabel:item.matchBasis==='explore'?'برای بررسی؛ تأیید نشده':item.reason,
       reason:item.reason,
@@ -391,8 +394,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     // first without waiting for the server's detection round-trip.
     const localDetection = segmentImageWithClientAi(imageUrl).then(segmented => {
       if (sequence !== regionDetectionSequenceRef.current || serverCommitted || !segmented) return false;
-      const detectedRegions = getForegroundRegions(segmented);
-      const region = getForegroundRegion(segmented) || detectedRegions[0];
+      const detectedRegions = segmented.regions;
+      const region = detectedRegions[0];
       if (!region) return false;
       localSucceeded = true;
       localSegmentationRef.current = { source: imageUrl, result: segmented, region };
@@ -1072,6 +1075,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             setSelectedProductId(id);
             const code=workspaceResults.find(item=>item.id===id)?.code;
             if(code&&imageEventId)void selectCustomerImageProduct(imageEventId,code).catch(error=>console.warn('[Customer image history] selected product sync unavailable',error));
+          }}
+          onOpenProduct={(id) => {
+            const item=workspaceResults.find(result=>result.id===id);
+            const productCode=item?.code || item?.familyCode;
+            if(!productCode)return;
+            navigate('/product/'+encodeURIComponent(productCode));
+            onClose();
           }}
           onRetryAnalysis={() => {
             setErrorMessage('');
