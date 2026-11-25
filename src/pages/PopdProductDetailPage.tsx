@@ -19,8 +19,8 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import type { Product, ProductGalleryImage } from '../types';
-import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useCatalogPanelMode } from '../hooks/useCatalogPanelMode';
 import { useWishlist } from '../context/WishlistContext';
 import { ProductImage } from '../components/product/ProductImage';
 import { ProductVariants } from '../components/product/PopdProductVariants';
@@ -68,10 +68,9 @@ export const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const decodedCode = decodeURIComponent(code).trim();
 
-  const { currentUser } = useAuth();
   const { addToCart, cart, submitInquiry } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
-  const panelMode = Boolean(currentUser);
+  const [panelMode] = useCatalogPanelMode();
 
   const isPortalRoute =
     location.pathname.startsWith('/consumer-dashboard/') ||

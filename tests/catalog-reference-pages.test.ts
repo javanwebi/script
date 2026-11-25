@@ -33,6 +33,12 @@ test('only category and family route components are switched to POPD-derived pag
   assert.match(wrapper, /PopdExcelMenuCategoryPage/);
 });
 
+test('catalog price panel keeps POPD default-on persisted panel mode', () => {
+  const hook = read('src/hooks/useCatalogPanelMode.ts');
+  assert.match(hook, /sanatpish_panel_mode_v1/);
+  assert.match(hook, /getItem\(PANEL_MODE_KEY\) !== '0'/);
+});
+
 test('belt family media can resolve canonical families through legacy family codes', () => {
   const media = read('src/utils/beltCatalogMedia.ts');
   assert.match(media, /legacyFamilyCodes/);

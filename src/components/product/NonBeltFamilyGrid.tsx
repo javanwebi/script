@@ -11,8 +11,8 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import type { Product } from '../../types';
-import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useCatalogPanelMode } from '../../hooks/useCatalogPanelMode';
 import { Modal } from '../ui/Modal';
 import { formatPrice, toPersianDigits } from '../../utils/formatters';
 import {
@@ -38,8 +38,7 @@ export const NonBeltFamilyGrid: React.FC<NonBeltFamilyGridProps> = ({
   initialHighlightCode = '',
 }) => {
   const { addToCart, cart } = useCart();
-  const { currentUser } = useAuth();
-  const panelMode = Boolean(currentUser);
+  const [panelMode] = useCatalogPanelMode();
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
   const [recentlyAddedCode, setRecentlyAddedCode] = useState<string | null>(null);

@@ -16,8 +16,8 @@ import {
   X,
 } from 'lucide-react';
 import type { Category, Product } from '../types';
+import { useCatalogPanelMode } from '../hooks/useCatalogPanelMode';
 import type { CategoryNode } from '../data/categories';
-import { useAuth } from '../context/AuthContext';
 import { resolveCategorySlug } from '../data/categories';
 import { resolveDisplayBrand, productHasDisplayBrand } from '../utils/catalogBrands';
 import { toPersianDigits } from '../utils/formatters';
@@ -124,8 +124,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const { slug: rawSlug = '' } = useParams<{ slug: string }>();
   const slug = resolveCategorySlug(decodeURIComponent(rawSlug));
   const [searchParams, setSearchParams] = useSearchParams();
-  const { currentUser } = useAuth();
-  const panelMode = Boolean(currentUser);
+  const [panelMode] = useCatalogPanelMode();
 
   const [payload, setPayload] = useState<MenuCategoryPayload | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'not-found' | 'error'>('loading');
