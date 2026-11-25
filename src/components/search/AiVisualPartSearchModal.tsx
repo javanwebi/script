@@ -367,6 +367,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       similarityScore:item.visualScore,matchLabel:item.matchBasis==='explore'?'برای بررسی؛ تأیید نشده':item.reason,
       reason:item.reason,
     })),
+    ...(analysisResult?.nearestCatalogSuggestions||[]).slice(0,8).map(item=>({
+      id:item.code?'sku:'+item.code:'family:'+item.familyCode+':'+item.name,
+      code:item.code,familyCode:item.familyCode,name:item.name,brand:item.brand,image:item.image,imageScope:item.imageScope,
+      matchBasis:'explore' as const,
+      familyName:item.familyName,model:item.model,size:item.size,specs:item.specs,
+      matchLabel:'گزینه نزدیک برای بررسی؛ تطبیق قطعی نیست',
+      reason:item.reason || 'این گزینه از نزدیک‌ترین تصاویر کاتالوگ است و هویت قطعه هنوز تأیید نشده است.',
+    })),
   ].filter((item,index,all)=>item.name.trim().length>0&&index===all.findIndex(other=>other.id===item.id));
 
   // Short part family for dynamic titles, e.g. «این چرخ‌دهنده‌ها را داریم».
@@ -817,7 +825,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         imageBase64, mimeType: analysisMimeType,
         length: length ? parseFloat(length) : undefined, width: width ? parseFloat(width) : undefined, pitch: pitch ? parseFloat(pitch) : undefined,
         application: application.trim() || undefined, features: features.trim() || undefined,
-        stage, observationOnly: false, region: requestRegion, detectionId: localRegionEnabled ? regionDetectionId || undefined : undefined, fullImage: requestFullImage, includeNearest: false,
+        stage, observationOnly: false, region: requestRegion, detectionId: localRegionEnabled ? regionDetectionId || undefined : undefined, fullImage: requestFullImage, includeNearest: true,
         measurements: stage === "refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if (sequence !== analysisSequenceRef.current) return;
