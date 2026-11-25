@@ -26,6 +26,8 @@ on:
       - 'src/services/localVisionDetectionCache.ts'
       - 'src/services/localModelSuggestions.ts'
       - 'src/services/localVision.ts'
+      - 'src/services/beltRecognition.ts'
+      - 'tests/belt-recognition.test.ts'
       - 'src/services/catalogVisualIndex.ts'
       - 'src/services/localQueryImage.ts'
       - 'src/utils/imageRegionInteraction.ts'
@@ -80,6 +82,7 @@ jobs:
           tests/catalog-visual-index.test.ts
           tests/image-region-interaction.test.ts
           tests/local-query-image.test.ts
+          tests/belt-recognition.test.ts
       - name: Install pinned Playwright browser runner
         run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1 onnxruntime-web@1.18.0
       - name: Install Chromium
