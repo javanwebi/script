@@ -27,7 +27,8 @@ const { chromium } = require('playwright');
       "import '/src/index.css';",
       "import '/src/components/search/industrial-scan.css';",
       "import '/src/components/search/image-region-review.css';",
-      "function App(){const [region,setRegion]=useState();const [disabled,setDisabled]=useState(false);window.setSelectorDisabled=setDisabled;window.lastRegion=undefined;return <ImageRegionSelector variant='viewer' disabled={disabled} src='/fixture-part.png' value={region} candidateRegions={[{x:0.53,y:0.36,width:0.14,height:0.28},{x:0.15,y:0.3,width:0.14,height:0.28}]} onChange={r=>{window.lastRegion=r || null;setRegion(r)}}/>;}",
+      "window.lastRegion=undefined;",
+      "function App(){const [region,setRegion]=useState();const [disabled,setDisabled]=useState(false);window.setSelectorDisabled=setDisabled;return <ImageRegionSelector variant='viewer' disabled={disabled} src='/fixture-part.png' value={region} candidateRegions={[{x:0.53,y:0.36,width:0.14,height:0.28},{x:0.15,y:0.3,width:0.14,height:0.28}]} onChange={r=>{window.lastRegion=r || null;setRegion(r)}}/>;}",
       "createRoot(document.getElementById('root')).render(<App/>);"
     ].join('\n');
     await fs.writeFile(path.join(fixture, 'entry.tsx'), entry);
