@@ -315,18 +315,20 @@ test('source-verified mixed-family SKU overrides populate the correct technical 
  assert.match(skuSql,/ریل راهنما گالوانیزه و متعلقات/);
 });
 
-test('family-backed direct SKUs are hidden only while their source family is visible',()=>{
- const source=readFileSync('src/pages/ExcelMenuCategoryPage.tsx','utf8');
- assert.match(source,/const sourceFamilyCode = String\(item\.sourceFamilyCode \|\| ''\)/);
- assert.match(source,/selectedFamilyCodesForFacet\.has\(sourceFamilyCode\)/);
- assert.match(source,/!selectedFamilyCodesForFacet\.has\(skuCode\)/);
+test('reference direct SKUs are sourced from POPD and cannot duplicate a family variant',()=>{
+  const api=readFileSync('server/catalogReferenceApi.ts','utf8');
+  assert.match(api,/asArray<any>\(payload\.directSkus\)/);
+  assert.match(api,/productByVariantCode\.has\(codeKey\)/);
+  assert.match(api,/A POPD standalone SKU duplicates a family variant/);
+  assert.match(api,/Duplicate standalone SKU code in POPD archive/);
+  assert.doesNotMatch(api,/from public\.catalog_direct_skus/);
 });
 
-test('category pages merge SKU-level records into the same collection as family products',()=>{
- const source=readFileSync('src/pages/ExcelMenuCategoryPage.tsx','utf8');
- assert.match(source,/useDirectSkus/);
- assert.match(source,/const directSkus = useDirectSkus\(slug\)/);
- assert.match(source,/filteredDirectSkus\.forEach\(sku => \{[\s\S]*?items\.push\(\{ kind: 'directSku', sku \}\)/);
+test('category pages merge only POPD-owned standalone SKU records into the family collection',()=>{
+  const source=readFileSync('src/pages/ExcelMenuCategoryPage.tsx','utf8');
+  assert.match(source,/const directSkus = data\?\.directSkus \|\| \[\]/);
+  assert.doesNotMatch(source,/useDirectSkus/);
+  assert.match(source,/filteredDirectSkus\.forEach\(sku => \{[\s\S]*?items\.push\(\{ kind: 'directSku', sku \}\)/);
 });
 
 test('category APIs and product filters prefer the audited map over legacy conservative assignments',()=>{
