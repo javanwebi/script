@@ -111,3 +111,12 @@ test('all active Supabase categories and their database group assignments remain
   assert.match(api, /categoryRows\.map\(\(dbCategory: any\)/);
   assert.match(api, /ungrouped\.length \|\| unknownGroupCategories\.length/);
 });
+
+test('reference catalog reports only attached artwork and preserves legacy product routes', () => {
+  const api = read('server/catalogReferenceApi.ts');
+  const detail = read('src/pages/PopdProductDetailPage.tsx');
+  assert.match(api, /activeVerifiedFamilyImageUrls/);
+  assert.match(api, /verifiedFamilyImageCount: activeVerifiedFamilyImageUrls\\.size/);
+  assert.match(detail, /LegacyProductDetailPage/);
+  assert.match(detail, /status === 'not-found'/);
+});
