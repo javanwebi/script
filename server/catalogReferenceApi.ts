@@ -4,6 +4,7 @@ import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../src/data/appr
 import type { Category, Product, ProductGalleryImage, ProductVariant } from '../src/types';
 
 const ENGINEERED_SOURCE_PATH = 'github/javanwebi/POPD/server/data/engineeredCatalog.json';
+const E869_SOURCE_PATH = 'github/javanwebi/POPD/deliverables/catalog-869-audit/e869_linked_catalog.json';
 const CACHE_TTL_MS = 45_000;
 
 type AliasRecord = { newFamilyCode?: string; directSkuCode?: string };
@@ -26,6 +27,8 @@ type Snapshot = {
   aliasMap: Map<string, AliasRecord>;
   assignmentsByFamily: Map<string, { categorySlug: string; submenuName: string; leafName: string | null; method?: string }>;
   sourceSha256: string | null;
+  e869SourceSha256: string | null;
+  linkedE869ImageCount: number;
   importedAt: string | null;
   generatedAt: string | null;
   familyCount: number;
@@ -96,10 +99,14 @@ async function loadSnapshot(): Promise<Snapshot> {
   if (!databaseEnabled()) throw new Error('PostgreSQL catalog backend is not enabled');
 
   const db = database();
-  const [archiveRes, groupRes, categoryRes, commercialRes, galleryRes, aliasRes] = await Promise.all([
+  const [archiveRes, e869Res, groupRes, categoryRes, commercialRes, galleryRes, aliasRes] = await Promise.all([
     db.query(
       'select payload, sha256, imported_at from app_private.source_archives where source_path = $1 order by imported_at desc limit 1',
       [ENGINEERED_SOURCE_PATH],
+    ),
+    db.query(
+      'select payload, sha256, imported_at from app_private.source_archives where source_path = $1 order by imported_at desc limit 1',
+      [E869_SOURCE_PATH],
     ),
     db.query(
       'select id, title, icon_key as "iconKey", image_url as "imageUrl", category_slugs as "categorySlugs", sort_order as "sortOrder", is_active as active from public.catalog_navigation_groups where is_active = true order by sort_order, id',
@@ -113,10 +120,7 @@ async function loadSnapshot(): Promise<Snapshot> {
     db.query(
       `select
         gi.id,
-        case
-          when gi.scope = 'variant' then ia.family_code
-          else gi.family_code
-        end as family_code,
+        gi.family_code,
         gi.variant_code,
         gi.file_name,
         gi.url,
@@ -127,21 +131,12 @@ async function loadSnapshot(): Promise<Snapshot> {
       from public.catalog_gallery_images gi
       inner join public.catalog_image_audits ia
         on lower(ia.image_url) = lower(gi.url)
-      where gi.identity_verified = true
+      where gi.scope = 'family-example'
+        and gi.identity_verified = true
         and ia.review_status = 'approved'
         and ia.identity_status = 'verified'
-        and (
-          (
-            gi.scope = 'family-example'
-            and ia.sku_verified = false
-            and upper(ia.family_code) = upper(gi.family_code)
-          )
-          or (
-            gi.scope = 'variant'
-            and ia.sku_verified = true
-            and upper(ia.exact_sku) = upper(gi.variant_code)
-          )
-        )
+        and ia.sku_verified = false
+        and upper(ia.family_code) = upper(gi.family_code)
       order by gi.sort_order, gi.id`,
     ),
     db.query(
@@ -153,6 +148,39 @@ async function loadSnapshot(): Promise<Snapshot> {
   if (!archive) throw new Error('The POPD engineered catalog archive is missing from app_private.source_archives');
   const payload = typeof archive.payload === 'string' ? JSON.parse(archive.payload) : archive.payload;
   if (!payload || !Array.isArray(payload.products)) throw new Error('The POPD engineered catalog archive has an invalid payload');
+
+  const e869Archive = e869Res.rows[0];
+  if (!e869Archive) throw new Error('The POPD e869 linked SKU image archive is missing from app_private.source_archives');
+  const e869Payload = typeof e869Archive.payload === 'string' ? JSON.parse(e869Archive.payload) : e869Archive.payload;
+  const e869Assignments = asArray<any>(e869Payload?.assignments);
+  const e869ImageBySku = new Map<string, string>();
+  const e869ImageUrls = new Set<string>();
+  for (const assignment of e869Assignments) {
+    const skuCode = normalizeCode(assignment?.skuCode);
+    const imageUrl = String(assignment?.url || '').trim();
+    if (
+      assignment?.targetKind !== 'variant' ||
+      !skuCode ||
+      !/^\\/storage\\/products\\/catalog\\/e\\([1-9]\\d{0,2}|8[0-6]\\d|869)\\.png$/i.test(imageUrl)
+    ) {
+      throw new Error('The POPD e869 image mapping contains an invalid SKU or image URL');
+    }
+    if (e869ImageBySku.has(skuCode) || e869ImageUrls.has(imageUrl)) {
+      throw new Error('The POPD e869 image mapping contains a duplicate SKU or image URL: ' + skuCode);
+    }
+    e869ImageBySku.set(skuCode, imageUrl);
+    e869ImageUrls.add(imageUrl);
+  }
+  if (
+    Number(e869Payload?.totalImages) !== 869 ||
+    Number(e869Payload?.linkedImages) !== 869 ||
+    Number(e869Payload?.uniqueSkusLinked) !== 869 ||
+    e869Assignments.length !== 869 ||
+    e869ImageBySku.size !== 869 ||
+    e869ImageUrls.size !== 869
+  ) {
+    throw new Error('The POPD e869 linked image mapping failed its 869-image uniqueness check');
+  }
 
   const fallbackCategories = APPROVED_MENU_CATEGORIES as unknown as Category[];
   const fallbackGroups = APPROVED_MENU_GROUPS as unknown as NavigationGroup[];
@@ -282,18 +310,11 @@ async function loadSnapshot(): Promise<Snapshot> {
   }
 
   const galleryByFamily = new Map<string, ProductGalleryImage[]>();
-  const galleryByVariant = new Map<string, ProductGalleryImage[]>();
   for (const row of galleryRes.rows) {
     const entry = makeGalleryImage(row);
-    if (!entry.url) continue;
-    if (row.family_code) {
-      const key = normalizeCode(row.family_code);
-      galleryByFamily.set(key, [...(galleryByFamily.get(key) || []), entry]);
-    }
-    if (row.variant_code) {
-      const key = normalizeCode(row.variant_code);
-      galleryByVariant.set(key, [...(galleryByVariant.get(key) || []), entry]);
-    }
+    if (!entry.url || !row.family_code) continue;
+    const key = normalizeCode(row.family_code);
+    galleryByFamily.set(key, [...(galleryByFamily.get(key) || []), entry]);
   }
 
   // Build a canonical ownership map for family images. A URL shared by two
@@ -386,19 +407,10 @@ async function loadSnapshot(): Promise<Snapshot> {
     const updatedVariants = (product.variants || []).map((variant) => {
       const variantKey = normalizeCode(variant.code);
       const commercial = commercialByVariant.get(variantKey);
-      const variantGallery = (galleryByVariant.get(variantKey) || []).filter((image) => {
-        const auditedFamilyCode = normalizeCode(image.familyCode);
-        const auditedCanonicalOwner = canonicalFamilyByCode.get(auditedFamilyCode);
-        return (
-          image.scope === 'variant' &&
-          image.identityVerified === true &&
-          normalizeCode(image.variantCode) === variantKey &&
-          auditedCanonicalOwner === canonicalCode
-        );
-      });
-      attachGallery(variantGallery);
-      // Variant images from the engineered archive are not SKU-proof. Only exact-SKU audited gallery rows are public.
-      const images = Array.from(new Set(variantGallery.map((image) => image.url)));
+      // POPD's e869 linked catalog is the authoritative one-to-one SKU image map.
+      // Match only by the exact SKU code; a missing mapping intentionally remains image-free.
+      const e869Image = e869ImageBySku.get(variantKey);
+      const images = e869Image ? [e869Image] : [];
       return {
         ...variant,
         ...(commercial ? {
@@ -533,6 +545,8 @@ async function loadSnapshot(): Promise<Snapshot> {
     aliasMap: aliases,
     assignmentsByFamily,
     sourceSha256: archive.sha256 ? String(archive.sha256) : null,
+    e869SourceSha256: e869Archive.sha256 ? String(e869Archive.sha256) : null,
+    linkedE869ImageCount: activeVerifiedVariantImageUrls.size,
     importedAt: archive.imported_at ? new Date(archive.imported_at).toISOString() : null,
     generatedAt: payload.generatedAt ? String(payload.generatedAt) : null,
     familyCount: products.length,
@@ -635,6 +649,9 @@ export function registerCatalogReferenceApi(app: Express): void {
     await withSnapshot(res, (snapshot) => ({
       sourcePath: ENGINEERED_SOURCE_PATH,
       sourceSha256: snapshot.sourceSha256,
+      e869SourcePath: E869_SOURCE_PATH,
+      e869SourceSha256: snapshot.e869SourceSha256,
+      linkedE869ImageCount: snapshot.linkedE869ImageCount,
       importedAt: snapshot.importedAt,
       generatedAt: snapshot.generatedAt,
       familyCount: snapshot.familyCount,
