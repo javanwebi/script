@@ -202,9 +202,9 @@ test('manual selection is encoded as a real cropped image even when server regio
   assert.ok(modal.includes('clientCropFallback'));
   assert.ok(modal.includes('matchesCachedImageRegion(selectedRegionForRequest, candidateRegions)'));
   assert.ok(modal.includes('const requestRegion = requestRegionIsCached ? selectedRegionForRequest : undefined'));
-  assert.ok(modal.includes('Boolean(selectedRegionForRequest) && !requestRegionIsCached'));
+  assert.ok(modal.includes('Boolean(regionSelectionExplicit && selectedRegionForRequest) && !requestRegionIsCached'));
   assert.ok(region.includes('export function matchesCachedImageRegion'));
-  assert.ok(modal.includes('detectionId: requestRegion ? regionDetectionId || undefined : undefined'));
+  assert.ok(modal.includes('detectionId: requestDetectionId'));
   assert.ok(modal.includes('if (clientCropFallback && selectedRegionForRequest)'));
   assert.ok(modal.includes('setQueryRegion(selectedRegionForRequest)'));
   assert.ok(modal.includes('setFullImageSelected(false)'));
