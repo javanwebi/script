@@ -19,8 +19,12 @@ async function hasPopdCatalogOverlay(){
     to_regclass('app_private.catalog_popd_direct_skus') is not null as direct_skus`);
   const row=tables.rows[0]||{};
   if(row.families!==true||row.family_variants!==true||row.direct_skus!==true)return false;
-  const ready=await database().query(`select exists(select 1 from app_private.catalog_popd_families where is_active=true) as ready`);
-  return ready.rows[0]?.ready===true;
+  const ready=await database().query(`select
+    exists(select 1 from app_private.catalog_popd_families where is_active=true) as families_ready,
+    exists(select 1 from app_private.catalog_popd_family_variants) as family_variants_ready,
+    exists(select 1 from app_private.catalog_popd_direct_skus) as direct_skus_ready`);
+  const status=ready.rows[0]||{};
+  return status.families_ready===true&&status.family_variants_ready===true&&status.direct_skus_ready===true;
 }
 
 type MenuAssignment = {categorySlug:string;submenuName:string;leafName:string|null;method?:string};
@@ -507,8 +511,8 @@ export function registerCatalogNavigationApi(app:Express){
       if(categoryPrefix&&!/^excel-v2-\\d+-$/.test(categoryPrefix))return res.status(400).json({success:false,items:[]});
       const popdReady=await hasPopdCatalogOverlay();
       const wantsPopd=popdReady&&(!categorySlug&&!categoryPrefix||categorySlug.startsWith('excel-v2-')||categoryPrefix.startsWith('excel-v2-'));
-      const wantsLegacy=!categorySlug&&!categoryPrefix||!categorySlug&&!categoryPrefix?true:
-        !(categorySlug.startsWith('excel-v2-')||categoryPrefix.startsWith('excel-v2-'));
+      const wantsLegacy=(!categorySlug&&!categoryPrefix)||
+        (!categorySlug.startsWith('excel-v2-')&&!categoryPrefix.startsWith('excel-v2-'));
       const buildScope=(alias:string)=>{
         const params:any[]=[];
         const scope:string[]=[];
@@ -518,7 +522,8 @@ export function registerCatalogNavigationApi(app:Express){
       };
       const popdQuery=async()=>{
         const {params,scope}=buildScope('d');
-        const conditions=[...scope.length?['('+scope.join(' or ')+')']:[]];
+        const conditions:string[]=[];
+        if(scope.length)conditions.push('('+scope.join(' or ')+')');
         if(!withInactive)conditions.push('d.is_active=true','v.active=true');
         const where=conditions.length?'where '+conditions.join(' and '):'';
         return database().query(
