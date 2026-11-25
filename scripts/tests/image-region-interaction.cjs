@@ -134,9 +134,14 @@ const {chromium}=require('playwright');
   await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-desktop.png'),fullPage:true});
 
   const candidateButtons=page.getByTestId('vision-region-candidates').getByRole('button');
-  if(await candidateButtons.count()>1){
+  const candidateCount=await candidateButtons.count();
+  let nextCandidateIndex=-1;
+  for(let index=0;index<candidateCount;index++){
+   if(await candidateButtons.nth(index).getAttribute('aria-pressed')!=='true'){nextCandidateIndex=index;break;}
+  }
+  if(nextCandidateIndex>=0){
    const previousRegion=queries[0].region;
-   await candidateButtons.nth(1).click();
+   await candidateButtons.nth(nextCandidateIndex).click();
    await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
    assert.equal(queries.length,2,'selecting another detected object must automatically run a new search');
    assert.ok(queries[1].region,'second object search must use its own detected region');
