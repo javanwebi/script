@@ -123,10 +123,10 @@ test('the real VPS runtime selects AvalAI STT and requires a ready Diba fallback
   assert.match(deploy,/"\$STT_IMAGE" node --import tsx server\.ts/);
   assert.doesNotMatch(deploy,/node:22-bookworm node --import tsx server\.ts/);
   assert.match(deploy,/FORZA_STT_PROVIDER=avalai/);
-  assert.match(canary,/assert\.equal\(stt\.serverSttProvider, "avalai"\)/);
-  assert.match(canary,/assert\.equal\(stt\.serverSttReady, true\)/);
-  assert.match(canary,/assert\.equal\(stt\.serverSttFallbackProvider, "diba"\)/);
-  assert.match(canary,/assert\.equal\(stt\.serverSttFallbackReady, true\)/);
+  assert.match(canary,/assert\.equal\(stt\?\.serverSttProvider, "avalai"\)/);
+  assert.match(canary,/assert\.equal\(stt\?\.serverSttReady, true\)/);
+  assert.match(canary,/assert\.equal\(stt\?\.serverSttFallbackProvider, "diba"\)/);
+  assert.match(canary,/assert\.equal\(stt\?\.serverSttFallbackReady, true\)/);
   assert.match(bluegreen,/info\.get\('serverSttProvider'\) == 'avalai'/);
   assert.match(bluegreen,/stt_info\.get\('serverSttProvider'\) == 'avalai'/);
   assert.match(bluegreen,/serverSttFallbackProvider/);
