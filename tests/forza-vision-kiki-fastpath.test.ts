@@ -6,7 +6,7 @@ import test from 'node:test';
 const source = (relative: string) =>
   readFileSync(fileURLToPath(new URL('../' + relative, import.meta.url)), 'utf8');
 
-test('KIKI entry, camera, crop review and results share one real identification flow', () => {
+test('KIKI entry, camera, automatic region detection and inline results share one real identification flow', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   assert.ok(modal.includes('<VisionEntryPage'));
   assert.ok(modal.includes('full-screen-camera-experience'));
@@ -15,7 +15,8 @@ test('KIKI entry, camera, crop review and results share one real identification 
   assert.ok(modal.includes('forza-vision-catalog-sheet-header'));
   assert.ok(modal.includes('forza-vision-catalog-results'));
   assert.ok(modal.includes('src={selectedImage}'));
-  assert.ok(modal.includes('onConfirm={confirmRegionAndAnalyze}'));
+  assert.ok(modal.includes("void handleAnalyze('quick',region,localImageId,true)"));
+  assert.ok(modal.includes('analysisComplete={Boolean(analysisResult)}'));
   assert.ok(modal.includes('aiVisualSearchService.analyzePartWithAi'));
 });
 
@@ -53,7 +54,7 @@ test('local segmenter is warmed and can win without serial server crop detection
   assert.ok(modal.includes('temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob)'));
 });
 
-test('mobile KIKI result sheet supports pull-up and image-return without dropping crop actions', () => {
+test('mobile KIKI result sheet supports pull-up while region changes return to automatic inline analysis', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const css = source('src/components/search/vision-camera-design.css');
   assert.ok(modal.includes('resultsSwipeStartY'));
@@ -61,7 +62,10 @@ test('mobile KIKI result sheet supports pull-up and image-return without droppin
   assert.ok(modal.includes('aria-expanded={mobileResultsExpanded}'));
   assert.ok(modal.includes('setMobileResultsExpanded(true)'));
   assert.ok(modal.includes('setMobileResultsExpanded(false)'));
-  assert.ok(modal.includes('onFullImageSearch'));
+  assert.ok(!modal.includes('onFullImageSearch'));
+  assert.ok(modal.includes('autoSelect'));
+  assert.ok(modal.includes('onChange={handleRegionSelection}'));
+  assert.ok(modal.includes('setCurrentStep(1)'));
   assert.ok(modal.includes('onRegionChange={handleRegionSelection}'));
   assert.ok(css.includes('KIKI mobile results: swipe up to expand'));
   assert.ok(css.includes('data-sheet-expanded="true"'));
