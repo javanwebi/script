@@ -41,7 +41,6 @@ export interface ProductGalleryImage {
   variantCode?: string;
   title?: string;
   order?: number;
-  familyCode?: string;
 }
 
 export interface Product {
@@ -61,6 +60,9 @@ export interface Product {
   categoryName: string;
   category?: string;
   subcategory: string;        // V-Belt, Timing, Roller, Filter, etc.
+  /** Family-level profile summary from the authoritative catalogue. */
+  profiles?: string;
+  sizesSummary?: string;
   technicalSpecs: TechnicalSpec[];
   prices: PriceTiers;
   discountPercent?: number;   // درصد تخفیف نمایش عمومی (در صورت وجود)
@@ -79,8 +81,6 @@ export interface Product {
   forzaCode?: string;         // کد رسمی کاتالوگ فورزا اطلس مثل "FORZACODE: 1000 0 1"
   cataloguePage?: number;     // شماره صفحه کاتالوگ رسمی ۱۴۰۴ اطلس
   hasCatalogueImage?: boolean;// آیا دارای تصویر مستقیم و ثبت‌شده از کاتالوگ است
-  legacyFamilyCodes?: string[];
-  resolvedAssignment?: { categorySlug: string; submenuName?: string; leafName?: string | null; method?: string };
 }
 
 export interface ProductVariant {
@@ -97,6 +97,9 @@ export interface ProductVariant {
   stock?: number;                   // موجودی انبار این کد
   stockKnown?: boolean;             // آیا وضعیت موجودی مشخص است؟
   technicalSpecs?: TechnicalSpec[]; // مشخصات فنی اختصاصی این کد
+  /** Read-only catalogue identity metadata; hydrated only for industrial-belt families. */
+  identitySpecs?: Record<string, unknown>;
+  variableSpecs?: Record<string, unknown>;
   images?: string[];                // تصاویر اختصاصی متصل به این کد
   description?: string;             // توضیحات اختصاصی این کد
   active?: boolean;                 // فعال یا غیرفعال موقت
@@ -115,11 +118,6 @@ export interface Category {
   active?: boolean;
   /** Nested category and submenu navigation maintained by the admin. */
   children?: import('./data/categories').CategoryNode[];
-  menuSource?: string;
-  familyCount?: number;
-  skuCount?: number;
-  directSkuCount?: number;
-  sortOrder?: number;
 }
 
 export interface Brand {

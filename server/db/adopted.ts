@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import type {SqlClient} from './connection';
 import {adoptedOrders} from './adoptedCheckout';
+import {isIndustrialBeltProduct} from '../../src/utils/industrialBeltScope';
 type Row=Record<string,any>;
 const sha=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const camel=(key:string)=>key.replace(/_([a-z])/g,(_,c)=>c.toUpperCase());
@@ -285,15 +286,27 @@ export async function readAdoptedProducts(client:SqlClient,options:{includeTechn
  // retrieves one selected SKU's saved report through /api/catalog/variant-review.
  const variantColumns=includeTechnicalReviews
   ? 'v.*'
-  : "v.code,v.family_code,v.name,v.size,v.model,v.brand,v.unit,v.active,v.images,v.technical_specs,v.sort_order,coalesce((to_jsonb(v)->'runtime_payload')-'technicalReview','{}'::jsonb) as runtime_payload";
+  : "v.code,v.family_code,v.name,v.size,v.model,v.brand,v.unit,v.active,v.images,v.technical_specs,v.identity_specs,v.variable_specs,v.sort_order,coalesce((to_jsonb(v)->'runtime_payload')-'technicalReview','{}'::jsonb) as runtime_payload";
  const [familyResult,variantResult,imageResult]=await Promise.all([
   client.query('select * from public.catalog_families where is_active and not is_deleted order by code'),
   client.query(`select ${variantColumns},c.price,c.base_price,c.retail_price,c.wholesale_price,c.dealer_price,c.stock,c.stock_reserved,c.stock_known,c.inquiry_only,c.currency from public.catalog_variants v left join public.variant_commercial_specs c on c.variant_code=v.code where v.active order by v.sort_order,v.code`),
   client.query('select * from public.catalog_gallery_images order by sort_order,id')
  ]);
  const families=familyResult.rows,variants=variantResult.rows,images=imageResult.rows;
+ const variantsByFamily=new Map<string,Row[]>();
+ for(const variant of variants){
+  const key=String(variant.family_code),list=variantsByFamily.get(key)||[];
+  list.push(variant);variantsByFamily.set(key,list);
+ }
+ const beltFamilyCodes=new Set(families.filter(f=>{
+  const rows=variantsByFamily.get(String(f.code))||[];
+  return isIndustrialBeltProduct({
+   name:String(f.name||''),subcategory:String(f.subcategory||''),submenu:f.submenu?String(f.submenu):undefined,
+   variants:rows.map(v=>({variableSpecs:v.variable_specs||{},identitySpecs:v.identity_specs||{}}))
+  });
+ }).map(f=>String(f.code)));
  const byFamily=new Map<string,Row[]>(),gallery=new Map<string,Row[]>();
- for(const v of variants){const prices={base:toman(v.base_price,v.currency),retail:toman(v.retail_price || v.price,v.currency),wholesale:toman(v.wholesale_price,v.currency),dealer:toman(v.dealer_price,v.currency)};const dto={...v.runtime_payload,code:v.code,name:v.name,size:v.size || '',model:v.model,brand:v.brand,unit:v.unit,active:v.active,images:v.images,technicalSpecs:v.technical_specs,...(includeTechnicalReviews?{technicalReview:v.technical_review}:{}),prices,price:prices.retail,stock:Math.max(0,Number(v.stock || 0)-Number(v.stock_reserved || 0)),stockKnown:v.stock_known===true,inquiryOnly:v.inquiry_only!==false};const list=byFamily.get(v.family_code) || [];list.push(dto);byFamily.set(v.family_code,list);}
+ for(const v of variants){const prices={base:toman(v.base_price,v.currency),retail:toman(v.retail_price || v.price,v.currency),wholesale:toman(v.wholesale_price,v.currency),dealer:toman(v.dealer_price,v.currency)};const dto={...v.runtime_payload,code:v.code,name:v.name,size:v.size || '',model:v.model,brand:v.brand,unit:v.unit,active:v.active,images:v.images,technicalSpecs:v.technical_specs,...(beltFamilyCodes.has(String(v.family_code))?{identitySpecs:v.identity_specs || {},variableSpecs:v.variable_specs || {}}:{}),...(includeTechnicalReviews?{technicalReview:v.technical_review}:{}),prices,price:prices.retail,stock:Math.max(0,Number(v.stock || 0)-Number(v.stock_reserved || 0)),stockKnown:v.stock_known===true,inquiryOnly:v.inquiry_only!==false};const list=byFamily.get(v.family_code) || [];list.push(dto);byFamily.set(v.family_code,list);}
  for(const i of images){const list=gallery.get(i.family_code) || [];list.push({id:i.id,url:i.url,fileName:i.file_name,scope:i.scope,variantCode:i.variant_code,identityVerified:i.identity_verified===true,title:i.title,order:i.sort_order});gallery.set(i.family_code,list);}
  return families.map(f=>{
   const vs=byFamily.get(f.code) || [];
@@ -309,7 +322,7 @@ export async function readAdoptedProducts(client:SqlClient,options:{includeTechn
    return {...variant,images:skuImages};
   });
   const first:Row|undefined=normalizedVariants[0];
-  return {...f.runtime_payload,code:f.code,name:f.name,brand:f.brand,categorySlug:f.category_slug,categoryName:f.category_name,subcategory:f.subcategory || '',submenu:f.submenu,unit:f.unit,description:f.description,sourceRow:f.source_row,active:f.is_active,images:familyImages,technicalSpecs:f.technical_specs,tags:f.tags,hasCatalogueImage:f.has_catalogue_image,imageScope:f.image_scope,galleryImages:familyGallery,variants:normalizedVariants,prices:first?.prices || {base:0,retail:0,wholesale:0,dealer:0},stock:normalizedVariants.reduce((n,v)=>n+v.stock,0),stockKnown:normalizedVariants.length>0 && normalizedVariants.every(v=>v.stockKnown),inquiryOnly:!normalizedVariants.length || normalizedVariants.every(v=>v.inquiryOnly)};
+  return {...f.runtime_payload,code:f.code,name:f.name,brand:f.brand,categorySlug:f.category_slug,categoryName:f.category_name,subcategory:f.subcategory || '',submenu:f.submenu,unit:f.unit,description:f.description,sourceRow:f.source_row,active:f.is_active,images:familyImages,technicalSpecs:f.technical_specs,...(beltFamilyCodes.has(String(f.code))?{profiles:f.profiles || f.runtime_payload?.profiles || '',sizesSummary:f.sizes_summary || f.runtime_payload?.sizesSummary || f.runtime_payload?.sizes_summary || ''}:{}),tags:f.tags,hasCatalogueImage:f.has_catalogue_image,imageScope:f.image_scope,galleryImages:familyGallery,variants:normalizedVariants,prices:first?.prices || {base:0,retail:0,wholesale:0,dealer:0},stock:normalizedVariants.reduce((n,v)=>n+v.stock,0),stockKnown:normalizedVariants.length>0 && normalizedVariants.every(v=>v.stockKnown),inquiryOnly:!normalizedVariants.length || normalizedVariants.every(v=>v.inquiryOnly)};
  });
 }
 export async function saveAdoptedProducts(client:SqlClient,products:Row[]){

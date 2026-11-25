@@ -47,6 +47,31 @@ export function selectBestQueryRegion(viewRegions:(Region|null)[]|undefined,view
  return best || fallback || viewRegions?.find((region):region is Region=>region!==null) || undefined;
 }
 export type QueryEvidence={model?:string;vectors:number[][];region?:Region|null;viewRegions?:(Region|null)[];markings:{text:string;confidence:number}[];ocrAvailable:boolean;};
+
+/** Restrict a cached multi-view query to the exact region selected by the customer. */
+export function selectCachedQueryView(query:QueryEvidence,region:Region):QueryEvidence|undefined{
+ const same=(candidate:Region|null|undefined)=>Boolean(candidate&&
+  Math.abs(candidate.x-region.x)<0.002&&Math.abs(candidate.y-region.y)<0.002&&
+  Math.abs(candidate.width-region.width)<0.002&&Math.abs(candidate.height-region.height)<0.002);
+ const index=(query.viewRegions||[]).findIndex(same);
+ if(index<0||!query.vectors[index])return undefined;
+ const markingsBelongToRegion=same(query.region);
+ return {
+  ...query,
+  vectors:[query.vectors[index]],
+  region,
+  viewRegions:[region],
+  markings:markingsBelongToRegion?query.markings:[],
+  ocrAvailable:markingsBelongToRegion&&query.ocrAvailable,
+ };
+}
+export type LocalMarkingsEvidence={markings:{text:string;confidence:number}[];ocrAvailable:boolean};
+export async function readLocalMarkings(image:Buffer,env=process.env):Promise<LocalMarkingsEvidence>{
+ const data=await localRequest('/markings',{image:image.toString('base64')},env,1200);
+ if(data.pipeline!==localVisionProfile(env).pipeline||!Array.isArray(data.markings))throw new Error('Invalid local OCR response');
+ const markings=data.markings.filter((m:any)=>typeof m.text==='string'&&m.text.length<=32&&Number.isFinite(m.confidence)&&m.confidence>=85&&m.confidence<=100).slice(0,12);
+ return {markings,ocrAvailable:data.ocrAvailable===true};
+}
 export async function describeLocalQuery(image:Buffer,env=process.env):Promise<QueryEvidence>{
  // DINOv2 inference can exceed the generic 4.5s transport budget on a cold CPU worker.
  // Keep the browser responsive with a bounded 12s request and a manual-crop fallback.

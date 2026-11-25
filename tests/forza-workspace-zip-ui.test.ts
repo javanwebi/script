@@ -77,10 +77,20 @@ test('mobile FORZA launcher preserves the swipe-up contact sheet and direct desk
   assert.match(launcher, /onTouchMove=\{onTouchMove\}/);
   assert.match(launcher, /dragOffsetRef\.current > 58/);
   assert.match(launcher, /navigate\("\/ai-consult"\)/);
+  assert.match(launcher, /src="\/images\/brand\/forza-workspace-logo\.svg"/);
   assert.match(launcher, /matchMedia\("\(max-width: 1023px\)"\)/);
   assert.match(styles, /sp-forza-contact__sheet/);
   assert.match(styles, /env\(safe-area-inset-bottom\)/);
   assert.match(styles, /prefers-reduced-motion/);
+});
+
+
+test('FORZA workspace removes the redundant entry curtain while retaining the login dialog', () => {
+  const page = read('src/pages/AiConsultPage.tsx');
+  const layout = read('src/components/layout/Layout.tsx');
+
+  assert.doesNotMatch(page, /showEntrySplash|setShowEntrySplash|forza-entry-curtain|Top-to-Bottom FORZA Logo Entry Transition Curtain/);
+  assert.match(layout, /<AuthModal\s*\/>/);
 });
 
 test('approved optical tap feedback is cosmetic and retains the live region selector', () => {

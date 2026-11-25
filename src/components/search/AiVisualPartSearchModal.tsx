@@ -5,7 +5,7 @@ import {apiUrl} from '../../config/apiConfig';
 import { preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState, type VisionWorkspaceResult} from './ImageRegionReview';
-import type {ImageRegion} from '../../utils/imageRegion';
+import { imageRegionToPixelBounds, matchesCachedImageRegion, type ImageRegion } from '../../utils/imageRegion';
 import { buildVisionConsultationPrompt } from '../../utils/visionConsultationPrompt';
 import {measurementError} from '../../utils/partMeasurements';
 import { memberPath } from "../storefront/MemberAccess";
@@ -113,6 +113,7 @@ interface Props {
   fullScreen?: boolean;
   initialCamera?: boolean;
   standalone?: boolean;
+  domainHint?: 'industrial-belt';
   onAnalysisResult?: (result: AiPartAnalysisResult, image: string) => void;
 }
 
@@ -142,12 +143,75 @@ const ANALYSIS_PHASES: AnalysisPhase[] = [
   {title:"مرتب‌سازی گزینه‌های معتبر",en:"RESULT VALIDATION",icon:ShieldCheck,tag:"اعتبارسنجی نتایج",detail:"حذف پیشنهادهای ضعیف و نامرتبط"},
 ];
 
+
+async function cropImageDataUrlToRegion(source: string, region: ImageRegion): Promise<string> {
+  const response = await fetch(source, { credentials: 'same-origin', cache: 'no-store' });
+  if (!response.ok) throw new Error('خواندن تصویر برای برش قطعه ناموفق بود.');
+  const blob = await response.blob();
+
+  let drawable: CanvasImageSource | null = null;
+  let imageWidth = 0;
+  let imageHeight = 0;
+  let release: () => void = () => {};
+
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(blob);
+      drawable = bitmap;
+      imageWidth = bitmap.width;
+      imageHeight = bitmap.height;
+      release = () => bitmap.close();
+    } catch {
+      drawable = null;
+    }
+  }
+
+  if (!drawable) {
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const element = new Image();
+        element.onload = () => resolve(element);
+        element.onerror = () => reject(new Error('رمزگشایی تصویر برای برش ناموفق بود.'));
+        element.src = objectUrl;
+      });
+      drawable = image;
+      imageWidth = image.naturalWidth || image.width;
+      imageHeight = image.naturalHeight || image.height;
+      release = () => URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      URL.revokeObjectURL(objectUrl);
+      throw error;
+    }
+  }
+
+  try {
+    const bounds = imageRegionToPixelBounds(region, imageWidth, imageHeight);
+    if (!bounds || !drawable) throw new Error('کادر انتخاب‌شده برای برش معتبر نیست.');
+    const scale = Math.min(1, 1800 / Math.max(bounds.width, bounds.height));
+    const outputWidth = Math.max(1, Math.round(bounds.width * scale));
+    const outputHeight = Math.max(1, Math.round(bounds.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = outputWidth;
+    canvas.height = outputHeight;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('ساخت برش تصویر در این مرورگر ممکن نشد.');
+    context.drawImage(drawable, bounds.x, bounds.y, bounds.width, bounds.height, 0, 0, outputWidth, outputHeight);
+    const cropped = canvas.toDataURL('image/jpeg', 0.94);
+    if (!cropped.startsWith('data:image/jpeg')) throw new Error('تولید تصویر برش‌خورده ناموفق بود.');
+    return cropped;
+  } finally {
+    release();
+  }
+}
+
 export const AiVisualPartSearchModal: React.FC<Props> = ({
   isOpen,
   onClose,
   fullScreen = false,
   initialCamera = false,
   standalone = false,
+  domainHint,
   onAnalysisResult,
 }) => {
   const navigate = useNavigate();
@@ -165,6 +229,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [regionDetectionMessage,setRegionDetectionMessage]=useState('');
   const [regionDetectionId,setRegionDetectionId]=useState<string|null>(null);
   const [fullImageSelected,setFullImageSelected]=useState(false);
+  const [regionSelectionExplicit,setRegionSelectionExplicit]=useState(false);
   const regionDetectionSequenceRef=useRef(0);
   const autoAnalysisKeyRef=useRef<string|null>(null);
   const localSegmentationRef=useRef<{source:string;result:ClientAiSegmentationResult;region:ImageRegion}|null>(null);
@@ -265,7 +330,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     useState<AiPartAnalysisResult | null>(null);
   const [selectedProductId,setSelectedProductId]=useState<string>();
   const [regionSelectionVersion,setRegionSelectionVersion]=useState(0);
-  React.useEffect(()=>{localSegmentationRef.current=null;autoAnalysisKeyRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);setSelectedProductId(undefined);setInlineAnalysisBusy(false);setAnalysisResult(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
+  React.useEffect(()=>{localSegmentationRef.current=null;autoAnalysisKeyRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);setRegionSelectionExplicit(false);setSelectedProductId(undefined);setInlineAnalysisBusy(false);setAnalysisResult(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
   const [customRequestDraft, setCustomRequestDraft] = useState<ManufacturingRequestDraft | null>(null);
   const [customRequestOpen, setCustomRequestOpen] = useState(false);
   const [isPreparingCustomRequest, setIsPreparingCustomRequest] = useState(false);
@@ -302,6 +367,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       familyName:item.familyName,model:item.model,size:item.size,specs:item.specs,
       similarityScore:item.visualScore,matchLabel:item.matchBasis==='explore'?'برای بررسی؛ تأیید نشده':item.reason,
       reason:item.reason,
+    })),
+    ...(analysisResult?.nearestCatalogSuggestions||[]).slice(0,8).map(item=>({
+      id:item.code?'sku:'+item.code:'family:'+item.familyCode+':'+item.name,
+      code:item.code,familyCode:item.familyCode,name:item.name,brand:item.brand,image:item.image,imageScope:item.imageScope,
+      matchBasis:'explore' as const,
+      familyName:item.familyName,model:item.model,size:item.size,specs:item.specs,
+      matchLabel:'گزینه نزدیک برای بررسی؛ تطبیق قطعی نیست',
+      reason:item.reason || 'این گزینه از نزدیک‌ترین تصاویر کاتالوگ است و هویت قطعه هنوز تأیید نشده است.',
     })),
   ].filter((item,index,all)=>item.name.trim().length>0&&index===all.findIndex(other=>other.id===item.id));
 
@@ -464,6 +537,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const handleRegionSelection = (region: ImageRegion | undefined) => {
     autoAnalysisKeyRef.current=null;
     setRegionSelectionVersion(version=>version+1);
+    setRegionSelectionExplicit(true);
     setQueryRegion(region);
     setFullImageSelected(!region);
     setSelectedProductId(undefined);
@@ -700,8 +774,21 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       const issue = measurementError(analysisResult.requiredMeasurements, measurements);
       if (issue) { setErrorMessage(issue); setCurrentStep(2); return; }
     }
-    const requestRegion = localRegionEnabled ? (regionOverride === null ? undefined : regionOverride || queryRegion) : undefined;
-    const requestFullImage = regionOverride === null || (!requestRegion && fullImageSelected);
+    const selectedRegionForRequest = regionOverride === null || (regionOverride === undefined && fullImageSelected)
+      ? undefined
+      : regionOverride || queryRegion;
+    // The first automatic box is only a proposal. Let the catalogue rank every
+    // cached view before choosing the best one; pin a view only after the customer
+    // explicitly taps it. Hand-drawn rectangles are cropped locally and bypass
+    // the server cache because they have no cached embedding.
+    const requestRegionIsCached = Boolean(
+      regionSelectionExplicit && regionDetectionId && selectedRegionForRequest &&
+      matchesCachedImageRegion(selectedRegionForRequest, candidateRegions),
+    );
+    const requestRegion = requestRegionIsCached ? selectedRegionForRequest : undefined;
+    const clientCropFallback = Boolean(regionSelectionExplicit && selectedRegionForRequest) && !requestRegionIsCached;
+    const requestDetectionId = !clientCropFallback ? regionDetectionId || undefined : undefined;
+    const requestFullImage = regionOverride === null || (!requestRegion && (fullImageSelected || clientCropFallback));
     analysisBusyRef.current = true;
     const sequence = ++analysisSequenceRef.current;
     setErrorMessage(""); setPendingStage(stage); setAnalysisProgress(0); setAnalysisPhaseIndex(0); setScanCounts(null);
@@ -717,7 +804,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
         imageBase64 = temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob);
         const localSegmentation = localSegmentationRef.current;
-        if (localSegmentation && localSegmentation.source === temporaryImageDataUrl && requestRegion) {
+        if (!clientCropFallback && localSegmentation && localSegmentation.source === temporaryImageDataUrl && requestRegion) {
           const a = requestRegion;
           const b = localSegmentation.region;
           const intersectionWidth = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
@@ -729,6 +816,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             analysisMimeType = 'image/jpeg';
           }
         }
+        // If the server's region detector is unavailable, send the actual selected
+        // crop instead of sending the original frame with coordinates the fallback ignores.
+        if (clientCropFallback && selectedRegionForRequest && imageBase64) {
+          imageBase64 = await cropImageDataUrlToRegion(imageBase64, selectedRegionForRequest);
+          analysisMimeType = 'image/jpeg';
+        }
         if (currentUser && !activeImageEventId) {
           const metadata = await getCustomerDeviceImageMetadata(effectiveLocalImageId);
           if (!metadata) throw new Error("اطلاعات تصویر محلی پیدا نشد.");
@@ -739,10 +832,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         }
       }
       const result = await aiVisualSearchService.analyzePartWithAi({
+        domainHint,
         imageBase64, mimeType: analysisMimeType,
         length: length ? parseFloat(length) : undefined, width: width ? parseFloat(width) : undefined, pitch: pitch ? parseFloat(pitch) : undefined,
         application: application.trim() || undefined, features: features.trim() || undefined,
-        stage, observationOnly: false, region: requestRegion, detectionId: regionDetectionId || undefined, fullImage: requestFullImage, includeNearest: false,
+        stage, observationOnly: false, region: requestRegion, detectionId: requestDetectionId, fullImage: requestFullImage, includeNearest: true,
         measurements: stage === "refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if (sequence !== analysisSequenceRef.current) return;
@@ -751,9 +845,19 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       });
       if (sequence !== analysisSequenceRef.current) return;
       if (localRegionEnabled || result.localVisionMetrics) {
-        setLocalRegionEnabled(true); setQueryRegion(result.queryRegion || requestRegion);
-        if (!requestRegion) setCandidateRegions(result.queryRegions || []);
-        setFullImageSelected(requestFullImage); setRegionDetectionState("ready");
+        setLocalRegionEnabled(true);
+        if (clientCropFallback && selectedRegionForRequest) {
+          // The server saw a cropped image in this branch. Its returned proposal
+          // coordinates are relative to that crop, not the original customer photo.
+          // Preserve the original-image candidates and the exact crop the customer chose.
+          setQueryRegion(selectedRegionForRequest);
+          setFullImageSelected(false);
+        } else {
+          setQueryRegion(result.queryRegion || requestRegion);
+          if (!requestRegion) setCandidateRegions(result.queryRegions || []);
+          setFullImageSelected(requestFullImage);
+        }
+        setRegionDetectionState("ready");
       }
       if (activeImageEventId) {
         const matched = result.matchedProducts || [], similar = result.similarCandidates || [];
@@ -803,12 +907,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     if(!isOpen||currentStep!==1||!selectedImage||!temporaryImageDataUrl||!localImageId||isUploadingImage)return;
     if(regionDetectionState!=='ready'&&regionDetectionState!=='fallback')return;
     const region=fullImageSelected?null:(queryRegion||candidateRegions[0]||null);
-    const regionKey=region?[region.x,region.y,region.width,region.height].map(value=>value.toFixed(4)).join(':'):'full-image';
+    const regionKey=regionSelectionExplicit
+      ? region?[region.x,region.y,region.width,region.height].map(value=>value.toFixed(4)).join(':'):'full-image'
+      : 'automatic-catalog-ranking';
     const key=localImageId+':'+regionKey;
     if(autoAnalysisKeyRef.current===key||inlineAnalysisBusy||analysisBusyRef.current)return;
     autoAnalysisKeyRef.current=key;
     void handleAnalyze('quick',region,localImageId,true);
-  },[isOpen,currentStep,selectedImage,temporaryImageDataUrl,localImageId,isUploadingImage,regionDetectionState,fullImageSelected,queryRegion,candidateRegions,inlineAnalysisBusy,regionSelectionVersion]);
+  },[isOpen,currentStep,selectedImage,temporaryImageDataUrl,localImageId,isUploadingImage,regionDetectionState,fullImageSelected,queryRegion,candidateRegions,inlineAnalysisBusy,regionSelectionVersion,regionSelectionExplicit]);
   
   const goToStep2 = () => {
     if(selectedImage && !analysisResult?.requiredMeasurements){setCurrentStep(1);return;}
@@ -1070,6 +1176,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           total={scanCounts?.total}
           results={workspaceResults}
           analysisComplete={Boolean(analysisResult)}
+          beltAnalysis={analysisResult?.beltAnalysis}
           selectedProductId={selectedProductId}
           onSelectProduct={(id) => {
             setSelectedProductId(id);

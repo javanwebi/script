@@ -99,6 +99,9 @@ const {chromium}=require('playwright');
   const catalogSvg='<svg xmlns="http://www.w3.org/2000/svg" width="500" height="300"><rect width="500" height="300" fill="#f6f7f8"/><path d="M70 155 C80 35 420 35 430 155 C420 260 80 260 70 155Z" fill="#24272b"/><text x="250" y="170" font-size="54" text-anchor="middle" fill="white">A-49</text></svg>';
   const catalogImage='data:image/svg+xml;base64,'+Buffer.from(catalogSvg).toString('base64');
   page.on('pageerror',e=>errors.push(e.message));
+  // Keep this browser case deterministic: exercise the server's cached multi-view
+  // ranking path; the local U2Net worker has its own model-backed validation job.
+  await page.route('**/models/u2netp.onnx',route=>route.fulfill({status:404,body:'model disabled for server-path smoke'}));
   await page.route('**/api/**',async route=>{
    const pathname=new URL(route.request().url()).pathname;
    let body={success:true,values:{},products:[]};
@@ -112,6 +115,14 @@ const {chromium}=require('playwright');
     const request=route.request().postDataJSON();queries.push(request);
     await new Promise(resolve=>setTimeout(resolve,180));
     body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'تسمه وی شکل',detectedProfile:'A',visualAnalysis:'تسمه مشکی با نوشته A-49',confidence:94},matchedProducts:[{code:'TEST-A49',name:'تسمه وی شکل A-49',brand:'FORZA',image:catalogImage,imageScope:'variant',similarityScore:94,visualVerdictFarsi:'تطبیق تصویری قوی',specs:[{key:'سری',value:'A'},{key:'طول',value:'49 اینچ'}],catalogProduct:{image:catalogImage,imageScope:'sku-verified',categoryName:'تسمه صنعتی'}}],similarCandidates:[],modelSuggestions:[],technicalAdvice:'',queryRegion:request.fullImage?undefined:request.region||{x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:1}};
+    if(queries.length>1){
+     body={
+      ...body,
+      summary:{...body.summary,confidence:0,exactVisualMatch:false,detectedPartType:'شباهت قطعی پیدا نشد'},
+      matchedProducts:[],similarCandidates:[],modelSuggestions:[],
+      nearestCatalogSuggestions:[{code:'NEAREST-01',name:'قطعه نزدیک برای بررسی',familyCode:'NEAREST-FAMILY',familyName:'خانواده نزدیک',brand:'FORZA',image:catalogImage,imageScope:'family',matchBasis:'explore',specs:[],reason:'نزدیک‌ترین گزینه برای بررسی؛ تشخیص قطعی نیست.'}],
+     };
+    }
    }
    await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
   });
@@ -123,8 +134,10 @@ const {chromium}=require('playwright');
   await page.getByRole('button',{name:/تسمه وی شکل A-49/}).waitFor();
   assert.equal(queries.length,1,'catalog analysis must start automatically after image detection');
   assert.match(queries[0].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
-  assert.ok(queries[0].region||queries[0].fullImage,'automatic analysis must use a detected region or the safe full-image fallback');
-  assert.equal(queries[0].includeNearest,false);
+  assert.equal(queries[0].region,undefined,'automatic analysis must not pin the first heuristic crop before catalog ranking');
+  assert.equal(queries[0].detectionId,'test-detection-id','automatic analysis must reuse the cached multi-view detection');
+  assert.equal(queries[0].fullImage,false,'automatic analysis must let the server compare the full frame and all cached crop views');
+  assert.equal(queries[0].includeNearest,true,'weak image evidence must expose explicitly unconfirmed nearest catalog options');
   assert.equal(uploads,0,'customer image must remain in the browser-local vault');
   assert.equal(await page.locator('.sanat-region-picker__search').count(),0,'manual crop-confirm action must be removed');
   assert.equal(await page.locator('.sanat-region-picker__full-image').count(),0,'manual full-image action must be removed');
@@ -147,8 +160,12 @@ const {chromium}=require('playwright');
    await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='true',null,{timeout:10000});
    await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
    assert.equal(queries.length,2,'selecting another detected object must automatically run a new search');
-   assert.ok(queries[1].region,'second object search must use its own detected region');
-   assert.notDeepEqual(queries[1].region,previousRegion,'selecting another detected object must change the analyzed region');
+   if(queries[1].region){
+    assert.notDeepEqual(queries[1].region,previousRegion,'server-detected candidates must send the newly selected crop');
+   }else{
+    assert.equal(queries[1].fullImage,true,'client-side detection fallback must send the cropped image as the request frame');
+    assert.notEqual(queries[1].imageBase64,queries[0].imageBase64,'selecting another client-detected object must change the actual uploaded crop');
+   }
   }
 
   await page.setViewportSize({width:390,height:844});
@@ -173,9 +190,51 @@ const {chromium}=require('playwright');
   assert.equal(mobileFit.frameBorder,'0px','image holder must not draw an extra border');
   assert.equal(mobileFit.frameShadow,'none','image holder must not add a white frame shadow');
   assert.ok(mobileFit.width>0&&mobileFit.height>0&&mobileFit.width<=mobileFit.frameWidth+1&&mobileFit.height<=mobileFit.frameHeight+1,JSON.stringify(mobileFit));
+  assert.ok(Math.abs(mobileFit.width-mobileFit.frameWidth)<=1&&Math.abs(mobileFit.height-mobileFit.frameHeight)<=1,'normalized crop coordinates must use the exact displayed image bounds');
   assert.ok(Math.abs(mobileFit.displayRatio-mobileFit.naturalRatio)<0.03,'mobile viewer must show the entire image without cropping or stretching');
   await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-mobile.png'),fullPage:true});
   assert.equal(await page.getByTestId('kiki-inline-catalog-results').count(),1,'results stay beside the selected image without a separate results page');
+
+  // The result list is a true overlay sheet: drag it over the photo and return it.
+  const sheetHandle=page.getByTestId('kiki-mobile-results-sheet-handle');
+  await sheetHandle.waitFor({state:'visible'});
+  assert.equal(await sheetHandle.getAttribute('aria-expanded'),'false');
+  const handleBox=await sheetHandle.boundingBox();assert.ok(handleBox);
+  await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y+handleBox.height/2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y+handleBox.height/2-180,{steps:8});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="kiki-mobile-results-sheet-handle"]')?.getAttribute('aria-expanded')==='true');
+  assert.equal(await page.getByTestId('image-region-review').getAttribute('data-sheet-expanded'),'true');
+  const expandedHandleBox=await sheetHandle.boundingBox();assert.ok(expandedHandleBox);
+  await page.mouse.move(expandedHandleBox.x+expandedHandleBox.width/2,expandedHandleBox.y+expandedHandleBox.height/2);
+  await page.mouse.down();
+  await page.mouse.move(expandedHandleBox.x+expandedHandleBox.width/2,expandedHandleBox.y+expandedHandleBox.height/2+180,{steps:8});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="kiki-mobile-results-sheet-handle"]')?.getAttribute('aria-expanded')==='false');
+
+  // Drag directly around an undetected object: the viewer must submit a real crop
+  // and automatically rerun matching without a separate confirmation button.
+  const beforeManualCrop=queries.length;
+  const cropFrame=page.locator('.sanat-region-picker--viewer .sanat-region-picker__frame');
+  const cropFrameBox=await cropFrame.boundingBox();assert.ok(cropFrameBox);
+  const cropStart={x:cropFrameBox.x+cropFrameBox.width*0.18,y:cropFrameBox.y+cropFrameBox.height*0.16};
+  const cropEnd={x:cropFrameBox.x+cropFrameBox.width*0.46,y:cropFrameBox.y+cropFrameBox.height*0.55};
+  await page.mouse.move(cropStart.x,cropStart.y);
+  await page.mouse.down();
+  await page.mouse.move(cropEnd.x,cropEnd.y,{steps:10});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='true',null,{timeout:10000});
+  await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
+  assert.equal(queries.length,beforeManualCrop+1,'manual crop must trigger a fresh catalogue analysis');
+  const manualCropRequest=queries[queries.length-1];
+  assert.ok(manualCropRequest.region||manualCropRequest.fullImage,'manual crop must reach the backend as region coordinates or an actual cropped image');
+  if(!manualCropRequest.region){
+   assert.equal(manualCropRequest.fullImage,true);
+   assert.notEqual(manualCropRequest.imageBase64,queries[beforeManualCrop-1].imageBase64,'manual client crop must change the submitted image bytes');
+  }
+  await page.locator('.kiki-image-workspace__result-card[data-match-basis="explore"]').waitFor();
+  await page.getByText('گزینه نزدیک برای بررسی؛ تطبیق قطعی نیست').waitFor();
   assert.equal(uploads,0);
   assert.deepEqual(errors,[]);
   await page.close();

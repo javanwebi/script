@@ -30,6 +30,7 @@ const CategoryPage = lazy(() =>
   })),
 );
 const AllCategoriesPage = lazy(() => import("./pages/AllCategoriesPage").then(m => ({default:m.AllCategoriesPage})));
+const BeltSelectionPage = lazy(() => import("./pages/BeltSelectionPage").then(m => ({default:m.BeltSelectionPage})));
 const DirectSkuDetailPage = lazy(() => import("./pages/DirectSkuDetailPage"));
 const ProductDetailPage = lazy(() =>
   import('./pages/PopdProductDetailPage').then((module) => ({
@@ -156,6 +157,7 @@ export default function App() {
 
                     {/* All Categories Page */}
                     <Route path="/categories" element={<AllCategoriesPage />} />
+                    <Route path="/belt-selection" element={<BeltSelectionPage />} />
 
                     {/* Club Page */}
                     <Route

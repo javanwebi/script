@@ -93,7 +93,7 @@ async function handleRequest(request: WorkerRequest): Promise<void> {
     let foregroundPixels = 0;
     for (let i = 0; i < width * height; i++) {
       const alpha = alphaMask[i];
-      if (alpha >= 110) foregroundPixels++;
+      if (alpha >= 76) foregroundPixels++;
       const a = alpha / 255;
       const inverse = 1 - a;
       const offset = i * 4;
@@ -103,7 +103,9 @@ async function handleRequest(request: WorkerRequest): Promise<void> {
       composite[offset + 3] = 255;
     }
 
-    if (foregroundPixels < width * height * 0.004) {
+    // The previous 0.4% cutoff discarded small industrial parts in wide photos.
+    // Keep a noise floor while accepting foreground masks down to 0.08% of the image.
+    if (foregroundPixels < Math.max(18, Math.floor(width * height * 0.0008))) {
       throw new Error('client_segmentation_foreground_too_small');
     }
     if (!regions.length) {
