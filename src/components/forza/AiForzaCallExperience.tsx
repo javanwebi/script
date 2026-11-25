@@ -2113,11 +2113,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // duplicate briefly unless fresh near-field VAD evidence proves the
           // customer has started speaking again.
           const activeTurn=activeTurnRef.current;
-          const recentLateFinal=Boolean(activeTurn&&
+          const recentLateFinal=Boolean(activeTurn?.query&&
             Date.now()-activeTurn.startedAt<2500&&
             !vadRef.current.heardSpeech&&
-            (!activeTurn.query||
-              normalizePersianTranscript(currentSpeech)===normalizePersianTranscript(activeTurn.query)));
+            normalizePersianTranscript(currentSpeech)===normalizePersianTranscript(activeTurn.query));
           if(recentLateFinal){
             let cursor=recognitionConsumedCountRef.current;
             while(cursor<total&&event.results[cursor]?.isFinal)cursor++;
