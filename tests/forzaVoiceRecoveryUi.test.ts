@@ -140,7 +140,7 @@ test('server Diba remains a fallback when browser recognition has no transcript'
   assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
   assert.match(ui,/provider==='avalai'\|\|provider==='diba'\|\|provider==='gemini'/);
   assert.match(ui,/info\.serverSttReady===true/);
-  assert.match(ui,/دایبا تنظیم نشده؛ متن زنده مرورگر/);
+  assert.match(ui,/تشخیص گفتار سرور تنظیم نشده؛ متن زنده مرورگر/);
   assert.match(ui,/serverSttConfiguredRef=useRef\(false\)/);
   assert.match(ui,/تشخیص گفتار: \{serverSttLabel\}/);
 });
