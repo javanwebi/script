@@ -168,6 +168,22 @@ const {chromium}=require('playwright');
    }
   }
 
+  // Tapping a different detected box on the image itself is one selection event,
+  // even though browsers dispatch both pointer-up and a synthetic click.
+  const unselectedCandidate=await page.locator('.sanat-region-picker--viewer .sanat-region-picker__candidate:not(.is-manual)').evaluateAll(nodes=>{
+   const node=nodes.find(item=>!item.classList.contains('is-selected'));
+   if(!node)return null;
+   const rect=node.getBoundingClientRect();
+   return {x:rect.x+rect.width/2,y:rect.y+rect.height/2};
+  });
+  if(unselectedCandidate){
+   const beforeTap=queries.length;
+   await page.mouse.click(unselectedCandidate.x,unselectedCandidate.y);
+   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
+   await page.waitForTimeout(250);
+   assert.equal(queries.length,beforeTap+1,'one tap on a detected image box must trigger exactly one catalogue analysis');
+  }
+
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(120);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'mobile workspace must not overflow horizontally');

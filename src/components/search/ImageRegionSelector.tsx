@@ -108,6 +108,9 @@ export function ImageRegionSelector({
   if(state.mode==='draw'&&moved<=8){
    setTapFeedback({x:p.x*100,y:p.y*100,key:Date.now()});
    const candidate=findImageRegionAtPoint(p,candidates);
+   // Pointer-up already commits the tap selection; suppress the synthetic click
+   // that follows it so one customer tap cannot launch duplicate catalogue scans.
+   suppressNextClickRef.current=true;
    onChange(candidate || tapImageRegion(p,aspect));
   }else if((state.mode==='move'||state.mode==='resize')&&moved>3){
    if(validImageRegion(next))onChange(next);
