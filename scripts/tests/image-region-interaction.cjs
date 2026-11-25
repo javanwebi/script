@@ -185,6 +185,7 @@ const {chromium}=require('playwright');
   assert.equal(mobileFit.frameBorder,'0px','image holder must not draw an extra border');
   assert.equal(mobileFit.frameShadow,'none','image holder must not add a white frame shadow');
   assert.ok(mobileFit.width>0&&mobileFit.height>0&&mobileFit.width<=mobileFit.frameWidth+1&&mobileFit.height<=mobileFit.frameHeight+1,JSON.stringify(mobileFit));
+  assert.ok(Math.abs(mobileFit.width-mobileFit.frameWidth)<=1&&Math.abs(mobileFit.height-mobileFit.frameHeight)<=1,'normalized crop coordinates must use the exact displayed image bounds');
   assert.ok(Math.abs(mobileFit.displayRatio-mobileFit.naturalRatio)<0.03,'mobile viewer must show the entire image without cropping or stretching');
   await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-mobile.png'),fullPage:true});
   assert.equal(await page.getByTestId('kiki-inline-catalog-results').count(),1,'results stay beside the selected image without a separate results page');
