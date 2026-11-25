@@ -562,8 +562,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(!isProcessingTurnRef.current)setIsUserSpeaking(true);
           else console.info('[FORZA_TURN] phase=barge-in-vad-candidate');
         }
-        // Keep a 4.2-5.6s continuation window so natural breaths and pauses
-        // do not split one customer sentence into separate AI turns.
+        // Keep a conservative 2.2-6.5s adaptive window so natural breaths and
+        // thinking pauses do not split one customer sentence into AI turns.
         if(isProcessingTurnRef.current){
           if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
           return;
@@ -579,7 +579,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const transcript=activeTranscriptRef.current.trim();
           const pauseMs=transcript
             ? forzaEndOfTurnPauseMs(transcript,speechInterimRef.current)
-            : 5200;
+            : 6500;
           const remaining=Math.max(80,pauseMs-current.silenceMs);
           const tryFinalize=()=>{
             silenceTimerRef.current=null;
@@ -592,7 +592,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                   candidate,speechInterimRef.current,
                   Date.now()-lastTranscriptChangedAtRef.current,
                   vadRef.current.heardSpeech?acousticSilence:null)
-              : Math.max(0,Math.max(5200,pauseMs)-acousticSilence);
+              : Math.max(0,Math.max(6500,pauseMs)-acousticSilence);
             if(wait>0){
               silenceTimerRef.current=window.setTimeout(tryFinalize,Math.max(80,wait));
               return;
