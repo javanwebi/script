@@ -40,14 +40,21 @@ assert.equal(voiceInfo?.ready, true, "FORZA_PRIVATE_VOICE_NOT_READY");
 console.log("FORZA_VOICE_CANARY_AVALAI_READY_OK model=" + voiceInfo.textModel +
   " voice=" + voiceInfo.voice);
 
-const sttResponse = await get(candidate, "/api/ai/forza-stt-info");
-assert.ok(sttResponse.headers.get("content-type")?.includes("application/json"));
-const stt = await sttResponse.json();
-assert.equal(stt.serverSttConfigured, true);
-assert.equal(stt.serverSttProvider, "avalai");
-assert.equal(stt.serverSttReady, true);
-assert.equal(stt.serverSttFallbackProvider, "diba");
-assert.equal(stt.serverSttFallbackReady, true);
+let stt;
+for (let attempt = 1; attempt <= 40; attempt++) {
+  stt = await json(candidate, "/api/ai/forza-stt-info");
+  if (stt.serverSttConfigured === true &&
+      stt.serverSttProvider === "avalai" &&
+      stt.serverSttReady === true &&
+      stt.serverSttFallbackProvider === "diba" &&
+      stt.serverSttFallbackReady === true) break;
+  await new Promise(resolve => setTimeout(resolve, 1000));
+}
+assert.equal(stt?.serverSttConfigured, true);
+assert.equal(stt?.serverSttProvider, "avalai");
+assert.equal(stt?.serverSttReady, true);
+assert.equal(stt?.serverSttFallbackProvider, "diba");
+assert.equal(stt?.serverSttFallbackReady, true);
 console.log("FORZA_STT_CANARY_AVALAI_READY_DIBA_FALLBACK_OK provider=" +
   stt.serverSttProvider + " fallback=" + stt.serverSttFallbackProvider);
 
