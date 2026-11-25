@@ -203,3 +203,17 @@ test('manual selection is encoded as a real cropped image when server region det
   assert.ok(region.includes('Math.floor(region.x * width)'));
   assert.ok(region.includes('Math.ceil((region.x + region.width) * width)'));
 });
+
+
+test('nearest catalogue results are requested and displayed as unconfirmed exploration, not exact identification', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const review = source('src/components/search/ImageRegionReview.tsx');
+  const styles = source('src/components/search/image-region-review.css');
+  assert.ok(modal.includes('includeNearest: true'));
+  assert.ok(modal.includes('analysisResult?.nearestCatalogSuggestions'));
+  assert.ok(modal.includes("matchBasis:'explore' as const"));
+  assert.ok(modal.includes('گزینه نزدیک برای بررسی؛ تطبیق قطعی نیست'));
+  assert.ok(review.includes("item.matchBasis === 'explore'"));
+  assert.ok(review.includes('data-match-basis={item.matchBasis ||'));
+  assert.ok(styles.includes('[data-match-basis="explore"]'));
+});
