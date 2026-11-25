@@ -145,17 +145,19 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertLess(promotion.index('voice_info_route_missing_after_checked_rebuild'),
                         promotion.index('docker stop -t 15 "$LIVE"'))
 
-    def test_client_uses_nima_only_when_server_advertises_it(self):
+    def test_client_uses_nonblocking_nima_default_and_honors_server_voice_status(self):
         frontend=(ROOT/"src/components/forza/AiForzaCallExperience.tsx").read_text()
         backend=(ROOT/"server.ts").read_text()
         self.assertIn("new ForzaIncrementalSpeechText()",frontend)
+        self.assertIn("useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'|'piper-amir-medium'>('piper-nima-gyro-medium')",frontend)
         self.assertIn("const useNima=voiceModeRef.current==='piper-nima-gyro-medium'",frontend)
         self.assertIn("new ForzaNimaBufferedSpeech({",frontend)
         self.assertIn("await activeNimaBuffer.finish()",frontend)
         self.assertIn("bufferedNima?.cancel()",frontend)
         self.assertIn("maxConcurrent:1",frontend)
-        self.assertIn("maxAheadPhrases:2",frontend)
-        self.assertIn("initialBufferSeconds:2",frontend)
+        self.assertIn("maxAheadPhrases:3",frontend)
+        self.assertIn("initialBufferSeconds:1.6",frontend)
+        self.assertIn("maximumInitialWaitMs:450",frontend)
         self.assertIn("phase=nima-incremental-finished",frontend)
         self.assertIn("app.get('/api/ai/forza-voice-info'",backend)
         self.assertIn("incrementalSpeech:voice==='piper-nima-gyro-medium'",backend)
