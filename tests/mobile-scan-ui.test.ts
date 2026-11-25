@@ -16,20 +16,17 @@ test("mobile scan action uses existing product identification context, not a dup
   assert.match(provider, /<Studio isOpen/);
 });
 
-test("camera flow captures only a real frame and releases media tracks", () => {
+test("camera flow captures a real frame and immediately starts private image preparation", () => {
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   assert.match(modal, /navigator\.mediaDevices\?\.getUserMedia/);
   assert.match(modal, /facingMode: facing/);
   assert.match(modal, /!isCameraReady \|\| !video\.videoWidth/);
   assert.match(modal, /getTracks\(\)\.forEach/);
   assert.match(modal, /disabled=\{!isCameraReady\}/);
-  // Legacy camera launches may prepare immediately; dock launches hold the
-  // frame for explicit customer confirmation before upload or analysis.
-  assert.match(modal, /uploadAndPrepareImage\(dataUrl,\s*["']camera-capture\.jpg["']\)/);
   const capture = modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera"));
-  assert.match(capture, /if \(cameraFlowActive\)/);
-  assert.match(capture, /setCameraReview\(true\)/);
-  assert.doesNotMatch(capture, /handleAnalyze/);
+  assert.match(capture, /setCameraFlowActive\(false\)/);
+  assert.match(capture, /uploadAndPrepareImage\(dataUrl, "camera-capture\.jpg"\)/);
+  assert.doesNotMatch(capture, /cameraReview|confirmCameraPhoto/);
 });
 
 test("mobile/tablet dock and branded scanner preserve RTL and desktop header", () => {
@@ -95,7 +92,7 @@ test("RTL pill items follow home, categories, cart, account, camera; active colo
   assert.doesNotMatch(css, /#182465|#3544aa|#25368c|#15215f|#3b4bb0/i);
 });
 
-test("dock camera opens a full-screen live preview, local review, retake, and explicit confirm", () => {
+test("dock camera moves directly from capture into automatic KIKI recognition", () => {
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const provider = source("src/components/search/PartIdentificationProvider.tsx");
   const styles = source("src/components/search/industrial-scan.css");
@@ -103,31 +100,12 @@ test("dock camera opens a full-screen live preview, local review, retake, and ex
   assert.match(modal, /cameraFlowActive/);
   assert.match(modal, /data-testid="full-screen-camera-experience"/);
   assert.match(modal, /sanat-camera-experience__video/);
-  assert.match(modal, /sanat-camera-experience__preview/);
-  assert.match(modal, /onClick=\{confirmCameraPhoto\}/);
-  assert.match(modal, /onClick=\{retakeCameraPhoto\}/);
-  assert.match(modal, /تأیید و جستجوی قطعه/);
-  assert.match(modal, /عکس‌برداری مجدد/);
-  assert.match(modal, /setCameraReview\(true\)/);
-  assert.match(modal, /onConfirm=\{confirmRegionAndAnalyze\}/);
-  assert.match(modal, /onFullImageSearch=\{confirmFullImageAndAnalyze\}/);
-  assert.match(modal, /void uploadAndPrepareImage\(selectedImage\)/);
+  assert.match(modal, /uploadAndPrepareImage\(dataUrl, "camera-capture\.jpg"\)/);
+  assert.doesNotMatch(modal, /cameraReview|confirmCameraPhoto|retakeCameraPhoto|تأیید و جستجوی قطعه/);
+  assert.match(modal, /autoAnalysisKeyRef\.current===key/);
+  assert.match(modal, /void handleAnalyze\('quick',region,localImageId,true\)/);
   assert.match(styles, /height: 100dvh/);
   assert.match(styles, /env\(safe-area-inset-bottom\)/);
-});
-
-test("captured camera image is not uploaded until the customer confirms it", () => {
-  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
-  const capture = modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera"));
-  const confirm = modal.slice(modal.indexOf("const confirmCameraPhoto"), modal.indexOf("// Calculate inquiry price for user"));
-  const reviewBranch = capture.indexOf("if (cameraFlowActive)");
-  const stopAndReturn = capture.indexOf("return;", reviewBranch);
-  const upload = capture.indexOf("uploadAndPrepareImage(dataUrl)");
-  assert.ok(reviewBranch >= 0, "camera launch must enter the review flow");
-  assert.ok(stopAndReturn > reviewBranch, "camera must stop and hold the frame for review");
-  assert.equal(upload, -1, "camera capture must not send the image before customer confirmation");
-  assert.match(confirm, /uploadAndPrepareImage\(selectedImage/);
-  assert.doesNotMatch(confirm, /handleAnalyze/, "camera confirmation must not bypass crop approval");
 });
 
 test("full-screen identification hides storefront dock and floating actions across capture, review and results", () => {
@@ -228,41 +206,33 @@ test("visual identification preserves the existing production image input path",
 });
 
 
-test("workspace vision entry, split image review and results use KIKI without replacing the recognition pipeline", () => {
+test("KIKI workspace auto-detects image regions, searches immediately and renders selectable catalog results beside the image", () => {
   const review = source("src/components/search/ImageRegionReview.tsx");
   const reviewStyles = source("src/components/search/image-region-review.css");
   const picker = source("src/components/search/ImageRegionSelector.tsx");
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const entry = source("src/components/search/VisionEntryPage.tsx");
-  const styles = source("src/components/search/vision-camera-design.css");
-
   assert.match(modal, /<ImageRegionReview/);
-  assert.match(modal, /data-testid="kiki-vision-results-shell"/);
-  assert.doesNotMatch(modal, /sanat-visual-search-hero|sanat-visual-stepper|kiki-vision-review-shell__status/);
-  assert.match(review, /data-testid="image-region-review"/);
-  assert.match(review, /kiki-image-workspace/);
+  assert.match(modal, /results=\{workspaceResults\}/);
+  assert.match(modal, /analysisBusy=\{inlineAnalysisBusy\}/);
+  assert.match(modal, /void handleAnalyze\('quick',region,localImageId,true\)/);
+  assert.match(modal, /onSelectProduct=\{\(id\)/);
+  assert.match(review, /data-testid="kiki-inline-catalog-results"/);
+  assert.match(review, /onSelectProduct/);
   assert.match(review, /محصولات مشابه کاتالوگ/);
   assert.match(review, /ثبت سفارش ساخت/);
-  assert.match(review, /onCamera/);
-  assert.match(review, /onSearch=\{onConfirm\}/);
-  assert.match(review, /onFullImageSearch=\{onFullImageSearch\}/);
-  assert.doesNotMatch(review, /تأیید تصویر و شروع تحلیل|تأیید برش و شروع تحلیل|sp-region-review__scanner-steps|دریافت تصویر|یافتن قطعه/);
+  assert.match(review, /autoSelect/);
+  assert.doesNotMatch(review, /onSearch=|onFullImageSearch|viewer-actions|تأیید برش و جست‌وجو/);
   assert.match(reviewStyles, /\.kiki-vision-review-shell\.kiki-image-workspace/);
-  assert.match(reviewStyles, /\.sanat-region-picker--viewer \.sanat-region-picker__canvas/);
-  assert.doesNotMatch(reviewStyles, /background:\s*#172231|background:\s*#111b27/);
-  assert.match(picker, /sanat-region-picker--viewer/);
-  assert.match(picker, /sanat-region-picker__handle/);
-  assert.match(picker, /mode:'resize'/);
-
-  assert.match(modal, /بازگشت به میزکار از نتایج شناسایی/);
-  assert.doesNotMatch(modal, /sp-vision-journey/);
+  assert.match(reviewStyles, /\.kiki-image-workspace__result-grid/);
+  assert.match(picker, /autoSelect\?:boolean/);
+  assert.match(picker, /onClick=\{selectCandidateAtPoint\}/);
+  assert.doesNotMatch(picker, /تأیید برش و جست‌وجوی این قطعه/);
+  assert.match(modal, /setSelectedProductId\(undefined\)/);
+  assert.match(modal, /selectCustomerImageProduct/);
   assert.match(entry, /شروع اسکن با دوربین/);
   assert.match(entry, /انتخاب تصویر از دستگاه/);
-  assert.match(modal, /onConfirm=\{confirmRegionAndAnalyze\}/);
-  assert.match(modal, /data-testid="kiki-vision-image-evidence"/);
-  assert.match(modal, /ImageRegionSelector/);
-  assert.match(modal, /clientAiSegmentation/);
   assert.match(entry, /قطعه را با یک عکس بشناسید/);
   assert.match(entry, /تشخیص خودکار کانتور و کد فنی/);
-  assert.match(styles, /sp-vision-result-panel:has\(> \.sanat-region-picker\)/);
 });
+
