@@ -429,7 +429,9 @@ test('AvalAI fails over to its Cloudflare-backed route after a first-token timeo
   query:'برای خط تولید تسمه لازم دارم',voice:true,firstTokenTimeoutMs:15,
   fetchImpl:(async(url,init)=>{
    calls++;
-   assert.equal(JSON.parse(String(init?.body)).model,'glm-5.3-flash');
+   const body=JSON.parse(String(init?.body));
+   assert.equal(body.model,'glm-5.3-flash');
+   assert.equal(body.reasoning_effort,'low','both AvalAI domains must use the same low-latency GLM request settings');
    assert.match(String((init?.headers as Record<string,string>|undefined)?.Authorization||''),/Bearer same-private-key/);
    if(calls===1){
     assert.equal(String(url),'https://api.avalai.ir/v1/chat/completions');
