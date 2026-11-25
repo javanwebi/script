@@ -49,6 +49,8 @@ export interface Product {
   sourceRow?: number;
   stockKnown?: boolean;
   imageScope?: 'family-example' | 'mixed' | 'sku-verified';
+  /** Identifies a read-only family assembled from the approved POPD source taxonomy. */
+  catalogSource?: 'popd';
   galleryImages?: ProductGalleryImage[];
   active?: boolean;
   updatedAt?: string;
