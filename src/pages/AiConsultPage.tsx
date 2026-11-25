@@ -429,6 +429,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   // The calculator remains the existing tested modal; no second formula engine is introduced.
   useEffect(() => {
     if (entryParams.get('tool') === 'belt-calculator') {
+      setShowEntrySplash(false);
       setShowCalculatorModal(true);
     }
     const initialPrompt = entryParams.get('prompt')?.trim();
