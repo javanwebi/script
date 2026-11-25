@@ -134,8 +134,9 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 });
 
 
-test('server Diba remains a fallback when browser recognition has no transcript',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true &&\s+\(serverSttProviderRef\.current==='avalai' \|\| !q \|\| !localSttActiveRef\.current\)/);
+test('server AvalAI/Diba STT is recovery-only and never delays a finalized live transcript',()=>{
+  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) &&\s+serverSttConfiguredRef\.current === true &&\s+\(!q \|\| speechInterimRef\.current\)/);
+  assert.match(ui,/if\(audioBlob && needsServerFinal\)/);
   assert.match(ui,/transcribeOnly:true/);
   assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
   assert.match(ui,/provider==='avalai'\|\|provider==='diba'\|\|provider==='gemini'/);
@@ -143,6 +144,19 @@ test('server Diba remains a fallback when browser recognition has no transcript'
   assert.match(ui,/تشخیص گفتار سرور تنظیم نشده؛ متن زنده مرورگر/);
   assert.match(ui,/serverSttConfiguredRef=useRef\(false\)/);
   assert.match(ui,/تشخیص گفتار: \{serverSttLabel\}/);
+});
+
+test('native browser transcripts use a microphone-sensitive near-field gate while TTS barge-in stays strict',()=>{
+  const from=ui.indexOf('rec.onresult = (event: any) => {');
+  const to=ui.indexOf('if(admitted.waiting&&!retryExpired)',from);
+  assert.ok(from>0&&to>from);
+  const admission=ui.slice(from,to);
+  assert.match(admission,/if\(retryExpired\|\|likelySpeakerEcho\(words\)\)return 'reject';/);
+  assert.match(admission,/speechAdmissionRef\.current\.decide\(words,final,playback,Date\.now\(\)\)/);
+  assert.doesNotMatch(admission,/if\(!playback\)return 'accept';/);
+  const gate=readFileSync(new URL('../src/utils/forzaSpeechAdmission.ts',import.meta.url),'utf8');
+  assert.match(gate,/playback\?0\.004:0\.0015/);
+  assert.match(gate,/playback&&intent!=='stop'\?280:160/);
 });
 
 test('a two-second pause preserves the same live transcript across browser recognizer restarts',()=>{

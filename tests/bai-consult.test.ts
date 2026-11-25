@@ -408,16 +408,42 @@ test('xKiro verified non-stream completion uses the same free model and requires
   assert.equal(result.text,'کد نهایی: 6203 ZZ\nتعداد: 10 عدد');
 });
 
-test('AvalAI recovers one empty transport failure using the same provider and model',async()=>{
+test('AvalAI recovers an empty transport failure through its alternate domain with the same provider and model',async()=>{
  let calls=0;const deltas:string[]=[];
  const result=await streamAvalaiConsult({apiKey:'test',model:'glm-5.3-flash',query:'سلام',
   fetchImpl:(async(url,init)=>{
-   calls++;assert.equal(String(url),'https://api.avalai.ir/v1/chat/completions');
+   calls++;
+   assert.equal(String(url),calls===1
+    ?'https://api.avalai.ir/v1/chat/completions'
+    :'https://api.avalai.org/v1/chat/completions');
    assert.equal(JSON.parse(String(init?.body)).model,'glm-5.3-flash');
    if(calls===1)return fakeStream([]);
    return fakeStream(['data: {"choices":[{"delta":{"content":"سلام"},"finish_reason":"stop"}]}\n\n']);
   }) as typeof fetch,onDelta:d=>deltas.push(d)});
  assert.equal(calls,2);assert.equal(result.text,'سلام');assert.deepEqual(deltas,['سلام']);
+});
+
+test('AvalAI fails over to its Cloudflare-backed route after a first-token timeout without changing model or key',async()=>{
+ let calls=0;const deltas:string[]=[];
+ const result=await streamAvalaiConsult({apiKey:'same-private-key',model:'glm-5.3-flash',
+  query:'برای خط تولید تسمه لازم دارم',voice:true,firstTokenTimeoutMs:15,
+  fetchImpl:(async(url,init)=>{
+   calls++;
+   assert.equal(JSON.parse(String(init?.body)).model,'glm-5.3-flash');
+   assert.match(String((init?.headers as Record<string,string>|undefined)?.Authorization||''),/Bearer same-private-key/);
+   if(calls===1){
+    assert.equal(String(url),'https://api.avalai.ir/v1/chat/completions');
+    return await new Promise<Response>((_resolve,reject)=>{
+     const signal=init?.signal as AbortSignal;
+     signal.addEventListener('abort',()=>reject(new Error('primary route timed out')),{once:true});
+    });
+   }
+   assert.equal(String(url),'https://api.avalai.org/v1/chat/completions');
+   return fakeStream(['data: {"choices":[{"delta":{"content":"متوجه شدم."},"finish_reason":"stop"}]}\n\n']);
+  }) as typeof fetch,onDelta:d=>deltas.push(d)});
+ assert.equal(calls,2);
+ assert.equal(result.text,'متوجه شدم.');
+ assert.deepEqual(deltas,['متوجه شدم.']);
 });
 
 test('AvalAI recovery is bounded and never replays partial text or retries account failures',async()=>{
