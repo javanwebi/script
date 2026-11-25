@@ -38,8 +38,6 @@ const IMAGE_JOBS = [
   { src: 'src/assets/images/footer_conveyor_1789463035125.jpg', out: 'public/images/hero/footer-conveyor.webp', max: 1200, q: 76 },
   { src: 'src/assets/images/cta_consult_banner_1789637852056.jpg', out: 'public/images/hero/cta-consult-banner.webp', max: 1440, q: 78 },
   { src: 'src/assets/images/auth_industrial_hero_1791191790536.jpg', out: 'public/images/hero/auth-industrial-hero.webp', max: 1200, q: 78 },
-  { src: 'src/assets/images/banner_auth_login_1791194148886.jpg', out: 'public/images/hero/banner-auth-login.webp', max: 1000, q: 78 },
-  { src: 'src/assets/images/banner_auth_register_1791194168672.jpg', out: 'public/images/hero/banner-auth-register.webp', max: 1000, q: 78 },
   { src: 'src/assets/images/forza_swr_hero_banner_1791281882552.jpg', out: 'public/images/hero/forza-swr-dual-banner.webp', max: 1440, q: 80 },
   { src: 'src/assets/images/brands_fullbleed_bg_1791282424638.jpg', out: 'public/images/hero/brands-fullbleed-bg.webp', max: 1440, q: 78 },
   { src: 'src/assets/images/banner_forza_1789372945728.jpg', out: 'public/images/hero/banner-forza.webp', max: 1200, q: 80 },
