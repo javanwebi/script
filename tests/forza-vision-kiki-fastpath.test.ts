@@ -67,9 +67,13 @@ test('active local catalogue encoder owns region proposals; browser segmentation
   const server=source('server.ts');
   const status=server.slice(server.indexOf("app.get('/api/ai/local-vision-status'"),server.indexOf('const localVisionDetectionCache'));
   assert.ok(status.includes('app.get(\'/api/ai/local-vision-status\', (_req,res)=>'));
-  assert.ok(status.includes('void catalogVisualIndex.load().catch(()=>undefined)'));
-  assert.ok(!status.includes('await catalogVisualIndex.load'));
+  assert.ok(status.includes('void refreshLocalVisionStatusSnapshot()'));
+  assert.ok(!status.includes('await refreshLocalVisionStatusSnapshot'));
   assert.ok(!status.includes('buildCatalogImageCorpus'));
+  assert.ok(status.includes('namespace:VISUAL_INDEX_NAMESPACE'));
+  assert.ok(status.includes("persistence:databaseEnabled()?'postgres':'file'"));
+  assert.ok(server.includes('localVisionStatusSnapshot={...coverage,ready:corpus.length>0 && coverage.ready}'));
+  assert.ok(server.includes('localVisionStatusRefresh:Promise<void>|null=null'));
   assert.ok(server.includes('canReuseLocalVisionQuery(cachedDetection,body.region,body.fullImage===true)'));
   assert.ok(server.includes('body.fullImage===true ? [] : body.region ? [body.region]'));
 });
