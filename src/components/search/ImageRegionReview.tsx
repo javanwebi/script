@@ -162,7 +162,7 @@ export function ImageRegionReview({
                     ? item.id.slice(7).split(':', 1)[0]
                     : '';
                 const productCode = (item.code || item.familyCode || idCode).trim();
-                const productHref = '/product/' + encodeURIComponent(productCode);
+                const productHref = productCode ? '/product/' + encodeURIComponent(productCode) : '#';
                 return (
                   <article className={'kiki-image-workspace__result-card' + (selected ? ' is-selected' : '')}
                     key={item.id} data-selected={selected || undefined}>
