@@ -7415,7 +7415,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       const onClose=()=>abort.abort();
       res.once('close',onClose);
       try{
-        const transcript=await transcribeForzaDibaAudio(audioBase64,{signal:abort.signal,timeoutMs:20_000});
+        const transcript=await transcribeForzaDibaAudio(cleanAudioData,{signal:abort.signal,timeoutMs:20_000});
         userQuery=normalizePersianTranscript(transcript);
         console.info('[AI FORZA STT] provider=diba transcript_chars='+userQuery.length);
       }catch(sttErr:any){
