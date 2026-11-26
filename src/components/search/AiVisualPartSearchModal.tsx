@@ -405,7 +405,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setQueryRegion(undefined);
       setFullImageSelected(true);
       setRegionDetectionState('fallback');
-      setRegionDetectionMessage(friendlyVisionError(error) + ' جست‌وجو بدون برش دستی روی تصویر کامل ادامه پیدا می‌کند.');
+      setRegionDetectionMessage(friendlyVisionError(error));
     }
   };
 
