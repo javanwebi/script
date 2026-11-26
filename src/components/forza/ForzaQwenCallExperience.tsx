@@ -32,7 +32,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const [level,setLevel]=useState(0),[muted,setMuted]=useState(false),[silent,setSilent]=useState(false);
   const [showText,setShowText]=useState(false),[text,setText]=useState(''),[showScan,setShowScan]=useState(false);
   const [confirmed,setConfirmed]=useState(false);
-  const [voice,setVoice]=useState('Raymond');
+  const [voice,setVoice]=useState('Ryan');
   const [catalogQuery,setCatalogQuery]=useState('');
   const [catalogResults,setCatalogResults]=useState<LiveCatalogFamily[]>([]);
   const [catalogBusy,setCatalogBusy]=useState(false);
@@ -123,7 +123,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         }
         if(m.type==='connected'){
           if(m.provider!=='qwen'){fail('سرور هنوز روی Qwen تنظیم نشده است.');return;}
-          if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Raymond');setConfirmed(m.voiceConfirmed===true);setPhase('thinking');
+          if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Ryan');setConfirmed(m.voiceConfirmed===true);setPhase('thinking');
           const greeting=greeted.current?'فقط بگو: من آماده‌ام مهندس جان، بفرمایید.':'فقط با لحن گرم و پرانرژی بگو: سلام مهندس جان، به صنعت پیش خوش آمدید. من فورزا هستم، بفرمایید.';
           send(s,{type:'text',text:greeting});return;
         }
