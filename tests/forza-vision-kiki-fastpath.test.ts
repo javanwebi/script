@@ -113,7 +113,7 @@ test('multi-part lens auto-selects a detected object and starts catalog search w
   const review = source('src/components/search/ImageRegionReview.tsx');
   const styles = source('src/components/search/image-region-review.css');
   assert.ok(picker.includes('autoSelect?:boolean;'));
-  assert.ok(picker.includes('onClick={selectCandidateAtPoint}'));
+  assert.ok(picker.includes('selectCandidateAtPoint(event)'));
   assert.ok(picker.includes('findImageRegionAtPoint(p,candidates)'));
   assert.ok(picker.includes("variant?:'default'|'viewer';"));
   assert.ok(picker.includes('sanat-region-picker--viewer'));
