@@ -1,9 +1,7 @@
 import { WebSocket } from 'ws';
 import type { RawData } from 'ws';
 
-const GISOO_REALTIME_URL =
-  process.env.FORZA_QWEN_REALTIME_URL?.trim() ||
-  'wss://ir.gisoo.pro/api/v1/realtime?model=qwen3.8-omni-flash-realtime';
+const GISOO_REALTIME_URL = 'wss://ir.gisoo.pro/api/v1/realtime?model=qwen3.8-omni-flash-realtime';
 const GISOO_QWEN_MODEL = 'qwen3.8-omni-flash-realtime';
 const GISOO_QWEN_VOICE = 'Ryan';
 const MAX_CLIENT_FRAME_BYTES = 100_000;
@@ -28,7 +26,7 @@ function validBase64(value: unknown): value is string {
 }
 
 export function buildGisooQwenSessionUpdate(instructions: string, silenceDurationMs = 1100) {
-  const silence = Math.max(500, Math.min(2500, Math.round(silenceDurationMs)));
+  const silence = Number.isFinite(silenceDurationMs) ? Math.max(500, Math.min(2500, Math.round(silenceDurationMs))) : 1100;
   return {
     type: 'session.update',
     session: {
@@ -62,7 +60,7 @@ export function mapGisooQwenEvent(
   responseId = '',
 ): Array<Record<string, unknown>> {
   const type = String(event?.type || '');
-  const id = responseId || String(event?.response_id || event?.response?.id || '');
+  const id = String(event?.response_id || event?.response?.id || responseId || '');
 
   if (type === 'response.output_audio.delta' && typeof event.delta === 'string') {
     return [{
@@ -114,7 +112,7 @@ export function mapGisooQwenEvent(
 
 /**
  * Bridges the existing FORZA browser protocol to Gisoo's OpenAI-compatible
- * Realtime WebSocket. Gemini remains the default provider and is not modified.
+ * Realtime WebSocket. The legacy Gemini implementation is not modified.
  */
 export function connectGisooQwenRealtime(clientWs: WebSocket, instructions: string): void {
   const apiKey = String(process.env.FORZA_QWEN_API_KEY || '').trim();
@@ -199,7 +197,7 @@ export function connectGisooQwenRealtime(clientWs: WebSocket, instructions: stri
   };
 
   try {
-    upstream = new WebSocket(GISOO_REALTIME_URL, {
+    upstream = new WebSocket(process.env.FORZA_QWEN_REALTIME_URL?.trim() || GISOO_REALTIME_URL, {
       headers: { Authorization: `Bearer ${apiKey}` },
       handshakeTimeout: 15_000,
       maxPayload: 2 * 1024 * 1024,
@@ -239,7 +237,7 @@ export function connectGisooQwenRealtime(clientWs: WebSocket, instructions: stri
 
     if (type === 'session.updated') {
       if (!sessionReady) {
-        const reportedVoice = event.session?.audio?.output?.voice;
+        const reportedVoice = event.session?.audio?.output?.voice ?? event.session?.voice;
         if (typeof reportedVoice === 'string' && reportedVoice.trim() &&
             reportedVoice.trim().toLowerCase() !== GISOO_QWEN_VOICE.toLowerCase()) {
           console.warn('[FORZA QWEN] requested voice not accepted; reported=' + reportedVoice.slice(0, 80));
@@ -290,15 +288,16 @@ export function connectGisooQwenRealtime(clientWs: WebSocket, instructions: stri
     }
 
     if (type === 'response.done') {
-      const responseId = activeResponseId ||
-        String(event.response?.id || event.response_id || '');
+      const responseId = String(event.response?.id || event.response_id || activeResponseId || '');
       for (const message of mapGisooQwenEvent(event, responseId)) sendClient(message);
       const usage = event.response?.usage;
       if (usage) {
         console.info('[FORZA QWEN] response usage=' + JSON.stringify(usage).slice(0, 700));
       }
-      activeResponseId = '';
-      responseActive = false;
+      if (responseId === activeResponseId) {
+        activeResponseId = '';
+        responseActive = false;
+      }
       return;
     }
 
@@ -312,6 +311,7 @@ export function connectGisooQwenRealtime(clientWs: WebSocket, instructions: stri
       return;
     }
 
+    if (type.startsWith('response.') && (!responseActive || (event.response_id && event.response_id !== activeResponseId))) return;
     for (const message of mapGisooQwenEvent(event, activeResponseId)) sendClient(message);
   });
 
