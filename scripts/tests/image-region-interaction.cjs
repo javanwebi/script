@@ -202,6 +202,14 @@ const {chromium}=require('playwright');
   // when autoSelect is enabled; the exact new crop must trigger a new search.
   const mobileFrame=page.locator('.sanat-region-picker--viewer .sanat-region-picker__frame');
   const frameBox=await mobileFrame.locator('img').boundingBox();assert.ok(frameBox);
+  const reviewRoot=page.getByTestId('image-region-review');
+  const beforeRegion=await reviewRoot.getAttribute('data-selected-region');
+  const selectorDisabled=await reviewRoot.getAttribute('data-selector-disabled');
+  await page.evaluate(()=>{
+    const frame=document.querySelector('.sanat-region-picker--viewer .sanat-region-picker__frame');
+    window.__manualPointerEvents={pointerdown:0,pointermove:0,pointerup:0,pointercancel:0};
+    for(const name of Object.keys(window.__manualPointerEvents))frame?.addEventListener(name,()=>window.__manualPointerEvents[name]++,true);
+  });
   const manualStart={x:frameBox.x+frameBox.width*.1,y:frameBox.y+frameBox.height*.45};
   const manualEnd={x:frameBox.x+frameBox.width*.32,y:frameBox.y+frameBox.height*.75};
   await page.mouse.move(manualStart.x,manualStart.y);
@@ -209,7 +217,7 @@ const {chromium}=require('playwright');
   await page.mouse.move(manualEnd.x,manualEnd.y,{steps:10});
   await page.mouse.up();
   for(let attempt=0;attempt<120&&queries.length<3;attempt++)await page.waitForTimeout(50);
-  console.log('MANUAL_MOBILE_CROP_QUERY_COUNT',queries.length);
+  console.log('MANUAL_MOBILE_CROP_DIAGNOSTICS',JSON.stringify({beforeRegion,afterRegion:await reviewRoot.getAttribute('data-selected-region'),selectorDisabled,pointerEvents:await page.evaluate(()=>window.__manualPointerEvents),frameBox,manualStart,manualEnd,queryCount:queries.length}));
   assert.equal(queries.length,3,'manual mobile crop must rerun the catalogue search');
   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
   assert.ok(queries[2].region,'manual crop must be sent as a region, not silently widened to the full image');
