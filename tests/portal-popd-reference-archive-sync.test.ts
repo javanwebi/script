@@ -79,10 +79,10 @@ test('archive source paths and POPD commit match the pinned image release', () =
 
 test('deployment imports the pinned archive into the active DB before starting the private canary', () => {
   const deploy = readFileSync('ops/deploy-single-port-vps.sh', 'utf8');
-  const syncIndex = deploy.indexOf('scripts/sync-popd-reference-archives.mjs');
+  const syncIndex = deploy.indexOf('===== SYNC PINNED POPD REFERENCE JSON');
   const canaryIndex = deploy.indexOf("===== PRIVATE CANARY WITHOUT A HOST PORT =====");
   assert.ok(syncIndex >= 0 && canaryIndex > syncIndex);
-  const syncBlock = deploy.slice(syncIndex - 600, canaryIndex);
+  const syncBlock = deploy.slice(syncIndex, canaryIndex);
   assert.match(syncBlock, /--network "\$NETWORK"/);
   assert.match(syncBlock, /-e NODE_ENV=production/);
   assert.match(syncBlock, /--mount "type=bind,source=\$STAGE,target=\/app"/);
