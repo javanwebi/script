@@ -102,7 +102,7 @@ export function ImageRegionSelector({
   if(disabled){setDraft(undefined);return;}
   const p=point(event,state.bounds);
   const moved=Math.hypot(event.clientX-state.clientX,event.clientY-state.clientY);
-  suppressClickRef.current=moved>8;
+  suppressClickRef.current=true;
   const next=makeDraft(state,p);
   if(state.mode==='draw'&&moved<=8){
    setTapFeedback({x:p.x*100,y:p.y*100,key:Date.now()});
