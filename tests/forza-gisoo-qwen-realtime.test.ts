@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   buildGisooQwenSessionUpdate,
+  classifyGisooRealtimeError,
   mapGisooQwenEvent,
 } from '../server/ai/gisooQwenRealtime';
 
@@ -108,3 +109,18 @@ test('Face-to-face page actually mounts the native Gisoo client without the old 
   assert.match(client,/intensity=\{1\} stableLight/);
   assert.match(worklet,/sampleRate \* 0\.02/);
  });
+
+
+test('recoverable Gisoo flood errors do not tear down an established realtime session', () => {
+  assert.equal(classifyGisooRealtimeError('flood', true), 'recoverable');
+  assert.equal(classifyGisooRealtimeError('rate_limit_exceeded', true), 'recoverable');
+  assert.equal(classifyGisooRealtimeError('session_closed', true), 'fatal');
+  assert.equal(classifyGisooRealtimeError('server_restart', true), 'fatal');
+  assert.equal(classifyGisooRealtimeError('insufficient_credit', true), 'fatal');
+  assert.equal(classifyGisooRealtimeError('flood', false), 'fatal');
+  assert.equal(classifyGisooRealtimeError('response_cancel_not_active', true), 'ignore');
+  assert.equal(classifyGisooRealtimeError('conversation_already_has_active_response', true), 'active_response');
+  const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+  assert.match(client,/m\.type==='provider_error'/);
+  assert.match(client,/اتصال برقرار است/);
+});
