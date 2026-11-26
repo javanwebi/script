@@ -97,6 +97,10 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
       const code=error instanceof Error?error.message:'catalog_unavailable';
       result={success:false,query,familyCount:0,skuCount:0,results:[],error:code==='empty_query'?'empty_query':'catalog_unavailable'};
     }
+    if(toolResponseId&&cancelled.has(toolResponseId)){
+      log('catalog_tool_cancelled',{queryLength:query.length});
+      return;
+    }
     const displayResults=Array.isArray(result.results)?result.results:[];
     toClient({
       type:'catalog_results',
