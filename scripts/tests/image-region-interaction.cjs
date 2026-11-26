@@ -174,6 +174,45 @@ const {chromium}=require('playwright');
   assert.equal(mobileFit.frameShadow,'none','image holder must not add a white frame shadow');
   assert.ok(mobileFit.width>0&&mobileFit.height>0&&mobileFit.width<=mobileFit.frameWidth+1&&mobileFit.height<=mobileFit.frameHeight+1,JSON.stringify(mobileFit));
   assert.ok(Math.abs(mobileFit.displayRatio-mobileFit.naturalRatio)<0.03,'mobile viewer must show the entire image without cropping or stretching');
+
+  // The inline catalogue is a real bottom sheet: pull to the half-screen stop,
+  // keep its result list independently scrollable, then return to the image.
+  const sheet=page.locator('.kiki-image-workspace__catalog');
+  const sheetHandle=page.locator('.kiki-image-workspace__sheet-handle');
+  await sheetHandle.waitFor({state:'visible'});
+  assert.equal(await sheet.getAttribute('data-sheet-level'),'peek');
+  const handleBox=await sheetHandle.boundingBox();assert.ok(handleBox);
+  await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y+handleBox.height/2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y-115,{steps:8});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='half');
+  const catalogueBody=page.locator('#kiki-image-workspace-catalog-body');
+  assert.equal(await catalogueBody.evaluate(el=>getComputedStyle(el).overflowY),'auto','mobile result list must scroll independently');
+  await catalogueBody.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+  await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y+handleBox.height/2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y+handleBox.height/2+115,{steps:8});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='peek');
+
+  // Automatic proposals can be corrected with a manual drag on mobile even
+  // when autoSelect is enabled; the exact new crop must trigger a new search.
+  const mobileFrame=page.locator('.sanat-region-picker--viewer .sanat-region-picker__frame');
+  const frameBox=await mobileFrame.boundingBox();assert.ok(frameBox);
+  const manualStart={x:frameBox.x+frameBox.width*.1,y:frameBox.y+frameBox.height*.62};
+  const manualEnd={x:frameBox.x+frameBox.width*.32,y:frameBox.y+frameBox.height*.88};
+  await page.mouse.move(manualStart.x,manualStart.y);
+  await page.mouse.down();
+  await page.mouse.move(manualEnd.x,manualEnd.y,{steps:10});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='true',null,{timeout:10000});
+  await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
+  assert.equal(queries.length,3,'manual mobile crop must rerun the catalogue search');
+  assert.ok(queries[2].region,'manual crop must be sent as a region, not silently widened to the full image');
+  assert.ok(Math.abs(queries[2].region.x-.1)<.04,JSON.stringify(queries[2].region));
+  assert.ok(Math.abs(queries[2].region.y-.62)<.05,JSON.stringify(queries[2].region));
+  await page.getByText('برش انتخاب‌شده و فعال است').waitFor();
   await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-mobile.png'),fullPage:true});
   assert.equal(await page.getByTestId('kiki-inline-catalog-results').count(),1,'results stay beside the selected image without a separate results page');
   assert.equal(uploads,0);
