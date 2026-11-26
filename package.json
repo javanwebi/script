@@ -32,7 +32,7 @@
     "db:migrate:adopted": "node --import tsx scripts/database/migrateAdopted.ts apply",
     "catalog:sync-popd-belt-assets": "node scripts/sync-popd-belt-assets.mjs",
     "catalog:sync-popd-images": "node scripts/sync-popd-catalog-images.mjs",
-    "pretest:portal": "node --check scripts/sync-popd-belt-assets.mjs && node --check scripts/sync-popd-family-images.mjs && node --check scripts/sync-popd-catalog-images.mjs && node scripts/sync-popd-belt-assets.mjs && node scripts/sync-popd-family-images.mjs",
+    "pretest:portal": "node --check scripts/sync-popd-belt-assets.mjs && node --check scripts/sync-popd-family-images.mjs && node --check scripts/sync-popd-catalog-images.mjs && node --check scripts/sync-popd-reference-archives.mjs && node scripts/sync-popd-belt-assets.mjs && node scripts/sync-popd-family-images.mjs",
     "catalog:sync-popd-family-images": "node scripts/sync-popd-family-images.mjs"
   },
   "dependencies": {
