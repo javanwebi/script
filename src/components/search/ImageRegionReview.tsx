@@ -111,7 +111,7 @@ export function ImageRegionReview({
           <div className="kiki-image-workspace__catalog-identity">
             <img src={image} alt="تصویر قطعه انتخاب‌شده" />
             <div>
-              <h2>محصولات مشابه کاتالوگ</h2>
+              <h2>{results.length>0 && results.every(item=>item.matchBasis==='explore')?'نزدیک‌ترین گزینه‌ها؛ تأیید نشده':'محصولات مشابه کاتالوگ'}</h2>
               <p>{analysisBusy ? 'نتایج به‌محض آماده‌شدن نمایش داده می‌شوند' : 'برای دیدن کد، مشخصات و مدل‌ها، کارت محصول را باز کنید'}</p>
             </div>
           </div>

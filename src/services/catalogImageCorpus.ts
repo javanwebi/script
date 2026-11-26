@@ -54,3 +54,31 @@ export function corpusFingerprint(images:CatalogImageRecord[]) {
   return hashStringSync(JSON.stringify(images));
 }
 
+
+/** The POPD archive has one official photo per exact SKU. Ignore legacy gallery
+ * aliases and family artwork; only the canonical variant's own URL can bind it.
+ * Revision keys are verified against the actual mounted file bytes by the server.
+ */
+export function buildPopdVisionCorpus(products:Product[],revisions:ReadonlyMap<string,string>):CatalogImageRecord[]{
+ const rows=new Map<string,CatalogImageRecord>();
+ const codes=new Set<string>();
+ for(const family of products){
+  if(family.active===false)continue;
+  for(const variant of family.variants || []){
+   if(variant.active===false)continue;
+   for(const url of variant.images || []){
+    const id=officialImageFile(url);
+    if(!id)continue;
+    const revision=revisions.get(id);
+    if(!revision || rows.has(id) || codes.has(variant.code))
+     throw new Error('Invalid or duplicate POPD vision photo binding: '+id);
+    codes.add(variant.code);
+    rows.set(id,{id,url:getProductImageUrl(id),label:variant.name || family.name,revision,
+     bindings:[{familyCode:family.code,code:variant.code,verified:true}]});
+   }
+  }
+ }
+ if(rows.size!==869 || revisions.size!==869 || Array.from({length:869},(_,i)=>'e('+(i+1)+').png').some(id=>!rows.has(id)))
+  throw new Error('POPD vision requires 869 unique active exact SKU image bindings; found '+rows.size);
+ return [...rows.values()];
+}

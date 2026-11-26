@@ -60,3 +60,17 @@ export class LocalVisionDetectionCache {
     }
   }
 }
+
+/** A selected crop must not retrieve another object from a cached full-frame
+ * query. Reuse only the exact vector; discard OCR collected outside the crop.
+ * A manual region not represented in the cache is encoded again by the caller.
+ */
+export function selectCachedLocalQuery(query:QueryEvidence,region?:ImageRegion,fullImage=false):QueryEvidence|undefined{
+ if(!region && !fullImage)return query;
+ const index=fullImage?0:(query.viewRegions || []).findIndex(box=>box!==null &&
+  Math.abs(box.x-region!.x)<0.002 && Math.abs(box.y-region!.y)<0.002 &&
+  Math.abs(box.width-region!.width)<0.002 && Math.abs(box.height-region!.height)<0.002);
+ if(index<0 || !query.vectors[index])return undefined;
+ return {...query,vectors:[query.vectors[index]],region:null,viewRegions:[null],
+  markings:fullImage?query.markings:[],ocrAvailable:fullImage && query.ocrAvailable};
+}
