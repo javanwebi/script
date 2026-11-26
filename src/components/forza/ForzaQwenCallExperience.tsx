@@ -80,7 +80,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       s.mic=ctx.createMediaStreamSource(stream);
       s.sink=ctx.createGain();s.sink.gain.value=0;
       const sendMic=(samples:Float32Array)=>{
-        if(!s.ready||micMuted.current||scanning.current||s.ws?.readyState!==WebSocket.OPEN)return;
+        if(!s.ready||!s.greeted||micMuted.current||scanning.current||s.ws?.readyState!==WebSocket.OPEN)return;
         if(s.ws.bufferedAmount>262144){fail('ارتباط صوتی کند شد؛ دوباره متصل شوید.');return;}
         send(s,{type:'realtime_audio',audio:encodePcm(samples,ctx.sampleRate)});
       };
@@ -114,7 +114,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           if(m.provider!=='qwen'){fail('سرور هنوز روی Qwen تنظیم نشده است.');return;}
           if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Andre');setConfirmed(m.voiceConfirmed===true);setPhase('thinking');
           const greeting=greeted.current?'فقط بگو: من آماده‌ام مهندس جان، بفرمایید.':'فقط با لحن گرم و پرانرژی بگو: سلام مهندس جان، به صنعت پیش خوش آمدید. من فورزا هستم، بفرمایید.';
-          send(s,{type:'text',text:greeting});s.greeted=true;greeted.current=true;return;
+          send(s,{type:'text',text:greeting});return;
         }
         if(m.type==='speech_started'){stopPlayback(s);setUser('');setPhase('listening');return;}
         if(m.type==='speech_stopped'){setPhase('thinking');return;}
