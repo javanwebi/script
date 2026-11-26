@@ -7,6 +7,7 @@ test('private VPS config overrides inherited FORZA and AvalAI settings only', ()
     FORZA_DESK_PROVIDER: 'xkiro',
     FORZA_VOICE_PROVIDER: 'xkiro',
     AVALAI_API_KEY: '',
+    AVALAI_DESK_API_KEY: '',
     DATABASE_URL: 'postgres://unchanged',
     XKIRO_API_KEY: 'keep-for-rollback',
     PORT: '3000',
@@ -15,6 +16,7 @@ test('private VPS config overrides inherited FORZA and AvalAI settings only', ()
     FORZA_DESK_PROVIDER: 'avalai',
     FORZA_VOICE_PROVIDER: 'avalai',
     AVALAI_API_KEY: 'secret-placeholder',
+    AVALAI_DESK_API_KEY: 'desk-secret-placeholder',
     AVALAI_MODEL_DESK: 'glm-5.3-flash',
     AVALAI_MODEL_VOICE: 'glm-5.3-flash',
     DATABASE_URL: 'must-not-override',
@@ -24,6 +26,7 @@ test('private VPS config overrides inherited FORZA and AvalAI settings only', ()
   assert.equal(env.FORZA_DESK_PROVIDER, 'avalai');
   assert.equal(env.FORZA_VOICE_PROVIDER, 'avalai');
   assert.equal(env.AVALAI_API_KEY, 'secret-placeholder');
+  assert.equal(env.AVALAI_DESK_API_KEY, 'desk-secret-placeholder');
   assert.equal(env.AVALAI_MODEL_DESK, 'glm-5.3-flash');
   assert.equal(env.AVALAI_MODEL_VOICE, 'glm-5.3-flash');
   assert.equal(env.DATABASE_URL, 'postgres://unchanged');
