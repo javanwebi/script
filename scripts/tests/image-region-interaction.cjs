@@ -207,8 +207,20 @@ const {chromium}=require('playwright');
   const selectorDisabled=await reviewRoot.getAttribute('data-selector-disabled');
   await page.evaluate(()=>{
     const frame=document.querySelector('.sanat-region-picker--viewer .sanat-region-picker__frame');
-    window.__manualPointerEvents={pointerdown:0,pointermove:0,pointerup:0,pointercancel:0};
-    for(const name of Object.keys(window.__manualPointerEvents))frame?.addEventListener(name,()=>window.__manualPointerEvents[name]++,true);
+    window.__manualPointerEvents={pointerdown:0,pointermove:0,pointerup:0,pointercancel:0,targets:[]};
+    for(const name of ['pointerdown','pointermove','pointerup','pointercancel']){
+      document.addEventListener(name,event=>{
+        const target=event.target instanceof Element?event.target:null;
+        const closest=target?.closest('.sanat-region-picker--viewer .sanat-region-picker__frame');
+        if(name==='pointerdown')window.__manualPointerEvents.targets.push({
+          tag:target?.tagName,className:typeof target?.className==='string'?target.className:'',
+          closestFrame:Boolean(closest),frameSame:closest===frame,
+          elementAtPoint:document.elementFromPoint(event.clientX,event.clientY)?.className?.toString?.()||'',
+          point:{x:event.clientX,y:event.clientY}
+        });
+        if(closest)window.__manualPointerEvents[name]++;
+      },true);
+    }
   });
   const manualStart={x:frameBox.x+frameBox.width*.1,y:frameBox.y+frameBox.height*.45};
   const manualEnd={x:frameBox.x+frameBox.width*.32,y:frameBox.y+frameBox.height*.75};
