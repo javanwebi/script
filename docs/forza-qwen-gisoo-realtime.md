@@ -36,6 +36,7 @@ Set `FORZA_REALTIME_PROVIDER=gemini` or remove that line from `.env.forza-voice`
 ## Known constraints
 
 - The account currently reports a concurrency limit of 8; the bridge caps active Qwen sessions at 8 by default.
+- Gisoo documents a maximum of 60 seconds per user speech turn and a maximum one-hour session (with automatic close after 120 seconds without a message).
 - Gisoo documents Qwen's default voice as Tina. The Gisoo Realtime proxy does not document a selectable male Qwen voice; do not claim voice parity with the current male FORZA voice.
 - User-transcription events are forwarded if Gisoo emits them. The current Gisoo Realtime documentation guarantees assistant transcript events but does not specify live user-transcription events.
 - This temporary bridge does not implement catalogue function-calling tools. The existing FORZA system instruction is retained, but product/database lookup tools are not exposed to Qwen in this temporary mode.
