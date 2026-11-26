@@ -132,8 +132,8 @@ CREATE INDEX IF NOT EXISTS idx_catalog_direct_skus_category
 ALTER TABLE public.catalog_direct_skus ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.catalog_direct_skus FROM PUBLIC, anon, authenticated;
 
--- Source of truth for bootstrap labels is the reviewed Excel snapshot.
--- ON CONFLICT DO NOTHING preserves everything already changed in Admin.
+-- The pinned POPD hierarchy is authoritative for group membership.
+-- Existing group labels, icons, images and sort order are preserved; only category_slugs are reconciled.
 INSERT INTO public.catalog_navigation_groups
  (id,title,icon_key,category_slugs,sort_order,is_active) VALUES
   ('excel-v2-1','انواع تسمه‌های صنعتی','layers',ARRAY['excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4','excel-v2-1-5']::text[],0,true),
@@ -153,7 +153,9 @@ INSERT INTO public.catalog_navigation_groups
 ON CONFLICT (id) DO UPDATE
  SET category_slugs = EXCLUDED.category_slugs,
      updated_at = now()
- WHERE public.catalog_navigation_groups.category_slugs IS DISTINCT FROM EXCLUDED.category_slugs;DO $$
+ WHERE public.catalog_navigation_groups.category_slugs IS DISTINCT FROM EXCLUDED.category_slugs;
+
+DO $
 DECLARE available integer;
 DECLARE approved_categories integer;
 DECLARE grouped_categories integer;
