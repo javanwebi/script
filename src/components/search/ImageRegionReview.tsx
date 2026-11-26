@@ -164,6 +164,8 @@ export function ImageRegionReview({
       aria-busy={working || Boolean(busy)}
       data-testid="image-region-review"
       data-mobile-sheet-level={mobileSheetLevel}
+      data-selected-region={selectedRegion ? [selectedRegion.x, selectedRegion.y, selectedRegion.width, selectedRegion.height].join(',') : ''}
+      data-selector-disabled={selectorDisabled ? 'true' : 'false'}
     >
       <section
         className="kiki-image-workspace__catalog"
