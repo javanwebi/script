@@ -5783,6 +5783,13 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
   }
 });
 
+// Explicit operator rollback only; failed discovery must never select legacy.
+app.get('/api/ai/forza-call-provider',(_req,res)=>{
+  res.setHeader('Cache-Control','no-store');
+  const provider=String(process.env.FORZA_REALTIME_PROVIDER||'qwen').trim().toLowerCase();
+  res.json({provider:provider==='legacy'?'legacy':'qwen'});
+});
+
 // Browser chooses the incremental speech path ONLY for verified Piper Nima.
 // Other existing voices retain their safe full-answer behavior.
 let nextVoiceCatalogWarmAt=0;
