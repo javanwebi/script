@@ -123,7 +123,13 @@ export function ImageRegionReview({
     setMobileSheetLevel(level => level === 'peek' ? 'half' : level === 'half' ? 'full' : 'peek');
   };
 
+  const cropPreviewAspect = selectedRegion ? selectedRegion.width / selectedRegion.height : 1;
+  const cropPreviewWidth = Math.min(68, 48 * cropPreviewAspect);
+  const cropPreviewHeight = Math.min(48, 68 / cropPreviewAspect);
   const cropPreviewStyle = selectedRegion ? {
+    width: cropPreviewWidth + 'px',
+    height: cropPreviewHeight + 'px',
+    flexBasis: cropPreviewWidth + 'px',
     backgroundImage: 'url(' + JSON.stringify(image) + ')',
     backgroundSize: (100 / selectedRegion.width) + '% ' + (100 / selectedRegion.height) + '%',
     backgroundPosition:
