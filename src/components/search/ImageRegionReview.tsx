@@ -12,7 +12,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { ImageRegionSelector } from './ImageRegionSelector';
+import { AutomaticImageCrop } from './AutomaticImageCrop';
 import type { ImageRegion } from '../../utils/imageRegion';
 import './image-region-review.css';
 
@@ -40,7 +40,6 @@ interface Props {
   image: string;
   status: RegionPreparationState;
   selectedRegion?: ImageRegion;
-  candidateRegions: ImageRegion[];
   message?: string;
   analysisError?: string;
   busy?: boolean;
@@ -51,7 +50,6 @@ interface Props {
   analysisComplete?: boolean;
   results: VisionWorkspaceResult[];
   selectedProductId?: string;
-  onRegionChange: (region: ImageRegion | undefined) => void;
   onSelectProduct: (id: string) => void;
   onOpenProduct: (id: string) => void;
   onRetryAnalysis: () => void;
@@ -65,7 +63,6 @@ export function ImageRegionReview({
   image,
   status,
   selectedRegion,
-  candidateRegions,
   message,
   analysisError,
   busy,
@@ -76,7 +73,6 @@ export function ImageRegionReview({
   analysisComplete,
   results,
   selectedProductId,
-  onRegionChange,
   onSelectProduct,
   onOpenProduct,
   onRetryAnalysis,
@@ -125,36 +121,21 @@ export function ImageRegionReview({
     setMobileSheetLevel(level => level === 'peek' ? 'half' : level === 'half' ? 'full' : 'peek');
   };
 
-  const cropPreviewAspect = selectedRegion ? selectedRegion.width / selectedRegion.height : 1;
-  const cropPreviewWidth = Math.min(68, 48 * cropPreviewAspect);
-  const cropPreviewHeight = Math.min(48, 68 / cropPreviewAspect);
-  const cropPreviewStyle = selectedRegion ? {
-    width: cropPreviewWidth + 'px',
-    height: cropPreviewHeight + 'px',
-    flexBasis: cropPreviewWidth + 'px',
-    backgroundImage: 'url(' + JSON.stringify(image) + ')',
-    backgroundSize: (100 / selectedRegion.width) + '% ' + (100 / selectedRegion.height) + '%',
-    backgroundPosition:
-      (selectedRegion.width < 1 ? 100 * selectedRegion.x / (1 - selectedRegion.width) : 0) + '% ' +
-      (selectedRegion.height < 1 ? 100 * selectedRegion.y / (1 - selectedRegion.height) : 0) + '%',
-  } : undefined;
-
   const preparing = status === 'uploading' || status === 'detecting';
   const working = preparing || Boolean(analysisBusy);
-  const selectorDisabled = preparing || Boolean(busy) || Boolean(analysisBusy);
   const statusText = status === 'uploading'
     ? 'در حال آماده‌سازی تصویر'
     : status === 'detecting'
-      ? 'در حال تشخیص خودکار قطعات تصویر'
+      ? 'هوش مصنوعی در حال پیدا کردن قطعه در تصویر'
       : analysisBusy
-        ? 'در حال تطبیق قطعه با کاتالوگ صنعت پیش'
+        ? 'در حال تطبیق برش خودکار با کاتالوگ صنعت پیش'
         : results.length
           ? 'برای مشاهده مشخصات، روی کارت محصول بزنید'
           : analysisComplete && !results.length
             ? 'جست‌وجو کامل شد؛ نتیجه قابل اتکایی پیدا نشد'
-            : status === 'fallback'
-              ? 'تشخیص خودکار قطعه کامل نشد؛ می‌توانید دستی کادر بکشید'
-              : 'تصویر آماده بررسی خودکار است';
+            : selectedRegion
+              ? 'قطعه پیدا شد و برش خودکار برای جست‌وجو فعال است'
+              : 'برش دقیق تأیید نشد؛ جست‌وجوی تصویر کامل انجام می‌شود';
 
   return (
     <section
@@ -165,7 +146,7 @@ export function ImageRegionReview({
       data-testid="image-region-review"
       data-mobile-sheet-level={mobileSheetLevel}
       data-selected-region={selectedRegion ? [selectedRegion.x, selectedRegion.y, selectedRegion.width, selectedRegion.height].join(',') : ''}
-      data-selector-disabled={selectorDisabled ? 'true' : 'false'}
+      data-region-mode="automatic"
     >
       <section
         className="kiki-image-workspace__catalog"
@@ -206,7 +187,7 @@ export function ImageRegionReview({
               ? <LoaderCircle size={16} aria-hidden="true" />
               : <span className="kiki-image-workspace__status-dot" aria-hidden="true" />}
             <span>{statusText}</span>
-            {selectedRegion && <small>قطعه انتخاب‌شده روی تصویر مشخص است</small>}
+            {selectedRegion && <small>برش خودکار روی تصویر مشخص است</small>}
           </div>
 
           {analysisBusy && typeof total === 'number' && total > 0 && (
@@ -301,7 +282,7 @@ export function ImageRegionReview({
           ) : analysisError ? null : (
             <div className="kiki-image-workspace__empty-results" data-testid="kiki-inline-results-empty">
               <strong>تطابق قابل اتکایی در کاتالوگ پیدا نشد</strong>
-              <span>می‌توانید قطعه دیگری از همین تصویر را انتخاب کنید یا درخواست بررسی و ساخت سفارشی ثبت کنید.</span>
+              <span>تصویر کامل بررسی شده است؛ اگر نتیجه‌ای پیدا نشد، می‌توانید درخواست بررسی و ساخت سفارشی ثبت کنید.</span>
             </div>
           )}
 
@@ -343,40 +324,9 @@ export function ImageRegionReview({
           </button>
         </header>
 
-        <div className="kiki-image-workspace__crop-status" data-testid="kiki-mobile-crop-preview" aria-live="polite">
-          {selectedRegion ? (
-            <>
-              <div className="kiki-image-workspace__crop-thumb" style={cropPreviewStyle} aria-hidden="true" />
-              <div>
-                <strong>برش انتخاب‌شده و فعال است</strong>
-                <span>کادر نارنجی محدوده جست‌وجو را نشان می‌دهد؛ برای اصلاح، گوشه‌ها یا خود کادر را بکشید.</span>
-              </div>
-            </>
-          ) : (
-            <div className="kiki-image-workspace__crop-empty">
-              <strong>هنوز برش مشخص نشده است</strong>
-              <span>{candidateRegions.length ? 'یکی از کادرهای قطعه را لمس کنید.' : 'روی قطعه انگشت بگذارید و دور آن کادر بکشید تا جست‌وجو روی همان بخش انجام شود.'}</span>
-            </div>
-          )}
-        </div>
         <div className="kiki-image-workspace__stage">
-          <ImageRegionSelector
-            src={image}
-            value={selectedRegion}
-            candidateRegions={candidateRegions}
-            onChange={onRegionChange}
-            disabled={selectorDisabled}
-            autoSelect
-            variant="viewer"
-          />
+          <AutomaticImageCrop image={image} region={selectedRegion} status={status} />
         </div>
-        <p className="kiki-image-workspace__viewer-hint">
-          {selectedRegion
-            ? 'کادر نارنجی برش فعلی است؛ برای جابه‌جایی آن داخل کادر بکشید، برای تغییر اندازه گوشه‌ها را بکشید یا بیرون آن برش تازه بسازید.'
-            : candidateRegions.length
-              ? 'قطعه موردنظر را با لمس کادر انتخاب کنید؛ اگر کادر دقیق نیست، روی تصویر کادر تازه بکشید.'
-              : 'اگر تشخیص خودکار قطعه را پیدا نکرد، روی تصویر انگشت بگذارید و دور قطعه کادر بکشید.'}
-        </p>
       </aside>
     </section>
   );
