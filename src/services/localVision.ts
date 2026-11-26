@@ -164,8 +164,11 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
 
 /** Browsable nearest neighbours, explicitly outside the accepted match lists. */
 export function nearestLocalSuggestions(hits:LocalVisualHit[],products:Product[]){
- const ordered=hits.filter(h=>Number.isFinite(h.score)&&(h.visualScore ?? h.score)>=0.35);
- return localModelSuggestions(ordered.map(h=>({...h,eligible:true})),products,[],0.35,32)
+ // Keep weak candidates separate from matches; retain the existing 0.31 regression
+ // while excluding extremely weak resemblance. This is not a calibrated confidence.
+ const explorationFloor=0.30;
+ const ordered=hits.filter(h=>Number.isFinite(h.score)&&(h.visualScore ?? h.score)>=explorationFloor);
+ return localModelSuggestions(ordered.map(h=>({...h,eligible:true})),products,[],explorationFloor,32)
   .map(item=>({...item,matchBasis:'explore' as const,visualScore:undefined,reason:'از نزدیک‌ترین گزینه‌های کاتالوگ برای بررسی شماست؛ تشخیص نوع قطعه، مدل، سایز و سازگاری تأیید نشده است.'}));
 }
 

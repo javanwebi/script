@@ -33,6 +33,10 @@ on:
       - 'tests/local-model-suggestions.test.ts'
       - 'tests/local-model-results.test.tsx'
       - 'tests/local-vision.test.ts'
+      - 'tests/popd-vision-authority.test.ts'
+      - 'server/popdVisionCatalog.ts'
+      - 'server/catalogReferenceApi.ts'
+      - 'src/services/catalogImageCorpus.ts'
       - 'tests/local-vision-detection-cache.test.ts'
       - 'tests/customer-image-memory-only.test.ts'
       - 'tests/catalog-visual-index.test.ts'
@@ -75,6 +79,7 @@ jobs:
           tests/local-model-suggestions.test.ts
           tests/local-model-results.test.tsx
           tests/local-vision.test.ts
+          tests/popd-vision-authority.test.ts
           tests/local-vision-detection-cache.test.ts
           tests/customer-image-memory-only.test.ts
           tests/catalog-visual-index.test.ts

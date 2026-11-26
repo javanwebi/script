@@ -17,6 +17,8 @@ on:
       - "src/components/search/**"
       - "public/images/precision-scan-technical-overlay.svg"
       - "tests/mobile-scan-ui.test.ts"
+      - "tests/local-vision.test.ts"
+      - "tests/popd-vision-authority.test.ts"
       - "tests/image-region-interaction.test.ts"
       - "scripts/tests/image-region-interaction.cjs"
       - "src/utils/imageRegionInteraction.ts"
@@ -48,7 +50,7 @@ jobs:
       - name: TypeScript
         run: npm run lint
       - name: Mobile scan source regression tests
-        run: node --import tsx --test tests/mobile-scan-ui.test.ts tests/image-region-interaction.test.ts tests/local-model-results.test.tsx tests/local-vision.test.ts
+        run: node --import tsx --test tests/mobile-scan-ui.test.ts tests/image-region-interaction.test.ts tests/local-model-results.test.tsx tests/local-vision.test.ts tests/popd-vision-authority.test.ts
       - name: Category drawer and approved taxonomy source tests
         run: node --import tsx --test tests/mobile-category-drawer.test.ts
       - name: Production bundle build
