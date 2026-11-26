@@ -202,37 +202,38 @@ async function loadSnapshot(): Promise<Snapshot> {
 
   const fallbackCategories = APPROVED_MENU_CATEGORIES as unknown as Category[];
   const fallbackGroups = APPROVED_MENU_GROUPS as unknown as NavigationGroup[];
-  const fallbackCategoriesBySlug = new Map(fallbackCategories.map((category) => [category.slug, category]));
-  const categoryRowsBySlug = new Map(categoryRes.rows.map((row: any) => [String(row.slug), row]));
+  const fallbackCategoriesBySlug = new Map(fallbackCategories.map((category) => [normalizeCode(category.slug), category]));
+  const categoryRowsBySlug = new Map(categoryRes.rows.map((row: any) => [normalizeCode(row.slug), row]));
   const groupRowsById = new Map(groupRes.rows.map((row: any) => [String(row.id), row]));
 
-  // The fallback file is a last-known-good source and currently contains 34 entries.
-  // Supabase is the active 40-category authority; never drop categories added after
-  // that fallback snapshot or reject families assigned to those valid active slugs.
-  const activeCategorySlugs = categoryRes.rows.length
-    ? categoryRes.rows.map((row: any) => normalizeCode(row.slug)).filter(Boolean)
-    : fallbackCategories.map((category) => normalizeCode(category.slug));
-  const categorySlugs = new Set(activeCategorySlugs);
-
-  if (categoryRes.rows.length && fallbackCategories.some((category) => !categoryRowsBySlug.has(category.slug))) {
-    throw new Error('Supabase active categories are missing an approved fallback category');
+  // The pinned POPD hierarchy is the sole authority for this reference API.
+  // Legacy SCRIPT categories may remain active for historical product/order routes,
+  // but they must not leak into the 40-category POPD navigation tree.
+  const approvedCategorySlugs = fallbackCategories.map((category) => normalizeCode(category.slug)).filter(Boolean);
+  const categorySlugs = new Set(approvedCategorySlugs);
+  const groupedCategorySlugs = fallbackGroups.flatMap((group) => group.categorySlugs.map(normalizeCode));
+  const groupedCategorySet = new Set(groupedCategorySlugs);
+  const ungroupedApprovedCategories = approvedCategorySlugs.filter((slug) => !groupedCategorySet.has(slug));
+  const unknownGroupCategories = groupedCategorySlugs.filter((slug) => !categorySlugs.has(slug));
+  const duplicateGroupCategorySlugs = groupedCategorySlugs.filter((slug, index) => groupedCategorySlugs.indexOf(slug) !== index);
+  if (
+    fallbackCategories.length !== 40 ||
+    fallbackGroups.length !== 14 ||
+    groupedCategorySet.size !== 40 ||
+    ungroupedApprovedCategories.length ||
+    unknownGroupCategories.length ||
+    duplicateGroupCategorySlugs.length
+  ) {
+    throw new Error('Pinned POPD menu taxonomy must contain exactly 40 categories across 14 unique groups');
   }
-  if (groupRes.rows.length && fallbackGroups.some((group) => !groupRowsById.has(group.id))) {
-    throw new Error('Supabase active navigation groups do not fully match the approved POPD menu taxonomy');
-  }
 
-  const activeGroupCategorySlugs = new Set(
-    groupRes.rows.flatMap((row: any) => asArray<string>(row.categorySlugs).map(normalizeCode)),
-  );
-  if (categoryRes.rows.length && groupRes.rows.length) {
-    const ungrouped = activeCategorySlugs.filter((slug) => !activeGroupCategorySlugs.has(slug));
-    const unknownGroupCategories = Array.from(activeGroupCategorySlugs).filter((slug) => !categorySlugs.has(slug));
-    if (ungrouped.length || unknownGroupCategories.length) {
-      throw new Error(
-        'Supabase catalogue navigation does not cover the active category set: ' +
-        JSON.stringify({ ungrouped, unknownGroupCategories }),
-      );
-    }
+  const missingApprovedCategories = approvedCategorySlugs.filter((slug) => !categoryRowsBySlug.has(slug));
+  if (categoryRes.rows.length && missingApprovedCategories.length) {
+    throw new Error('Supabase is missing approved POPD categories: ' + JSON.stringify(missingApprovedCategories));
+  }
+  const missingApprovedGroups = fallbackGroups.filter((group) => !groupRowsById.has(group.id)).map((group) => group.id);
+  if (groupRes.rows.length && missingApprovedGroups.length) {
+    throw new Error('Supabase is missing approved POPD navigation groups: ' + JSON.stringify(missingApprovedGroups));
   }
 
   const productByCode = new Map<string, Product>();
@@ -251,7 +252,7 @@ async function loadSnapshot(): Promise<Snapshot> {
       throw new Error('A canonical POPD family is missing a valid resolved category assignment: ' + String(product.code || 'unknown'));
     }
     product.categorySlug = slug;
-    const category = categoryRowsBySlug.get(slug);
+    const category = fallbackCategoriesBySlug.get(slug) || categoryRowsBySlug.get(slug);
     if (category?.name) product.categoryName = String(category.name);
     product.submenu = assignment.submenuName || product.submenu;
     product.subcategory = assignment.leafName || product.subcategory;
@@ -537,7 +538,7 @@ async function loadSnapshot(): Promise<Snapshot> {
   }
 
   const categoryRows = categoryRes.rows.length
-    ? categoryRes.rows
+    ? categoryRes.rows.filter((row: any) => categorySlugs.has(normalizeCode(row.slug)))
     : fallbackCategories.map((category) => ({
         ...category,
         active: category.active !== false,
@@ -545,7 +546,7 @@ async function loadSnapshot(): Promise<Snapshot> {
       }));
 
   const categories = categoryRows.map((dbCategory: any) => {
-    const slug = String(dbCategory.slug || '');
+    const slug = normalizeCode(dbCategory.slug);
     const fallback = fallbackCategoriesBySlug.get(slug);
     const metadata = dbCategory.metadata && typeof dbCategory.metadata === 'object'
       ? dbCategory.metadata as Record<string, unknown>
@@ -572,7 +573,7 @@ async function loadSnapshot(): Promise<Snapshot> {
       ...(fallback || {}),
       id: fallback?.id ?? (Number.isFinite(rawId) ? rawId : Number(dbCategory.sortOrder) || 0),
       slug,
-      name: String(dbCategory.name || fallback?.name || slug),
+      name: String(fallback?.name || dbCategory.name || slug),
       nameEn: fallback?.nameEn || '',
       description: (dbCategory.description && String(dbCategory.description).trim()) || fallback?.description || '',
       subcategories,
@@ -580,7 +581,7 @@ async function loadSnapshot(): Promise<Snapshot> {
       image: dbCategory.image || fallback?.image || undefined,
       children,
       menuSource: (typeof metadata.source === 'string' ? metadata.source : undefined) || fallback?.menuSource,
-      sortOrder: Number(dbCategory.sortOrder ?? fallback?.sortOrder ?? 0),
+      sortOrder: Number(fallback?.sortOrder ?? dbCategory.sortOrder ?? 0),
       count: stats.familyCount,
       familyCount: stats.familyCount,
       directSkuCount,
@@ -591,17 +592,13 @@ async function loadSnapshot(): Promise<Snapshot> {
 
   const groups = fallbackGroups.map((group) => {
     const dbGroup = groupRowsById.get(group.id);
-    const dbCategorySlugs = asArray<string>(dbGroup?.categorySlugs).map(String);
-    const categorySlugsForGroup = dbCategorySlugs.length
-      ? dbCategorySlugs
-      : activeCategorySlugs.filter((slug) => slug.startsWith(`${group.id}-`));
     return {
       ...group,
-      title: dbGroup?.title || group.title,
-      iconKey: dbGroup?.iconKey || group.iconKey,
+      title: group.title,
+      iconKey: group.iconKey,
       imageUrl: dbGroup?.imageUrl || group.imageUrl || null,
-      categorySlugs: categorySlugsForGroup,
-      sortOrder: Number(dbGroup?.sortOrder ?? group.sortOrder ?? 0),
+      categorySlugs: [...group.categorySlugs],
+      sortOrder: Number(group.sortOrder || 0),
       active: true,
     };
   });
