@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import {
   AlertCircle,
   ChevronDown,
@@ -112,14 +112,14 @@ export function ImageRegionReview({
       if (deltaY < 0) return level === 'peek' ? 'half' : 'full';
       return level === 'full' ? 'half' : 'peek';
     });
-    event.preventDefault();
   };
 
-  const toggleMobileSheet = () => {
-    if (sheetWasDragged.current) {
+  const toggleMobileSheet = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (sheetWasDragged.current && event.detail > 0) {
       sheetWasDragged.current = false;
       return;
     }
+    sheetWasDragged.current = false;
     setMobileSheetLevel(level => level === 'peek' ? 'half' : level === 'half' ? 'full' : 'peek');
   };
 
