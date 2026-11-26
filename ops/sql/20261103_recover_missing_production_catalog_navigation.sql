@@ -67,13 +67,9 @@ INSERT INTO public.catalog_categories
  ('excel-v2-14-2','excel-v2-14-2','نوار اسفنجی','Package',NULL,'',1402,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"نوار اسفنجی چسب‌دار و ساده","children":[{"name":"چسب‌دار و بدون چسب"}]},{"name":"نوار اسفنجی سیلیکونی","children":[{"name":"انواع نوار اسفنجی سیلیکونی"}]}],"subcategories":["نوار اسفنجی چسب‌دار و ساده","نوار اسفنجی سیلیکونی"],"routeSlug":"excel-v2-14-2","nameEn":""}'::jsonb),
  ('excel-v2-14-3','excel-v2-14-3','اسکاج صنعتی','Package',NULL,'',1403,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"انواع اسکاج","children":[{"name":"اسکاج صنعتی و اسکاج گرد"}]}],"subcategories":["انواع اسکاج"],"routeSlug":"excel-v2-14-3","nameEn":""}'::jsonb)
 ON CONFLICT (slug) DO UPDATE
- SET name=EXCLUDED.name,
-     sort_order=EXCLUDED.sort_order,
-     is_active=true,
+ SET is_active=true,
      metadata=COALESCE(public.catalog_categories.metadata,'{}'::jsonb) || EXCLUDED.metadata
- WHERE public.catalog_categories.name IS DISTINCT FROM EXCLUDED.name
-    OR public.catalog_categories.sort_order IS DISTINCT FROM EXCLUDED.sort_order
-    OR public.catalog_categories.is_active IS DISTINCT FROM true
+ WHERE public.catalog_categories.is_active IS DISTINCT FROM true
     OR COALESCE(public.catalog_categories.metadata,'{}'::jsonb) || EXCLUDED.metadata IS DISTINCT FROM public.catalog_categories.metadata;
 
 DO $$
@@ -160,10 +156,12 @@ INSERT INTO public.catalog_navigation_groups
   ('excel-v2-14','ابر و اسفنج و اسکاج صنعتی','layers',ARRAY['excel-v2-14-1','excel-v2-14-2','excel-v2-14-3']::text[],13,true)
 ON CONFLICT (id) DO UPDATE
  SET category_slugs = EXCLUDED.category_slugs,
+     is_active = true,
      updated_at = now()
- WHERE public.catalog_navigation_groups.category_slugs IS DISTINCT FROM EXCLUDED.category_slugs;
+ WHERE public.catalog_navigation_groups.category_slugs IS DISTINCT FROM EXCLUDED.category_slugs
+    OR public.catalog_navigation_groups.is_active IS DISTINCT FROM true;
 
-DO $
+DO $$
 DECLARE available integer;
 DECLARE approved_categories integer;
 DECLARE grouped_categories integer;
