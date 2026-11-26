@@ -195,6 +195,7 @@ test('live call renders catalogue product cards and does not disconnect on a twe
 test('legacy Andre selection is migrated to the professional Raymond voice', () => {
   assert.equal(resolveGisooQwenVoice(undefined), 'Raymond');
   assert.equal(resolveGisooQwenVoice('Andre'), 'Raymond');
+  assert.equal(resolveGisooQwenVoice('Ryan'), 'Raymond');
   assert.equal(resolveGisooQwenVoice('Raymond'), 'Raymond');
   assert.equal(resolveGisooQwenVoice('Tina'), 'Tina');
   assert.equal(resolveGisooQwenVoice('unsupported-voice'), 'Raymond');
