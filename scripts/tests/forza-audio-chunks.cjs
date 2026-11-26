@@ -29,7 +29,8 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
       };
     });
     await mockLocalVoice(page,wave);
-    await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({
+    await page.route('**/api/ai/forza-call-provider',route=>route.fulfill({json:{provider:'legacy'}}));
+  await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({
       json:{textProvider:'avalai',textProviderRequested:'avalai',textProviderConfigured:true,textModel:'glm-5.3-flash',voice:'piper-nima-gyro-medium',incrementalSpeech:true,ready:true}
     }));
     await page.route('**/api/ai/forza-speech',async route=>{
