@@ -1,4 +1,5 @@
 import { WebSocket } from 'ws';
+import type { RawData } from 'ws';
 
 const GISOO_REALTIME_URL =
   process.env.FORZA_QWEN_REALTIME_URL?.trim() ||
@@ -12,7 +13,7 @@ type JsonRecord = Record<string, any>;
 
 let activeSessions = 0;
 
-function toUtf8(raw: WebSocket.RawData): string {
+function toUtf8(raw: RawData): string {
   if (Buffer.isBuffer(raw)) return raw.toString('utf8');
   if (Array.isArray(raw)) return Buffer.concat(raw).toString('utf8');
   return Buffer.from(raw as ArrayBuffer).toString('utf8');
