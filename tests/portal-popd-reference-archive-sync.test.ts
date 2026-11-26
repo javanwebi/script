@@ -84,9 +84,12 @@ test('deployment imports the pinned archive into the active DB before starting t
   assert.ok(syncIndex >= 0 && canaryIndex > syncIndex);
   const syncBlock = deploy.slice(syncIndex - 600, canaryIndex);
   assert.match(syncBlock, /--network "\$NETWORK"/);
-  assert.match(syncBlock, /--env-file "\$ENV_FILE"/);
   assert.match(syncBlock, /-e NODE_ENV=production/);
-  assert.match(syncBlock, /\$\{MOUNTS\[@\]\}/);
+  assert.match(syncBlock, /--mount "type=bind,source=\$STAGE,target=\/app"/);
+  assert.match(syncBlock, /DATABASE_URL/);
+  assert.match(syncBlock, /DATABASE_CA_CERT/);
+  assert.doesNotMatch(syncBlock, /--env-file "\$ENV_FILE"/);
+  assert.doesNotMatch(syncBlock, /MOUNTS/);
 });
 
 test('archive importer only appends immutable private source snapshots, not live catalog data', () => {
