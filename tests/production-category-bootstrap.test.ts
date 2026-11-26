@@ -27,7 +27,7 @@ test('empty approved taxonomy recovers additively while preserving legacy catego
       (select count(*)::int from public.catalog_categories where slug like 'excel-v2-%' and metadata->>'source'='industrial_megamenu_hierarchy_v2') as cat,
       (select count(*)::int from public.catalog_navigation_groups where id like 'excel-v2-%') as groups
   `);
-  assert.deepEqual(counts.rows[0],{cat:34,groups:14});
+  assert.deepEqual(counts.rows[0],{cat:40,groups:14});
   const original=await db.query<{n:number}>("select count(*)::int as n from public.catalog_categories where slug like 'legacy-%'");
   assert.equal(original.rows[0].n,29);
   const children=await db.query<{name:string,children:unknown}>("select name, metadata->'children' as children from public.catalog_categories where slug='excel-v2-1-1'");
@@ -37,7 +37,19 @@ test('empty approved taxonomy recovers additively while preserving legacy catego
   // Subsequent deploys never change admin-assigned names or images.
   await db.exec("update public.catalog_navigation_groups set title='Admin renamed group' where id='excel-v2-1';");
   await db.exec("update public.catalog_categories set name='Admin renamed category' where slug='excel-v2-1-1';");
+  await db.exec("update public.catalog_navigation_groups set category_slugs=ARRAY['excel-v2-1-1'] where id='excel-v2-1';");
+  await db.exec("update public.catalog_categories set metadata=metadata || '{\"children\":[],\"adminFlag\":true}'::jsonb where slug='excel-v2-1-1';");
   await db.exec(sql);
+  const repaired=await db.query<{links:number;unique_links:number;children:number;admin_flag:boolean}>(`
+    select (select count(*)::int from public.catalog_navigation_groups g cross join unnest(g.category_slugs) as x(slug)) as links,
+      (select count(distinct x.slug)::int from public.catalog_navigation_groups g cross join unnest(g.category_slugs) as x(slug)) as unique_links,
+      (select jsonb_array_length(metadata->'children') from public.catalog_categories where slug='excel-v2-1-1') as children,
+      (select (metadata->>'adminFlag')::boolean from public.catalog_categories where slug='excel-v2-1-1') as admin_flag
+  `);
+  assert.equal(repaired.rows[0].links,40);
+  assert.equal(repaired.rows[0].unique_links,40);
+  assert.ok(repaired.rows[0].children>0);
+  assert.equal(repaired.rows[0].admin_flag,true);
   const admin=await db.query<{group_name:string;category_name:string}>(`
     select
       (select title from public.catalog_navigation_groups where id='excel-v2-1') as group_name,

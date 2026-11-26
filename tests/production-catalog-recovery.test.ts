@@ -1,10 +1,10 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {APPROVED_MENU_GROUPS} from '../src/data/approvedMenuFallback.ts';
+import {APPROVED_MENU_GROUPS} from '../src/data/popdApprovedMenu.ts';
 import {CATALOG_FAMILY_MENU_ASSIGNMENTS} from '../src/data/catalogMenuAssignmentsData.ts';
 
-test('additive production recovery seeds every approved spreadsheet group without overwriting admin edits',()=>{
+test('additive production recovery seeds the exact POPD groups while preserving group presentation and commercial data',()=>{
  const sql=readFileSync('ops/sql/20261103_recover_missing_production_catalog_navigation.sql','utf8');
  assert.equal(APPROVED_MENU_GROUPS.length,14);
  for(const group of APPROVED_MENU_GROUPS) {
@@ -14,17 +14,22 @@ test('additive production recovery seeds every approved spreadsheet group withou
  assert.match(sql,/BEGIN;/);
  assert.match(sql,/COMMIT;/);
  assert.match(sql,/INSERT INTO public.catalog_categories/);
- assert.match(sql,/ON CONFLICT \(slug\) DO NOTHING/);
+ assert.match(sql,/ON CONFLICT \(slug\) DO UPDATE/);
  assert.match(sql,/industrial_megamenu_hierarchy_v2/);
  assert.match(sql,/Approved category bootstrap incomplete/);
+  assert.match(sql,/Expected exactly 40 approved POPD categories/);
+  for(const group of APPROVED_MENU_GROUPS) {
+   const expected="ARRAY["+group.categorySlugs.map(slug=>"'"+slug+"'").join(',')+"]::text[]";
+   assert.ok(sql.includes(expected),"Missing exact POPD category membership for "+group.id);
+  }
  assert.match(sql,/Database fingerprint mismatch/);
  const seededCategorySlugs=[...sql.matchAll(/\('excel-v2-([0-9]+)-([0-9]+)','excel-v2-/g)];
- assert.equal(seededCategorySlugs.length,34);
+ assert.equal(seededCategorySlugs.length,40);
  assert.ok(sql.indexOf('INSERT INTO public.catalog_categories') < sql.indexOf('INSERT INTO public.catalog_navigation_groups'));
  assert.match(sql,/CREATE TABLE IF NOT EXISTS public.catalog_navigation_groups/);
  assert.match(sql,/CREATE TABLE IF NOT EXISTS public.catalog_family_menu_assignments/);
  assert.match(sql,/CREATE TABLE IF NOT EXISTS public.catalog_direct_skus/);
- assert.match(sql,/ON CONFLICT \(id\) DO NOTHING/);
+  assert.match(sql,/ON CONFLICT \(id\) DO UPDATE/);
  assert.doesNotMatch(sql,/^\s*(DROP\s+|TRUNCATE\s+|DELETE\s+FROM\s+|UPDATE\s+|ALTER\s+TABLE\s+public\.catalog_categories\b)/gim);
 });
 test('canonical one-command deploy safely repairs only the database currently used by the live production container',()=>{
@@ -35,6 +40,8 @@ test('canonical one-command deploy safely repairs only the database currently us
  assert.match(deploy,/docker exec -i "\$OLD"/);
  assert.match(deploy,/PRODUCTION_NAVIGATION_GROUPS_VERIFIED/);
  assert.match(deploy,/PRODUCTION_APPROVED_CATEGORIES_VERIFIED/);
+  const singlePort=readFileSync('ops/deploy-single-port-vps.sh','utf8');
+  assert.match(singlePort,/PRODUCTION_GROUP_CATEGORY_COVERAGE_VERIFIED/);
  assert.match(deploy,/20261103_recover_missing_production_catalog_navigation.sql/);
  assert.match(deploy,/SANATPISH_MAIN_BLUEGREEN_DEPLOY_OK/);
  assert.ok(deploy.indexOf('PRODUCTION_NAVIGATION_GROUPS_VERIFIED') < deploy.indexOf("echo '===== START NEW CANARY ====='"));

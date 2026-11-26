@@ -123,23 +123,26 @@ async function verifyProductionTarget(client) {
       to_regclass('app_private.source_archives') is not null as archive_table,
       (select count(*)::int from public.catalog_families where is_active = true) as active_families,
       (select count(*)::int from public.catalog_variants where active = true) as active_skus,
-      (select count(*)::int from public.catalog_categories where is_active = true) as active_categories,
-      (select count(*)::int from public.catalog_navigation_groups where is_active = true) as active_groups
+      (select count(*)::int from public.catalog_categories where is_active = true and slug ~ '^excel-v2-[0-9]+-[0-9]+$' and metadata->>'source' = 'industrial_megamenu_hierarchy_v2') as approved_categories,
+      (select count(*)::int from public.catalog_navigation_groups where is_active = true and id ~ '^excel-v2-[0-9]+$') as active_groups,
+      (select count(distinct mapped.category_slug)::int from public.catalog_navigation_groups g cross join lateral unnest(g.category_slugs) as mapped(category_slug) where g.is_active = true and g.id ~ '^excel-v2-[0-9]+$') as grouped_categories
   `);
   const row = result.rows[0];
   if (
     row?.archive_table !== true ||
     Number(row.active_families) < 1000 ||
     Number(row.active_skus) < 10000 ||
-    Number(row.active_categories) < 34 ||
-    Number(row.active_groups) < 14
+    Number(row.approved_categories) !== 40 ||
+    Number(row.active_groups) !== 14 ||
+    Number(row.grouped_categories) !== 40
   ) {
     throw new Error('POPD_ARCHIVE_SYNC_DATABASE_IDENTITY_CHECK_FAILED');
   }
   return {
     families: Number(row.active_families),
     skus: Number(row.active_skus),
-    categories: Number(row.active_categories),
+    categories: Number(row.approved_categories),
+    groupedCategories: Number(row.grouped_categories),
     groups: Number(row.active_groups),
   };
 }

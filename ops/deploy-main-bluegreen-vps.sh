@@ -154,40 +154,21 @@ echo "CAMERA_AND_WEBP_BUILD_OK count=$WEBPS"
 
 echo '===== VERIFY PRODUCTION NAVIGATION SCHEMA (SAME LIVE DATABASE) ====='
 # Executed inside the currently serving container, reusing its exact DATABASE_URL,
-# SSL configuration and private credentials. Only additive DDL and absent groups.
+# SSL configuration and private credentials. Only missing POPD categories and group membership arrays are reconciled.
 # Do not run this recovery against an unrelated connected Supabase project.
-if ! docker exec "$OLD" node --import tsx --input-type=module -e '
-  import {database, closeDatabase} from "./server/db/connection.ts";
+echo '===== APPLY NON-DESTRUCTIVE CATALOG SCHEMA REPAIR ====='
+# Database transaction either commits all new tables/groups or rolls back.
+# The SQL source comes from the same pinned commit as the frontend.
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+  import {readFileSync} from "node:fs";
+  import {database,closeDatabase} from "./server/db/connection.ts";
   try {
-    const rows=await database().query(
-      "select to_regclass(\x27public.catalog_navigation_groups\x27) as groups, " +
-      "to_regclass(\x27public.catalog_family_menu_assignments\x27) as assignments, " +
-      "to_regclass(\x27public.catalog_direct_skus\x27) as direct");
-    const row=rows.rows[0];
-    const approved=row.groups
-      ? await database().query("select count(*)::int as total from public.catalog_navigation_groups where id ~ \x27^excel-v2-[0-9]+$\x27 and is_active=true")
-      : {rows:[{total:0}]};
-    const categoryCount=await database().query(
-      "select count(*)::int as total from public.catalog_categories where is_active=true and slug ~ \x27^excel-v2-[0-9]+-[0-9]+$\x27 and metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27");
-    if (!row.groups || !row.assignments || !row.direct || Number(approved.rows[0].total)<14 || Number(categoryCount.rows[0].total)<34) process.exitCode=2;
-    else console.log("PRODUCTION_NAV_SCHEMA_ALREADY_OK", approved.rows[0].total, categoryCount.rows[0].total);
-  }catch(error){console.error("PRODUCTION_NAV_SCHEMA_CHECK_FAILED",error.code||"",error.message);process.exitCode=2}
+    const sql=readFileSync(0,"utf8");
+    await database().query(sql);
+    console.log("PRODUCTION_CATALOG_SCHEMA_RECOVERED");
+  }catch(error){console.error("PRODUCTION_CATALOG_SCHEMA_RECOVERY_FAILED",error.code||"",error.message);process.exitCode=1}
   finally{await closeDatabase()}
-'; then
-  echo '===== APPLY NON-DESTRUCTIVE CATALOG SCHEMA REPAIR ====='
-  # Database transaction either commits all new tables/groups or rolls back.
-  # The SQL source comes from the same pinned commit as the frontend.
-  docker exec -i "$OLD" node --import tsx --input-type=module -e '
-    import {readFileSync} from "node:fs";
-    import {database,closeDatabase} from "./server/db/connection.ts";
-    try {
-      const sql=readFileSync(0,"utf8");
-      await database().query(sql);
-      console.log("PRODUCTION_CATALOG_SCHEMA_RECOVERED");
-    }catch(error){console.error("PRODUCTION_CATALOG_SCHEMA_RECOVERY_FAILED",error.code||"",error.message);process.exitCode=1}
-    finally{await closeDatabase()}
-  ' < "$STAGE/ops/sql/20261103_recover_missing_production_catalog_navigation.sql"
-fi
+' < "$STAGE/ops/sql/20261103_recover_missing_production_catalog_navigation.sql"
 # A missing table must never be reported as a successful deploy.
 docker exec "$OLD" node --import tsx --input-type=module -e '
  import {database,closeDatabase} from "./server/db/connection.ts";
@@ -197,7 +178,7 @@ docker exec "$OLD" node --import tsx --input-type=module -e '
   if(Number(x.rows[0].n)<14)throw Error("Expected 14 approved menu groups");
   const c=await database().query(
    "select count(*)::int as n from public.catalog_categories where is_active=true and slug ~ \x27^excel-v2-[0-9]+-[0-9]+$\x27 and metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27");
-  if(Number(c.rows[0].n)<34)throw Error("Expected 34 active approved categories, found "+c.rows[0].n);
+  if(Number(c.rows[0].n)!==40)throw Error("Expected 40 active approved categories, found "+c.rows[0].n);
   console.log("PRODUCTION_NAVIGATION_GROUPS_VERIFIED",x.rows[0].n);
   console.log("PRODUCTION_APPROVED_CATEGORIES_VERIFIED",c.rows[0].n);
  }catch(error){console.error("PRODUCTION_NAVIGATION_VERIFY_FAILED",error.code||"",error.message);process.exitCode=1}
