@@ -123,6 +123,7 @@ export function ImageRegionReview({
 
   const preparing = status === 'uploading' || status === 'detecting';
   const working = preparing || Boolean(analysisBusy);
+  const controlsDisabled = working || Boolean(busy);
   const statusText = status === 'uploading'
     ? 'در حال آماده‌سازی تصویر'
     : status === 'detecting'
@@ -206,7 +207,7 @@ export function ImageRegionReview({
                 <strong>تحلیل تصویر کامل نشد.</strong>
                 <span>{analysisError}</span>
               </div>
-              <button type="button" onClick={onRetryAnalysis} disabled={selectorDisabled}>
+              <button type="button" onClick={onRetryAnalysis} disabled={controlsDisabled}>
                 <RefreshCw size={14} aria-hidden="true" />
                 تلاش مجدد
               </button>
@@ -225,7 +226,7 @@ export function ImageRegionReview({
                     key={item.id} data-selected={selected || undefined}>
                     <button type="button" className="kiki-image-workspace__result-select"
                       onClick={() => { onSelectProduct(item.id); onOpenProduct(item.id); }}
-                      disabled={selectorDisabled}
+                      disabled={controlsDisabled}
                       aria-pressed={selected}
                       aria-label={'مشاهده صفحه محصول ' + item.name}>
                       <span className="kiki-image-workspace__result-image">
