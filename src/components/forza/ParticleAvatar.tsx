@@ -23,6 +23,7 @@ export interface ParticleAvatarProps {
   mode?: 'auto' | 'listen' | 'speak';
   intensity?: number;
   audioLevel?: number;
+  stableLight?: boolean;
   quality?: 'auto' | 'high' | 'balanced' | 'low' | string;
   background?: boolean;
   backgroundSpeed?: number;
@@ -303,6 +304,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       mode = 'auto',
       intensity = 1,
       audioLevel = 0,
+      stableLight = false,
       quality = 'auto',
       background = true,
       backgroundSpeed = 2,
@@ -329,8 +331,8 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       getStats: () => null,
     });
 
-    const props = useRef({ paused, mode, intensity, audioLevel, quality, background, backgroundSpeed, onError, onFormed, onStats });
-    props.current = { paused, mode, intensity, audioLevel, quality, background, backgroundSpeed, onError, onFormed, onStats };
+    const props = useRef({ paused, mode, intensity, audioLevel, stableLight, quality, background, backgroundSpeed, onError, onFormed, onStats });
+    props.current = { paused, mode, intensity, audioLevel, stableLight, quality, background, backgroundSpeed, onError, onFormed, onStats };
 
     useImperativeHandle(
       ref,
@@ -505,6 +507,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             }
           }
 
+          if (props.current.stableLight) targetGain = 1.65;
           speechVal = THREE.MathUtils.lerp(speechVal, targetSpeech, 0.38);
           if (speechVal < 0.001) speechVal = 0;
           shared.uSpeech.value = speechVal;
