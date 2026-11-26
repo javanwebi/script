@@ -5,6 +5,7 @@ const GISOO_REALTIME_URL =
   process.env.FORZA_QWEN_REALTIME_URL?.trim() ||
   'wss://ir.gisoo.pro/api/v1/realtime?model=qwen3.8-omni-flash-realtime';
 const GISOO_QWEN_MODEL = 'qwen3.8-omni-flash-realtime';
+const GISOO_QWEN_VOICE = 'Andre';
 const MAX_CLIENT_FRAME_BYTES = 100_000;
 const MAX_CLIENT_BUFFERED_BYTES = 2_000_000;
 const MAX_UPSTREAM_BUFFERED_BYTES = 1_000_000;
@@ -47,6 +48,7 @@ export function buildGisooQwenSessionUpdate(instructions: string, silenceDuratio
         },
         output: {
           format: { type: 'audio/pcm', rate: 24000 },
+          voice: GISOO_QWEN_VOICE,
         },
       },
       reasoning: { effort: 'none' },
@@ -237,6 +239,15 @@ export function connectGisooQwenRealtime(clientWs: WebSocket, instructions: stri
 
     if (type === 'session.updated') {
       if (!sessionReady) {
+        const reportedVoice = event.session?.audio?.output?.voice;
+        if (typeof reportedVoice === 'string' && reportedVoice.trim() &&
+            reportedVoice.trim().toLowerCase() !== GISOO_QWEN_VOICE.toLowerCase()) {
+          console.warn('[FORZA QWEN] requested voice not accepted; reported=' + reportedVoice.slice(0, 80));
+          fail('گیسو صدای مردانه Andre را تأیید نکرد.');
+          return;
+        }
+        console.info('[FORZA QWEN] requested voice=' + GISOO_QWEN_VOICE +
+          '; provider confirmation=' + (reportedVoice ? 'reported' : 'not reported'));
         sessionReady = true;
         if (readyTimer) clearTimeout(readyTimer);
         readyTimer = null;
