@@ -5,6 +5,7 @@ import {
   buildGisooQwenSessionUpdate,
   classifyGisooRealtimeError,
   mapGisooQwenEvent,
+  resolveGisooQwenVoice,
 } from '../server/ai/gisooQwenRealtime';
 import { searchForzaRealtimeCatalog } from '../server/ai/forzaRealtimeCatalog';
 import type { Product } from '../src/types';
@@ -187,5 +188,24 @@ test('live call renders catalogue product cards and does not disconnect on a twe
   assert.match(client, /href=\{family\.link\}/);
   assert.match(client, /s\.next-ctx\.currentTime>90/);
   assert.doesNotMatch(client, /s\.next-ctx\.currentTime>12/);
+  assert.match(client, /useState\('Raymond'\)/);
+});
+
+
+test('legacy Andre selection is migrated to the professional Raymond voice', () => {
+  assert.equal(resolveGisooQwenVoice(undefined), 'Raymond');
+  assert.equal(resolveGisooQwenVoice('Andre'), 'Raymond');
+  assert.equal(resolveGisooQwenVoice('Raymond'), 'Raymond');
+  assert.equal(resolveGisooQwenVoice('Tina'), 'Tina');
+  assert.equal(resolveGisooQwenVoice('unsupported-voice'), 'Raymond');
+});
+
+test('catalogue cards retain visible products during follow-up speech and expose direct SKU links', () => {
+  const client = readFileSync('src/components/forza/ForzaQwenCallExperience.tsx', 'utf8');
+  const start = client.indexOf("if(m.type==='speech_started')");
+  const end = client.indexOf("if(m.type==='speech_stopped')", start);
+  assert.ok(start >= 0 && end > start);
+  assert.doesNotMatch(client.slice(start, end), /setCatalogResults|setCatalogQuery/);
+  assert.match(client, /href=\{'\/direct-product\/'\+encodeURIComponent\(variant\.code\)\}/);
   assert.match(client, /useState\('Raymond'\)/);
 });
