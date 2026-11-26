@@ -57,6 +57,7 @@ import { normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaA
 import { classifyForzaAudio } from './src/utils/forzaTtsFormat';
 import { forzaUnbrokenSpokenText } from './src/utils/forzaUnbrokenText';
 import { WebSocketServer, WebSocket } from 'ws';
+import { connectGisooQwenRealtime } from './server/ai/gisooQwenRealtime';
 import { createServer as createViteServer } from 'vite';
 import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
@@ -7805,6 +7806,14 @@ function setupGeminiLiveWebSocket(server: http.Server) {
 4. پاسخ‌های صوتی به زبان فارسی طبیعی و با صدای مرد بیان می‌شوند.`;
 
   wss.on('connection', async (clientWs: WebSocket) => {
+    // Temporary exhibition-only provider switch. Gemini remains the default;
+    // explicitly setting FORZA_REALTIME_PROVIDER=qwen routes this session through
+    // the isolated Gisoo adapter while preserving the browser /api/live contract.
+    if (String(process.env.FORZA_REALTIME_PROVIDER || '').trim().toLowerCase() === 'qwen') {
+      void connectGisooQwenRealtime(clientWs, FORZA_SYSTEM_INSTRUCTION);
+      return;
+    }
+
     // Preserve FORZA provider priority: a configured Worker uses the existing
     // HTTP route until that Worker implements a compatible bidirectional Live WS.
     // Never bypass a configured Worker by silently using the internal Gemini key.
@@ -8120,6 +8129,7 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     if(localVisionEnabled && process.env.SANATPISH_DISABLE_LOCAL_VISION_WARMUP!=='1')warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),localImagePublisher);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
+    console.log(`[Server] FORZA Live provider: ${String(process.env.FORZA_REALTIME_PROVIDER || 'gemini').trim().toLowerCase() === 'qwen' ? 'Gisoo Qwen (temporary override)' : 'Gemini (default)'}`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
     void (internalForzaVoiceUrl?privateServiceGreeting():getForzaGreeting()).catch(()=>{});
     // The app container never runs ONNX inference. The private voice service
