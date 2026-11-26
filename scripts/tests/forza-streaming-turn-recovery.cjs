@@ -33,6 +33,7 @@ const documentText=value=>String(value||'').replace(/\\s+/g,' ').slice(-1800);
    status:200,contentType:'application/javascript',
    body:'window.Vosk={createModel:async()=>({KaldiRecognizer:class{on(){} acceptWaveform(){} remove(){}}})};',
   }));
+  await page.route('**/api/ai/forza-call-provider',route=>route.fulfill({json:{provider:'legacy'}}));
   await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({
     json:{textProvider:'avalai',textProviderRequested:'avalai',textProviderConfigured:true,textModel:'glm-5.3-flash',voice:'piper-nima-gyro-medium',incrementalSpeech:true,ready:true}
   }));
