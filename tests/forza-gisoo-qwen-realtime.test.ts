@@ -179,6 +179,7 @@ test('native Gisoo server executes catalogue function calls and returns tool out
   assert.match(server, /response\.function_call_arguments\.done/);
   assert.match(server, /function_call_output/);
   assert.match(server, /type:'catalog_results'/);
+  assert.match(server, /cancelled\.has\(response\)&&pendingText&&!userSpeaking/);
   assert.match(server, /toolResponseId&&cancelled\.has\(toolResponseId\)/);
   assert.match(app, /connectGisooQwenRealtime\(clientWs, FORZA_SYSTEM_INSTRUCTION, searchForzaLiveCatalog\)/);
 });
