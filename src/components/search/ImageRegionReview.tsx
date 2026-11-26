@@ -1,5 +1,9 @@
+import { useEffect, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import {
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
   Camera,
   CheckCircle2,
   LoaderCircle,
@@ -81,6 +85,52 @@ export function ImageRegionReview({
   onClose,
   onManufacture,
 }: Props) {
+  type MobileSheetLevel = 'peek' | 'half' | 'full';
+  const [mobileSheetLevel, setMobileSheetLevel] = useState<MobileSheetLevel>('peek');
+  const sheetPointerStart = useRef<{ pointerId: number; y: number } | null>(null);
+  const sheetWasDragged = useRef(false);
+
+  useEffect(() => {
+    setMobileSheetLevel('peek');
+  }, [image]);
+
+  const onSheetPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    sheetWasDragged.current = false;
+    sheetPointerStart.current = { pointerId: event.pointerId, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onSheetPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = sheetPointerStart.current;
+    sheetPointerStart.current = null;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const deltaY = event.clientY - start.y;
+    if (Math.abs(deltaY) < 18) return;
+    sheetWasDragged.current = true;
+    setMobileSheetLevel(level => {
+      if (deltaY < 0) return level === 'peek' ? 'half' : 'full';
+      return level === 'full' ? 'half' : 'peek';
+    });
+    event.preventDefault();
+  };
+
+  const toggleMobileSheet = () => {
+    if (sheetWasDragged.current) {
+      sheetWasDragged.current = false;
+      return;
+    }
+    setMobileSheetLevel(level => level === 'peek' ? 'half' : level === 'half' ? 'full' : 'peek');
+  };
+
+  const cropPreviewStyle = selectedRegion ? {
+    backgroundImage: 'url(' + JSON.stringify(image) + ')',
+    backgroundSize: (100 / selectedRegion.width) + '% ' + (100 / selectedRegion.height) + '%',
+    backgroundPosition:
+      (selectedRegion.width < 1 ? 100 * selectedRegion.x / (1 - selectedRegion.width) : 0) + '% ' +
+      (selectedRegion.height < 1 ? 100 * selectedRegion.y / (1 - selectedRegion.height) : 0) + '%',
+  } : undefined;
+
   const preparing = status === 'uploading' || status === 'detecting';
   const working = preparing || Boolean(analysisBusy);
   const selectorDisabled = preparing || Boolean(busy) || Boolean(analysisBusy);
@@ -95,7 +145,7 @@ export function ImageRegionReview({
           : analysisComplete && !results.length
             ? 'جست‌وجو کامل شد؛ نتیجه قابل اتکایی پیدا نشد'
             : status === 'fallback'
-              ? 'در حال بررسی تصویر کامل؛ نیازی به برش دستی نیست'
+              ? 'تشخیص خودکار قطعه کامل نشد؛ می‌توانید دستی کادر بکشید'
               : 'تصویر آماده بررسی خودکار است';
 
   return (
@@ -105,20 +155,37 @@ export function ImageRegionReview({
       aria-label="میزکار شناسایی تصویری FORZA"
       aria-busy={working || Boolean(busy)}
       data-testid="image-region-review"
+      data-mobile-sheet-level={mobileSheetLevel}
     >
-      <section className="kiki-image-workspace__catalog" dir="rtl" aria-label="محصولات مشابه کاتالوگ">
+      <section className="kiki-image-workspace__catalog" dir="rtl" aria-label="محصولات مشابه کاتالوگ" data-sheet-level={mobileSheetLevel}>
+        <button
+          type="button"
+          className="kiki-image-workspace__sheet-handle"
+          aria-controls="kiki-image-workspace-catalog-body"
+          aria-expanded={mobileSheetLevel !== 'peek'}
+          aria-label={mobileSheetLevel === 'full' ? 'پایین کشیدن پنل پیشنهادها' : 'بالا کشیدن پنل پیشنهادها برای دیدن محصولات'}
+          onPointerDown={onSheetPointerDown}
+          onPointerUp={onSheetPointerUp}
+          onPointerCancel={() => { sheetPointerStart.current = null; }}
+          onLostPointerCapture={() => { sheetPointerStart.current = null; }}
+          onClick={toggleMobileSheet}
+        >
+          <span className="kiki-image-workspace__sheet-grabber" aria-hidden="true" />
+          <span>{mobileSheetLevel === 'peek' ? 'برای دیدن محصولات، بکشید بالا' : mobileSheetLevel === 'half' ? 'برای دیدن همه پیشنهادها، بیشتر بکشید بالا' : 'برای بازگشت به تصویر، پایین بکشید'}</span>
+          {mobileSheetLevel === 'full' ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}
+        </button>
         <header className="kiki-image-workspace__catalog-header">
           <div className="kiki-image-workspace__catalog-identity">
             <img src={image} alt="تصویر قطعه انتخاب‌شده" />
             <div>
               <h2>{results.length>0 && results.every(item=>item.matchBasis==='explore')?'نزدیک‌ترین گزینه‌ها؛ تأیید نشده':'محصولات مشابه کاتالوگ'}</h2>
-              <p>{analysisBusy ? 'نتایج به‌محض آماده‌شدن نمایش داده می‌شوند' : 'برای دیدن کد، مشخصات و مدل‌ها، کارت محصول را باز کنید'}</p>
+              <p>{results.length ? results.length.toLocaleString('fa-IR') + ' گزینه برای بررسی' : analysisBusy ? 'نتایج به‌محض آماده‌شدن نمایش داده می‌شوند' : 'برای دیدن کد، مشخصات و مدل‌ها، کارت محصول را باز کنید'}</p>
             </div>
           </div>
           <span className="kiki-image-workspace__catalog-mark" aria-hidden="true">FORZA</span>
         </header>
 
-        <div className="kiki-image-workspace__catalog-body">
+        <div id="kiki-image-workspace-catalog-body" className="kiki-image-workspace__catalog-body">
           <div className="kiki-image-workspace__status" role="status" aria-live="polite">
             {working
               ? <LoaderCircle size={16} aria-hidden="true" />
@@ -261,6 +328,22 @@ export function ImageRegionReview({
           </button>
         </header>
 
+        <div className="kiki-image-workspace__crop-status" data-testid="kiki-mobile-crop-preview" aria-live="polite">
+          {selectedRegion ? (
+            <>
+              <div className="kiki-image-workspace__crop-thumb" style={cropPreviewStyle} aria-hidden="true" />
+              <div>
+                <strong>برش انتخاب‌شده و فعال است</strong>
+                <span>کادر نارنجی محدوده جست‌وجو را نشان می‌دهد؛ برای اصلاح، گوشه‌ها یا خود کادر را بکشید.</span>
+              </div>
+            </>
+          ) : (
+            <div className="kiki-image-workspace__crop-empty">
+              <strong>هنوز برش مشخص نشده است</strong>
+              <span>{candidateRegions.length ? 'یکی از کادرهای قطعه را لمس کنید.' : 'روی قطعه انگشت بگذارید و دور آن کادر بکشید تا جست‌وجو روی همان بخش انجام شود.'}</span>
+            </div>
+          )}
+        </div>
         <div className="kiki-image-workspace__stage">
           <ImageRegionSelector
             src={image}
@@ -273,7 +356,11 @@ export function ImageRegionReview({
           />
         </div>
         <p className="kiki-image-workspace__viewer-hint">
-          قطعات شناسایی‌شده روی تصویر مشخص‌اند؛ برای بررسی قطعه دیگر، روی کادر آن بزنید. نتایج کنار تصویر به‌روزرسانی می‌شوند.
+          {selectedRegion
+            ? 'کادر نارنجی برش فعلی است؛ برای جابه‌جایی آن داخل کادر بکشید، برای تغییر اندازه گوشه‌ها را بکشید یا بیرون آن برش تازه بسازید.'
+            : candidateRegions.length
+              ? 'قطعه موردنظر را با لمس کادر انتخاب کنید؛ اگر کادر دقیق نیست، روی تصویر کادر تازه بکشید.'
+              : 'اگر تشخیص خودکار قطعه را پیدا نکرد، روی تصویر انگشت بگذارید و دور قطعه کادر بکشید.'}
         </p>
       </aside>
     </section>
