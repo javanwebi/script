@@ -94,6 +94,13 @@ test('Face-to-face page actually mounts the native Gisoo client without the old 
   assert.doesNotMatch(client,/\/api\/ai\/(?:stt|forza-speech|consult-stream|forza-live)/);
 });
 
+ test('Customer barge-in cancels upstream generation and greeting is not fed back into the mic', () => {
+  const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+  const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+  assert.match(server,/speech_started'\)\{userSpeaking=true;[\s\S]*?send\(\{type:'response.cancel'\}\)/);
+  assert.match(client,/if\(!s\.ready\|\|!s\.greeted\|\|micMuted\.current/);
+  assert.match(client,/send\(s,\{type:'text',text:greeting\}\);return;/);
+ });
  test('Native capture and stable light are enabled for exhibition calls', () => {
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
   const worklet=readFileSync('public/forza-runtime/qwen-mic-worklet.js','utf8');
