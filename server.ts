@@ -4651,7 +4651,7 @@ app.get('/api/ai/local-vision-status', async (_req,res)=>{
 
 const localVisionDetectionCache = new LocalVisionDetectionCache();
 app.post('/api/ai/detect-regions', async (req,res)=>{
-  if(!localVisionEnabled)return res.status(503).json({error:{code:'VISION_DISABLED',message:'تشخیص خودکار در این سرور فعال نیست؛ ناحیه را دستی انتخاب کنید.'}});
+  if(!localVisionEnabled)return res.status(503).json({error:{code:'VISION_DISABLED',message:'تشخیص خودکار در این سرور فعال نیست؛ جست‌وجو روی تصویر کامل انجام می‌شود.'}});
   if(localVisionQueries>=1)return res.status(429).json({error:{code:'VISION_BUSY',message:'موتور شناسایی در حال پردازش تصویر دیگری است.'}});
   localVisionQueries++;
   const started=Date.now();
@@ -4710,7 +4710,7 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
     const errorId=crypto.randomUUID();
     const detail=error instanceof Error?error.message:String(error);
     console.warn('[Local vision region detection]',{errorId,name:error instanceof Error?error.name:'unknown',message:detail.slice(0,180)});
-    return res.status(503).json({error:{code:'VISION_UNAVAILABLE',message:'تشخیص خودکار موقتاً کامل نشد؛ می‌توانید ناحیه قطعه را دستی انتخاب کنید.'},errorId});
+    return res.status(503).json({error:{code:'VISION_UNAVAILABLE',message:'تشخیص خودکار موقتاً کامل نشد؛ جست‌وجو روی تصویر کامل انجام می‌شود.'},errorId});
   }finally{
     localVisionQueries--;
   }
