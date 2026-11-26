@@ -646,8 +646,13 @@ for line in Path(sys.argv[1]).read_text().splitlines():
   values[key.strip()]=value.strip().strip('"').strip("'")
 for surface in ('DESK','VOICE'):
  provider=values.get('FORZA_'+surface+'_PROVIDER','').lower()
- if provider=='avalai' and not values.get('AVALAI_API_KEY','').strip():
-  raise SystemExit('AVALAI_PROVIDER_SELECTED_BUT_PRIVATE_KEY_MISSING')
+ if provider=='avalai':
+  if surface=='DESK':
+   key=values.get('AVALAI_DESK_API_KEY','').strip() or values.get('AVALAI_API_KEY','').strip()
+  else:
+   key=values.get('AVALAI_API_KEY','').strip()
+  if not key:
+   raise SystemExit('AVALAI_PROVIDER_SELECTED_BUT_PRIVATE_KEY_MISSING')
 voice_provider=(values.get('FORZA_VOICE_PROVIDER') or values.get('FORZA_DESK_PROVIDER') or '').strip().lower()
 if voice_provider!='avalai':
  raise SystemExit('FORZA_VOICE_PROVIDER_NOT_AVALAI')

@@ -18,6 +18,8 @@ test('AvalAI is opt-in, requires its own key, and defaults to the economical GLM
   assert.equal(configuredAvalaiModel({}, false), null);
   assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai' }, false), null);
   assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai', AVALAI_API_KEY: 'example' }, false), 'glm-5.3-flash');
+  assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai', AVALAI_DESK_API_KEY: 'desk-only-example' }, false), 'glm-5.3-flash');
+  assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai', AVALAI_DESK_API_KEY: 'desk-only-example' }, true), null);
   assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai', AVALAI_API_KEY: 'example', AVALAI_MODEL_DESK: 'qwen3.8-flash' }, false), 'qwen3.8-flash');
   assert.equal(configuredAvalaiModel({ FORZA_VOICE_PROVIDER: 'avalai', AVALAI_API_KEY: 'example' }, true), 'glm-5.3-flash');
   assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'xkiro', AVALAI_API_KEY: 'example' }, false), null);
@@ -47,6 +49,34 @@ test('explicit voice provider and model override desk defaults', () => {
   };
   assert.equal(configuredAvalaiModel(env, true), 'glm-5.3-flash');
   assert.equal(resolveForzaTextProvider(env, true).model, 'glm-5.3-flash');
+});
+
+test('desk-specific AvalAI key overrides only desk text and preserves the shared voice/STT key', () => {
+  const env = {
+    FORZA_DESK_PROVIDER: 'avalai',
+    FORZA_VOICE_PROVIDER: 'avalai',
+    AVALAI_DESK_API_KEY: 'new-desk-only-key',
+    AVALAI_API_KEY: 'existing-voice-and-stt-key',
+    AVALAI_MODEL_DESK: 'glm-5.3-flash',
+    AVALAI_MODEL_VOICE: 'qwen3.8-flash',
+  };
+  const desk = resolveForzaTextProvider(env, false);
+  const voice = resolveForzaTextProvider(env, true);
+  assert.equal(desk.apiKey, 'new-desk-only-key');
+  assert.equal(desk.model, 'glm-5.3-flash');
+  assert.equal(voice.apiKey, 'existing-voice-and-stt-key');
+  assert.equal(voice.model, 'qwen3.8-flash');
+});
+
+test('desk-only AvalAI credential is never accepted as a voice credential', () => {
+  const voice = resolveForzaTextProvider({
+    FORZA_VOICE_PROVIDER: 'avalai',
+    AVALAI_DESK_API_KEY: 'new-desk-only-key',
+  }, true);
+  assert.equal(voice.provider, 'avalai');
+  assert.equal(voice.apiKey, null);
+  assert.equal(voice.configured, false);
+  assert.equal(voice.reason, 'missing_api_key');
 });
 
 test('FORZA voice provider diagnostics report effective AvalAI model without exposing credentials', () => {
