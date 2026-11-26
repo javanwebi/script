@@ -25,6 +25,12 @@ export function mapGisooQwenEvent(e:Event,responseId=''):Array<Record<string,unk
   if(t==='response.done'&&response)return [{type:'turn_complete',responseId:response}];
   return [];
 }
+export function classifyGisooRealtimeError(code:string,ready:boolean):'ignore'|'active_response'|'recoverable'|'fatal'{
+  if(code==='response_cancel_not_active'||code==='input_audio_buffer_commit_empty')return 'ignore';
+  if(code==='conversation_already_has_active_response')return 'active_response';
+  if(!ready||code==='session_closed'||code==='server_restart'||code==='insufficient_credit')return 'fatal';
+  return 'recoverable';
+}
 /** Exhibition-only native audio bridge. The site's legacy speech stack remains intact. */
 export function connectGisooQwenRealtime(client:WebSocket,instructions:string):void{
   const key=String(process.env.FORZA_QWEN_API_KEY||'').trim(),selectedVoice=voice();
@@ -56,7 +62,20 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string):v
     if(t==='input_audio_buffer.speech_stopped'){userSpeaking=false;speechStop=Date.now();toClient({type:'speech_stopped'});return;}
     if(t==='response.created'){active=id(e,'qwen-'+(++seq));requested=false;firstAudio=false;if(userSpeaking||pendingText){interrupt(active);send({type:'response.cancel'});}else toClient({type:'response_started',responseId:active});return;}
     if(t==='response.done'){const response=id(e,active);if(response===active){active='';requested=false;if(!cancelled.has(response))toClient({type:'turn_complete',responseId:response});if(pendingText&&!userSpeaking){const next=pendingText;pendingText='';textTurn(next);}}log('response_done',{status:e.response?.status||'unknown',usage:e.response?.usage||null});return;}
-    if(t==='error'){const code=String(e.error?.code||'unknown');log('provider_error',{code});if(code==='response_cancel_not_active'||code==='input_audio_buffer_commit_empty')return;if(code==='conversation_already_has_active_response'){requested=false;return;}finish(code==='insufficient_credit'?'اعتبار گیسو کافی نیست.':'گیسو خطا داد: '+code);return;}
+    if(t==='error'){
+      const details=e.error&&typeof e.error==='object'?e.error as Event:{};
+      const code=String(details.code||'unknown').slice(0,80),disposition=classifyGisooRealtimeError(code,ready);
+      const providerMessage=String(details.message||'').replace(/[\r\n]+/g,' ').slice(0,240);
+      log('provider_error',{code,type:String(details.type||'').slice(0,80),message:providerMessage,param:String(details.param||'').slice(0,80),eventId:String(details.event_id||'').slice(0,80),ready,disposition});
+      if(disposition==='ignore')return;
+      if(disposition==='active_response'){requested=false;return;}
+      if(disposition==='fatal'){
+        const reason=code==='insufficient_credit'?'اعتبار گیسو کافی نیست.':code==='session_closed'?'گیسو نشست را بسته است؛ دوباره متصل شوید.':code==='server_restart'?'گیسو در حال راه‌اندازی مجدد است؛ چند ثانیه بعد دوباره متصل شوید.': 'گیسو هنگام آماده‌سازی نشست خطا داد: '+code;
+        finish(reason);return;
+      }
+      const reason=code==='flood'?'گیسو فعلاً تعداد درخواست‌ها را محدود کرده است؛ اتصال برقرار مانده. کمی صبر کنید و دوباره صحبت کنید.': 'خطای موقت گیسو ('+code+')؛ اتصال برقرار است.';
+      toClient({type:'provider_error',code,reason,recoverable:true});return;
+    }
     if(t.includes('input_audio_transcription.delta')&&typeof e.delta==='string'&&typeof e.text!=='string'){partial+=e.delta;toClient({type:'user_transcript',text:partial,final:false});return;}
     if(t.startsWith('response.')){const response=id(e,active);if(!response||response!==active||cancelled.has(response))return;if(t==='response.output_audio.delta'&&!firstAudio){firstAudio=true;log('first_audio',{afterSpeechStopMs:speechStop?Date.now()-speechStop:null});}}
     for(const out of mapGisooQwenEvent(e,active))toClient(out);
