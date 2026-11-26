@@ -54,6 +54,8 @@ function wav(seconds=0.2){
     }};
    }};`,
   }));
+  // This suite targets the explicitly selected legacy Diba rollback controller.
+  await page.route('**/api/ai/forza-call-provider',r=>r.fulfill({status:200,contentType:'application/json',body:'{"provider":"legacy"}'}));
   await page.route('**/api/runtime',route=>route.fulfill({json:{
    success:true,database:true,products:[],values:{},versions:{},userId:null
   }}));
