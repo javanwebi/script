@@ -154,7 +154,7 @@ echo "CAMERA_AND_WEBP_BUILD_OK count=$WEBPS"
 
 echo '===== VERIFY PRODUCTION NAVIGATION SCHEMA (SAME LIVE DATABASE) ====='
 # Executed inside the currently serving container, reusing its exact DATABASE_URL,
-# SSL configuration and private credentials. Only additive DDL and absent groups.
+# SSL configuration and private credentials. Only missing POPD categories and group membership arrays are reconciled.
 # Do not run this recovery against an unrelated connected Supabase project.
 if ! docker exec "$OLD" node --import tsx --input-type=module -e '
   import {database, closeDatabase} from "./server/db/connection.ts";
