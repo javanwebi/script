@@ -40,7 +40,9 @@ test('browser segmentation utilities preserve aspect ratio but are not the autho
   assert.ok(modal.includes('aiVisualSearchService.detectImageRegions(imageUrl)'));
   assert.ok(!modal.includes('segmentImageWithClientAi'));
   assert.ok(!modal.includes('preloadClientAiSegmentation'));
-});test('server catalog-guided detection is authoritative before automatic catalogue analysis', () => {
+});
+
+test('server catalog-guided detection is authoritative before automatic catalogue analysis', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const detection = modal.slice(
     modal.indexOf('const detectUploadedImageRegions'),
@@ -57,7 +59,9 @@ test('browser segmentation utilities preserve aspect ratio but are not the autho
   assert.ok(modal.includes('saveCustomerDeviceImage(blob'));
   assert.ok(modal.includes('customerImageBlobToDataUrl(blob)'));
   assert.ok(modal.includes('temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob)'));
-});test('mobile KIKI result sheet stays draggable while automatic crop selection remains read-only', () => {
+});
+
+test('mobile KIKI result sheet stays draggable while automatic crop selection remains read-only', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const review = source('src/components/search/ImageRegionReview.tsx');
   const css = source('src/components/search/vision-camera-design.css');
@@ -75,7 +79,9 @@ test('browser segmentation utilities preserve aspect ratio but are not the autho
   assert.ok(css.includes('KIKI mobile results: swipe up to expand'));
   assert.ok(css.includes('data-sheet-expanded="true"'));
   assert.ok(css.includes('prefers-reduced-motion'));
-});test('new presentation remains isolated from FORZA voice and catalog data', () => {
+});
+
+test('new presentation remains isolated from FORZA voice and catalog data', () => {
   const styles = source('src/components/search/vision-camera-design.css');
   const reviewStyles = source('src/components/search/image-region-review.css');
   const service = source('src/services/aiVisualSearchService.ts');
@@ -124,7 +130,9 @@ test('catalog-guided crop is applied automatically and product results open thei
   assert.ok(crop.includes('data-testid="forza-automatic-crop-frame"'));
   assert.ok(styles.includes('.kiki-image-workspace__catalog[data-sheet-level="half"]'));
   assert.ok(styles.includes('.kiki-image-workspace__result-card.is-selected'));
-});test('no-match catalogue view uses real custom-request actions and truthful privacy language', () => {
+});
+
+test('no-match catalogue view uses real custom-request actions and truthful privacy language', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const style = source('src/components/search/vision-camera-design.css');
   assert.ok(modal.includes('data-testid="vision-kiki-no-match"'));
