@@ -12,7 +12,8 @@ export const APPROVED_MENU_GROUPS: ApprovedMenuGroup[] = [
       "excel-v2-1-1",
       "excel-v2-1-2",
       "excel-v2-1-3",
-      "excel-v2-1-4"
+      "excel-v2-1-4",
+      "excel-v2-1-5"
     ],
     "sortOrder": 0,
     "active": true
@@ -48,7 +49,8 @@ export const APPROVED_MENU_GROUPS: ApprovedMenuGroup[] = [
     "iconKey": "layers",
     "imageUrl": null,
     "categorySlugs": [
-      "excel-v2-4-1"
+      "excel-v2-4-1",
+      "excel-v2-4-2"
     ],
     "sortOrder": 3,
     "active": true
@@ -87,7 +89,9 @@ export const APPROVED_MENU_GROUPS: ApprovedMenuGroup[] = [
     "categorySlugs": [
       "excel-v2-7-1",
       "excel-v2-7-2",
-      "excel-v2-7-3"
+      "excel-v2-7-3",
+      "excel-v2-7-4",
+      "excel-v2-7-5"
     ],
     "sortOrder": 6,
     "active": true
@@ -113,7 +117,8 @@ export const APPROVED_MENU_GROUPS: ApprovedMenuGroup[] = [
       "excel-v2-9-1",
       "excel-v2-9-2",
       "excel-v2-9-3",
-      "excel-v2-9-4"
+      "excel-v2-9-4",
+      "excel-v2-9-5"
     ],
     "sortOrder": 8,
     "active": true
@@ -125,7 +130,8 @@ export const APPROVED_MENU_GROUPS: ApprovedMenuGroup[] = [
     "imageUrl": null,
     "categorySlugs": [
       "excel-v2-10-1",
-      "excel-v2-10-2"
+      "excel-v2-10-2",
+      "excel-v2-10-3"
     ],
     "sortOrder": 9,
     "active": true
@@ -198,6 +204,9 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
           },
           {
             "name": "APL دار"
+          },
+          {
+            "name": "سیم‌دار استاندارد کورد فولادی"
           }
         ]
       },
@@ -206,6 +215,9 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
         "children": [
           {
             "name": "لاستیکی فابریک ساده و دنده‌دار"
+          },
+          {
+            "name": "تایمینگ خودرویی و لیفتراکی (ZRK / RU)"
           }
         ]
       },
@@ -220,6 +232,9 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
           },
           {
             "name": "5M , 8M , 11M , 14M"
+          },
+          {
+            "name": "3M , MXL"
           }
         ]
       }
@@ -251,6 +266,9 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
         "children": [
           {
             "name": "Z (9.5) , M , A , B , C , D , E , 8V"
+          },
+          {
+            "name": "تسمه شش‌ضلعی دوطرفه (AA / BB)"
           }
         ]
       },
@@ -259,6 +277,9 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
         "children": [
           {
             "name": "SPA , SPB , SPC و دندانه‌دار"
+          },
+          {
+            "name": "تسمه باریک و دور متغیر (3V / 5V / 8V)"
           }
         ]
       },
@@ -308,6 +329,14 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
             "name": "انواع تسمه تخت و فلت"
           }
         ]
+      },
+      {
+        "name": "تسمه جوشی V شکل (A / B / C)",
+        "children": [
+          {
+            "name": "تسمه جوشی V شکل پلی‌یورتان و گریپ‌دار"
+          }
+        ]
       }
     ],
     "menuSource": "industrial_megamenu_hierarchy_v2",
@@ -318,7 +347,8 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     "nameEn": "",
     "subcategories": [
       "تسمه گرد (CRC)",
-      "تسمه فلت"
+      "تسمه فلت",
+      "تسمه جوشی V شکل (A / B / C)"
     ],
     "count": 23,
     "routeSlug": "excel-v2-1-3"
@@ -344,6 +374,9 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
         "children": [
           {
             "name": "دستگاه جوش تسمه صنعتی"
+          },
+          {
+            "name": "قیچی و تجهیزات آماده‌سازی تسمه"
           }
         ]
       }
@@ -360,6 +393,53 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     ],
     "count": 0,
     "routeSlug": "excel-v2-1-4"
+  },
+  {
+    "slug": "excel-v2-1-5",
+    "name": "تسمه چندشیاری (Poly-V)",
+    "description": "",
+    "icon": "Package",
+    "image": null,
+    "sortOrder": 105,
+    "children": [
+      {
+        "name": "پروفیل PJ",
+        "children": [
+          {
+            "name": "تسمه چندشیاری PJ"
+          }
+        ]
+      },
+      {
+        "name": "پروفیل PK",
+        "children": [
+          {
+            "name": "تسمه چندشیاری PK"
+          }
+        ]
+      },
+      {
+        "name": "پروفیل PL",
+        "children": [
+          {
+            "name": "تسمه چندشیاری PL"
+          }
+        ]
+      }
+    ],
+    "menuSource": "industrial_megamenu_hierarchy_v2",
+    "familyCount": 0,
+    "skuCount": 0,
+    "id": "excel-v2-1-5",
+    "active": true,
+    "nameEn": "",
+    "subcategories": [
+      "پروفیل PJ",
+      "پروفیل PK",
+      "پروفیل PL"
+    ],
+    "count": 0,
+    "routeSlug": "excel-v2-1-5"
   },
   {
     "slug": "excel-v2-2-1",
@@ -502,6 +582,14 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
             "name": "انواع پین سر رولر و زنجیر"
           }
         ]
+      },
+      {
+        "name": "مخروطی، کاپ و رول گردان کوره",
+        "children": [
+          {
+            "name": "رول گردان، کاپ و قطعات سر رولر کوره"
+          }
+        ]
       }
     ],
     "menuSource": "industrial_megamenu_hierarchy_v2",
@@ -514,7 +602,8 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
       "بوش بغل رولر",
       "بوش دنده رولر",
       "فنر سر رول",
-      "پین سر رولر و زنجیر"
+      "پین سر رولر و زنجیر",
+      "مخروطی، کاپ و رول گردان کوره"
     ],
     "count": 30,
     "routeSlug": "excel-v2-3-2"
@@ -571,6 +660,14 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
             "name": "در سایزها و گام‌های مختلف"
           }
         ]
+      },
+      {
+        "name": "پولی آلومینیومی و فلزی",
+        "children": [
+          {
+            "name": "پولی آلومینیومی، فولادی و چدنی"
+          }
+        ]
       }
     ],
     "menuSource": "industrial_megamenu_hierarchy_v2",
@@ -581,10 +678,40 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     "nameEn": "",
     "subcategories": [
       "پولی پلی‌اورتان",
-      "پولی پلاستیک"
+      "پولی پلاستیک",
+      "پولی آلومینیومی و فلزی"
     ],
     "count": 1,
     "routeSlug": "excel-v2-4-1"
+  },
+  {
+    "slug": "excel-v2-4-2",
+    "name": "کوپلینگ انتقال قدرت",
+    "description": "",
+    "icon": "Package",
+    "image": null,
+    "sortOrder": 402,
+    "children": [
+      {
+        "name": "کوپلینگ شفت و همزن",
+        "children": [
+          {
+            "name": "کوپلینگ آلومینیومی و انعطاف‌پذیر صنعتی"
+          }
+        ]
+      }
+    ],
+    "menuSource": "industrial_megamenu_hierarchy_v2",
+    "familyCount": 0,
+    "skuCount": 0,
+    "id": "excel-v2-4-2",
+    "active": true,
+    "nameEn": "",
+    "subcategories": [
+      "کوپلینگ شفت و همزن"
+    ],
+    "count": 0,
+    "routeSlug": "excel-v2-4-2"
   },
   {
     "slug": "excel-v2-5-1",
@@ -666,6 +793,9 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
           },
           {
             "name": "ریل راهنما گالوانیزه و متعلقات"
+          },
+          {
+            "name": "ریل راهنما آلومینیومی و سرریلی"
           }
         ]
       },
@@ -723,6 +853,14 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
             "name": "نرده استیل و متعلقات"
           }
         ]
+      },
+      {
+        "name": "گاید و نگهدارنده فلزی و فنری",
+        "children": [
+          {
+            "name": "فکی، پایه و گیره نگهدارنده گاید"
+          }
+        ]
       }
     ],
     "menuSource": "industrial_megamenu_hierarchy_v2",
@@ -733,7 +871,8 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     "nameEn": "",
     "subcategories": [
       "گاید تفلونی",
-      "نرده استیل"
+      "نرده استیل",
+      "گاید و نگهدارنده فلزی و فنری"
     ],
     "count": 73,
     "routeSlug": "excel-v2-6-2"
@@ -761,6 +900,14 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
             "name": "انواع پایه کشویی تفلونی خط کاشی"
           }
         ]
+      },
+      {
+        "name": "پروفیل چهارپهلو و پایه فلزی",
+        "children": [
+          {
+            "name": "چهارپهلو توخالی، کشویی و پایه چهارپهلو"
+          }
+        ]
       }
     ],
     "menuSource": "industrial_megamenu_hierarchy_v2",
@@ -771,7 +918,8 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     "nameEn": "",
     "subcategories": [
       "پروفیل آلومینیوم",
-      "پایه کشویی"
+      "پایه کشویی",
+      "پروفیل چهارپهلو و پایه فلزی"
     ],
     "count": 0,
     "routeSlug": "excel-v2-6-3"
@@ -920,6 +1068,82 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     "routeSlug": "excel-v2-7-3"
   },
   {
+    "slug": "excel-v2-7-4",
+    "name": "قطعات تفلونی و پلیمری مهندسی",
+    "description": "",
+    "icon": "Package",
+    "image": null,
+    "sortOrder": 704,
+    "children": [
+      {
+        "name": "ورق و میلگرد پلیمری",
+        "children": [
+          {
+            "name": "ورق و میلگرد تفلون (PTFE / UHMWPE)، پلی‌آمید و پلی‌یورتان"
+          }
+        ]
+      },
+      {
+        "name": "بوش و قطعات پلیمری مهندسی",
+        "children": [
+          {
+            "name": "بوش، لقمه، تسمه‌پاک‌کن و قطعات مهندسی PTFE / PU"
+          }
+        ]
+      }
+    ],
+    "menuSource": "industrial_megamenu_hierarchy_v2",
+    "familyCount": 0,
+    "skuCount": 0,
+    "id": "excel-v2-7-4",
+    "active": true,
+    "nameEn": "",
+    "subcategories": [
+      "ورق و میلگرد پلیمری",
+      "بوش و قطعات پلیمری مهندسی"
+    ],
+    "count": 0,
+    "routeSlug": "excel-v2-7-4"
+  },
+  {
+    "slug": "excel-v2-7-5",
+    "name": "شیلنگ، لوله خرطومی و اتصالات",
+    "description": "",
+    "icon": "Package",
+    "image": null,
+    "sortOrder": 705,
+    "children": [
+      {
+        "name": "شیلنگ صنعتی",
+        "children": [
+          {
+            "name": "شیلنگ PVC، پلی‌یورتان (PU)، آبنما و برزنتی"
+          }
+        ]
+      },
+      {
+        "name": "اتصالات و لوله خرطومی",
+        "children": [
+          {
+            "name": "سرشیلنگی، رابط شیلنگ و لوله خرطومی"
+          }
+        ]
+      }
+    ],
+    "menuSource": "industrial_megamenu_hierarchy_v2",
+    "familyCount": 0,
+    "skuCount": 0,
+    "id": "excel-v2-7-5",
+    "active": true,
+    "nameEn": "",
+    "subcategories": [
+      "شیلنگ صنعتی",
+      "اتصالات و لوله خرطومی"
+    ],
+    "count": 0,
+    "routeSlug": "excel-v2-7-5"
+  },
+  {
     "slug": "excel-v2-8-1",
     "name": "نوار برزنتی نسوز (چند لایه)",
     "description": "",
@@ -972,6 +1196,14 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
             "name": "انواع نخ نسوز صنعتی"
           }
         ]
+      },
+      {
+        "name": "عایق، پتو و پارچه نسوز کوره",
+        "children": [
+          {
+            "name": "برد، پتو، پنبه و پارچه نسوز ۱۲۶۰ و ۱۴۳۰ درجه"
+          }
+        ]
       }
     ],
     "menuSource": "industrial_megamenu_hierarchy_v2",
@@ -981,7 +1213,8 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     "active": true,
     "nameEn": "",
     "subcategories": [
-      "نخ نسوز"
+      "نخ نسوز",
+      "عایق، پتو و پارچه نسوز کوره"
     ],
     "count": 0,
     "routeSlug": "excel-v2-8-2"
@@ -1067,6 +1300,30 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
             "name": "لولاهای صنعتی"
           }
         ]
+      },
+      {
+        "name": "بست، گیره و پایه نگهدارنده",
+        "children": [
+          {
+            "name": "بست U شکل، پایه رولر و ساپورت صنعتی"
+          }
+        ]
+      },
+      {
+        "name": "پیچ، مهره و استادبولت",
+        "children": [
+          {
+            "name": "پیچ متری، پیچ گالوانیزه، مهره و واشر صنعتی"
+          }
+        ]
+      },
+      {
+        "name": "شفت، میلگرد و مقاطع فلزی",
+        "children": [
+          {
+            "name": "شافت بلبرینگ‌دار، میلگرد، ورق و پروفیل فلزی"
+          }
+        ]
       }
     ],
     "menuSource": "industrial_megamenu_hierarchy_v2",
@@ -1077,7 +1334,10 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     "nameEn": "",
     "subcategories": [
       "دستگیره و پیچ فلکه",
-      "انواع لولا"
+      "انواع لولا",
+      "بست، گیره و پایه نگهدارنده",
+      "پیچ، مهره و استادبولت",
+      "شفت، میلگرد و مقاطع فلزی"
     ],
     "count": 3,
     "routeSlug": "excel-v2-9-3"
@@ -1112,6 +1372,35 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     "routeSlug": "excel-v2-9-4"
   },
   {
+    "slug": "excel-v2-9-5",
+    "name": "قاشقک الواتور و متعلقات",
+    "description": "",
+    "icon": "Package",
+    "image": null,
+    "sortOrder": 905,
+    "children": [
+      {
+        "name": "قاشقک و پیچ الواتور",
+        "children": [
+          {
+            "name": "قاشقک استیل، پلیمری و پیچ الواتور"
+          }
+        ]
+      }
+    ],
+    "menuSource": "industrial_megamenu_hierarchy_v2",
+    "familyCount": 0,
+    "skuCount": 0,
+    "id": "excel-v2-9-5",
+    "active": true,
+    "nameEn": "",
+    "subcategories": [
+      "قاشقک و پیچ الواتور"
+    ],
+    "count": 0,
+    "routeSlug": "excel-v2-9-5"
+  },
+  {
     "slug": "excel-v2-10-1",
     "name": "تجهیزات دستگاه چاپ",
     "description": "",
@@ -1126,6 +1415,14 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
             "name": "انواع سایزهای اسپاتول سیلیکونی جهت دستگاه چاپ"
           }
         ]
+      },
+      {
+        "name": "ملزومات چاپ و لعاب‌پاش",
+        "children": [
+          {
+            "name": "تیغه کارول، دیسک لعاب‌پاش، توپی و متعلقات چاپ"
+          }
+        ]
       }
     ],
     "menuSource": "industrial_megamenu_hierarchy_v2",
@@ -1135,7 +1432,8 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     "active": true,
     "nameEn": "",
     "subcategories": [
-      "اسپاتول سیلیکونی"
+      "اسپاتول سیلیکونی",
+      "ملزومات چاپ و لعاب‌پاش"
     ],
     "count": 12,
     "routeSlug": "excel-v2-10-1"
@@ -1155,6 +1453,14 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
             "name": "انواع انگشتی روتاری فرنگ"
           }
         ]
+      },
+      {
+        "name": "سیلندر و قطعات روتاری",
+        "children": [
+          {
+            "name": "سیلندر انگشتی و درایو روتاری"
+          }
+        ]
       }
     ],
     "menuSource": "industrial_megamenu_hierarchy_v2",
@@ -1164,10 +1470,49 @@ export const APPROVED_MENU_CATEGORIES: EnhancedCategory[] = [
     "active": true,
     "nameEn": "",
     "subcategories": [
-      "انگشتی روتاری"
+      "انگشتی روتاری",
+      "سیلندر و قطعات روتاری"
     ],
     "count": 0,
     "routeSlug": "excel-v2-10-2"
+  },
+  {
+    "slug": "excel-v2-10-3",
+    "name": "تجهیزات استاکر و راهنمای کاشی",
+    "description": "",
+    "icon": "Package",
+    "image": null,
+    "sortOrder": 1003,
+    "children": [
+      {
+        "name": "قطعات دستگاه استاکر",
+        "children": [
+          {
+            "name": "تیغه، بازو، پلیت و لقمه استاکر"
+          }
+        ]
+      },
+      {
+        "name": "راهنمای کاشی و ردیف‌کن",
+        "children": [
+          {
+            "name": "تیغه، فکی، چرخ و هدایت‌کننده کاشی"
+          }
+        ]
+      }
+    ],
+    "menuSource": "industrial_megamenu_hierarchy_v2",
+    "familyCount": 0,
+    "skuCount": 0,
+    "id": "excel-v2-10-3",
+    "active": true,
+    "nameEn": "",
+    "subcategories": [
+      "قطعات دستگاه استاکر",
+      "راهنمای کاشی و ردیف‌کن"
+    ],
+    "count": 0,
+    "routeSlug": "excel-v2-10-3"
   },
   {
     "slug": "excel-v2-11-1",
