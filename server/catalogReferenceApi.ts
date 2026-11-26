@@ -503,7 +503,7 @@ async function loadSnapshot(): Promise<Snapshot> {
         throw new Error('Duplicate standalone SKU code in POPD archive: ' + skuCode);
       }
       directSkuCodes.add(codeKey);
-      const category = categoryRowsBySlug.get(categorySlug) || fallbackCategoriesBySlug.get(categorySlug);
+      const category = fallbackCategoriesBySlug.get(categorySlug) || categoryRowsBySlug.get(categorySlug);
       const rawImage = String(row.imageUrl || row.image_url || '').trim();
       const verifiedImage = e869ImageBySku.get(codeKey) ||
         (row.identityVerified === true || row.identity_verified === true ? rawImage : '');
@@ -555,16 +555,16 @@ async function loadSnapshot(): Promise<Snapshot> {
     const metadataChildren = hasMetadataChildren
       ? metadata.children as Category['children']
       : [];
-    const children = hasMetadataChildren ? metadataChildren : (fallback?.children || []);
+    const children = fallback?.children || (hasMetadataChildren ? metadataChildren : []);
     const metadataSubcategoriesRaw = metadata.subcategories;
     const hasMetadataSubcategories = Array.isArray(metadataSubcategoriesRaw);
     const metadataSubcategories = hasMetadataSubcategories
       ? (metadataSubcategoriesRaw as unknown[]).map((value: unknown) => String(value))
       : [];
-    const subcategories = hasMetadataSubcategories
-      ? metadataSubcategories
-      : fallback?.subcategories?.length
-        ? fallback.subcategories
+    const subcategories = fallback?.subcategories?.length
+      ? fallback.subcategories
+      : hasMetadataSubcategories
+        ? metadataSubcategories
         : (children || []).map((node) => node.name);
     const stats = menuStats.get(slug) || { familyCount: 0, skuCount: 0 };
     const directSkuCount = directSkuCounts.get(slug) || 0;
@@ -577,7 +577,7 @@ async function loadSnapshot(): Promise<Snapshot> {
       nameEn: fallback?.nameEn || '',
       description: (dbCategory.description && String(dbCategory.description).trim()) || fallback?.description || '',
       subcategories,
-      icon: dbCategory.icon || fallback?.icon || 'Package',
+      icon: fallback?.icon || dbCategory.icon || 'Package',
       image: dbCategory.image || fallback?.image || undefined,
       children,
       menuSource: (typeof metadata.source === 'string' ? metadata.source : undefined) || fallback?.menuSource,
