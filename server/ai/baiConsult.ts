@@ -28,9 +28,16 @@ export class BaiConsultError extends Error {
   }
 }
 
+function configuredAvalaiApiKey(env: NodeJS.ProcessEnv, voice: boolean): string | null {
+  const sharedKey = String(env.AVALAI_API_KEY || '').trim();
+  if (voice) return sharedKey || null;
+  const deskKey = String(env.AVALAI_DESK_API_KEY || '').trim();
+  return deskKey || sharedKey || null;
+}
+
 export function configuredAvalaiModel(env: NodeJS.ProcessEnv, voice: boolean): string | null {
   const provider = String((voice ? env.FORZA_VOICE_PROVIDER || env.FORZA_DESK_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
-  if (provider !== 'avalai' || !env.AVALAI_API_KEY?.trim()) return null;
+  if (provider !== 'avalai' || !configuredAvalaiApiKey(env, voice)) return null;
   const model = String((voice ? env.AVALAI_MODEL_VOICE || env.AVALAI_MODEL_DESK : env.AVALAI_MODEL_DESK) || 'glm-5.3-flash').trim();
   return model && model.length <= 100 ? model : null;
 }
@@ -90,7 +97,7 @@ export function resolveForzaTextProvider(
     : provider === 'xkiro' ? xkiroModel
     : provider === 'bai' ? baiModel
     : null;
-  const apiKey = provider === 'avalai' ? env.AVALAI_API_KEY?.trim() || null
+  const apiKey = provider === 'avalai' ? configuredAvalaiApiKey(env, voice)
     : provider === 'xkiro' ? env.XKIRO_API_KEY?.trim() || null
     : provider === 'bai' ? env.BAI_API_KEY?.trim() || null
     : null;
