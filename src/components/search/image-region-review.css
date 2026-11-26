@@ -1057,9 +1057,9 @@
   color: #4a5057;
 }
 .kiki-image-workspace__crop-thumb {
-  width: 76px;
-  height: 52px;
-  flex: 0 0 76px;
+  width: 68px;
+  height: 48px;
+  flex: 0 0 68px;
   border: 1px solid #e06518;
   border-radius: 9px;
   background-color: #f4f5f6;
@@ -1213,7 +1213,7 @@
   }
 
   .kiki-image-workspace__catalog[data-sheet-level="peek"] {
-    height: clamp(132px, 18dvh, 166px);
+    height: clamp(100px, 14dvh, 124px);
   }
 
   .kiki-image-workspace__catalog[data-sheet-level="half"] {
