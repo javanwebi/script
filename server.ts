@@ -7806,10 +7806,9 @@ function setupGeminiLiveWebSocket(server: http.Server) {
 4. پاسخ‌های صوتی به زبان فارسی طبیعی و با صدای مرد بیان می‌شوند.`;
 
   wss.on('connection', async (clientWs: WebSocket) => {
-    // Temporary exhibition-only provider switch. Gemini remains the default;
-    // explicitly setting FORZA_REALTIME_PROVIDER=qwen routes this session through
-    // the isolated Gisoo adapter while preserving the browser /api/live contract.
-    if (String(process.env.FORZA_REALTIME_PROVIDER || '').trim().toLowerCase() === 'qwen') {
+    // Qwen is the default native call provider. Gemini remains available for
+    // explicit server-side rollback; no paid AvalAI/Piper fallback is invoked.
+    if (String(process.env.FORZA_REALTIME_PROVIDER || 'qwen').trim().toLowerCase() === 'qwen') {
       void connectGisooQwenRealtime(clientWs, FORZA_SYSTEM_INSTRUCTION);
       return;
     }
@@ -8129,7 +8128,7 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     if(localVisionEnabled && process.env.SANATPISH_DISABLE_LOCAL_VISION_WARMUP!=='1')warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),localImagePublisher);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
-    console.log(`[Server] FORZA Live provider: ${String(process.env.FORZA_REALTIME_PROVIDER || 'gemini').trim().toLowerCase() === 'qwen' ? 'Gisoo Qwen (temporary override)' : 'Gemini (default)'}`);
+    console.log(`[Server] FORZA Live provider: ${String(process.env.FORZA_REALTIME_PROVIDER || 'qwen').trim().toLowerCase() === 'qwen' ? 'Gisoo Qwen (default)' : 'Gemini (explicit override)'}`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
     void (internalForzaVoiceUrl?privateServiceGreeting():getForzaGreeting()).catch(()=>{});
     // The app container never runs ONNX inference. The private voice service
