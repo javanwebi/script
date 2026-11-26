@@ -14,7 +14,9 @@ interface Props {
 
 export function AutomaticImageCrop({ src, region, status, compact = false }: Props) {
   const [imageAspect, setImageAspect] = useState(1);
-  const detecting = status === 'uploading' || status === 'detecting';
+  const uploading = status === 'uploading';
+  const detecting = status === 'detecting';
+  const preparing = uploading || detecting;
   const cropReady = Boolean(region);
   const previewAspect = region ? imageAspect * region.width / region.height : 1;
   let previewWidth = Math.min(136, Math.max(76, 96 * previewAspect));
@@ -78,7 +80,7 @@ export function AutomaticImageCrop({ src, region, status, compact = false }: Pro
         </div>
       </div>
 
-      <div className={'forza-auto-crop__proof' + (cropReady ? ' is-ready' : detecting ? ' is-detecting' : ' is-fallback')}
+      <div className={'forza-auto-crop__proof' + (cropReady ? ' is-ready' : preparing ? ' is-detecting' : ' is-fallback')}
         data-testid="forza-automatic-crop-proof" role="status" aria-live="polite">
         {cropReady && cropPreviewStyle && (
           <div className="forza-auto-crop__thumbnail" data-testid="forza-automatic-crop-thumbnail" style={cropPreviewStyle} aria-label="پیش‌نمایش دقیق برش ارسالی به کاتالوگ" />
@@ -87,20 +89,24 @@ export function AutomaticImageCrop({ src, region, status, compact = false }: Pro
           <strong>
             {cropReady
               ? <><CheckCircle2 size={16} aria-hidden="true" /> قطعه پیدا شد؛ برش خودکار انجام شد</>
-              : detecting
-                ? <><LoaderCircle size={16} aria-hidden="true" /> در حال پیدا کردن قطعه در تصویر</>
-                : <><AlertCircle size={16} aria-hidden="true" /> برش دقیق قطعه تأیید نشد</>}
+              : uploading
+                ? <><LoaderCircle size={16} aria-hidden="true" /> در حال آماده‌سازی تصویر</>
+                : detecting
+                  ? <><LoaderCircle size={16} aria-hidden="true" /> در حال پیدا کردن قطعه در تصویر</>
+                  : <><AlertCircle size={16} aria-hidden="true" /> برش دقیق قطعه تأیید نشد</>}
           </strong>
           <span>
             {cropReady
               ? 'کادر نارنجی و پیش‌نمایش، دقیقاً محدوده‌ای را نشان می‌دهند که برای جست‌وجوی کاتالوگ استفاده شده است.'
-              : detecting
-                ? 'موتور تشخیص، ناحیه قطعه را با تصاویر کاتالوگ مقایسه می‌کند.'
-                : 'برای جلوگیری از برش اشتباه، جست‌وجو به‌صورت خودکار روی تصویر کامل انجام می‌شود.'}
+              : uploading
+                ? 'تصویر در حافظه خصوصی دستگاه آماده می‌شود.'
+                : detecting
+                  ? 'موتور تشخیص، ناحیه قطعه را با تصاویر کاتالوگ مقایسه می‌کند.'
+                  : 'برای جلوگیری از برش اشتباه، جست‌وجو به‌صورت خودکار روی تصویر کامل انجام می‌شود.'}
           </span>
         </div>
         <span className="forza-auto-crop__badge">
-          {cropReady ? <><CheckCircle2 size={13} aria-hidden="true" /> برش فعال</> : detecting ? <><Scan size={13} aria-hidden="true" /> در حال تشخیص</> : 'تصویر کامل'}
+          {cropReady ? <><CheckCircle2 size={13} aria-hidden="true" /> برش فعال</> : uploading ? 'آماده‌سازی' : detecting ? <><Scan size={13} aria-hidden="true" /> در حال تشخیص</> : 'تصویر کامل'}
         </span>
       </div>
     </section>
