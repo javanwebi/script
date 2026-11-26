@@ -20,7 +20,7 @@ test('KIKI entry, camera, automatic region detection and inline results share on
   assert.ok(modal.includes('aiVisualSearchService.analyzePartWithAi'));
 });
 
-test('local segmenter preserves aspect ratio and exposes ranked object candidates', () => {
+test('browser segmentation utilities preserve aspect ratio but are not the authoritative crop selector', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const segmentation = source('src/utils/clientAiSegmentation.ts');
   const segmentationWorker = source('src/utils/clientAiSegmentation.worker.ts');
@@ -30,8 +30,6 @@ test('local segmenter preserves aspect ratio and exposes ranked object candidate
   assert.ok(segmentationWorker.includes('session.run'));
   assert.ok(segmentationWorker.includes('getForegroundRegions'));
   assert.ok(segmentation.includes('const MAX_IMAGE_DIMENSION = 720'));
-  assert.ok(modal.includes('const detectedRegions = segmented.regions'));
-  assert.ok(modal.includes('setCandidateRegions(detectedRegions.length ? detectedRegions : [region])'));
   assert.ok(segmentation.includes('const modelScale = Math.min(MODEL_INPUT_SIZE / width, MODEL_INPUT_SIZE / height)'));
   assert.ok(segmentation.includes('modelLeft'));
   assert.ok(segmentation.includes('modelTop'));
@@ -39,46 +37,45 @@ test('local segmenter preserves aspect ratio and exposes ranked object candidate
   assert.ok(foreground.includes('componentsAtThreshold'));
   assert.ok(foreground.includes('new Int32Array(total)'));
   assert.ok(foreground.includes('Eight-way connectivity'));
-});
-
-test('local segmenter is warmed and can win without serial server crop detection', () => {
+  assert.ok(modal.includes('aiVisualSearchService.detectImageRegions(imageUrl)'));
+  assert.ok(!modal.includes('segmentImageWithClientAi'));
+  assert.ok(!modal.includes('preloadClientAiSegmentation'));
+});test('server catalog-guided detection is authoritative before automatic catalogue analysis', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
-  const fast = modal.slice(
+  const detection = modal.slice(
     modal.indexOf('const detectUploadedImageRegions'),
     modal.indexOf('const uploadAndPrepareImage'),
   );
-  assert.ok(modal.includes('preloadClientAiSegmentation()'));
-  assert.ok(fast.includes('const localDetection = segmentImageWithClientAi(imageUrl)'));
-  assert.ok(fast.includes('Promise.race'));
-  assert.ok(fast.includes('aiVisualSearchService.detectImageRegions(imageUrl)'));
-  assert.ok(fast.includes('sequence !== regionDetectionSequenceRef.current'));
-  assert.ok(fast.includes('const region = detectedRegions[0]'));
-  assert.ok(fast.indexOf('const localDetection') < fast.indexOf('aiVisualSearchService.detectImageRegions'));
+  assert.ok(detection.includes('aiVisualSearchService.detectImageRegions(imageUrl)'));
+  assert.ok(detection.includes('const primaryRegion = detection.queryRegion'));
+  assert.ok(detection.includes('setQueryRegion(primaryRegion)'));
+  assert.ok(detection.includes('setFullImageSelected(!primaryRegion)'));
+  assert.ok(detection.indexOf('aiVisualSearchService.detectImageRegions(imageUrl)') < detection.indexOf("setRegionDetectionState('ready')"));
+  assert.ok(modal.includes("void handleAnalyze('quick',region,localImageId,true)"));
+  assert.ok(!detection.includes('segmentImageWithClientAi'));
+  assert.ok(!detection.includes('Promise.race'));
   assert.ok(modal.includes('saveCustomerDeviceImage(blob'));
   assert.ok(modal.includes('customerImageBlobToDataUrl(blob)'));
-  assert.ok(modal.includes('Promise.all(['));
   assert.ok(modal.includes('temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob)'));
-});
-
-test('mobile KIKI result sheet supports pull-up while region changes return to automatic inline analysis', () => {
+});test('mobile KIKI result sheet stays draggable while automatic crop selection remains read-only', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
+  const review = source('src/components/search/ImageRegionReview.tsx');
   const css = source('src/components/search/vision-camera-design.css');
   assert.ok(modal.includes('resultsSwipeStartY'));
   assert.ok(modal.includes('data-sheet-expanded={mobileResultsExpanded}'));
   assert.ok(modal.includes('aria-expanded={mobileResultsExpanded}'));
   assert.ok(modal.includes('setMobileResultsExpanded(true)'));
   assert.ok(modal.includes('setMobileResultsExpanded(false)'));
-  assert.ok(!modal.includes('onFullImageSearch'));
-  assert.ok(modal.includes('autoSelect'));
-  assert.ok(modal.includes('onChange={handleRegionSelection}'));
-  assert.ok(modal.includes('setCurrentStep(1)'));
-  assert.ok(modal.includes('onRegionChange={handleRegionSelection}'));
+  assert.ok(modal.includes('<AutomaticImageCrop'));
+  assert.ok(review.includes('data-region-mode="automatic"'));
+  assert.ok(!modal.includes('ImageRegionSelector'));
+  assert.ok(!modal.includes('handleRegionSelection'));
+  assert.ok(!modal.includes('onRegionChange'));
+  assert.ok(!modal.includes('autoSelect'));
   assert.ok(css.includes('KIKI mobile results: swipe up to expand'));
   assert.ok(css.includes('data-sheet-expanded="true"'));
   assert.ok(css.includes('prefers-reduced-motion'));
-});
-
-test('new presentation remains isolated from FORZA voice and catalog data', () => {
+});test('new presentation remains isolated from FORZA voice and catalog data', () => {
   const styles = source('src/components/search/vision-camera-design.css');
   const reviewStyles = source('src/components/search/image-region-review.css');
   const service = source('src/services/aiVisualSearchService.ts');
@@ -107,37 +104,27 @@ test('VISION entry uses original KIKI portal layout while retaining real image h
   assert.ok(!entry.includes('/src/assets/'));
 });
 
-test('multi-part lens auto-selects a detected object and starts catalog search without manual crop confirmation', () => {
-  const picker = source('src/components/search/ImageRegionSelector.tsx');
+test('catalog-guided crop is applied automatically and product results open their detail page', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const review = source('src/components/search/ImageRegionReview.tsx');
+  const crop = source('src/components/search/AutomaticImageCrop.tsx');
   const styles = source('src/components/search/image-region-review.css');
-  assert.ok(picker.includes('autoSelect?:boolean;'));
-  assert.ok(picker.includes('selectCandidateAtPoint(event)'));
-  assert.ok(picker.includes('findImageRegionAtPoint(p,candidates)'));
-  assert.ok(picker.includes("variant?:'default'|'viewer';"));
-  assert.ok(picker.includes('sanat-region-picker--viewer'));
-  assert.ok(modal.includes('autoAnalysisKeyRef.current===key'));
+  assert.ok(modal.includes('const primaryRegion = detection.queryRegion'));
+  assert.ok(modal.includes('setQueryRegion(primaryRegion)'));
+  assert.ok(modal.includes('setFullImageSelected(!primaryRegion)'));
   assert.ok(modal.includes("void handleAnalyze('quick',region,localImageId,true)"));
-  assert.ok(modal.includes('setCandidateRegions(detectedRegions.length?detectedRegions:(primaryRegion?[primaryRegion]:[]))'));
-  assert.ok(modal.includes('setSelectedProductId(undefined)'));
-  assert.ok(review.includes('data-testid="kiki-inline-catalog-results"'));
-  assert.ok(review.includes('onSelectProduct'));
-  assert.ok(review.includes('onOpenProduct'));
+  assert.ok(!modal.includes('setCandidateRegions'));
+  assert.ok(!modal.includes('ImageRegionSelector'));
+  assert.ok(review.includes('<AutomaticImageCrop src={image} region={selectedRegion} status={status} />'));
+  assert.ok(review.includes('data-region-mode="automatic"'));
   assert.ok(review.includes('onOpenProduct(item.id)'));
   assert.ok(review.includes('مشاهده صفحه محصول و مشخصات'));
-  assert.ok(modal.includes('const productCode=item?.code || item?.familyCode'));
-  assert.ok(modal.includes("navigate('/product/'+encodeURIComponent(productCode))"));
-  assert.ok(styles.includes('.kiki-image-workspace__family-image-note'));
-  assert.ok(styles.includes('max-height: min(60dvh, 520px)'));
+  assert.ok(crop.includes('data-testid="forza-automatic-crop"'));
+  assert.ok(crop.includes('data-testid="forza-automatic-crop-thumbnail"'));
+  assert.ok(crop.includes('data-testid="forza-automatic-crop-frame"'));
   assert.ok(styles.includes('.kiki-image-workspace__catalog[data-sheet-level="half"]'));
-  assert.ok(styles.includes('background: transparent'));
   assert.ok(styles.includes('.kiki-image-workspace__result-card.is-selected'));
-  assert.ok(styles.includes('.sanat-region-picker--viewer .sanat-region-picker__handles'));
-  assert.ok(styles.includes('.sanat-region-picker--viewer .sanat-region-picker__viewer-actions'));
-});
-
-test('no-match catalogue view uses real custom-request actions and truthful privacy language', () => {
+});test('no-match catalogue view uses real custom-request actions and truthful privacy language', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const style = source('src/components/search/vision-camera-design.css');
   assert.ok(modal.includes('data-testid="vision-kiki-no-match"'));
@@ -162,31 +149,22 @@ test('KIKI results header stays within the independently scrollable catalogue pa
 });
 
 
-test('mobile image viewer supports automatic selection, manual drag crop and visible crop evidence', () => {
-  const picker = source('src/components/search/ImageRegionSelector.tsx');
+test('desktop and mobile viewers show a non-interactive automatic crop and its exact preview', () => {
+  const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const review = source('src/components/search/ImageRegionReview.tsx');
+  const crop = source('src/components/search/AutomaticImageCrop.tsx');
+  const cropStyles = source('src/components/search/automatic-image-crop.css');
   const styles = source('src/components/search/image-region-review.css');
-  assert.ok(picker.includes('autoSelect?:boolean;'));
-  assert.ok(picker.includes('selectCandidateAtPoint(event)'));
-  assert.ok(picker.includes('if(disabled||event.button!==0||!event.isPrimary)return;'));
-  assert.ok(picker.includes('suppressClickRef.current=true'));
-  assert.ok(picker.includes('onPointerMove={event=>'));
-  assert.ok(picker.includes('{value&&!disabled&&<div className="sanat-region-picker__handles"'));
-  assert.ok(picker.includes('disabled={disabled}'));
-  assert.ok(review.includes('const selectorDisabled = preparing || Boolean(busy) || Boolean(analysisBusy);'));
-  assert.ok(review.includes('data-mobile-sheet-level={mobileSheetLevel}'));
-  assert.ok(review.includes('data-sheet-level={mobileSheetLevel}'));
-  assert.ok(review.includes('kiki-image-workspace__sheet-handle'));
-  assert.ok(review.includes('onPointerUp={onSheetPointerUp}'));
-  assert.ok(review.includes('kiki-mobile-crop-preview'));
-  assert.ok(review.includes('برش انتخاب‌شده و فعال است'));
-  assert.ok(review.includes('روی قطعه انگشت بگذارید و دور آن کادر بکشید'));
-  assert.ok(styles.includes('touch-action: none !important'));
+  assert.ok(review.includes('<AutomaticImageCrop src={image} region={selectedRegion} status={status} />'));
+  assert.ok(review.includes('data-region-mode="automatic"'));
+  assert.ok(crop.includes('data-crop-ready={cropReady ? \'true\' : \'false\'}'));
+  assert.ok(crop.includes('aria-label="تشخیص و برش خودکار قطعه"'));
+  assert.ok(crop.includes('کادر نارنجی و پیش‌نمایش'));
+  assert.ok(crop.includes('جست‌وجو به‌صورت خودکار روی تصویر کامل انجام می‌شود'));
+  assert.ok(cropStyles.includes('pointer-events: none;'));
+  assert.ok(cropStyles.includes('@media (max-width: 760px)'));
   assert.ok(styles.includes('data-sheet-level="half"'));
-  assert.ok(styles.includes('data-sheet-level="full"'));
-  assert.ok(styles.includes('overflow-y: auto'));
-  assert.ok(styles.includes('kiki-image-workspace__crop-thumb'));
-  assert.ok(styles.includes('sanat-region-picker__candidate.is-selected'));
-  assert.ok(!styles.includes('.sanat-region-picker--viewer .sanat-region-picker__handles,'));
-  assert.ok(!review.includes('onFullImageSearch'));
+  assert.ok(!modal.includes('ImageRegionSelector'));
+  assert.ok(!modal.includes('handleRegionSelection'));
+  assert.ok(!modal.includes('onRegionChange'));
 });
