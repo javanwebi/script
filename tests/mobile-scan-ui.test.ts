@@ -231,7 +231,9 @@ test("KIKI workspace auto-detects image regions, searches immediately and render
   assert.match(reviewStyles, /\.kiki-vision-review-shell\.kiki-image-workspace/);
   assert.match(reviewStyles, /\.kiki-image-workspace__result-grid/);
   assert.match(picker, /autoSelect\?:boolean/);
-  assert.match(picker, /onClick=\{selectCandidateAtPoint\}/);
+  assert.match(picker, /selectCandidateAtPoint\(event\)/);
+  assert.match(picker, /if\(disabled\|\|event\.button!==0\|\|!event\.isPrimary\)return;/);
+  assert.match(picker, /onPointerMove=\{event=>/);
   assert.doesNotMatch(picker, /تأیید برش و جست‌وجوی این قطعه/);
   assert.match(modal, /setSelectedProductId\(undefined\)/);
   assert.match(modal, /selectCustomerImageProduct/);
