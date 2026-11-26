@@ -110,17 +110,23 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         if(session.current!==s)return;
         let m:any;try{m=JSON.parse(e.data);}catch{return;}
         if(m.type==='fallback_required'||m.type==='error'){fail(String(m.reason||m.message||'خطای گیسو'));return;}
+        if(m.type==='provider_error'){
+          setError(String(m.reason||'خطای موقت گیسو؛ اتصال برقرار است.'));
+          s.done=true;
+          if(!s.sources.size)setPhase('listening');
+          return;
+        }
         if(m.type==='connected'){
           if(m.provider!=='qwen'){fail('سرور هنوز روی Qwen تنظیم نشده است.');return;}
           if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Andre');setConfirmed(m.voiceConfirmed===true);setPhase('thinking');
           const greeting=greeted.current?'فقط بگو: من آماده‌ام مهندس جان، بفرمایید.':'فقط با لحن گرم و پرانرژی بگو: سلام مهندس جان، به صنعت پیش خوش آمدید. من فورزا هستم، بفرمایید.';
           send(s,{type:'text',text:greeting});return;
         }
-        if(m.type==='speech_started'){stopPlayback(s);setUser('');setPhase('listening');return;}
+        if(m.type==='speech_started'){setError('');stopPlayback(s);setUser('');setPhase('listening');return;}
         if(m.type==='speech_stopped'){setPhase('thinking');return;}
         if(m.type==='interrupted'){if(m.responseId)s.ignored.add(m.responseId);if(!m.responseId||m.responseId===s.id){stopPlayback(s);setPhase('listening');}return;}
         if(m.type==='user_transcript'){if(typeof m.text==='string')setUser(m.text);return;}
-        if(m.type==='response_started'){s.id=String(m.responseId||'');s.done=false;setAssistant('');setPhase('thinking');return;}
+        if(m.type==='response_started'){setError('');s.id=String(m.responseId||'');s.done=false;setAssistant('');setPhase('thinking');return;}
         const id=String(m.responseId||'');if(id&&s.ignored.has(id))return;
         if(id&&s.id&&id!==s.id)return;
         if(m.type==='ai_text_chunk'){setAssistant(prev=>prev+String(m.text||''));return;}
