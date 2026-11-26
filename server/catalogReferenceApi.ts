@@ -115,7 +115,7 @@ async function loadSnapshot(): Promise<Snapshot> {
   if (!databaseEnabled()) throw new Error('PostgreSQL catalog backend is not enabled');
 
   const db = database();
-  const [archiveRes, e869Res, groupRes, categoryRes, commercialRes, galleryRes, aliasRes] = await Promise.all([
+  const [archiveRes, e869Res, groupRes, categoryRes, commercialRes, galleryRes] = await Promise.all([
     db.query(
       'select payload, sha256, imported_at from app_private.source_archives where source_path = $1 order by imported_at desc limit 1',
       [ENGINEERED_SOURCE_PATH],
@@ -154,9 +154,6 @@ async function loadSnapshot(): Promise<Snapshot> {
         and ia.sku_verified = false
         and upper(ia.family_code) = upper(gi.family_code)
       order by gi.sort_order, gi.id`,
-    ),
-    db.query(
-      'select old_family_code, new_family_code, direct_sku_code from public.catalog_family_aliases',
     ),
   ]);
 
@@ -324,10 +321,15 @@ async function loadSnapshot(): Promise<Snapshot> {
     });
   }
 
+  // Legacy family aliases are part of the pinned POPD engineered archive.
+  // Do not make the reference API depend on a separately provisioned legacy SQL
+  // projection: production databases may not carry catalog_family_aliases, while
+  // the archive is already the canonical source for both family ownership and
+  // its historical codes.
   const legacyCodesByCanonical = new Map<string, string[]>();
-  for (const alias of aliasRes.rows) {
-    const oldCode = normalizeCode(alias.old_family_code);
-    const newCode = normalizeCode(alias.new_family_code);
+  for (const [legacyCode, alias] of aliases) {
+    const oldCode = normalizeCode(legacyCode);
+    const newCode = normalizeCode(alias.newFamilyCode);
     if (!oldCode || !newCode) continue;
     legacyCodesByCanonical.set(newCode, [
       ...(legacyCodesByCanonical.get(newCode) || []),
