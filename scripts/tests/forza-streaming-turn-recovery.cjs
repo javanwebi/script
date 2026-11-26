@@ -20,6 +20,7 @@ function silentWav(){
  ]});
  try{
   const page=await browser.newPage();
+  await page.route('**/api/ai/forza-call-provider',r=>r.fulfill({json:{provider:'legacy'}}));
   const errors=[],synthRequests=[],sseRequests=[];
 const documentText=value=>String(value||'').replace(/\\s+/g,' ').slice(-1800);
   const fullAnswer='برای بررسی تسمه مورد نظر، ابتدا کد فنی آن را اعلام کنید. سپس می‌توانیم ابعاد، جنس و استاندارد تسمه را با اطلاعات کاتالوگ صنعت پیش مقایسه کنیم. در صورت نامشخص بودن کد، تصویر واضحی از قطعه بفرستید.';
