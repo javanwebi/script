@@ -17,6 +17,7 @@ const {mockLocalVoice}=require('./forza-browser-voice-mock.cjs');
    wave.writeUInt16LE(2,32);wave.writeUInt16LE(16,34);
    wave.write('data',36);wave.writeUInt32LE(9600,40);
    await mockLocalVoice(page,wave);
+   await page.route('**/api/ai/forza-call-provider',route=>route.fulfill({json:{provider:'legacy'}}));
    const errors=[];
    page.on('pageerror',err=>errors.push(err.message));
    await page.addInitScript(()=>{
