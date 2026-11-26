@@ -798,7 +798,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         .slice(0, 480);
       const unknownParameters = (summary?.unknownParameters || []).filter(Boolean);
       const regionNote = queryRegion
-        ? 'ناحیه انتخاب‌شده در تصویر: x=' + queryRegion.x.toFixed(4) + ', y=' + queryRegion.y.toFixed(4) +
+        ? 'ناحیه شناسایی‌شده خودکار در تصویر: x=' + queryRegion.x.toFixed(4) + ', y=' + queryRegion.y.toFixed(4) +
           ', width=' + queryRegion.width.toFixed(4) + ', height=' + queryRegion.height.toFixed(4) + ' (مختصات نسبی تصویر).'
         : 'درخواست بر اساس تصویر کامل ارسالی ثبت شده است.';
       const notes = [
