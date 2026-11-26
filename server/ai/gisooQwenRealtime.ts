@@ -17,7 +17,7 @@ export function buildGisooQwenSessionUpdate(instructions:string,silenceDurationM
     type:'session.update',
     session:{
       output_modalities:['audio'],
-      instructions:ADVICE+'\\n'+instructions.slice(0,16000),
+      instructions:ADVICE+'\n'+instructions.slice(0,16000),
       audio:{
         input:{format:{type:'audio/pcm',rate:16000},turn_detection:{type:'server_vad',threshold:0.5,prefix_padding_ms:300,silence_duration_ms:bounded(silenceDurationMs,500,500,2500),create_response:true,interrupt_response:true}},
         output:{format:{type:'audio/pcm',rate:24000},voice:selectedVoice}
