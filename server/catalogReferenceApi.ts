@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import { database, databaseEnabled } from './db/connection';
-import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../src/data/approvedMenuFallback';
+import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../src/data/popdApprovedMenu.ts';
 import type { Category, Product, ProductGalleryImage, ProductVariant } from '../src/types';
 
 const ENGINEERED_SOURCE_PATH = 'github/javanwebi/POPD/server/data/engineeredCatalog.json';
