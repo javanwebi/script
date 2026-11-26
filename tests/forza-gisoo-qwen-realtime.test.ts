@@ -139,6 +139,7 @@ test('Qwen realtime session exposes the read-only Sanat Pish catalogue tool and 
   assert.match(update.session.instructions, /مشاور ارشد مهندسی/);
   assert.match(update.session.instructions, /search_sanatpish_catalog/);
   assert.match(update.session.instructions, /۷۰ تا ۱۳۰ کلمه/);
+  assert.ok(update.session.instructions.lastIndexOf('مشاور ارشد مهندسی') > update.session.instructions.indexOf('دستیار فارسی صنعت پیش'));
 });
 
 test('live catalogue lookup returns real family/SKU metadata without commercial fields', () => {
@@ -178,6 +179,7 @@ test('native Gisoo server executes catalogue function calls and returns tool out
   assert.match(server, /response\.function_call_arguments\.done/);
   assert.match(server, /function_call_output/);
   assert.match(server, /type:'catalog_results'/);
+  assert.match(server, /toolResponseId&&cancelled\.has\(toolResponseId\)/);
   assert.match(app, /connectGisooQwenRealtime\(clientWs, FORZA_SYSTEM_INSTRUCTION, searchForzaLiveCatalog\)/);
 });
 
