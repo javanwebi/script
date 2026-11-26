@@ -80,7 +80,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       s.mic=ctx.createMediaStreamSource(stream);
       s.sink=ctx.createGain();s.sink.gain.value=0;
       const sendMic=(samples:Float32Array)=>{
-        if(!s.ready||micMuted.current||scanning.current||!s.greeted||s.ws?.readyState!==WebSocket.OPEN)return;
+        if(!s.ready||micMuted.current||scanning.current||s.ws?.readyState!==WebSocket.OPEN)return;
         if(s.ws.bufferedAmount>262144){fail('ارتباط صوتی کند شد؛ دوباره متصل شوید.');return;}
         send(s,{type:'realtime_audio',audio:encodePcm(samples,ctx.sampleRate)});
       };
@@ -114,7 +114,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           if(m.provider!=='qwen'){fail('سرور هنوز روی Qwen تنظیم نشده است.');return;}
           if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Andre');setConfirmed(m.voiceConfirmed===true);setPhase('thinking');
           const greeting=greeted.current?'فقط بگو: من آماده‌ام مهندس جان، بفرمایید.':'فقط با لحن گرم و پرانرژی بگو: سلام مهندس جان، به صنعت پیش خوش آمدید. من فورزا هستم، بفرمایید.';
-          send(s,{type:'text',text:greeting});return;
+          send(s,{type:'text',text:greeting});s.greeted=true;greeted.current=true;return;
         }
         if(m.type==='speech_started'){stopPlayback(s);setUser('');setPhase('listening');return;}
         if(m.type==='speech_stopped'){setPhase('thinking');return;}
@@ -150,7 +150,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const labels:Record<Phase,string>={connecting:'در حال اتصال به گیسو…',listening:'فورزا گوش می‌دهد',thinking:'فورزا در حال پاسخ‌گویی…',speaking:'فورزا در حال صحبت است',disconnected:'اتصال قطع است'};
   const control='p-1.5 rounded-md text-white/80 hover:bg-white/10';
   return <main className="forza-stage" dir="ltr">
-    <Suspense fallback={<div className="forza-avatar-fallback"/>}><ParticleAvatar mode={phase==='speaking'?'speak':phase==='listening'?'listen':'auto'} intensity={1} audioLevel={phase==='speaking'?level:0} quality="high" background backgroundSpeed={2} onStats={setStats}/></Suspense>
+    <Suspense fallback={<div className="forza-avatar-fallback"/>}><ParticleAvatar mode={phase==='speaking'?'speak':phase==='listening'?'listen':'auto'} intensity={1} stableLight audioLevel={phase==='speaking'?level:0} quality="high" background backgroundSpeed={2} onStats={setStats}/></Suspense>
     {!clean&&<div className="forza-hud" aria-hidden="true"><i className="hud-corner tl"/><i className="hud-corner tr"/><i className="hud-corner bl"/><i className="hud-corner br"/><div className="hud-block hud-top-right"><div className="hud-title text-white tracking-widest font-black">- FORZA</div><div className="hud-dim text-[10px]">HUMAN SYSTEMS / 001 · {stats.particles?.toLocaleString('en')} PARTICLES</div></div><div className="hud-block hud-top-left"><div className="hud-dim text-[10px]">{stats.tier} · {stats.fps??'—'} FPS</div></div><div className="procedural-label"><span>PROCEDURAL IDENTITY</span><strong>Built from<br/>light</strong></div><div className="hud-block hud-bottom-left"><div className="hud-dim text-[10px]">PARTICLE MESH · REALTIME GPU</div></div><div className="scan"/></div>}
     <button type="button" dir="rtl" onClick={()=>{dispose();onClose?.();}} className="forza-exit-call-button absolute top-5 left-6 z-40 flex gap-2 rounded-full bg-red-950/80 border border-red-500/60 px-4 py-2 text-white text-xs"><PhoneOff size={14}/> خروج</button>
     <button className="signal-toggle" onClick={()=>setClean(v=>!v)} aria-label="تغییر نمایش HUD"><span/><span/><span/><span/></button>
