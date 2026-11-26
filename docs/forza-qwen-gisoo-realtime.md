@@ -41,7 +41,7 @@ For full rollback, restore `AiForzaPage.tsx` to import the legacy `AiForzaCallEx
 
 - The account currently reports a concurrency limit of 8; the bridge caps active Qwen sessions at 8 by default.
 - Gisoo documents a maximum of 60 seconds per user speech turn and a maximum one-hour session (with automatic close after 120 seconds without a message).
-- The bridge requests `Ryan` in `session.audio.output.voice` by default. Alibaba lists Ryan as a Qwen 3.8 Omni voice with Persian support and describes it as high-energy; Gisoo's gateway documentation notes that some unsupported voice IDs may fall back to Tina. The bridge verifies the voice when `session.updated` reports it and refuses an explicitly different voice. A real Persian browser call is still required to confirm the audible result.
+- The bridge requests `Raymond` in `session.audio.output.voice` by default. Previous `Andre` and `Ryan` values in the private environment file are migrated to `Raymond`. Alibaba lists Raymond for Qwen 3.8 Omni and Persian among its supported languages; Gisoo's gateway may still normalize unsupported voices, so the bridge verifies the selected voice when `session.updated` reports it. A real Persian browser call is still required to confirm the audible result.
 - User-transcription events are forwarded if Gisoo emits them. The current Gisoo Realtime documentation guarantees assistant transcript events but does not specify live user-transcription events.
 - The browser permits up to 90 seconds of scheduled audio before cancelling an unusually long response; this no longer tears down the live WebSocket. The normal answer target is shorter and governed by the engineering instructions and token cap.
 
