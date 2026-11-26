@@ -8,7 +8,7 @@
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { database, databaseEnabled, closeDatabase } from '../server/db/connection.ts';
+import { assertProductionDatabaseConfig, database, closeDatabase } from '../server/db/connection.ts';
 
 export const POPD_COMMIT = 'e81218f2a248f1db9a72349a67e46af55c7977ee';
 
@@ -117,14 +117,7 @@ async function fetchPinnedSource(source) {
 }
 
 async function verifyProductionTarget(client) {
-  if (
-    !databaseEnabled() ||
-    process.env.NODE_ENV !== 'production' ||
-    process.env.DATABASE_ENV !== 'production' ||
-    process.env.DATABASE_SCHEMA !== 'adopted'
-  ) {
-    throw new Error('POPD_ARCHIVE_SYNC_REQUIRES_EXISTING_PRODUCTION_POSTGRES_TARGET');
-  }
+  assertProductionDatabaseConfig();
   const result = await client.query(`
     select
       to_regclass('app_private.source_archives') is not null as archive_table,
