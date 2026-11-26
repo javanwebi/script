@@ -162,17 +162,31 @@ test('KIKI results header stays within the independently scrollable catalogue pa
 });
 
 
-test('automatic viewer disables detected-region selection while busy and removes manual crop actions', () => {
+test('mobile image viewer supports automatic selection, manual drag crop and visible crop evidence', () => {
   const picker = source('src/components/search/ImageRegionSelector.tsx');
   const review = source('src/components/search/ImageRegionReview.tsx');
+  const styles = source('src/components/search/image-region-review.css');
   assert.ok(picker.includes('autoSelect?:boolean;'));
-  assert.ok(picker.includes('onClick={selectCandidateAtPoint}'));
-  assert.ok(picker.includes('if(autoSelect||disabled||event.button!==0||!event.isPrimary)return;'));
-  assert.ok(picker.includes('if(autoSelect){'));
+  assert.ok(picker.includes('selectCandidateAtPoint(event)'));
+  assert.ok(picker.includes('if(disabled||event.button!==0||!event.isPrimary)return;'));
+  assert.ok(picker.includes('suppressClickRef.current=moved>8'));
+  assert.ok(picker.includes('onPointerMove={event=>'));
+  assert.ok(picker.includes('{value&&!disabled&&<div className="sanat-region-picker__handles"'));
   assert.ok(picker.includes('disabled={disabled}'));
   assert.ok(review.includes('const selectorDisabled = preparing || Boolean(busy) || Boolean(analysisBusy);'));
-  assert.ok(review.includes('disabled={selectorDisabled}'));
-  assert.ok(review.includes('analysisBusy'));
+  assert.ok(review.includes('data-mobile-sheet-level={mobileSheetLevel}'));
+  assert.ok(review.includes('data-sheet-level={mobileSheetLevel}'));
+  assert.ok(review.includes('kiki-image-workspace__sheet-handle'));
+  assert.ok(review.includes('onPointerUp={onSheetPointerUp}'));
+  assert.ok(review.includes('kiki-mobile-crop-preview'));
+  assert.ok(review.includes('برش انتخاب‌شده و فعال است'));
+  assert.ok(review.includes('روی قطعه انگشت بگذارید و دور آن کادر بکشید'));
+  assert.ok(styles.includes('touch-action: none !important'));
+  assert.ok(styles.includes('data-sheet-level="half"'));
+  assert.ok(styles.includes('data-sheet-level="full"'));
+  assert.ok(styles.includes('overflow-y: auto'));
+  assert.ok(styles.includes('kiki-image-workspace__crop-thumb'));
+  assert.ok(styles.includes('sanat-region-picker__candidate.is-selected'));
+  assert.ok(!styles.includes('.sanat-region-picker--viewer .sanat-region-picker__handles,'));
   assert.ok(!review.includes('onFullImageSearch'));
-  assert.ok(!review.includes('viewer-actions'));
 });
