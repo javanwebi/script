@@ -27,7 +27,7 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
-import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
+import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectConfidentQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
 import {LocalVisionDetectionCache,selectCachedLocalQuery} from './src/services/localVisionDetectionCache';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
@@ -4681,7 +4681,7 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
     const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,true);
     if(!retrieved)throw new Error('Index changed during region detection');
     const viewScores=bestBoundQueryViewScores(retrieved,products);
-    const selectedRegion=selectBestQueryRegion(query.viewRegions,viewScores,query.region);
+    const selectedRegion=selectConfidentQueryRegion(query.viewRegions,viewScores,localProfile.minSimilarity);
     const queryRegions=(query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
     if(selectedRegion && !queryRegions.some(region=>
       Math.abs(region.x-selectedRegion.x)<0.002 && Math.abs(region.y-selectedRegion.y)<0.002 &&
@@ -4749,7 +4749,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
       const viewScores=bestBoundQueryViewScores(retrieved,products);
-      const selectedRegion=body.fullImage===true ? undefined : body.region || selectBestQueryRegion(query.viewRegions,viewScores,query.region);
+      const selectedRegion=body.fullImage===true ? undefined : body.region || selectConfidentQueryRegion(query.viewRegions,viewScores,localProfile.minSimilarity);
       const detailImage=body.fullImage===true || body.region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
       let geometryComplete=false;
       try{
