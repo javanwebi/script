@@ -10,6 +10,7 @@ const {mockLocalVoice}=require('./forza-browser-voice-mock.cjs');
  ]});
  try {
    const page=await browser.newPage();
+   await page.route('**/api/ai/forza-call-provider',r=>r.fulfill({json:{provider:'legacy'}}));
    const wave=Buffer.alloc(44+9600);
    wave.write('RIFF');wave.writeUInt32LE(wave.length-8,4);wave.write('WAVEfmt ',8);
    wave.writeUInt32LE(16,16);wave.writeUInt16LE(1,20);wave.writeUInt16LE(1,22);
