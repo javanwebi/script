@@ -46,6 +46,14 @@ export function selectBestQueryRegion(viewRegions:(Region|null)[]|undefined,view
  }
  return best || fallback || viewRegions?.find((region):region is Region=>region!==null) || undefined;
 }
+
+/** Only show/use an automatic crop when a catalog-backed crop view clears the configured similarity floor. */
+export function selectConfidentQueryRegion(viewRegions:(Region|null)[]|undefined,viewScores:number[],minimum:number):Region|undefined{
+ const threshold=Number.isFinite(minimum)?Math.max(0,Math.min(1,minimum)):0.65;
+ const cropScores=viewScores.slice(1).filter(Number.isFinite);
+ if(!cropScores.length || Math.max(...cropScores)<threshold)return undefined;
+ return selectBestQueryRegion(viewRegions,viewScores);
+}
 export type QueryEvidence={model?:string;vectors:number[][];region?:Region|null;viewRegions?:(Region|null)[];markings:{text:string;confidence:number}[];ocrAvailable:boolean;};
 export async function describeLocalQuery(image:Buffer,env=process.env):Promise<QueryEvidence>{
  // DINOv2 inference can exceed the generic 4.5s transport budget on a cold CPU worker.
