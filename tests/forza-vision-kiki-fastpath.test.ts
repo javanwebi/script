@@ -129,7 +129,7 @@ test('multi-part lens auto-selects a detected object and starts catalog search w
   assert.ok(modal.includes('const productCode=item?.code || item?.familyCode'));
   assert.ok(modal.includes("navigate('/product/'+encodeURIComponent(productCode))"));
   assert.ok(styles.includes('.kiki-image-workspace__family-image-note'));
-  assert.ok(styles.includes('max-height: min(72dvh, 620px)'));
+  assert.ok(styles.includes('max-height: min(60dvh, 520px)'));
   assert.ok(styles.includes('.kiki-image-workspace__catalog[data-sheet-level="half"]'));
   assert.ok(styles.includes('background: transparent'));
   assert.ok(styles.includes('.kiki-image-workspace__result-card.is-selected'));
