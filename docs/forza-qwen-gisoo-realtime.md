@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This is a temporary, reversible provider switch for the exhibition. The current Gemini Live implementation and the browser audio client remain in place. The existing browser continues to connect to `/api/live`; the server bridges its established FORZA message contract to Gisoo's OpenAI-compatible Realtime WebSocket.
+The `/ai-forza` and `/face-to-face` routes now mount the native `ForzaQwenCallExperience` browser controller. Microphone PCM and streamed speech use `/api/live` directly; the legacy AvalAI/Piper chain is not mounted by those routes. The existing legacy component and Gemini server implementation remain in source.
 
 ## Runtime configuration
 
@@ -22,7 +22,7 @@ The existing `applyPrivateForzaConfig` loader accepts `FORZA_*` values from this
 ## Provider behavior
 
 - `FORZA_REALTIME_PROVIDER=qwen`: explicitly routes new `/api/live` sessions to `qwen3.8-omni-flash-realtime` through `wss://ir.gisoo.pro/api/v1/realtime`.
-- Missing or any other provider value: keeps the current Gemini Live path unchanged.
+- Missing provider value defaults to Qwen. Explicit `gemini` selects the server's old Gemini path; the Qwen-only page rejects that provider rather than silently falling back.
 - The Qwen bridge maps audio, assistant transcript, interruption, and turn-complete events to the existing FORZA browser protocol.
 - Input is PCM 16 kHz mono; output is PCM 24 kHz mono.
 - Gisoo server VAD automatically ends turns and interrupts generated audio when the customer starts speaking.
@@ -31,13 +31,13 @@ The existing `applyPrivateForzaConfig` loader accepts `FORZA_*` values from this
 
 ## Revert after the exhibition
 
-Set `FORZA_REALTIME_PROVIDER=gemini` or remove that line from `.env.forza-voice`, then restart/deploy the application. No source rollback or database migration is required.
+For full rollback, restore `AiForzaPage.tsx` to import the legacy `AiForzaCallExperience`, set `FORZA_REALTIME_PROVIDER=gemini` if the old Gemini websocket is needed, and deploy. No database migration is required.
 
 ## Known constraints
 
 - The account currently reports a concurrency limit of 8; the bridge caps active Qwen sessions at 8 by default.
 - Gisoo documents a maximum of 60 seconds per user speech turn and a maximum one-hour session (with automatic close after 120 seconds without a message).
-- The bridge explicitly requests `Andre` in `session.audio.output.voice`, a male Qwen voice with Persian support in Alibaba's official voice list. Gisoo documents Tina as the default and does not explicitly guarantee Andre passthrough. If `session.updated` explicitly reports a different voice, the bridge rejects the session; if it reports no voice, actual voice remains unverified. Validate the returned audio with a real Persian call before deployment.
+- The bridge explicitly requests `Ryan` in `session.audio.output.voice`, a high-energy Qwen voice with Persian support in Alibaba's official voice list. Gisoo documents Tina as the default and does not explicitly guarantee Ryan passthrough. If `session.updated` explicitly reports a different voice, the bridge rejects the session; if it reports no voice, actual voice remains unverified. Validate the returned audio with a real Persian call before deployment.
 - User-transcription events are forwarded if Gisoo emits them. The current Gisoo Realtime documentation guarantees assistant transcript events but does not specify live user-transcription events.
 - This temporary bridge does not implement catalogue function-calling tools. The existing FORZA system instruction is retained, but product/database lookup tools are not exposed to Qwen in this temporary mode.
 
