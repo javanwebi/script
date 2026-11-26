@@ -4,7 +4,7 @@ import test from 'node:test';
 import {APPROVED_MENU_GROUPS} from '../src/data/approvedMenuFallback.ts';
 import {CATALOG_FAMILY_MENU_ASSIGNMENTS} from '../src/data/catalogMenuAssignmentsData.ts';
 
-test('additive production recovery seeds every approved spreadsheet group without overwriting admin edits',()=>{
+test('additive production recovery seeds the exact POPD groups while preserving group presentation and commercial data',()=>{
  const sql=readFileSync('ops/sql/20261103_recover_missing_production_catalog_navigation.sql','utf8');
  assert.equal(APPROVED_MENU_GROUPS.length,14);
  for(const group of APPROVED_MENU_GROUPS) {
