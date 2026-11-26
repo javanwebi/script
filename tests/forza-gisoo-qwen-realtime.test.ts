@@ -82,7 +82,7 @@ test('Qwen late completion keeps the provider response identity', () => {
 });
 
 test('Qwen invalid VAD duration uses a finite default', () => {
-  assert.equal(buildGisooQwenSessionUpdate('فارسی', NaN).session.audio.input.turn_detection.silence_duration_ms, 1100);
+  assert.equal(buildGisooQwenSessionUpdate('فارسی', NaN).session.audio.input.turn_detection.silence_duration_ms, 500);
 });
 
 test('Face-to-face page actually mounts the native Gisoo client without the old speech endpoints', () => {
@@ -98,6 +98,6 @@ test('Face-to-face page actually mounts the native Gisoo client without the old 
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
   const worklet=readFileSync('public/forza-runtime/qwen-mic-worklet.js','utf8');
   assert.match(client,/new AudioWorkletNode/);
-  assert.match(client,/intensity=\{1\}/);
+  assert.match(client,/intensity=\{1\} stableLight/);
   assert.match(worklet,/sampleRate \* 0\.02/);
  });
