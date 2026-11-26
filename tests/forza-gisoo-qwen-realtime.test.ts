@@ -187,5 +187,5 @@ test('live call renders catalogue product cards and does not disconnect on a twe
   assert.match(client, /href=\{family\.link\}/);
   assert.match(client, /s\.next-ctx\.currentTime>90/);
   assert.doesNotMatch(client, /s\.next-ctx\.currentTime>12/);
-  assert.match(client, /useState\('Ryan'\)/);
+  assert.match(client, /useState\('Raymond'\)/);
 });
