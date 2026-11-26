@@ -295,7 +295,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       similarityScore:item.similarityScore,matchLabel:item.visualVerdictFarsi||item.matchReason||item.distinction,
       reason:item.matchReason,
     })),
-    ...(analysisResult?.modelSuggestions||[]).map(item=>({
+    ...[...(analysisResult?.modelSuggestions||[]),...(analysisResult?.nearestCatalogSuggestions||[])].map(item=>({
       id:item.code?'sku:'+item.code:'family:'+item.familyCode+':'+item.name,
       code:item.code,familyCode:item.familyCode,name:item.name,brand:item.brand,image:item.image,imageScope:item.imageScope,
       matchBasis:item.matchBasis,
@@ -742,7 +742,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         imageBase64, mimeType: analysisMimeType,
         length: length ? parseFloat(length) : undefined, width: width ? parseFloat(width) : undefined, pitch: pitch ? parseFloat(pitch) : undefined,
         application: application.trim() || undefined, features: features.trim() || undefined,
-        stage, observationOnly: false, region: requestRegion, detectionId: regionDetectionId || undefined, fullImage: requestFullImage, includeNearest: false,
+        stage, observationOnly: false, region: requestRegion, detectionId: regionDetectionId || undefined, fullImage: requestFullImage, includeNearest: true,
         measurements: stage === "refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if (sequence !== analysisSequenceRef.current) return;
@@ -765,7 +765,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       }
       setAnalysisResult(result);
       const firstProductId=result.matchedProducts?.[0]?.code||result.similarCandidates?.[0]?.code;
-      const firstModel=result.modelSuggestions?.[0];
+      const firstModel=result.modelSuggestions?.[0] || result.nearestCatalogSuggestions?.[0];
       setSelectedProductId(firstProductId?'sku:'+firstProductId:firstModel?(firstModel.code?'sku:'+firstModel.code:'family:'+firstModel.familyCode+':'+firstModel.name):undefined);
       const primaryHistoryMatch = result.matchedProducts?.[0] || result.similarCandidates?.[0];
       const photoHistoryMatch = result.catalogImageMatches?.find((photo) =>
@@ -1906,6 +1906,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   </p>
                 )}
                 {analysisResult.modelSuggestions && <LocalModelResults key={analysisResult.customerImageUrl} items={analysisResult.modelSuggestions} onClose={onClose} />}
+                {!!analysisResult.nearestCatalogSuggestions?.length && <LocalModelResults key="unconfirmed-nearest" items={analysisResult.nearestCatalogSuggestions} onClose={onClose} />}
                 {!!visiblePhotoMatches.length && (
                   <section className="space-y-3" aria-label="تصاویر مشابه در کاتالوگ">
                     <h4 className="font-bold text-sm text-slate-800">{analysisResult.modelSuggestions?.length?"تصاویر مشابه بدون کد متصل":"تصاویر مشابه پیدا‌شده در کاتالوگ"}</h4>

@@ -145,13 +145,16 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
  for(const hit of eligible)for(const binding of hit.row.bindings)familyBest.set(binding.familyCode,Math.max(familyBest.get(binding.familyCode) || -1,hit.score));
  const scores=[...familyBest.values()].sort((a,b)=>b-a);const ambiguous=scores.length>1 && scores[0]-scores[1]<0.025;
  const description=photoMatches.length?'تصاویر نزدیک به عکس شما در کاتالوگ پیدا شد. برای انتخاب دقیق، مشخصات و کد قطعه را بررسی کنید.':'شباهت کافی برای پیشنهاد محصول پیدا نشد؛ عکس واضح‌تر از قطعه و نوشتهٔ روی آن ارسال کنید.';
- const nearest=includeNearest&&!photoMatches.length ? nearestLocalSuggestions(hits,products) : undefined;
+ const modelSuggestions=localModelSuggestions(hits,products,query?.markings || [],minSimilarity);
+ const acceptedKeys=new Set(modelSuggestions.map(item=>item.code || 'family:'+item.familyCode));
+ const alternatives=includeNearest ? nearestLocalSuggestions(hits,products).filter(item=>!acceptedKeys.has(item.code || 'family:'+item.familyCode)).slice(0,8) : [];
+ const nearest=alternatives.length ? alternatives : undefined;
  return {success:true,isAiGenerated:true,stage:'quick',model:query?.model || LOCAL_VISION_MODEL,observationOnly:false,
   nearestCatalogSuggestions:nearest,
   summary:{whatYouSee:description,readableMarkings:query?.markings.map(m=>m.text),detectedPartType:ambiguous?'چند خانوادهٔ نزدیک؛ نیاز به تأیید':photoMatches[0]?.familyNames[0] || 'جست‌وجوی تصویری کاتالوگ',
    detectedProfile:'مدل و ابعاد از تصویر به‌تنهایی تأیید نشده است',visualAnalysis:description,confidence:0,exactVisualMatch:false,
    catalogAvailability:{status:photoMatches.length?'similar_in_catalog':'custom_order_available',statusFarsiTitle:photoMatches.length?'گزینه‌های مشابه تصویری':'نیاز به عکس یا اطلاعات بیشتر',statusFarsiMessage:description}},
-  modelSuggestions:localModelSuggestions(hits,products,query?.markings || [],minSimilarity),
+  modelSuggestions,
   matchedProducts:[],similarCandidates:similarCandidates.slice(0,12),catalogImageMatches:photoMatches,
   retrieval:{mode:'local-embedding',...coverage,verifiedPool:0},
   scanCoverage:{total:coverage.total,compared:coverage.indexed,failed:coverage.total-coverage.indexed,complete:coverage.ready,providerAvailable:true,failedImageIds:[]},
@@ -161,11 +164,11 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
 
 /** Browsable nearest neighbours, explicitly outside the accepted match lists. */
 export function nearestLocalSuggestions(hits:LocalVisualHit[],products:Product[]){
- const ordered=hits.filter(h=>Number.isFinite(h.score)).sort((a,b)=>b.score-a.score);
- const familyScores=new Map<string,number>();
- for(const hit of ordered)for(const b of hit.row.bindings)if(!familyScores.has(b.familyCode))familyScores.set(b.familyCode,hit.score);
- return localModelSuggestions(ordered.map(h=>({...h,eligible:true})),products,[],-1,24)
-  .sort((a,b)=>(familyScores.get(b.familyCode) ?? -1)-(familyScores.get(a.familyCode) ?? -1))
+ // Keep weak candidates separate from matches; retain the existing 0.31 regression
+ // while excluding extremely weak resemblance. This is not a calibrated confidence.
+ const explorationFloor=0.30;
+ const ordered=hits.filter(h=>Number.isFinite(h.score)&&(h.visualScore ?? h.score)>=explorationFloor);
+ return localModelSuggestions(ordered.map(h=>({...h,eligible:true})),products,[],explorationFloor,32)
   .map(item=>({...item,matchBasis:'explore' as const,visualScore:undefined,reason:'از نزدیک‌ترین گزینه‌های کاتالوگ برای بررسی شماست؛ تشخیص نوع قطعه، مدل، سایز و سازگاری تأیید نشده است.'}));
 }
 

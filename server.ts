@@ -6,6 +6,7 @@ import {registerProductImageStorage,prepareProductStorage,productStorageDirector
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import { registerCatalogReferenceApi } from './server/catalogReferenceApi';
+import {readPopdVisionCatalog} from './server/popdVisionCatalog';
 import {registerAdminStaffApi} from './server/db/adminStaffApi';
 import {registerAdminSecurityApi} from './server/db/adminSecurityApi';
 import {registerAdminCustomersApi} from './server/db/adminCustomersApi';
@@ -27,7 +28,7 @@ import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
 import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
-import {LocalVisionDetectionCache} from './src/services/localVisionDetectionCache';
+import {LocalVisionDetectionCache,selectCachedLocalQuery} from './src/services/localVisionDetectionCache';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
@@ -934,6 +935,15 @@ async function embedCatalogImages(buffers:Buffer[],publishImage:ImagePublisher):
   contents:parts.map(part=>({role:'user',parts:[part]})),config:{outputDimensionality:768}});
  return (response.embeddings || []).map(embedding=>embedding.values || []);
 }
+async function currentVisionCatalog(){
+ if(localVisionEnabled && databaseEnabled())return readPopdVisionCatalog();
+ const products=recognitionProducts();
+ return {products,images:buildCatalogImageCorpus(products,loadCatalogOverridesDb().updatedAt)};
+}
+function retryVisionWarmup(publishImage:ImagePublisher,delay=65000){
+ setTimeout(()=>void currentVisionCatalog().then(({images})=>warmCatalogVisualIndex(images,publishImage))
+  .catch(error=>{console.warn('[Visual index] Catalogue unavailable:',String(error?.message || error).slice(0,160));retryVisionWarmup(publishImage);}),delay).unref();
+}
 function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus>,publishImage:ImagePublisher){
  if(Date.now()<nextVisualIndexBuild)return;
  nextVisualIndexBuild=Date.now()+60000;
@@ -942,13 +952,13 @@ function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus
   const coverage=catalogVisualIndex.coverage(corpus);
   console.log('[Visual index]',JSON.stringify(coverage));
   // Retry only missing/unreadable catalogue rows; do not report ready until all are indexed.
-  if(!coverage.ready)setTimeout(()=>warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),publishImage),65000).unref();
+  if(!coverage.ready)retryVisionWarmup(publishImage);
  })
  .catch((error)=>{
    const reason=error instanceof RecognitionServiceError ? error.code : String(error?.message || 'index_unavailable').slice(0,120);
    console.warn('[Visual index] Incomplete:',reason);
    // Resume persisted batches after transient failures or provider rate limits.
-   setTimeout(()=>warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),publishImage),65000).unref();
+   retryVisionWarmup(publishImage);
  });
 }
 
@@ -4605,7 +4615,7 @@ async function saveBase64CustomerImageForWorker(
 }
 
 app.get('/api/ai/catalog-images/:id',async(req,res)=>{
-  const corpus=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
+  const {images:corpus}=await currentVisionCatalog();
   const image=corpus.find(row=>row.id===req.params.id);
   if(!image)return res.status(404).end();
   const buffer=await getCatalogImageBuffer(image.url,image.revision);
@@ -4617,7 +4627,7 @@ app.get('/api/ai/catalog-images/:id',async(req,res)=>{
 const recognitionJobs=new RecognitionJobs<any>();
 app.get('/api/ai/visual-index-status',async (_req,res)=>{
  await catalogVisualIndex.load();
- const corpus=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
+ const {images:corpus}=await currentVisionCatalog();
  res.json(catalogVisualIndex.coverage(corpus));
 });
 app.get('/api/ai/recognition-jobs/:id',(req,res)=>{
@@ -4634,7 +4644,7 @@ app.get('/api/ai/local-vision-status', async (_req,res)=>{
  if(!localVisionEnabled)return res.json({enabled:false});
  try{
   await catalogVisualIndex.load();
-  const images=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
+  const {images}=await currentVisionCatalog();
   return res.json({enabled:true,model:localProfile.model,pipeline:localProfile.pipeline,namespace:VISUAL_INDEX_NAMESPACE,persistence:databaseEnabled()?'postgres':'file',...catalogVisualIndex.coverage(images),ready:images.length>0 && catalogVisualIndex.coverage(images).ready});
  }catch{return res.status(503).json({enabled:true,ready:false});}
 });
@@ -4659,8 +4669,7 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
     const uploaded=await resolveCustomerImageBufferAndInfo(normalizedInput.imageUrl,req);
     const imageFingerprint=crypto.createHash('sha256').update(uploaded.buffer).digest('hex');
     refreshRecognitionCatalog();
-    const products=recognitionProducts();
-    const images=buildCatalogImageCorpus(products,loadCatalogOverridesDb().updatedAt);
+    const {products,images}=await currentVisionCatalog();
     await catalogVisualIndex.load();
     const coverage=catalogVisualIndex.coverage(images);
     if(!images.length || !coverage.ready){
@@ -4669,7 +4678,7 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
     }
     const queryImage=await prepareLocalQuery(uploaded.buffer);
     const query=await describeLocalQuery(queryImage);
-    const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
+    const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,true);
     if(!retrieved)throw new Error('Index changed during region detection');
     const viewScores=bestBoundQueryViewScores(retrieved,products);
     const selectedRegion=selectBestQueryRegion(query.viewRegions,viewScores,query.region);
@@ -4720,8 +4729,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
 
       const imageFingerprint=crypto.createHash('sha256').update(uploaded.buffer).digest('hex');
       refreshRecognitionCatalog();
-      const products=recognitionProducts();
-      const images=buildCatalogImageCorpus(products,loadCatalogOverridesDb().updatedAt);
+      const {products,images}=await currentVisionCatalog();
       const publish=localImagePublisher;
       await catalogVisualIndex.load();
       const coverage=catalogVisualIndex.coverage(images);
@@ -4734,14 +4742,10 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const cachedDetection=typeof body.detectionId==='string'
         ? localVisionDetectionCache.get(body.detectionId,imageFingerprint,localProfile.model)
         : undefined;
-      const cachedRegionMatches=!body.region || Boolean(cachedDetection?.queryRegions.some(region=>
-        Math.abs(region.x-body.region.x)<0.002 && Math.abs(region.y-body.region.y)<0.002 &&
-        Math.abs(region.width-body.region.width)<0.002 && Math.abs(region.height-body.region.height)<0.002
-      ));
-      const query=cachedDetection && cachedRegionMatches
-        ? cachedDetection.query
-        : await describeLocalQuery(queryImage);
-      const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
+      const cachedQuery=cachedDetection && selectCachedLocalQuery(cachedDetection.query,body.region,body.fullImage===true);
+      const described=cachedQuery || await describeLocalQuery(queryImage);
+      const query=body.fullImage===true ? selectCachedLocalQuery(described,undefined,true) || described : described;
+      const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,true);
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
       const viewScores=bestBoundQueryViewScores(retrieved,products);
@@ -8133,7 +8137,7 @@ async function start() {
       ? 'SET'
       : 'MISSING - AI features will use offline fallback until GEMINI_API_KEY is set in .env';
     console.log(`Server running on http://localhost:${PORT}`);
-    if(localVisionEnabled && process.env.SANATPISH_DISABLE_LOCAL_VISION_WARMUP!=='1')warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),localImagePublisher);
+    if(localVisionEnabled && process.env.SANATPISH_DISABLE_LOCAL_VISION_WARMUP!=='1')retryVisionWarmup(localImagePublisher,0);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] FORZA Live provider: ${String(process.env.FORZA_REALTIME_PROVIDER || 'qwen').trim().toLowerCase() === 'qwen' ? 'Gisoo Qwen (default)' : 'Gemini (explicit override)'}`);
     console.log(`[Server] Gemini key: ${keyStatus}`);

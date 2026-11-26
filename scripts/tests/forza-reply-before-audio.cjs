@@ -33,6 +33,7 @@ function wav(){
    return r.fulfill({status:200,contentType:'text/event-stream',
     body:frames.map(v=>'data: '+JSON.stringify(v)+'\n\n').join('')});
   });
+  await page.route('**/api/ai/forza-call-provider',route=>route.fulfill({json:{provider:'legacy'}}));
   await page.route('**/api/ai/forza-voice-info',r=>r.fulfill({
    json:{textProvider:'avalai',textProviderRequested:'avalai',textProviderConfigured:true,textModel:'glm-5.3-flash',voice:'piper-nima-gyro-medium',incrementalSpeech:true,ready:true}
   }));

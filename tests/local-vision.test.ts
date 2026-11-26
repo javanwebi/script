@@ -173,6 +173,10 @@ test('opt-in nearest catalogue suggestions are unconfirmed, bounded and separate
  assert.ok(result.nearestCatalogSuggestions!.every(m=>m.matchBasis==='explore'&&m.visualScore===undefined&&m.code!=='inactive'));
  const strong=localVisionResult([hit([{familyCode:'family',verified:false}],0.9)],products,coverage,'/customer',0.65,undefined,true);
  assert.equal(strong.nearestCatalogSuggestions,undefined);
+ const tooWeak=localVisionResult([hit([{familyCode:'family',verified:false}],0.29)],products,coverage,'/customer',0.65,undefined,true);
+ assert.equal(tooWeak.nearestCatalogSuggestions,undefined);
+ const optOut=localVisionResult([low],products,coverage,'/customer',0.65,undefined,false);
+ assert.equal(optOut.nearestCatalogSuggestions,undefined);
 });
 
 test('the retained DINOv2 profile supports a full frame plus three independent region proposals',async()=>{

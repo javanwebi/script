@@ -13,6 +13,7 @@ const assert = require('node:assert/strict');
   let page;
   try {
     page = await browser.newPage();
+   await page.route('**/api/ai/forza-call-provider',route=>route.fulfill({json:{provider:'legacy'}}));
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(() => {

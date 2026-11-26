@@ -124,7 +124,7 @@ const {chromium}=require('playwright');
   assert.equal(queries.length,1,'catalog analysis must start automatically after image detection');
   assert.match(queries[0].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
   assert.ok(queries[0].region||queries[0].fullImage,'automatic analysis must use a detected region or the safe full-image fallback');
-  assert.equal(queries[0].includeNearest,false);
+  assert.equal(queries[0].includeNearest,true);
   assert.equal(uploads,0,'customer image must remain in the browser-local vault');
   assert.equal(await page.locator('.sanat-region-picker__search').count(),0,'manual crop-confirm action must be removed');
   assert.equal(await page.locator('.sanat-region-picker__full-image').count(),0,'manual full-image action must be removed');

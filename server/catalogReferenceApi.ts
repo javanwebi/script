@@ -779,6 +779,11 @@ async function withSnapshot(
   }
 }
 
+/** Reuse the same canonical product and exact SKU-image projection as the storefront. */
+export async function readReferenceVisionProducts(): Promise<Product[]> {
+  return (await getSnapshot()).products;
+}
+
 export function registerCatalogReferenceApi(app: Express): void {
   app.get('/api/catalog/reference/status', async (_req: Request, res: Response) => {
     await withSnapshot(res, (snapshot) => ({
