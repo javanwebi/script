@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { goBackOrFallback } from '../utils/navigateBackOrFallback';
 
 const AiForzaCallExperience = lazy(() =>
-  import('../components/forza/AiForzaCallExperience').then(module => ({
-    default: module.AiForzaCallExperience,
+  import('../components/forza/ForzaQwenCallExperience').then(module => ({
+    default: module.ForzaQwenCallExperience,
   })),
 );
 
