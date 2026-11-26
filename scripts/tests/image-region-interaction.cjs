@@ -32,7 +32,7 @@ const {chromium}=require('playwright');
    await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/index.html`);
    await page.getByTestId('image-region-selector').waitFor();const image=page.getByAltText('عکس ارسالی؛ ناحیه قطعه را انتخاب کنید');await image.waitFor({state:'visible'});
    await page.waitForFunction(expected=>document.querySelector('img')?.naturalWidth===expected,mobile?500:1000);
-   const frame=page.locator('.sanat-region-picker__frame');const box=await frame.boundingBox();assert.ok(box,'region frame must be visible');const x=box.x+box.width*0.6,y=box.y+box.height*0.5;
+   const frame=page.locator('.sanat-region-picker__frame');const box=await frame.locator('img').boundingBox();assert.ok(box,'region frame must be visible');const x=box.x+box.width*0.6,y=box.y+box.height*0.5;
    if(mobile)await page.touchscreen.tap(x,y);else await page.mouse.click(x,y);
    await page.waitForFunction(()=>{const r=window.lastRegion;return !!r&&typeof r.x==='number'&&typeof r.width==='number';});await page.getByText('پیش‌نمایش برش').waitFor();
    await page.screenshot({path:path.join(os.tmpdir(),`sanat-region-${mobile?'touch':'desktop'}.png`)});
@@ -48,7 +48,7 @@ const {chromium}=require('playwright');
     assert.equal(await page.evaluate(()=>window.__searchCount),1);
    }
    if(!mobile){
-    const dragBox=await frame.boundingBox();await page.mouse.move(dragBox.x+dragBox.width*0.12,dragBox.y+dragBox.height*0.2);await page.mouse.down();await page.mouse.move(dragBox.x+dragBox.width*0.32,dragBox.y+dragBox.height*0.7,{steps:8});await page.mouse.up();
+    const dragBox=await frame.locator('img').boundingBox();await page.mouse.move(dragBox.x+dragBox.width*0.12,dragBox.y+dragBox.height*0.2);await page.mouse.down();await page.mouse.move(dragBox.x+dragBox.width*0.32,dragBox.y+dragBox.height*0.7,{steps:8});await page.mouse.up();
     r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.width-0.2)<0.01,JSON.stringify(r));assert.ok(Math.abs(r.height-0.5)<0.01,JSON.stringify(r));
     await page.getByRole('group',{name:'انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت'}).press('ArrowRight');assert.ok((await page.evaluate(()=>window.lastRegion)).x>r.x);
     const selectorFrame=page.getByRole('group',{name:'انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت'});
@@ -200,7 +200,7 @@ const {chromium}=require('playwright');
   // Automatic proposals can be corrected with a manual drag on mobile even
   // when autoSelect is enabled; the exact new crop must trigger a new search.
   const mobileFrame=page.locator('.sanat-region-picker--viewer .sanat-region-picker__frame');
-  const frameBox=await mobileFrame.boundingBox();assert.ok(frameBox);
+  const frameBox=await mobileFrame.locator('img').boundingBox();assert.ok(frameBox);
   const manualStart={x:frameBox.x+frameBox.width*.1,y:frameBox.y+frameBox.height*.45};
   const manualEnd={x:frameBox.x+frameBox.width*.32,y:frameBox.y+frameBox.height*.75};
   await page.mouse.move(manualStart.x,manualStart.y);
