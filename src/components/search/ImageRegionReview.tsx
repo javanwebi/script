@@ -325,7 +325,7 @@ export function ImageRegionReview({
         </header>
 
         <div className="kiki-image-workspace__stage">
-          <AutomaticImageCrop image={image} region={selectedRegion} status={status} />
+          <AutomaticImageCrop src={image} region={selectedRegion} status={status} />
         </div>
       </aside>
     </section>
