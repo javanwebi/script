@@ -16,6 +16,7 @@ function wav(){
  ]});
  try{
   const page=await browser.newPage();
+  await page.route('**/api/ai/forza-call-provider',r=>r.fulfill({json:{provider:'legacy'}}));
   const errors=[];
   let speechCalls=0;
   page.on('pageerror',error=>errors.push(error.message));
