@@ -32,6 +32,7 @@ function wav(seconds){
     window.__recognition.onresult({resultIndex:window.__results.length-1,results:window.__results});
    };
   });
+  await page.route('**/api/ai/forza-call-provider',r=>r.fulfill({json:{provider:'legacy'}}));
   await page.route('**/api/runtime',r=>r.fulfill({json:{success:true,database:true,products:[],values:{},versions:{}}}));
   await page.route('**/api/portal',r=>r.fulfill({json:{success:true,user:null}}));
   await page.route('**/huggingface.co/Dibachain/**',r=>r.abort());
