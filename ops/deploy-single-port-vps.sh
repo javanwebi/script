@@ -760,7 +760,7 @@ echo '===== SYNC PINNED POPD REFERENCE JSON INTO THE ACTIVE PRODUCTION DATABASE 
 # Use the exact DATABASE_URL, SSL settings and private credentials captured from
 # the currently serving app. This is a deploy-time import; runtime never calls POPD.
 docker run --rm --pull=never --network "$NETWORK" --workdir /app \
- --cpus=1 --memory=1g --memory-swap=1g --env-file "$ENV_FILE" \
+ --cpus=1 --memory=1g --memory-swap=1g --env-file "$ENV_FILE" -e NODE_ENV=production \
  "${MULTILINE_ENV_ARGS[@]}" "${MOUNTS[@]}" node:22-bookworm \
  node --import tsx scripts/sync-popd-reference-archives.mjs
 
