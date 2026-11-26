@@ -134,6 +134,7 @@ CANARY_NAME="sanatpish-unified-canary-$STAMP"
 BACKUP="/root/sanatpish-main-rollback-$STAMP"
 ENV_FILE="$(mktemp /tmp/sanatpish-camera-env.XXXXXXXX)"
 MULTILINE_ENV_FILE="$(mktemp /tmp/sanatpish-camera-env-args.XXXXXXXX)"
+ARCHIVE_ENV_ARGS_FILE="$(mktemp /tmp/sanatpish-popd-archive-env-args.XXXXXXXX)"
 CID=''
 CANARY_CID=''
 PROMOTING=0
@@ -177,7 +178,7 @@ cleanup(){
  if test -n "$STT_CONTEXT" && [[ "$STT_CONTEXT" == /tmp/sanatpish-forza-stt-context.* ]]; then
    rm -rf -- "$STT_CONTEXT"
  fi
- rm -f -- "$ENV_FILE" "$MULTILINE_ENV_FILE"
+ rm -f -- "$ENV_FILE" "$MULTILINE_ENV_FILE" "$ARCHIVE_ENV_ARGS_FILE"
  exit "$status"
 }
 trap cleanup EXIT
@@ -757,12 +758,31 @@ docker exec "$OLD" sh -c "test -d '$POPD_CATALOG_IMAGE_RELEASE_DIR'"
 echo "POPD_CATALOG_IMAGE_RELEASE_STAGED=$POPD_CATALOG_IMAGE_RELEASE_DIR"
 
 echo '===== SYNC PINNED POPD REFERENCE JSON INTO THE ACTIVE PRODUCTION DATABASE ====='
-# Use the exact DATABASE_URL, SSL settings and private credentials captured from
-# the currently serving app. This is a deploy-time import; runtime never calls POPD.
+# Pass only the live database connection settings, never AvalAI, SMS, vision,
+# session, or other application secrets into this one-off archive importer.
+docker inspect "$OLD" | python3 - "$ARCHIVE_ENV_ARGS_FILE" <<'PYARCHIVEENV'
+import json,sys
+env=json.load(sys.stdin)[0]["Config"].get("Env",[])
+allowed={"DATA_BACKEND","DATABASE_ENV","DATABASE_SCHEMA","DATABASE_URL","DATABASE_SSL","DATABASE_CA_CERT"}
+required=allowed-{"DATABASE_CA_CERT"}
+values={}
+for entry in env:
+ key,sep,_=entry.partition("=")
+ if sep and key in allowed:
+  values[key]=entry
+missing=required-set(values)
+if missing:
+ raise SystemExit("POPD_ARCHIVE_DATABASE_ENV_MISSING="+",".join(sorted(missing)))
+with open(sys.argv[1],"wb") as output:
+ for key in sorted(values):
+  for arg in ("-e",values[key]):
+   output.write(arg.encode("utf-8")+b"\\0")
+PYARCHIVEENV
+mapfile -d '' ARCHIVE_ENV_ARGS < "$ARCHIVE_ENV_ARGS_FILE"
 docker run --rm --pull=never --network "$NETWORK" --workdir /app \
- --cpus=1 --memory=1g --memory-swap=1g --env-file "$ENV_FILE" -e NODE_ENV=production \
- "${MULTILINE_ENV_ARGS[@]}" "${MOUNTS[@]}" node:22-bookworm \
- node --import tsx scripts/sync-popd-reference-archives.mjs
+ --cpus=1 --memory=1g --memory-swap=1g -e NODE_ENV=production \
+ "${ARCHIVE_ENV_ARGS[@]}" --mount "type=bind,source=$STAGE,target=/app" \
+ node:22-bookworm node --import tsx scripts/sync-popd-reference-archives.mjs
 
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
