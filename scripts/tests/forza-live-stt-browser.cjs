@@ -167,11 +167,12 @@ function wav(){
         reply(socket,m.text.includes('مهندس جان')?'سلام مهندس جان':'پاسخ فنی آزمایشی');
       }
     });
-    socket.send(JSON.stringify({type:'connected',provider:'qwen',voice:'Ryan',voiceConfirmed:true}));
+    socket.send(JSON.stringify({type:'connected',provider:'qwen',voice:'Andre',voiceConfirmed:true}));
   });
   await qwenPage.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await qwenPage.getByText('فورزا گوش می‌دهد',{exact:true}).waitFor({timeout:25000});
   assert.match(turns[0],/مهندس جان/);
+  await qwenPage.getByText('گیسو · Qwen Realtime · Andre',{exact:false}).waitFor({timeout:4000});
   await qwenPage.waitForTimeout(500);
   assert.ok(micFrames>0,'native microphone frames reach the websocket after greeting');
   currentSocket.send(JSON.stringify({type:'speech_started'}));
