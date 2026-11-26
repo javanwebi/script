@@ -129,7 +129,9 @@ export function ImageRegionReview({
     : status === 'detecting'
       ? 'هوش مصنوعی در حال پیدا کردن قطعه در تصویر'
       : analysisBusy
-        ? 'در حال تطبیق برش خودکار با کاتالوگ صنعت پیش'
+        ? selectedRegion
+          ? 'در حال تطبیق برش خودکار با کاتالوگ صنعت پیش'
+          : 'در حال بررسی تصویر کامل با کاتالوگ صنعت پیش'
         : results.length
           ? 'برای مشاهده مشخصات، روی کارت محصول بزنید'
           : analysisComplete && !results.length
