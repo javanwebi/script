@@ -38,6 +38,7 @@ export function ImageRegionSelector({
  const frameRef=useRef<HTMLDivElement|null>(null);
  const imageRef=useRef<HTMLImageElement|null>(null);
  const interaction=useRef<Interaction|null>(null);
+ const suppressClickRef=useRef(false);
  const [draft,setDraft]=useState<ImageRegion>();
  const [aspect,setAspect]=useState(1);
  const [tapFeedback,setTapFeedback]=useState<{x:number;y:number;key:number}|null>(null);
@@ -46,7 +47,7 @@ export function ImageRegionSelector({
  const viewer=variant==='viewer';
 
  const point=(event:PointerEvent<HTMLElement>,bounds?:ImageBounds):ImagePoint=>{
-  const box=bounds || frameRef.current?.getBoundingClientRect() || imageRef.current?.getBoundingClientRect();
+  const box=bounds || imageRef.current?.getBoundingClientRect() || frameRef.current?.getBoundingClientRect();
   if(!box||!box.width||!box.height)return {x:0.5,y:0.5};
   return {
    x:Math.max(0,Math.min(1,(event.clientX-box.left)/box.width)),
@@ -56,7 +57,7 @@ export function ImageRegionSelector({
 
  const selectCandidateAtPoint=(event:MouseEvent<HTMLDivElement>)=>{
   if(!autoSelect||disabled)return;
-  const box=frameRef.current?.getBoundingClientRect();
+  const box=imageRef.current?.getBoundingClientRect() || frameRef.current?.getBoundingClientRect();
   if(!box||!box.width||!box.height)return;
   const p={x:Math.max(0,Math.min(1,(event.clientX-box.left)/box.width)),y:Math.max(0,Math.min(1,(event.clientY-box.top)/box.height))};
   const candidate=findImageRegionAtPoint(p,candidates);
@@ -88,8 +89,8 @@ export function ImageRegionSelector({
   event.stopPropagation();
   const frame=frameRef.current;
   if(!frame)return;
-  const frameBounds=frame.getBoundingClientRect();
-  const bounds={left:frameBounds.left,top:frameBounds.top,width:frameBounds.width,height:frameBounds.height};
+  const imageBounds=(imageRef.current || frame).getBoundingClientRect();
+  const bounds={left:imageBounds.left,top:imageBounds.top,width:imageBounds.width,height:imageBounds.height};
   interaction.current={mode:'resize',start:point(event,bounds),clientX:event.clientX,clientY:event.clientY,bounds,origin:{...value},handle};
   frame.setPointerCapture(event.pointerId);
  };
@@ -101,6 +102,7 @@ export function ImageRegionSelector({
   if(disabled){setDraft(undefined);return;}
   const p=point(event,state.bounds);
   const moved=Math.hypot(event.clientX-state.clientX,event.clientY-state.clientY);
+  suppressClickRef.current=moved>8;
   const next=makeDraft(state,p);
   if(state.mode==='draw'&&moved<=8){
    setTapFeedback({x:p.x*100,y:p.y*100,key:Date.now()});
@@ -145,12 +147,16 @@ export function ImageRegionSelector({
      tabIndex={disabled?-1:0}
      className="sanat-region-picker__frame"
      dir="ltr"
-     aria-label={autoSelect?'برای انتخاب قطعه دیگر، روی کادر شناسایی‌شده بزنید':'انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت'}
-     onClick={selectCandidateAtPoint}
+     aria-label={autoSelect?'برای انتخاب کادر قطعه لمس کنید یا برای برش دستی روی تصویر بکشید':'انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت'}
+     onClick={event=>{
+      if(suppressClickRef.current){suppressClickRef.current=false;return;}
+      selectCandidateAtPoint(event);
+     }}
      onPointerDown={event=>{
-      if(autoSelect||disabled||event.button!==0||!event.isPrimary)return;
-      const frameBounds=event.currentTarget.getBoundingClientRect();
-      const bounds={left:frameBounds.left,top:frameBounds.top,width:frameBounds.width,height:frameBounds.height};
+      if(disabled||event.button!==0||!event.isPrimary)return;
+      suppressClickRef.current=false;
+      const imageBounds=(imageRef.current || event.currentTarget).getBoundingClientRect();
+      const bounds={left:imageBounds.left,top:imageBounds.top,width:imageBounds.width,height:imageBounds.height};
       const p=point(event,bounds);
       const inside=Boolean(value&&p.x>=value.x&&p.x<=value.x+value.width&&p.y>=value.y&&p.y<=value.y+value.height);
       interaction.current={mode:inside?'move':'draw',start:p,clientX:event.clientX,clientY:event.clientY,bounds,origin:inside&&value?{...value}:undefined};
@@ -166,12 +172,10 @@ export function ImageRegionSelector({
      onLostPointerCapture={()=>{interaction.current=null;setDraft(undefined);}}
      onKeyDown={event=>{
       if(disabled)return;
-      if(autoSelect){
-       if(event.key==='Enter'||event.key===' '){
-        event.preventDefault();
-        const next=candidates.find(region=>!sameRegion(region,value))||candidates[0];
-        if(next)onChange(next);
-       }
+      if(autoSelect&&(event.key==='Enter'||event.key===' ')){
+       event.preventDefault();
+       const next=candidates.find(region=>!sameRegion(region,value))||candidates[0];
+       if(next)onChange(next);
        return;
       }
       if(event.key==='Escape'){onChange(undefined);return;}
@@ -215,7 +219,7 @@ export function ImageRegionSelector({
       <i className="fv-lens-corner fv-lens-corner--bl"/>
       <i className="fv-lens-corner fv-lens-corner--br"/>
      </div>}
-     {!autoSelect&&value&&!disabled&&<div className="sanat-region-picker__handles" style={selectedStyle}>
+     {value&&!disabled&&<div className="sanat-region-picker__handles" style={selectedStyle}>
       {(['nw','ne','sw','se'] as ResizeHandle[]).map(handle=><button
        key={handle}
        type="button"
