@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   buildGisooQwenSessionUpdate,
   mapGisooQwenEvent,
@@ -68,4 +69,27 @@ test('Qwen response completion maps to FORZA turn_complete', () => {
     mapGisooQwenEvent({ type: 'response.done' }, 'r-4'),
     [{ type: 'turn_complete', responseId: 'r-4' }],
   );
+});
+
+
+test('Qwen late completion keeps the provider response identity', () => {
+  assert.deepEqual(mapGisooQwenEvent({ type: 'response.done', response: { id: 'old' } }, 'new'), [
+    { type: 'turn_complete', responseId: 'old' },
+  ]);
+  assert.deepEqual(mapGisooQwenEvent({ type: 'response.output_audio.delta', response_id: 'old', delta: 'AQID' }, 'new'), [
+    { type: 'audio_chunk', responseId: 'old', data: 'AQID', mimeType: 'audio/pcm;rate=24000' },
+  ]);
+});
+
+test('Qwen invalid VAD duration uses a finite default', () => {
+  assert.equal(buildGisooQwenSessionUpdate('فارسی', NaN).session.audio.input.turn_detection.silence_duration_ms, 1100);
+});
+
+test('Face-to-face page actually mounts the native Gisoo client without the old speech endpoints', () => {
+  const page=readFileSync('src/pages/AiForzaPage.tsx','utf8');
+  const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+  assert.match(page,/import\('\.\.\/components\/forza\/ForzaQwenCallExperience'\)/);
+  assert.match(client,/\/api\/live\?provider=qwen/);
+  assert.match(client,/type:'realtime_audio'/);
+  assert.doesNotMatch(client,/\/api\/ai\/(?:stt|forza-speech|consult-stream|forza-live)/);
 });
