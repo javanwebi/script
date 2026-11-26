@@ -1,9 +1,8 @@
 import {LocalModelResults} from './LocalModelResults';
 import {CatalogResultImage} from './CatalogResultImage';
+import {AutomaticImageCrop} from './AutomaticImageCrop';
 import { loadVisionRecentSearches, recordVisionRecentSearch, type VisionRecentSearchItem } from './visionRecentHistory';
 import {apiUrl} from '../../config/apiConfig';
-import { preloadClientAiSegmentation, segmentImageWithClientAi, type ClientAiSegmentationResult } from '../../utils/clientAiSegmentation';
-import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState, type VisionWorkspaceResult} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
 import { buildVisionConsultationPrompt } from '../../utils/visionConsultationPrompt';
@@ -135,7 +134,7 @@ interface AnalysisPhase {
 }
 
 const ANALYSIS_PHASES: AnalysisPhase[] = [
-  {title:"آماده‌سازی برش تأییدشده",en:"APPROVED CROP",icon:Scan,tag:"برش قطعه",detail:"استفاده از همان ناحیه‌ای که مشتری تأیید کرده است"},
+  {title:"تشخیص و برش خودکار قطعه",en:"AUTO-DETECTED CROP",icon:Scan,tag:"برش خودکار",detail:"استفاده از ناحیه‌ای که موتور تشخیص با کاتالوگ تطبیق داده است"},
   {title:"استخراج ویژگی‌های ظاهری",en:"VISIBLE FEATURES",icon:Ruler,tag:"ویژگی‌های ظاهری",detail:"بررسی شکل، نشانه‌ها و نوشته‌های قابل مشاهده"},
   {title:"ساخت توصیف تصویری",en:"VISUAL EMBEDDING",icon:Cpu,tag:"تحلیل تصویر",detail:"استخراج بردار تصویری از موتور محلی"},
   {title:"مقایسه با کاتالوگ واقعی",en:"CATALOGUE RETRIEVAL",icon:Layers,tag:"مقایسه کاتالوگ",detail:"مقایسه با تصاویر خانواده‌ها و مدل‌های ثبت‌شده"},
@@ -160,17 +159,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Form states
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [queryRegion,setQueryRegion]=useState<ImageRegion>();
-  const [candidateRegions,setCandidateRegions]=useState<ImageRegion[]>([]);
   const [regionDetectionState,setRegionDetectionState]=useState<RegionPreparationState>('uploading');
   const [regionDetectionMessage,setRegionDetectionMessage]=useState('');
   const [regionDetectionId,setRegionDetectionId]=useState<string|null>(null);
   const [fullImageSelected,setFullImageSelected]=useState(false);
   const regionDetectionSequenceRef=useRef(0);
   const autoAnalysisKeyRef=useRef<string|null>(null);
-  const localSegmentationRef=useRef<{source:string;result:ClientAiSegmentationResult;region:ImageRegion}|null>(null);
-  React.useEffect(() => {
-    if (isOpen) void preloadClientAiSegmentation();
-  }, [isOpen]);
   const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
@@ -185,7 +179,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{if(!isOpen){regionDetectionSequenceRef.current++;localSegmentationRef.current=null;analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
+  React.useEffect(()=>{if(!isOpen){regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
   React.useEffect(() => {
     if (!isOpen) {
       customRequestSequenceRef.current++;
@@ -264,8 +258,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [analysisResult, setAnalysisResult] =
     useState<AiPartAnalysisResult | null>(null);
   const [selectedProductId,setSelectedProductId]=useState<string>();
-  const [regionSelectionVersion,setRegionSelectionVersion]=useState(0);
-  React.useEffect(()=>{localSegmentationRef.current=null;autoAnalysisKeyRef.current=null;setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);setSelectedProductId(undefined);setInlineAnalysisBusy(false);setAnalysisResult(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
+  React.useEffect(()=>{autoAnalysisKeyRef.current=null;setQueryRegion(undefined);setRegionDetectionId(null);setFullImageSelected(false);setSelectedProductId(undefined);setInlineAnalysisBusy(false);setAnalysisResult(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
   const [customRequestDraft, setCustomRequestDraft] = useState<ManufacturingRequestDraft | null>(null);
   const [customRequestOpen, setCustomRequestOpen] = useState(false);
   const [isPreparingCustomRequest, setIsPreparingCustomRequest] = useState(false);
@@ -386,61 +379,33 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setRegionDetectionState('detecting');
     setRegionDetectionMessage('');
     setRegionDetectionId(null);
-
-    let localSucceeded = false;
-    let serverCommitted = false;
-
-    // Local model and server fallback are both real; a warm model can return
-    // first without waiting for the server's detection round-trip.
-    const localDetection = segmentImageWithClientAi(imageUrl).then(segmented => {
-      if (sequence !== regionDetectionSequenceRef.current || serverCommitted || !segmented) return false;
-      const detectedRegions = segmented.regions;
-      const region = detectedRegions[0];
-      if (!region) return false;
-      localSucceeded = true;
-      localSegmentationRef.current = { source: imageUrl, result: segmented, region };
-      setRegionDetectionId(null);
-      setQueryRegion(region);
-      setCandidateRegions(detectedRegions.length ? detectedRegions : [region]);
-      setFullImageSelected(false);
-      setRegionDetectionState('ready');
-      setLocalRegionEnabled(true);
-      setRegionDetectionMessage(detectedRegions.length > 1
-        ? 'چند قطعه به‌صورت خودکار پیدا شد؛ برای بررسی قطعه دیگر روی کادر آن بزنید.'
-        : 'ناحیه اصلی قطعه به‌صورت خودکار مشخص شد؛ جست‌وجوی کاتالوگ آغاز می‌شود.');
-      return true;
-    }).catch(() => false);
-
-    const fastLocal = await Promise.race([
-      localDetection,
-      new Promise<boolean>(resolve => setTimeout(() => resolve(false), 180)),
-    ]);
-    if (fastLocal || localSucceeded || sequence !== regionDetectionSequenceRef.current) return;
+    setQueryRegion(undefined);
+    setFullImageSelected(false);
 
     try {
+      // The server compares automatic object proposals against the real catalog
+      // and returns the crop with the strongest catalog-backed visual evidence.
+      // Browser saliency masks are not authoritative object detectors and can
+      // mistake the background for the part, so they are not used as the crop.
       const detection = await aiVisualSearchService.detectImageRegions(imageUrl);
-      if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
-      serverCommitted = Boolean(detection.queryRegion || detection.queryRegions?.length);
-      const detectedRegions=detection.queryRegions||[];
-      const primaryRegion=detection.queryRegion||detectedRegions[0];
+      if (sequence !== regionDetectionSequenceRef.current) return;
+
+      const primaryRegion = detection.queryRegion;
       setRegionDetectionId(detection.detectionId);
       setQueryRegion(primaryRegion);
-      setCandidateRegions(detectedRegions.length?detectedRegions:(primaryRegion?[primaryRegion]:[]));
       setFullImageSelected(!primaryRegion);
       setRegionDetectionState('ready');
       setLocalRegionEnabled(true);
-      if (!primaryRegion) setRegionDetectionMessage('مرز قطعه با اطمینان کافی تشخیص داده نشد؛ جست‌وجوی خودکار تصویر کامل انجام می‌شود.');
+      setRegionDetectionMessage(primaryRegion
+        ? 'قطعه با مقایسه خودکار برش‌های تصویر و کاتالوگ پیدا شد؛ همان برش برای جست‌وجو استفاده می‌شود.'
+        : 'مرز قطعه با اطمینان کافی تأیید نشد؛ جست‌وجوی خودکار روی تصویر کامل انجام می‌شود.');
     } catch (error: any) {
-      if (sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
-      if (await localDetection || sequence !== regionDetectionSequenceRef.current || localSucceeded) return;
-      serverCommitted = true;
+      if (sequence !== regionDetectionSequenceRef.current) return;
       setRegionDetectionId(null);
       setQueryRegion(undefined);
-      setCandidateRegions([]);
       setFullImageSelected(true);
       setRegionDetectionState('fallback');
-      setLocalRegionEnabled(true);
-      setRegionDetectionMessage('تشخیص ناحیه در دسترس نبود؛ جست‌وجوی خودکار روی تصویر کامل انجام می‌شود.');
+      setRegionDetectionMessage(friendlyVisionError(error) + ' جست‌وجو بدون برش دستی روی تصویر کامل ادامه پیدا می‌کند.');
     }
   };
 
@@ -459,17 +424,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setFullImageSelected(true);
       setRegionDetectionMessage(friendlyVisionError(error));
     }
-  };
-
-  const handleRegionSelection = (region: ImageRegion | undefined) => {
-    autoAnalysisKeyRef.current=null;
-    setRegionSelectionVersion(version=>version+1);
-    setQueryRegion(region);
-    setFullImageSelected(!region);
-    setSelectedProductId(undefined);
-    setAnalysisResult(null);
-    setErrorMessage('');
-    setCurrentStep(1);
   };
 
   // Upload once, detect object regions automatically, then start catalogue analysis without a crop-confirmation step.
@@ -716,19 +670,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         if (!localRecord) throw new Error("تصویر محلی پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.");
         if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
         imageBase64 = temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob);
-        const localSegmentation = localSegmentationRef.current;
-        if (localSegmentation && localSegmentation.source === temporaryImageDataUrl && requestRegion) {
-          const a = requestRegion;
-          const b = localSegmentation.region;
-          const intersectionWidth = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
-          const intersectionHeight = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-          const intersectionArea = intersectionWidth * intersectionHeight;
-          const smallerArea = Math.max(0.0001, Math.min(a.width * a.height, b.width * b.height));
-          if (intersectionArea / smallerArea >= 0.35) {
-            imageBase64 = localSegmentation.result.whiteBgDataUrl;
-            analysisMimeType = 'image/jpeg';
-          }
-        }
         if (currentUser && !activeImageEventId) {
           const metadata = await getCustomerDeviceImageMetadata(effectiveLocalImageId);
           if (!metadata) throw new Error("اطلاعات تصویر محلی پیدا نشد.");
@@ -752,7 +693,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (sequence !== analysisSequenceRef.current) return;
       if (localRegionEnabled || result.localVisionMetrics) {
         setLocalRegionEnabled(true); setQueryRegion(result.queryRegion || requestRegion);
-        if (!requestRegion) setCandidateRegions(result.queryRegions || []);
         setFullImageSelected(requestFullImage); setRegionDetectionState("ready");
       }
       if (activeImageEventId) {
@@ -802,13 +742,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   React.useEffect(()=>{
     if(!isOpen||currentStep!==1||!selectedImage||!temporaryImageDataUrl||!localImageId||isUploadingImage)return;
     if(regionDetectionState!=='ready'&&regionDetectionState!=='fallback')return;
-    const region=fullImageSelected?null:(queryRegion||candidateRegions[0]||null);
+    const region=fullImageSelected?null:(queryRegion||null);
     const regionKey=region?[region.x,region.y,region.width,region.height].map(value=>value.toFixed(4)).join(':'):'full-image';
     const key=localImageId+':'+regionKey;
     if(autoAnalysisKeyRef.current===key||inlineAnalysisBusy||analysisBusyRef.current)return;
     autoAnalysisKeyRef.current=key;
     void handleAnalyze('quick',region,localImageId,true);
-  },[isOpen,currentStep,selectedImage,temporaryImageDataUrl,localImageId,isUploadingImage,regionDetectionState,fullImageSelected,queryRegion,candidateRegions,inlineAnalysisBusy,regionSelectionVersion]);
+  },[isOpen,currentStep,selectedImage,temporaryImageDataUrl,localImageId,isUploadingImage,regionDetectionState,fullImageSelected,queryRegion,inlineAnalysisBusy]);
   
   const goToStep2 = () => {
     if(selectedImage && !analysisResult?.requiredMeasurements){setCurrentStep(1);return;}
@@ -1059,11 +999,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           image={selectedImage || ''}
           status={regionDetectionState}
           selectedRegion={queryRegion}
-          candidateRegions={candidateRegions}
           message={[!analysisResult ? regionDetectionMessage : '', localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
           analysisError={errorMessage}
           busy={isUploadingImage}
-          onRegionChange={handleRegionSelection}
           analysisBusy={inlineAnalysisBusy}
           progress={analysisProgress}
           compared={scanCounts?.compared}
@@ -1086,7 +1024,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           onRetryAnalysis={() => {
             setErrorMessage('');
             if(!localImageId&&selectedImage){void uploadAndPrepareImage(selectedImage,'camera-capture.jpg');return;}
-            const region=fullImageSelected?null:(queryRegion||candidateRegions[0]||null);
+            const region=fullImageSelected?null:(queryRegion||null);
             const key=localImageId+':'+(region?[region.x,region.y,region.width,region.height].map(value=>value.toFixed(4)).join(':'):'full-image');
             autoAnalysisKeyRef.current=key;
             void handleAnalyze('quick',region,localImageId||undefined,true);
@@ -1573,11 +1511,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
               >
                 <span data-testid="vision-journey" className="sr-only" aria-hidden="true" />
                 <div className="fv-catalog-sheet__layout" data-testid="forza-vision-two-panel-layout">
-                  <aside className="fv-catalog-sheet__lens" aria-label="تصویر و ناحیه انتخاب‌شده قطعه">
+                  <aside className="fv-catalog-sheet__lens" aria-label="تصویر و برش خودکار قطعه">
                     <div className="fv-kiki-optical-toolbar" data-testid="forza-vision-optical-toolbar">
                       <div className="fv-kiki-optical-toolbar__title">
                         <span>FORZA VISION · OPTICAL LENS</span>
-                        <strong>تصویر واقعی و ناحیه انتخاب‌شده</strong>
+                        <strong>تصویر واقعی و برش خودکار</strong>
                       </div>
                       <div className="fv-kiki-optical-toolbar__buttons">
                         <button type="button" onClick={() => { resetForm(); setCameraFlowActive(true); void startCamera(); }} aria-label="گرفتن تصویر جدید با دوربین">
@@ -1588,21 +1526,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                         </button>
                       </div>
                     </div>
-                {localRegionEnabled && selectedImage && <ImageRegionSelector
+                {selectedImage && <AutomaticImageCrop
                   src={selectedImage}
-                  value={queryRegion}
-                  candidateRegions={candidateRegions}
-                  onChange={handleRegionSelection}
-                  autoSelect
-                  variant="viewer"
+                  region={queryRegion}
+                  status={regionDetectionState}
+                  compact
                 />}
-                {!localRegionEnabled && selectedImage && (
-                  <div className="kiki-vision-image-evidence" data-testid="kiki-vision-image-evidence">
-                    <span className="kiki-vision-image-evidence__label">تصویر مبنای شناسایی</span>
-                    <img src={selectedImage} alt="تصویر واقعی قطعه انتخاب‌شده برای تطبیق با کاتالوگ" />
-                    <p>تصویر اصلی برای مقایسه نگهداری شده است؛ نتیجه‌های مشابه به‌تنهایی تأیید فنی محسوب نمی‌شوند.</p>
-                  </div>
-                )}
                   </aside>
                   <section className="fv-catalog-sheet__results" id="forza-vision-catalog-results" aria-label="نتایج واقعی شناسایی و تطبیق قطعه">
                 <header
