@@ -94,14 +94,16 @@ export function ImageRegionReview({
     setMobileSheetLevel('peek');
   }, [image]);
 
-  const onSheetPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const onSheetPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('.kiki-image-workspace__sheet-handle')) return;
     if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
     sheetWasDragged.current = false;
     sheetPointerStart.current = { pointerId: event.pointerId, y: event.clientY };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const onSheetPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const onSheetPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
     const start = sheetPointerStart.current;
     sheetPointerStart.current = null;
     if (!start || start.pointerId !== event.pointerId) return;
@@ -163,17 +165,22 @@ export function ImageRegionReview({
       data-testid="image-region-review"
       data-mobile-sheet-level={mobileSheetLevel}
     >
-      <section className="kiki-image-workspace__catalog" dir="rtl" aria-label="محصولات مشابه کاتالوگ" data-sheet-level={mobileSheetLevel}>
+      <section
+        className="kiki-image-workspace__catalog"
+        dir="rtl"
+        aria-label="محصولات مشابه کاتالوگ"
+        data-sheet-level={mobileSheetLevel}
+        onPointerDown={onSheetPointerDown}
+        onPointerUp={onSheetPointerUp}
+        onPointerCancel={() => { sheetPointerStart.current = null; }}
+        onLostPointerCapture={() => { sheetPointerStart.current = null; }}
+      >
         <button
           type="button"
           className="kiki-image-workspace__sheet-handle"
           aria-controls="kiki-image-workspace-catalog-body"
           aria-expanded={mobileSheetLevel !== 'peek'}
           aria-label={mobileSheetLevel === 'full' ? 'پایین کشیدن پنل پیشنهادها' : 'بالا کشیدن پنل پیشنهادها برای دیدن محصولات'}
-          onPointerDown={onSheetPointerDown}
-          onPointerUp={onSheetPointerUp}
-          onPointerCancel={() => { sheetPointerStart.current = null; }}
-          onLostPointerCapture={() => { sheetPointerStart.current = null; }}
           onClick={toggleMobileSheet}
         >
           <span className="kiki-image-workspace__sheet-grabber" aria-hidden="true" />
