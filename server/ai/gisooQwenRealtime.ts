@@ -133,7 +133,15 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     if(t==='response.done'){
       const response=id(e,active);
       if(response&&toolResponseIds.delete(response)){
-        if(response===active){active='';requested=false;}
+        if(response===active){
+          active='';
+          requested=false;
+          if(cancelled.has(response)&&pendingText&&!userSpeaking){
+            const nextText=pendingText;
+            pendingText='';
+            textTurn(nextText);
+          }
+        }
         log('tool_response_done',{responseId:response,status:e.response?.status||'unknown'});
         return;
       }
