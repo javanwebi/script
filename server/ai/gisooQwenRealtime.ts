@@ -5,7 +5,7 @@ const GISOO_REALTIME_URL =
   process.env.FORZA_QWEN_REALTIME_URL?.trim() ||
   'wss://ir.gisoo.pro/api/v1/realtime?model=qwen3.8-omni-flash-realtime';
 const GISOO_QWEN_MODEL = 'qwen3.8-omni-flash-realtime';
-const GISOO_QWEN_VOICE = 'Andre';
+const GISOO_QWEN_VOICE = 'Ryan';
 const MAX_CLIENT_FRAME_BYTES = 100_000;
 const MAX_CLIENT_BUFFERED_BYTES = 2_000_000;
 const MAX_UPSTREAM_BUFFERED_BYTES = 1_000_000;
@@ -33,7 +33,7 @@ export function buildGisooQwenSessionUpdate(instructions: string, silenceDuratio
     type: 'session.update',
     session: {
       output_modalities: ['audio'],
-      instructions,
+      instructions: instructions + '\nبا صدای مردانه پرانرژی، گرم و رسا به فارسی طبیعی صحبت کن؛ بدون اغراق، پاسخ کوتاه و حرفه‌ای بده. اطلاعات موجودی، قیمت یا تطبیق قطعه را بدون داده معتبر قطعی اعلام نکن.',
       audio: {
         input: {
           format: { type: 'audio/pcm', rate: 16000 },
@@ -243,7 +243,7 @@ export function connectGisooQwenRealtime(clientWs: WebSocket, instructions: stri
         if (typeof reportedVoice === 'string' && reportedVoice.trim() &&
             reportedVoice.trim().toLowerCase() !== GISOO_QWEN_VOICE.toLowerCase()) {
           console.warn('[FORZA QWEN] requested voice not accepted; reported=' + reportedVoice.slice(0, 80));
-          fail('گیسو صدای مردانه Andre را تأیید نکرد.');
+          fail('گیسو صدای مردانه Ryan را تأیید نکرد.');
           return;
         }
         console.info('[FORZA QWEN] requested voice=' + GISOO_QWEN_VOICE +
@@ -255,6 +255,8 @@ export function connectGisooQwenRealtime(clientWs: WebSocket, instructions: stri
           type: 'connected',
           model: GISOO_QWEN_MODEL,
           provider: 'qwen',
+          voice: GISOO_QWEN_VOICE,
+          voiceConfirmed: typeof reportedVoice === 'string' && reportedVoice.trim().toLowerCase() === GISOO_QWEN_VOICE.toLowerCase(),
           sampleRate: 24000,
           inputSampleRate: 16000,
         });
@@ -267,16 +269,23 @@ export function connectGisooQwenRealtime(clientWs: WebSocket, instructions: stri
       activeResponseId = String(event.response?.id || event.response_id ||
         `qwen-live-${Date.now()}-${++responseCounter}`);
       responseActive = true;
+      sendClient({ type: 'response_started', responseId: activeResponseId });
       return;
     }
 
     if (type === 'input_audio_buffer.speech_started') {
       // Gisoo's server_vad with interrupt_response=true cancels generation
       // upstream; stop already-buffered browser audio immediately.
+      sendClient({ type: 'speech_started' });
       if (responseActive && activeResponseId) {
         sendClient({ type: 'interrupted', responseId: activeResponseId });
         responseActive = false;
       }
+      return;
+    }
+
+    if (type === 'input_audio_buffer.speech_stopped') {
+      sendClient({ type: 'speech_stopped' });
       return;
     }
 
@@ -377,6 +386,15 @@ export function connectGisooQwenRealtime(clientWs: WebSocket, instructions: stri
           type: 'input_audio_buffer.append',
           audio: message.audio,
         });
+      }
+      return;
+    }
+
+    if (message.type === 'cancel') {
+      if (responseActive) {
+        sendUpstream({ type: 'response.cancel' });
+        if (activeResponseId) sendClient({ type: 'interrupted', responseId: activeResponseId });
+        responseActive = false;
       }
       return;
     }
