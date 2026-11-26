@@ -756,6 +756,14 @@ docker run --rm --network "$NETWORK" --workdir /app --cpus=1.5 --memory=3g --mem
 docker exec "$OLD" sh -c "test -d '$POPD_CATALOG_IMAGE_RELEASE_DIR'"
 echo "POPD_CATALOG_IMAGE_RELEASE_STAGED=$POPD_CATALOG_IMAGE_RELEASE_DIR"
 
+echo '===== SYNC PINNED POPD REFERENCE JSON INTO THE ACTIVE PRODUCTION DATABASE ====='
+# Use the exact DATABASE_URL, SSL settings and private credentials captured from
+# the currently serving app. This is a deploy-time import; runtime never calls POPD.
+docker run --rm --pull=never --network "$NETWORK" --workdir /app \
+ --cpus=1 --memory=1g --memory-swap=1g --env-file "$ENV_FILE" \
+ "${MULTILINE_ENV_ARGS[@]}" "${MOUNTS[@]}" node:22-bookworm \
+ node --import tsx scripts/sync-popd-reference-archives.mjs
+
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
