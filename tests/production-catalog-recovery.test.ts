@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {APPROVED_MENU_GROUPS} from '../src/data/approvedMenuFallback.ts';
+import {APPROVED_MENU_GROUPS} from '../src/data/popdApprovedMenu.ts';
 import {CATALOG_FAMILY_MENU_ASSIGNMENTS} from '../src/data/catalogMenuAssignmentsData.ts';
 
 test('additive production recovery seeds the exact POPD groups while preserving group presentation and commercial data',()=>{
@@ -14,7 +14,7 @@ test('additive production recovery seeds the exact POPD groups while preserving 
  assert.match(sql,/BEGIN;/);
  assert.match(sql,/COMMIT;/);
  assert.match(sql,/INSERT INTO public.catalog_categories/);
- assert.match(sql,/ON CONFLICT \(slug\) DO NOTHING/);
+ assert.match(sql,/ON CONFLICT \(slug\) DO UPDATE/);
  assert.match(sql,/industrial_megamenu_hierarchy_v2/);
  assert.match(sql,/Approved category bootstrap incomplete/);
   assert.match(sql,/Expected exactly 40 approved POPD categories/);
