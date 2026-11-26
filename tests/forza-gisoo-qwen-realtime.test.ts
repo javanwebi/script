@@ -7,7 +7,7 @@ import {
 } from '../server/ai/gisooQwenRealtime';
 
 test('Qwen session uses Gisoo direct-realtime PCM and server VAD contract', () => {
-  const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 1100);
+  const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Andre');
   assert.equal(update.type, 'session.update');
   assert.deepEqual(update.session.output_modalities, ['audio']);
   assert.deepEqual(update.session.audio.input.format, {
@@ -18,10 +18,10 @@ test('Qwen session uses Gisoo direct-realtime PCM and server VAD contract', () =
     type: 'audio/pcm',
     rate: 24000,
   });
-  assert.equal(update.session.audio.output.voice, 'Ryan');
-  assert.match(update.session.instructions, /پرانرژی/);
+  assert.equal(update.session.audio.output.voice, 'Andre');
+  assert.match(update.session.instructions, /مشاور فنی/);
   assert.equal(update.session.audio.input.turn_detection.type, 'server_vad');
-  assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 1100);
+  assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 500);
   assert.equal(update.session.audio.input.turn_detection.interrupt_response, true);
   assert.equal(update.session.reasoning.effort, 'none');
 });
@@ -93,3 +93,11 @@ test('Face-to-face page actually mounts the native Gisoo client without the old 
   assert.match(client,/type:'realtime_audio'/);
   assert.doesNotMatch(client,/\/api\/ai\/(?:stt|forza-speech|consult-stream|forza-live)/);
 });
+
+ test('Native capture and stable light are enabled for exhibition calls', () => {
+  const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+  const worklet=readFileSync('public/forza-runtime/qwen-mic-worklet.js','utf8');
+  assert.match(client,/new AudioWorkletNode/);
+  assert.match(client,/intensity=\{1\}/);
+  assert.match(worklet,/sampleRate \* 0\.02/);
+ });
