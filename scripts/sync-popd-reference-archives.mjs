@@ -65,7 +65,7 @@ export function validateE869Payload(payload) {
   const imageNumbers = new Set();
   for (const assignment of assignments) {
     const skuCode = String(assignment?.skuCode || '').trim();
-    const match = String(assignment?.url || '').match(/^\/storage\/products\/catalog\/e\(([1-9]\\d{0,3})\)\.png$/i);
+    const match = String(assignment?.url || '').match(/^\/storage\/products\/catalog\/e\(([1-9]\d{0,3})\)\.png$/i);
     const imageNumber = match ? Number(match[1]) : 0;
     if (
       assignment?.targetKind !== 'variant' ||
