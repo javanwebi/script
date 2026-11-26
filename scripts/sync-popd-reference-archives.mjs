@@ -124,7 +124,7 @@ async function verifyProductionTarget(client) {
       (select count(*)::int from public.catalog_families where is_active = true) as active_families,
       (select count(*)::int from public.catalog_variants where active = true) as active_skus,
       (select count(*)::int from public.catalog_categories where is_active = true and slug ~ '^excel-v2-[0-9]+-[0-9]+$' and metadata->>'source' = 'industrial_megamenu_hierarchy_v2') as approved_categories,
-      (select count(*)::int from public.catalog_navigation_groups where is_active = true) as active_groups,
+      (select count(*)::int from public.catalog_navigation_groups where is_active = true and id ~ '^excel-v2-[0-9]+$') as active_groups,
       (select count(distinct mapped.category_slug)::int from public.catalog_navigation_groups g cross join lateral unnest(g.category_slugs) as mapped(category_slug) where g.is_active = true and g.id ~ '^excel-v2-[0-9]+$') as grouped_categories
   `);
   const row = result.rows[0];
