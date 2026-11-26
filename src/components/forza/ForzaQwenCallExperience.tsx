@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Eye, Mic, MicOff, PhoneOff, RotateCcw, Send, Square, Volume2, VolumeX, MessageSquare } from 'lucide-react';
 import { getForzaAudioContext } from '../../utils/forzaAudioUnlock';
 import { resampleDibaPcm } from '../../utils/forzaLocalSpeech';
@@ -34,7 +34,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const [clean,setClean]=useState(false);
 
   const stopPlayback=useCallback((s:Session)=>{
-    if(s.id)s.ignored.add(s.id);
+    if(s.id){s.ignored.add(s.id);if(s.ignored.size>64){const first=s.ignored.values().next().value;if(first)s.ignored.delete(first);}}
     for(const source of s.sources){source.onended=null;try{source.stop();source.disconnect();}catch{}}
     s.sources.clear();s.next=0;s.done=true;setLevel(0);
   },[]);
@@ -45,7 +45,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
     if(s.ws){s.ws.onopen=null;s.ws.onmessage=null;s.ws.onerror=null;s.ws.onclose=null;try{s.ws.close();}catch{}}
     if(s.node)s.node.onaudioprocess=null;
     for(const node of [s.node,s.mic,s.sink,s.output,s.analyser])try{node?.disconnect();}catch{}
-    s.stream?.getTracks().forEach(t=>t.stop());
+    s.stream?.getTracks().forEach(t=>{t.onended=null;t.stop();});
   },[stopPlayback]);
   const send=useCallback((s:Session,message:object)=>{
     if(session.current!==s||!s.ready||s.ws?.readyState!==WebSocket.OPEN)return false;
@@ -53,6 +53,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   },[]);
   const submit=useCallback((value:string)=>{
     const s=session.current;if(!s?.ready||!value.trim())return false;
+    if(!s.greeted)return false;
     stopPlayback(s);setUser(value);setAssistant('');setPhase('thinking');
     return send(s,{type:'text',text:value});
   },[send,stopPlayback]);
@@ -62,12 +63,16 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
     const fail=(message:string)=>{if(session.current!==s)return;dispose();setPhase('disconnected');setError(message);};
     try{
       const ctx=getForzaAudioContext();if(!ctx)throw new Error('مرورگر از صدای زنده پشتیبانی نمی‌کند.');
-      s.ctx=ctx;await ctx.resume();
+      s.ctx=ctx;
+      let resumeTimer:number|undefined;
+      try { await Promise.race([ctx.resume(),new Promise<never>((_,reject)=>{resumeTimer=window.setTimeout(()=>reject(new Error('برای فعال‌کردن صدا روی اتصال مجدد بزنید.')),1500);})]); }
+      finally { if(resumeTimer!==undefined)window.clearTimeout(resumeTimer); }
       if(session.current!==s)return;
       if(ctx.state!=='running')throw new Error('برای فعال‌کردن صدا روی اتصال مجدد بزنید.');
       const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
       if(session.current!==s){stream.getTracks().forEach(t=>t.stop());return;}
       s.stream=stream;
+      for(const track of stream.getAudioTracks())track.onended=()=>fail('میکروفون قطع شد؛ اتصال مجدد را بزنید.');
       s.output=ctx.createGain();s.output.gain.value=speakerMuted.current?0:1;
       s.analyser=ctx.createAnalyser();s.analyser.fftSize=256;
       s.output.connect(s.analyser);s.analyser.connect(ctx.destination);
@@ -97,9 +102,9 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           if(m.provider!=='qwen'){fail('سرور هنوز روی Qwen تنظیم نشده است.');return;}
           if(s.ready)return;s.ready=true;setConfirmed(m.voiceConfirmed===true);setPhase('thinking');
           const greeting=greeted.current?'فقط بگو: من آماده‌ام مهندس جان، بفرمایید.':'فقط با لحن گرم و پرانرژی بگو: سلام مهندس جان، به صنعت پیش خوش آمدید. من فورزا هستم، بفرمایید.';
-          s.greeted=true;send(s,{type:'text',text:greeting});return;
+          send(s,{type:'text',text:greeting});return;
         }
-        if(m.type==='speech_started'){stopPlayback(s);setPhase('listening');return;}
+        if(m.type==='speech_started'){stopPlayback(s);setUser('');setPhase('listening');return;}
         if(m.type==='speech_stopped'){setPhase('thinking');return;}
         if(m.type==='interrupted'){if(m.responseId)s.ignored.add(m.responseId);if(!m.responseId||m.responseId===s.id){stopPlayback(s);setPhase('listening');}return;}
         if(m.type==='user_transcript'){if(typeof m.text==='string')setUser(m.text);return;}
@@ -108,7 +113,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         if(id&&s.id&&id!==s.id)return;
         if(m.type==='ai_text_chunk'){setAssistant(prev=>prev+String(m.text||''));return;}
         if(m.type==='ai_transcript'){setAssistant(String(m.text||''));return;}
-        if(m.type==='turn_complete'){s.done=true;if(!s.sources.size){setPhase('listening');greeted.current=true;}return;}
+        if(m.type==='turn_complete'){s.done=true;if(!s.sources.size){s.greeted=true;setPhase('listening');greeted.current=true;}return;}
         if(m.type!=='audio_chunk'||typeof m.data!=='string'||!s.output)return;
         try{
           const raw=atob(m.data), bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
@@ -116,8 +121,9 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           const buffer=ctx.createBuffer(1,bytes.length/2,24000), dest=buffer.getChannelData(0), view=new DataView(bytes.buffer);
           for(let i=0;i<dest.length;i++)dest[i]=view.getInt16(i*2,true)/32768;
           const source=ctx.createBufferSource();source.buffer=buffer;source.connect(s.output);
+          if(s.next-ctx.currentTime>12){fail('صف صوت طولانی شد؛ اتصال مجدد را بزنید.');return;}
           const at=Math.max(ctx.currentTime+0.025,s.next);s.next=at+buffer.duration;
-          s.sources.add(source);source.onended=()=>{s.sources.delete(source);source.disconnect();if(session.current===s&&!s.sources.size&&s.done){setPhase('listening');setLevel(0);greeted.current=true;}};
+          s.sources.add(source);source.onended=()=>{s.sources.delete(source);source.disconnect();if(session.current===s&&!s.sources.size&&s.done){s.greeted=true;setPhase('listening');setLevel(0);greeted.current=true;}};
           source.start(at);setPhase('speaking');
         }catch{fail('داده صوتی دریافتی گیسو قابل پخش نیست.');}
       };
@@ -125,7 +131,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   },[dispose,send,stopPlayback]);
 
   useEffect(()=>{void start();return dispose;},[start,dispose]);
-  const cancel=()=>{const s=session.current;if(s){stopPlayback(s);send(s,{type:'cancel'});setPhase('listening');}};
+  const cancel=()=>{const s=session.current;if(s?.ready){stopPlayback(s);s.greeted=true;greeted.current=true;send(s,{type:'cancel'});setPhase('listening');}};
   const toggleMic=()=>{micMuted.current=!micMuted.current;setMuted(micMuted.current);};
   const toggleSpeaker=()=>{speakerMuted.current=!speakerMuted.current;setSilent(speakerMuted.current);const out=session.current?.output;if(out)out.gain.value=speakerMuted.current?0:1;};
   const closeScan=()=>{scanVersion.current++;scanning.current=false;setShowScan(false);};
@@ -138,7 +144,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
     <button className="signal-toggle" onClick={()=>setClean(v=>!v)} aria-label="تغییر نمایش HUD"><span/><span/><span/><span/></button>
     <div dir="rtl" className="forza-conversation-panel absolute bottom-3 right-3 sm:bottom-20 sm:right-10 w-[calc(100%-1.5rem)] sm:w-[min(36vw,30rem)] max-h-[40dvh] sm:max-h-[55dvh] overflow-y-auto max-w-[34rem] z-30 flex flex-col gap-3 pointer-events-none">
       <div className="forza-status-dock self-end inline-flex flex-wrap items-center gap-2 px-4 py-2 rounded-full bg-black/90 border border-white/15 text-xs pointer-events-auto"><span className="font-semibold text-white">{labels[phase]}</span><button className={control} onClick={toggleMic} aria-label="میکروفون">{muted?<MicOff size={14}/>:<Mic size={14}/>}</button><button className={control} onClick={toggleSpeaker} aria-label="بلندگو">{silent?<VolumeX size={14}/>:<Volume2 size={14}/>}</button><button className={control} onClick={cancel} aria-label="قطع پاسخ"><Square size={13}/></button><button className={control} onClick={()=>setShowText(v=>!v)} aria-label="پیام متنی"><MessageSquare size={14}/></button><button className={control} onClick={()=>{dispose();setPhase('disconnected');}} aria-label="قطع اتصال"><PhoneOff size={14}/></button><button className={control} onClick={()=>void start()} aria-label="اتصال مجدد"><RotateCcw size={14}/></button></div>
-      <div className="forza-voice-meta self-end text-[10px] text-white/70">گیسو · Qwen Realtime · Ryan {confirmed?'':'(صدای درخواستی)'}</div>
+      <div className="forza-voice-meta self-end text-[10px] text-white/70">گیسو · Qwen Realtime · Ryan {confirmed?'(تأیید پارامتر)':'(صدای تأییدنشده)'}</div>
       {error&&<div role="alert" className="pointer-events-auto rounded-xl bg-red-950/90 border border-red-500/50 p-3 text-xs text-white">{error}<button className="block mt-2 underline" onClick={()=>void start()}>اتصال مجدد</button></div>}
       <button type="button" className="forza-image-scan-button pointer-events-auto self-end flex gap-3 items-center rounded-2xl border border-orange-400/60 bg-orange-950/90 px-5 py-3 text-white" onClick={()=>{scanning.current=true;scanVersion.current++;cancel();setShowScan(true);}}><Eye size={22} className="text-orange-400"/> اسکن تصویر قطعه</button>
       {showText&&<form className="pointer-events-auto flex gap-2 rounded-xl bg-black/90 p-2 text-white" onSubmit={e=>{e.preventDefault();if(submit(text)){setText('');setShowText(false);}}}><input className="flex-1 min-w-0 bg-transparent px-2 outline-none" value={text} onChange={e=>setText(e.target.value)} placeholder="سؤال فنی خود را تایپ کنید…"/><button type="submit" aria-label="ارسال"><Send size={16}/></button></form>}
