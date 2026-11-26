@@ -85,6 +85,7 @@ test('deployment imports the pinned archive into the active DB before starting t
   const syncBlock = deploy.slice(syncIndex - 600, canaryIndex);
   assert.match(syncBlock, /--network "\$NETWORK"/);
   assert.match(syncBlock, /--env-file "\$ENV_FILE"/);
+  assert.match(syncBlock, /-e NODE_ENV=production/);
   assert.match(syncBlock, /\$\{MOUNTS\[@\]\}/);
 });
 
