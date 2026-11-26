@@ -65,7 +65,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string):v
     if(t==='error'){
       const details=e.error&&typeof e.error==='object'?e.error as Event:{};
       const code=String(details.code||'unknown').slice(0,80),disposition=classifyGisooRealtimeError(code,ready);
-      const providerMessage=String(details.message||'').replace(/[\\r\\n]+/g,' ').slice(0,240);
+      const providerMessage=String(details.message||'').replace(/[\r\n]+/g,' ').slice(0,240);
       log('provider_error',{code,type:String(details.type||'').slice(0,80),message:providerMessage,param:String(details.param||'').slice(0,80),eventId:String(details.event_id||'').slice(0,80),ready,disposition});
       if(disposition==='ignore')return;
       if(disposition==='active_response'){requested=false;return;}
