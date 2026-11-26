@@ -194,7 +194,7 @@ export function ImageRegionSelector({
       onChange(r);
      }}
     >
-     <img ref={imageRef} src={src} alt={autoSelect?'تصویر قطعات شناسایی‌شده؛ برای انتخاب قطعه روی کادر آن بزنید':'عکس ارسالی؛ ناحیه قطعه را انتخاب کنید'} draggable={false}
+     <img ref={imageRef} src={src} alt={autoSelect?'تصویر قطعات شناسایی‌شده؛ کادر را لمس کنید یا دور قطعه بکشید':'عکس ارسالی؛ ناحیه قطعه را انتخاب کنید'} draggable={false}
       onLoad={event=>setAspect(event.currentTarget.naturalWidth/event.currentTarget.naturalHeight||1)}/>
      {candidates.map((region,index)=><div key={index} aria-hidden="true"
       className={'sanat-region-picker__candidate '+(sameRegion(value,region)?'is-selected':'')}
