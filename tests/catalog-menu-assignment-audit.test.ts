@@ -112,14 +112,14 @@ const haulingReviewCodes = [
   'FAM-35310','FAM-35743','FAM-33996','FAM-32247','FAM-32246','FAM-39114','FAM-40601',
 ];
 
-test('approved industrial menu retains exactly 67 technical leaf nodes',()=>{
+test('approved POPD industrial menu retains exactly 96 technical leaf nodes across 40 categories',()=>{
  const leafCount=APPROVED_MENU_CATEGORIES.reduce(
   (total,category)=>total+(category.children||[]).reduce(
    (subTotal,submenu)=>subTotal+(submenu.children||[]).length,0
   ),0
  );
- assert.equal(APPROVED_MENU_CATEGORIES.length,34);
- assert.equal(leafCount,67);
+ assert.equal(APPROVED_MENU_CATEGORIES.length,40);
+ assert.equal(leafCount,96);
 });
 
 test('every retained family assignment points to an approved category and valid named nodes',()=>{
@@ -190,14 +190,14 @@ test('the current family map has 1,286 retained rows and exposes incomplete assi
  assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.leafName).length,266);
 });
 
-test('21 approved menu leaves have no explicit family leaf mapping after this audit',()=>{
+test('50 approved POPD menu leaves have no explicit family leaf mapping after this audit',()=>{
  const leaves=APPROVED_MENU_CATEGORIES.flatMap(category=>(category.children||[]).flatMap(submenu=>
   (submenu.children||[]).map(leaf=>({categorySlug:category.slug,submenuName:submenu.name,leafName:leaf.name}))
  ));
  const empty=leaves.filter(leaf=>!Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).some(item=>
   item.categorySlug===leaf.categorySlug&&item.submenuName===leaf.submenuName&&item.leafName===leaf.leafName
  ));
- assert.equal(empty.length,21);
+ assert.equal(empty.length,50);
 });
 
 test('the resolver has no first-submenu or first-leaf defaulting rule',()=>{
