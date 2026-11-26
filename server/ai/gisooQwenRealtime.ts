@@ -8,7 +8,7 @@ const ADVICE="شما فورزا، مشاور ارشد مهندسی و تأمین
 type Event=Record<string,any>;
 export type GisooCatalogSearchHandler=(query:string,limit:number)=>Promise<unknown>|unknown;
 let activeSessions=0;
-function voice(){const v=String(process.env.FORZA_QWEN_VOICE||'Raymond').trim();return VOICES.has(v)?v:'Raymond';}
+function voice(){const configured=String(process.env.FORZA_QWEN_VOICE||'').trim();const v=!configured||configured.toLowerCase()==='andre'?'Raymond':configured;return VOICES.has(v)?v:'Raymond';}
 function bounded(n:number,fallback:number,min:number,max:number){return Number.isFinite(n)?Math.max(min,Math.min(max,Math.round(n))):fallback;}
 function decode(raw:RawData):Event{return JSON.parse((Buffer.isBuffer(raw)?raw:Array.isArray(raw)?Buffer.concat(raw):Buffer.from(raw as ArrayBuffer)).toString('utf8'));}
 function id(e:Event,fallback=''){return String(e.response_id||e.response?.id||fallback);}
