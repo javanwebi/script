@@ -138,5 +138,61 @@ function wav(){
   assert.equal(serverTranscriptions,0,'a usable interim transcript must bypass full-audio STT');
   assert.deepEqual(errors,[]);
   console.log('FORZA_LIVE_STT_BROWSER_PASS partial_appeared_ms='+partialMs+' two_second_pause_preserved=1 recognizer_restart_appended=1 transient_network_recovered=1 permissions_do_not_loop=1 fast_interim_turn_dispatch_ms='+dispatchMs+' server_stt_bypassed=1');
+
+  // Test the active Qwen route independently against a deterministic mock WebSocket.
+  const qwenPage=await browser.newPage({permissions:['microphone'],viewport:{width:1180,height:750}});
+  const qwenErrors=[], legacyRequests=[], turns=[];
+  let connectionCount=0, micFrames=0, currentSocket=null, responseNumber=0;
+  qwenPage.on('pageerror',e=>qwenErrors.push(e.message));
+  await qwenPage.route('**/api/runtime',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})}));
+  await qwenPage.route('**/api/portal',r=>r.fulfill({status:200,contentType:'application/json',body:'{"success":true,"user":null}'}));
+  await qwenPage.route('**/api/ai/forza-call-provider',r=>r.fulfill({status:200,contentType:'application/json',body:'{"provider":"qwen"}'}));
+  await qwenPage.route(/\/api\/ai\/(?:stt|forza-speech|consult-stream|forza-live)/,r=>{legacyRequests.push(r.request().url());return r.abort();});
+  function reply(socket,text){
+    const responseId='mock-'+(++responseNumber);
+    for(const frame of [
+      {type:'response_started',responseId},
+      {type:'ai_text_chunk',responseId,text},
+      {type:'audio_chunk',responseId,data:Buffer.alloc(9600).toString('base64')},
+      {type:'turn_complete',responseId},
+    ])socket.send(JSON.stringify(frame));
+  }
+  await qwenPage.routeWebSocket('**/api/live?provider=qwen',socket=>{
+    connectionCount++; currentSocket=socket;
+    socket.onMessage(raw=>{
+      const m=JSON.parse(String(raw));
+      if(m.type==='realtime_audio'){micFrames++;assert.ok(Buffer.from(m.audio,'base64').length>0);}
+      if(m.type==='text'){
+        turns.push(m.text);
+        reply(socket,m.text.includes('مهندس جان')?'سلام مهندس جان':'پاسخ فنی آزمایشی');
+      }
+    });
+    socket.send(JSON.stringify({type:'connected',provider:'qwen',voice:'Ryan',voiceConfirmed:true}));
+  });
+  await qwenPage.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
+  await qwenPage.getByText('فورزا گوش می‌دهد',{exact:true}).waitFor({timeout:25000});
+  assert.match(turns[0],/مهندس جان/);
+  await qwenPage.waitForTimeout(500);
+  assert.ok(micFrames>0,'native microphone frames reach the websocket after greeting');
+  currentSocket.send(JSON.stringify({type:'speech_started'}));
+  currentSocket.send(JSON.stringify({type:'user_transcript',text:'تسمه صنعتی',final:true}));
+  currentSocket.send(JSON.stringify({type:'speech_stopped'}));
+  reply(currentSocket,'پاسخ صوتی آزمایشی');
+  await qwenPage.getByText('پاسخ صوتی آزمایشی',{exact:true}).waitFor({timeout:4000});
+  await qwenPage.getByText('فورزا گوش می‌دهد',{exact:true}).waitFor({timeout:4000});
+  await qwenPage.getByRole('button',{name:'پیام متنی',exact:true}).click();
+  await qwenPage.getByPlaceholder('سؤال فنی خود را تایپ کنید…').fill('تسمه SPA');
+  await qwenPage.getByRole('button',{name:'ارسال',exact:true}).click();
+  await qwenPage.getByText('پاسخ فنی آزمایشی',{exact:true}).waitFor({timeout:4000});
+  assert.ok(turns.includes('تسمه SPA'));
+  await qwenPage.getByRole('button',{name:'قطع اتصال',exact:true}).click();
+  await qwenPage.getByText('اتصال قطع است',{exact:true}).waitFor({timeout:4000});
+  await qwenPage.getByRole('button',{name:'اتصال مجدد',exact:true}).click();
+  await qwenPage.getByText('فورزا گوش می‌دهد',{exact:true}).waitFor({timeout:25000});
+  assert.equal(connectionCount,2);
+  assert.deepEqual(legacyRequests,[]);
+  assert.deepEqual(qwenErrors,[]);
+  await qwenPage.close();
+  console.log('FORZA_NATIVE_QWEN_BROWSER_PASS mock_websocket=1 microphone_pcm=1 multi_turn=1 reconnect=1 legacy_http_requests=0');
  }finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_LIVE_STT_BROWSER_FAIL',e);process.exitCode=1;});
