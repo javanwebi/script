@@ -181,12 +181,12 @@ export const AllCategoriesPage: React.FC = () => {
     const loadExcelHierarchy = async () => {
       try {
         const [categoriesResponse, groupsResponse] = await Promise.all([
-          fetch('/api/catalog/categories', {
+          fetch('/api/catalog/reference/categories', {
             credentials: 'same-origin',
             cache: 'no-store',
             signal: controller.signal,
           }),
-          fetch('/api/catalog/navigation-groups', {
+          fetch('/api/catalog/reference/navigation-groups', {
             credentials: 'same-origin',
             cache: 'no-store',
             signal: controller.signal,

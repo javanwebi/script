@@ -12,7 +12,7 @@ const pulley = source('src/pages/PulleyCatalogPage.tsx');
 test('approved Excel taxonomy slugs continue to use the dedicated database-backed category route', () => {
   assert.ok(routes.includes("if (/^excel-v2-[0-9]+-[0-9]+$/.test(slug || ''))"));
   assert.match(routes, /return <ExcelMenuCategoryPage \/>/);
-  assert.match(page, /fetch\('\/api\/catalog\/menu-category\/' \+ encodeURIComponent\(slug\)/);
+  assert.match(page, /fetch\('\/api\/catalog\/reference\/menu-category\/' \+ encodeURIComponent\(slug\)/);
 });
 
 test('category detail API returns only the approved database taxonomy and active assigned families', () => {
@@ -25,11 +25,16 @@ test('category detail API returns only the approved database taxonomy and active
   assert.doesNotMatch(api.slice(api.indexOf("app.get('/api/catalog/menu-category/:slug'"), api.indexOf('// Admin-only taxonomy review')), /price_snapshot|retail_price|wholesale_price/);
 });
 
-test('approved category totals include direct SKUs without changing the approved Excel hierarchy', () => {
-  assert.match(api, /const \[result,familyRows,directSkuRows\]=await Promise\.all/);
-  assert.match(api, /from public\.catalog_direct_skus/);
-  assert.match(api, /const skuCount=familySkuCount\+directSkuCount/);
-  assert.match(page, /directSkus\.filter\(item => item\.categorySlug === slug\)\.length/);
+test('reference category totals exclude legacy duplicate direct rows and use only the POPD archive', () => {
+  const referenceApi = source('server/catalogReferenceApi.ts');
+  assert.doesNotMatch(referenceApi, /from public\.catalog_direct_skus/);
+  assert.match(referenceApi, /payload\.directSkus/);
+  assert.match(referenceApi, /directSkuAssignments = directSkus\.map/);
+  assert.match(referenceApi, /standaloneDirectSkuRows: directSkus\.length/);
+  assert.match(referenceApi, /directSkus: snapshot\.directSkus\.filter/);
+  assert.match(page, /const directSkus = data\?\.directSkus \|\| \[\]/);
+  assert.doesNotMatch(page, /useDirectSkus\(slug\)/);
+  assert.match(page, /\+ directSkus\.length/);
 });
 
 test('deployment validates belt family and direct SKU projections independently', () => {
@@ -51,6 +56,7 @@ test('deployment validates belt family and direct SKU projections independently'
 test('category detail reads real family records and never falls back to repository fixtures', () => {
   assert.match(page, /body\.success/);
   assert.match(page, /Array\.isArray\(body\.families\)/);
+  assert.match(page, /Array\.isArray\(body\.directSkus\)/);
   assert.match(page, /setData\(body\)/);
   assert.doesNotMatch(page, /APPROVED_MENU_CATEGORIES|USER_PRODUCTS_RAW|INITIAL_CATEGORIES/);
   assert.match(page, /status === 'error'/);
@@ -172,7 +178,8 @@ test('V-Belt category includes data-driven profile matrix, structure and top-wid
 
 
 test('family cards and direct SKU cards share one filtered, sorted and paginated subcategory collection', () => {
-  assert.match(page, /const directSkus = useDirectSkus\(slug\)/);
+  assert.match(page, /const directSkus = data\?\.directSkus \|\| \[\]/);
+  assert.doesNotMatch(page, /useDirectSkus\(slug\)/);
   assert.match(page, /const filteredCollectionItems = useMemo/);
   assert.match(page, /const pageItems = filteredCollectionItems\.slice/);
   assert.match(page, /pageItems\.map\(entry =>/);
@@ -224,7 +231,7 @@ test('brand facets are scoped to the selected subcategory across Excel, legacy c
   assert.match(pulley, /values\(brandScopeProducts\)/);
 });
 
-test('category pages request only their own direct SKU records while all-products and search retain the full index', () => {
+test('Excel category pages use only POPD direct SKUs while legacy all-products and search retain their direct-SKU index', () => {
   const directSkuHook = source('src/components/catalog/DirectSkuProducts.tsx');
   const belt = source('src/pages/BeltCategoryExperience.tsx');
   const category = source('src/pages/CategoryPage.tsx');
@@ -236,7 +243,8 @@ test('category pages request only their own direct SKU records while all-product
   assert.match(api, /const categoryPrefix=clean\(req\.query\.categoryPrefix,40\)/);
   assert.match(api, /category_slug=\$'\+params\.length/);
   assert.match(api, /category_slug like \$'\+params\.length/);
-  assert.match(page, /useDirectSkus\(slug\)/);
+  assert.match(page, /data\?\.directSkus/);
+  assert.doesNotMatch(page, /useDirectSkus\(slug\)/);
   assert.match(routes, /useDirectSkus\(category\.slug\)/);
   assert.match(routes, /useDirectSkus\(pulleySlug, 'excel-v2-4-'\)/);
   assert.match(belt, /useDirectSkus\(BELT_SLUG, 'excel-v2-1-'\)/);

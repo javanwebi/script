@@ -15,9 +15,9 @@ test('all categories remains the canonical route and keeps existing category rou
   assert.ok(layout.includes('"/categories"'));
 });
 
-test('category explorer reads approved navigation groups and category records from the database API only', () => {
-  assert.match(page, /fetch\('\/api\/catalog\/categories'/);
-  assert.match(page, /fetch\('\/api\/catalog\/navigation-groups'/);
+test('category explorer reads approved navigation groups and category records from the pinned POPD reference API only', () => {
+  assert.match(page, /fetch\('\/api\/catalog\/reference\/categories'/);
+  assert.match(page, /fetch\('\/api\/catalog\/reference\/navigation-groups'/);
   assert.match(page, /group\.categorySlugs\.map\(slug => indexed\.get\(slug\)\)/);
   assert.match(page, /group\.active !== false/);
   assert.match(page, /category\.active !== false/);

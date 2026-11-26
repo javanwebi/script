@@ -22,10 +22,9 @@ import {
   Truck,
   X,
 } from 'lucide-react';
-import { getAllProducts, subscribeCatalogChanges } from '../data/mockGenerator';
 import { ProductCard, resolveDisplayBrand } from '../components/product/ProductCard';
 import { ProductImage } from '../components/product/ProductImage';
-import { DirectSkuProductCard, directSkuMatchesSubcategory, toDirectSkuProduct, useDirectSkus, type DirectSku } from '../components/catalog/DirectSkuProducts';
+import { DirectSkuProductCard, directSkuMatchesSubcategory, toDirectSkuProduct, type DirectSku } from '../components/catalog/DirectSkuProducts';
 import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
 import type { Product } from '../types';
 import type { CategoryNode } from '../data/categories';
@@ -66,6 +65,8 @@ type MenuResponse = {
   success: boolean;
   category?: MenuCategory;
   families?: MenuFamily[];
+  products?: Product[];
+  directSkus?: DirectSku[];
   message?: string;
 };
 
@@ -688,12 +689,10 @@ const matchesBeltTopWidth = (product: Product | undefined, widthId: string): boo
 
 export const ExcelMenuCategoryPage: React.FC = () => {
   const { slug = '' } = useParams<{ slug: string }>();
-  const directSkus = useDirectSkus(slug);
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<MenuResponse | null>(null);
   const [status, setStatus] = useState<CatalogueStatus>('loading');
   const [retryCount, setRetryCount] = useState(0);
-  const [catalogRevision, refreshProducts] = useState(0);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const [compareCodes, setCompareCodes] = useState<string[]>([]);
@@ -731,8 +730,6 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const viewMode: ViewMode = searchParams.get('view') === 'list' ? 'list' : 'grid';
   const requestedPage = Math.max(1, Number(searchParams.get('page')) || 1);
 
-  useEffect(() => subscribeCatalogChanges(() => refreshProducts(value => value + 1)), []);
-
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
@@ -745,14 +742,14 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     setShowAllFacets(false);
     setMatrixExpanded(false);
 
-    fetch('/api/catalog/menu-category/' + encodeURIComponent(slug), {
+    fetch('/api/catalog/reference/menu-category/' + encodeURIComponent(slug), {
       credentials: 'same-origin',
       cache: 'no-store',
       signal: controller.signal,
     })
       .then(async response => {
         const body = await response.json() as MenuResponse;
-        if (!response.ok || !body.success || !body.category || !Array.isArray(body.families)) {
+        if (!response.ok || !body.success || !body.category || !Array.isArray(body.families) || !Array.isArray(body.products) || !Array.isArray(body.directSkus)) {
           throw new Error(body.message || 'catalog unavailable');
         }
         return body;
@@ -823,26 +820,36 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     };
   }, [mobileFiltersOpen, comparisonOpen]);
 
+  // Family cards and their technical details must come from the same pinned POPD
+  // reference response. Mixing POPD family assignments with SCRIPT's legacy runtime
+  // product cache caused valid families to render without a matching product card.
   const products = useMemo(() => {
-    const map = new Map<string, Product>(
-      getAllProducts().map(product => [product.code, product]),
-    );
-    map.forEach(product => {
+    const map = new Map<string, Product>();
+    (data?.products || []).forEach(product => {
+      const familyCode = String(product.code || '').trim();
+      if (familyCode) {
+        map.set(familyCode, product);
+        map.set(familyCode.toLowerCase(), product);
+      }
       (product.variants || []).forEach(variant => {
-        if (!variant.code) return;
-        if (!map.has(variant.code)) map.set(variant.code, product);
-        const famKey = `FAM-${variant.code}`;
+        const variantCode = String(variant.code || '').trim();
+        if (!variantCode) return;
+        if (!map.has(variantCode)) map.set(variantCode, product);
+        if (!map.has(variantCode.toLowerCase())) map.set(variantCode.toLowerCase(), product);
+        const famKey = `FAM-${variantCode}`;
         if (!map.has(famKey)) map.set(famKey, product);
+        if (!map.has(famKey.toLowerCase())) map.set(famKey.toLowerCase(), product);
       });
     });
     return map;
-  }, [data, status, catalogRevision]);
+  }, [data?.products]);
 
   const families = data?.families || [];
+  const directSkus = data?.directSkus || [];
   const category = data?.category;
   const isVBeltCategory = slug === 'excel-v2-1-2' || Boolean(category && /وی.?بلت|v-belt/i.test(category.name));
   const skuTotal = families.reduce((total, family) => total + Math.max(0, Number(family.skuCount) || 0), 0)
-    + directSkus.filter(item => item.categorySlug === slug).length;
+    + directSkus.length;
 
   const familyBrandLists = useMemo(() => {
     const map = new Map<string, string[]>();

@@ -193,14 +193,13 @@ console.log("===== POPD REFERENCE CATALOGUE CANARY =====");
 const referenceStatus = await json(candidate, "/api/catalog/reference/status");
 assert.equal(referenceStatus.sourcePath, "github/javanwebi/POPD/server/data/engineeredCatalog.json",
   "POPD_REFERENCE_ARCHIVE_SOURCE_MISMATCH");
-assert.ok(referenceStatus.familyCount >= 492, "POPD_REFERENCE_FAMILY_COUNT_BELOW_AUDITED_BASELINE");
-assert.ok(referenceStatus.skuCount >= 10308, "POPD_REFERENCE_SKU_COUNT_BELOW_AUDITED_BASELINE");
-assert.ok(referenceStatus.categoryCount >= 40, "POPD_REFERENCE_CATEGORY_COUNT_BELOW_AUDITED_BASELINE");
-assert.ok(referenceStatus.groupCount >= 14, "POPD_REFERENCE_GROUP_COUNT_BELOW_AUDITED_BASELINE");
-assert.ok(Number.isInteger(referenceStatus.quarantinedSkuCount) && referenceStatus.quarantinedSkuCount >= 0,
-  "POPD_REFERENCE_QUARANTINE_COUNT_INVALID");
-assert.ok(referenceStatus.rawDirectSkuCount >= 678, "POPD_REFERENCE_DIRECT_AUDIT_COUNT_BELOW_AUDITED_BASELINE");
-assert.equal(referenceStatus.standaloneDirectSkuRows, 0, "POPD_REFERENCE_DUPLICATE_DIRECT_SKU_ROWS");
+assert.equal(referenceStatus.familyCount, 492, "POPD_REFERENCE_FAMILY_COUNT_MISMATCH");
+assert.equal(referenceStatus.skuCount, 10308, "POPD_REFERENCE_SKU_COUNT_MISMATCH");
+assert.equal(referenceStatus.categoryCount, 40, "POPD_REFERENCE_CATEGORY_COUNT_MISMATCH");
+assert.equal(referenceStatus.groupCount, 14, "POPD_REFERENCE_GROUP_COUNT_MISMATCH");
+assert.equal(referenceStatus.quarantinedSkuCount, 127, "POPD_REFERENCE_QUARANTINE_COUNT_MISMATCH");
+assert.equal(referenceStatus.rawDirectSkuCount, 678, "POPD_REFERENCE_DIRECT_AUDIT_COUNT_MISMATCH");
+assert.equal(referenceStatus.standaloneDirectSkuRows, 0, "POPD_REFERENCE_STANDALONE_SKU_COUNT_MISMATCH");
 assert.ok(referenceStatus.verifiedFamilyImageCount >= 28, "POPD_REFERENCE_FAMILY_IMAGE_COUNT_BELOW_VERIFIED_BASELINE");
 assert.equal(referenceStatus.e869SourcePath, "github/javanwebi/POPD/deliverables/catalog-869-audit/e869_linked_catalog.json",
   "POPD_E869_IMAGE_SOURCE_MISMATCH");
@@ -232,6 +231,10 @@ assert.ok(referenceGroupPayload.success && Array.isArray(referenceGroups) &&
   "POPD_REFERENCE_GROUPS_INVALID");
 const referenceCategorySlugs = new Set(referenceCategories.map(category => category.slug));
 assert.equal(referenceCategorySlugs.size, referenceCategories.length, "POPD_REFERENCE_DUPLICATE_CATEGORY_SLUG");
+assert.deepEqual(
+  referenceCategories.filter(category => category.familyCount === 0 && category.skuCount === 0).map(category => category.slug),
+  ["excel-v2-2-2"],
+  "POPD_REFERENCE_UNEXPECTED_EMPTY_CATEGORY_SET");
 assert.ok(referenceCategories.every(category =>
   category.active === true &&
   typeof category.name === "string" && category.name.trim() &&
@@ -263,12 +266,14 @@ for (const category of referenceCategories) {
   const detail = await json(candidate,
     "/api/catalog/reference/menu-category/" + encodeURIComponent(category.slug));
   assert.ok(detail.success && detail.category?.slug === category.slug &&
-    Array.isArray(detail.families) && Array.isArray(detail.products),
+    Array.isArray(detail.families) && Array.isArray(detail.products) && Array.isArray(detail.directSkus),
     "POPD_REFERENCE_CATEGORY_DETAIL_INVALID: " + category.slug);
   assert.equal(detail.families.length, category.familyCount,
     "POPD_REFERENCE_CATEGORY_FAMILY_COUNT_MISMATCH: " + category.slug);
   assert.equal(detail.products.length, category.familyCount,
     "POPD_REFERENCE_CATEGORY_PRODUCT_COUNT_MISMATCH: " + category.slug);
+  assert.equal(detail.directSkus.length, Number(category.directSkuCount) || 0,
+    "POPD_REFERENCE_CATEGORY_DIRECT_SKU_COUNT_MISMATCH: " + category.slug);
   const detailFamilyCodes = new Set(detail.families.map(family => family.code));
   assert.equal(detailFamilyCodes.size, detail.families.length,
     "POPD_REFERENCE_DUPLICATE_FAMILY_IN_CATEGORY: " + category.slug);
@@ -302,6 +307,43 @@ for (const category of referenceCategories) {
         skuImageUrls.add(url);
       }
     }
+  }
+  for (const direct of detail.directSkus) {
+    const code = String(direct.skuCode || "");
+    assert.ok(code, "POPD_REFERENCE_EMPTY_DIRECT_SKU_CODE: " + category.slug);
+    assert.ok(!skuCodes.has(code), "POPD_REFERENCE_DUPLICATE_DIRECT_SKU: " + code);
+    skuCodes.add(code);
+    categorySkuCount += 1;
+    if (direct.imageUrl) {
+      assert.ok(direct.imageUrl.startsWith("/storage/products/"),
+        "POPD_REFERENCE_DIRECT_SKU_IMAGE_URL_INVALID: " + code);
+    }
+  }
+  const expectedSubmenus = new Map();
+  for (const family of detail.families) {
+    const submenu = String(family.submenu || "").trim();
+    assert.ok(submenu, "POPD_REFERENCE_FAMILY_SUBMENU_MISSING: " + family.code);
+    if (!expectedSubmenus.has(submenu)) expectedSubmenus.set(submenu, new Set());
+    const leaf = String(family.leaf || "").trim();
+    if (leaf) expectedSubmenus.get(submenu).add(leaf);
+  }
+  for (const direct of detail.directSkus) {
+    const submenu = String(direct.submenu || "").trim();
+    assert.ok(submenu, "POPD_REFERENCE_DIRECT_SKU_SUBMENU_MISSING: " + direct.skuCode);
+    if (!expectedSubmenus.has(submenu)) expectedSubmenus.set(submenu, new Set());
+    const leaf = String(direct.subcategory || "").trim();
+    if (leaf) expectedSubmenus.get(submenu).add(leaf);
+  }
+  const actualNodes = Array.isArray(detail.category.children) ? detail.category.children : [];
+  assert.deepEqual(
+    actualNodes.map(node => String(node.name || "")).sort(),
+    [...expectedSubmenus.keys()].sort(),
+    "POPD_REFERENCE_SUBMENU_ASSIGNMENT_DRIFT: " + category.slug);
+  for (const node of actualNodes) {
+    const expectedLeaves = [...(expectedSubmenus.get(String(node.name || "")) || new Set())].sort();
+    const actualLeaves = (node.children || []).map(child => String(child.name || "")).sort();
+    assert.deepEqual(actualLeaves, expectedLeaves,
+      "POPD_REFERENCE_LEAF_ASSIGNMENT_DRIFT: " + category.slug + "/" + String(node.name || ""));
   }
   assert.equal(categorySkuCount, category.skuCount,
     "POPD_REFERENCE_CATEGORY_VARIANT_TOTAL_MISMATCH: " + category.slug);

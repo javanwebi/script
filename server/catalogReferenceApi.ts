@@ -8,6 +8,20 @@ const E869_SOURCE_PATH = 'github/javanwebi/POPD/deliverables/catalog-869-audit/e
 const CACHE_TTL_MS = 45_000;
 
 type AliasRecord = { newFamilyCode?: string; directSkuCode?: string };
+type ReferenceDirectSku = {
+  skuCode: string;
+  name: string;
+  categorySlug: string;
+  categoryName: string;
+  submenu: string;
+  subcategory: string;
+  brand: string;
+  imageUrl: string | null;
+  technicalSpecs: unknown[];
+  priceSnapshot: Record<string, unknown>;
+  sourceFamilyCode: string | null;
+  active: boolean;
+};
 type NavigationGroup = {
   id: string;
   title: string;
@@ -20,12 +34,14 @@ type NavigationGroup = {
 type Snapshot = {
   loadedAt: number;
   products: Product[];
+  directSkus: ReferenceDirectSku[];
   categories: Category[];
   groups: NavigationGroup[];
   productByCode: Map<string, Product>;
   productByVariantCode: Map<string, Product>;
   aliasMap: Map<string, AliasRecord>;
   assignmentsByFamily: Map<string, { categorySlug: string; submenuName: string; leafName: string | null; method?: string }>;
+  directSkuAssignments: Array<{ categorySlug: string; submenuName: string | null; leafName: string | null }>;
   sourceSha256: string | null;
   e869SourceSha256: string | null;
   linkedE869ImageCount: number;
@@ -461,10 +477,61 @@ async function loadSnapshot(): Promise<Snapshot> {
     }
   }
 
+  // Independent SKUs must come from the pinned POPD archive, never from the
+  // legacy catalog_direct_skus projection. That table contains family-variant
+  // duplicates and stale/quarantined rows which can create phantom subcategories.
+  const directSkuCodes = new Set<string>();
+  const directSkus: ReferenceDirectSku[] = asArray<any>(payload.directSkus)
+    .filter((row) => row && row.active !== false && row.is_active !== false)
+    .map((row: any) => {
+      const assignment = row.resolvedAssignment || row.assignment || row;
+      const skuCode = String(row.skuCode || row.sku_code || row.code || '').trim();
+      const codeKey = normalizeCode(skuCode);
+      const categorySlug = normalizeCode(
+        assignment.categorySlug || assignment.category_slug || row.categorySlug || row.category_slug,
+      );
+      if (!codeKey || !categorySlug || !categorySlugs.has(categorySlug)) {
+        throw new Error('A POPD standalone SKU is missing its code or valid category assignment');
+      }
+      if (productByVariantCode.has(codeKey)) {
+        throw new Error('A POPD standalone SKU duplicates a family variant: ' + skuCode);
+      }
+      if (directSkuCodes.has(codeKey)) {
+        throw new Error('Duplicate standalone SKU code in POPD archive: ' + skuCode);
+      }
+      directSkuCodes.add(codeKey);
+      const category = categoryRowsBySlug.get(categorySlug) || fallbackCategoriesBySlug.get(categorySlug);
+      const rawImage = String(row.imageUrl || row.image_url || '').trim();
+      const verifiedImage = e869ImageBySku.get(codeKey) ||
+        (row.identityVerified === true || row.identity_verified === true ? rawImage : '');
+      const technicalSpecs = Array.isArray(row.technicalSpecs)
+        ? row.technicalSpecs
+        : Array.isArray(row.technical_specs) ? row.technical_specs : [];
+      return {
+        skuCode,
+        name: String(row.name || row.title || skuCode),
+        categorySlug,
+        categoryName: String(category?.name || row.categoryName || row.category_name || ''),
+        submenu: String(assignment.submenuName || assignment.submenu_name || row.submenu || '').trim(),
+        subcategory: String(assignment.leafName || assignment.leaf_name || row.subcategory || '').trim(),
+        brand: String(row.brand || ''),
+        imageUrl: verifiedImage || null,
+        technicalSpecs,
+        priceSnapshot: {},
+        sourceFamilyCode: row.sourceFamilyCode || row.source_family_code
+          ? String(row.sourceFamilyCode || row.source_family_code)
+          : null,
+        active: true,
+      };
+    });
+  const directSkuAssignments = directSkus.map((item) => ({
+    categorySlug: normalizeCode(item.categorySlug),
+    submenuName: item.submenu || null,
+    leafName: item.subcategory || null,
+  }));
   const directSkuCounts = new Map<string, number>();
-  for (const direct of asArray<any>(payload.directSkus)) {
-    const slug = normalizeCode(direct.categorySlug);
-    if (slug) directSkuCounts.set(slug, (directSkuCounts.get(slug) || 0) + 1);
+  for (const direct of directSkuAssignments) {
+    directSkuCounts.set(direct.categorySlug, (directSkuCounts.get(direct.categorySlug) || 0) + 1);
   }
 
   const categoryRows = categoryRes.rows.length
@@ -555,12 +622,14 @@ async function loadSnapshot(): Promise<Snapshot> {
   return {
     loadedAt: Date.now(),
     products,
+    directSkus,
     categories,
     groups,
     productByCode,
     productByVariantCode,
     aliasMap: aliases,
     assignmentsByFamily,
+    directSkuAssignments,
     sourceSha256: archive.sha256 ? String(archive.sha256) : null,
     e869SourceSha256: e869Archive.sha256 ? String(e869Archive.sha256) : null,
     linkedE869ImageCount: activeVerifiedVariantImageUrls.size,
@@ -570,7 +639,7 @@ async function loadSnapshot(): Promise<Snapshot> {
     skuCount: skuCodes.size,
     quarantinedSkuCount,
     rawDirectSkuCount: Number(payload.stats?.directSkus || 0),
-    standaloneDirectSkuRows: asArray(payload.directSkus).length,
+    standaloneDirectSkuRows: directSkus.length,
     verifiedFamilyImageCount: activeVerifiedFamilyImageUrls.size,
     verifiedVariantImageCount: activeVerifiedVariantImageUrls.size,
   };
@@ -584,6 +653,50 @@ async function getSnapshot(): Promise<Snapshot> {
       .finally(() => { snapshotInFlight = null; });
   }
   return snapshotInFlight;
+}
+
+function buildReferenceCategoryChildren(
+  entries: Array<{ submenu: string | null; leaf: string | null }>,
+): NonNullable<Category['children']> {
+  const bySubmenu = new Map<string, { name: string; children: Array<{ name: string }> }>();
+  for (const entry of entries) {
+    const submenu = String(entry.submenu || entry.leaf || '').trim();
+    if (!submenu) continue;
+    let parent = bySubmenu.get(normalizeCode(submenu));
+    if (!parent) {
+      parent = { name: submenu, children: [] };
+      bySubmenu.set(normalizeCode(submenu), parent);
+    }
+    const leaf = String(entry.leaf || '').trim();
+    if (leaf && normalizeCode(leaf) !== normalizeCode(submenu) &&
+        !parent.children.some((child) => normalizeCode(child.name) === normalizeCode(leaf))) {
+      parent.children.push({ name: leaf });
+    }
+  }
+  return Array.from(bySubmenu.values());
+}
+
+function referenceCategoryTaxonomy(snapshot: Snapshot, category: Category): Category {
+  const familyAssignments = snapshot.products.flatMap((product) => {
+    const assignment = snapshot.assignmentsByFamily.get(product.code);
+    if (!assignment || assignment.categorySlug !== category.slug) return [];
+    return [{
+      submenu: assignment.submenuName || null,
+      leaf: assignment.leafName || null,
+    }];
+  });
+  const directSkuAssignments = snapshot.directSkuAssignments
+    .filter((item) => item.categorySlug === category.slug)
+    .map((item) => ({ submenu: item.submenuName, leaf: item.leafName }));
+  const children = buildReferenceCategoryChildren([...familyAssignments, ...directSkuAssignments]);
+
+  // The same resolved POPD assignments drive both the category index and its
+  // detail page. An empty result is intentional: never resurrect stale DB nodes.
+  return {
+    ...category,
+    children,
+    subcategories: children.map((node) => node.name),
+  };
 }
 
 function categoryPayload(snapshot: Snapshot, slug: string) {
@@ -611,7 +724,13 @@ function categoryPayload(snapshot: Snapshot, slug: string) {
       })),
     });
   }
-  return { category: { ...category, children: category.children || [] }, families, products: matchedProducts };
+  const categoryWithReferenceTaxonomy = referenceCategoryTaxonomy(snapshot, category);
+  return {
+    category: categoryWithReferenceTaxonomy,
+    families,
+    products: matchedProducts,
+    directSkus: snapshot.directSkus.filter((item) => item.categorySlug === slug),
+  };
 }
 
 function legacyCategoryPayload(snapshot: Snapshot, slug: string) {
@@ -688,7 +807,9 @@ export function registerCatalogReferenceApi(app: Express): void {
   });
 
   app.get('/api/catalog/reference/categories', async (_req: Request, res: Response) => {
-    await withSnapshot(res, (snapshot) => ({ categories: snapshot.categories }));
+    await withSnapshot(res, (snapshot) => ({
+      categories: snapshot.categories.map((category) => referenceCategoryTaxonomy(snapshot, category)),
+    }));
   });
 
   app.get('/api/catalog/reference/menu-category/:slug', async (req: Request, res: Response) => {

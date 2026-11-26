@@ -149,7 +149,7 @@ async function installApiRoutes(page, initiallyUnavailable = false) {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, category, families, products }),
+        body: JSON.stringify({ success: true, category, families, products, directSkus: [] }),
       });
     }
     if (url.pathname === '/api/catalog/direct-skus') {

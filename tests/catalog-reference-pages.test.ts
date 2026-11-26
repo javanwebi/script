@@ -75,9 +75,13 @@ test('POPD e869 SKU images are attached by exact SKU code while family artwork s
   assert.match(detail, /disableFallback=\{true\}/);
   assert.match(detail, /image\.scope === 'variant'/);
   assert.match(detail, /String\(image\.variantCode \|\| ''\)\.toLowerCase\(\) === activeSkuCode\.toLowerCase\(\)/);
-  assert.match(media, /hasVerifiedRealPhoto: Boolean\(dbImg\)/);
-  assert.match(media, /familyPhotos: \['', '', ''\]/);
-  assert.doesNotMatch(media, /familyMedia\.familyPhotos\.forEach/);
+  // Family artwork is sourced from the pinned POPD media manifest, never a DB thumbnail.
+  assert.match(media, /popdMedia\.families\[clean\]/);
+  assert.match(media, /const hasVerifiedRealPhoto = familyPhotos\.length > 0/);
+  assert.match(media, /existingDbImage: null/);
+  assert.match(media, /familyPhotos,/);
+  assert.match(media, /hasVerifiedSpecSheet: hasVerifiedRealPhoto/);
+  assert.match(media, /familyMedia\.familyPhotos\.forEach/);
   assert.match(media, /activeSkuMedia\?\.realProductImage && activeSkuMedia\.profileDrawingWebp/);
   const nonBelt = read('src/components/product/NonBeltFamilyGrid.tsx');
   assert.match(nonBelt, /images: uniqueImageUrl \? \[uniqueImageUrl\] : \[\]/);
@@ -155,4 +159,48 @@ test('missing verified POPD family photos are synced from the pinned source befo
   assert.ok(sync.includes('images=${ASSETS.length}'));
   assert.match(sync, /gitBlobSha/);
   assert.match(sync, /POPD_FAMILY_IMAGE_SHA_MISMATCH/);
+});
+
+
+test('Excel menu category pages use the authoritative POPD reference payload for families and products', () => {
+  const page = read('src/pages/ExcelMenuCategoryPage.tsx');
+  const api = read('server/catalogReferenceApi.ts');
+  assert.match(page, /\/api\/catalog\/reference\/menu-category\//);
+  assert.match(page, /Array\.isArray\(body\.products\)/);
+  assert.match(page, /\(data\?\.products \|\| \[\]\)/);
+  assert.doesNotMatch(page, /getAllProducts\(\)/);
+  assert.doesNotMatch(page, /\/api\/catalog\/menu-category\//);
+  assert.match(api, /function categoryPayload\(snapshot: Snapshot, slug: string\)/);
+  assert.match(api, /matchedProducts\.push\(/);
+  assert.match(api, /products: matchedProducts/);
+  assert.match(api, /snapshot\.assignmentsByFamily\.get\(product\.code\)/);
+});
+
+
+test('all category surfaces derive subnavigation only from POPD family assignments and archive-owned direct SKUs', () => {
+  const api = read('server/catalogReferenceApi.ts');
+  const detail = read('src/pages/ExcelMenuCategoryPage.tsx');
+  const directory = read('src/pages/AllCategoriesPage.tsx');
+  const megaMenu = read('src/components/catalog/ReferenceMegaMenu.tsx');
+
+  assert.match(api, /function buildReferenceCategoryChildren\(/);
+  assert.match(api, /function referenceCategoryTaxonomy\(snapshot: Snapshot, category: Category\)/);
+  assert.match(api, /snapshot\.products\.flatMap/);
+  assert.match(api, /snapshot\.directSkuAssignments/);
+  assert.match(api, /payload\.directSkus/);
+  assert.doesNotMatch(api, /from public\.catalog_direct_skus/);
+  assert.match(api, /const children = buildReferenceCategoryChildren\(\[\.\.\.familyAssignments, \.\.\.directSkuAssignments\]\)/);
+  assert.match(api, /children,\s*subcategories: children\.map\(\(node\) => node\.name\)/);
+  assert.doesNotMatch(api, /referenceChildren\.length\s*\?/);
+  assert.match(api, /categories: snapshot\.categories\.map\(\(category\) => referenceCategoryTaxonomy\(snapshot, category\)\)/);
+  assert.match(api, /standaloneDirectSkuRows: directSkus\.length/);
+  assert.match(api, /directSkus: snapshot\.directSkus\.filter/);
+  assert.match(detail, /const directSkus = data\?\.directSkus \|\| \[\]/);
+  assert.doesNotMatch(detail, /useDirectSkus\(slug\)/);
+
+  assert.match(detail, /\/api\/catalog\/reference\/menu-category\//);
+  assert.match(directory, /\/api\/catalog\/reference\/categories/);
+  assert.match(directory, /\/api\/catalog\/reference\/navigation-groups/);
+  assert.match(megaMenu, /\/api\/catalog\/reference\/categories/);
+  assert.match(megaMenu, /\/api\/catalog\/reference\/navigation-groups/);
 });
