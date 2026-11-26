@@ -760,7 +760,24 @@ echo "POPD_CATALOG_IMAGE_RELEASE_STAGED=$POPD_CATALOG_IMAGE_RELEASE_DIR"
 echo '===== SYNC PINNED POPD REFERENCE JSON INTO THE ACTIVE PRODUCTION DATABASE ====='
 # Pass only the live database connection settings, never AvalAI, SMS, vision,
 # session, or other application secrets into this one-off archive importer.
-docker inspect "$OLD" | python3 - "$ARCHIVE_ENV_ARGS_FILE" <<'PYARCHIVEENV'
+docker inspect "$OLD" | python3 -c '
+import json,sys
+env=json.load(sys.stdin)[0]["Config"].get("Env",[])
+allowed={"DATA_BACKEND","DATABASE_ENV","DATABASE_SCHEMA","DATABASE_URL","DATABASE_SSL","DATABASE_CA_CERT"}
+required=allowed-{"DATABASE_CA_CERT"}
+values={}
+for entry in env:
+ key,sep,_=entry.partition("=")
+ if sep and key in allowed:
+  values[key]=entry
+missing=required-set(values)
+if missing:
+ raise SystemExit("POPD_ARCHIVE_DATABASE_ENV_MISSING="+",".join(sorted(missing)))
+with open(sys.argv[1],"wb") as output:
+ for key in sorted(values):
+  for arg in ("-e",values[key]):
+   output.write(arg.encode("utf-8")+bytes([0]))
+' "$ARCHIVE_ENV_ARGS_FILE"'
 import json,sys
 env=json.load(sys.stdin)[0]["Config"].get("Env",[])
 allowed={"DATA_BACKEND","DATABASE_ENV","DATABASE_SCHEMA","DATABASE_URL","DATABASE_SSL","DATABASE_CA_CERT"}
