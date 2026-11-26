@@ -32,7 +32,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const [level,setLevel]=useState(0),[muted,setMuted]=useState(false),[silent,setSilent]=useState(false);
   const [showText,setShowText]=useState(false),[text,setText]=useState(''),[showScan,setShowScan]=useState(false);
   const [confirmed,setConfirmed]=useState(false);
-  const [voice,setVoice]=useState('Ryan');
+  const [voice,setVoice]=useState('Raymond');
   const [catalogQuery,setCatalogQuery]=useState('');
   const [catalogResults,setCatalogResults]=useState<LiveCatalogFamily[]>([]);
   const [catalogBusy,setCatalogBusy]=useState(false);
@@ -60,7 +60,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const submit=useCallback((value:string)=>{
     const s=session.current;if(!s?.ready||!value.trim())return false;
     if(!s.greeted)return false;
-    stopPlayback(s);setUser(value);setAssistant('');setCatalogQuery('');setCatalogResults([]);setCatalogBusy(false);setPhase('thinking');
+    stopPlayback(s);setUser(value);setAssistant('');setPhase('thinking');
     return send(s,{type:'text',text:value});
   },[send,stopPlayback]);
   const start=useCallback(async()=>{
@@ -123,7 +123,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         }
         if(m.type==='connected'){
           if(m.provider!=='qwen'){fail('سرور هنوز روی Qwen تنظیم نشده است.');return;}
-          if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Ryan');setConfirmed(m.voiceConfirmed===true);setPhase('thinking');
+          if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Raymond');setConfirmed(m.voiceConfirmed===true);setPhase('thinking');
           const greeting=greeted.current?'فقط بگو: من آماده‌ام مهندس جان، بفرمایید.':'فقط با لحن گرم و پرانرژی بگو: سلام مهندس جان، به صنعت پیش خوش آمدید. من فورزا هستم، بفرمایید.';
           send(s,{type:'text',text:greeting});return;
         }
@@ -134,7 +134,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           setCatalogBusy(false);
           return;
         }
-        if(m.type==='speech_started'){setError('');setCatalogQuery('');setCatalogResults([]);setCatalogBusy(false);stopPlayback(s);setUser('');setPhase('listening');return;}
+        if(m.type==='speech_started'){setError('');stopPlayback(s);setUser('');setPhase('listening');return;}
         if(m.type==='speech_stopped'){setPhase('thinking');return;}
         if(m.type==='interrupted'){if(m.responseId)s.ignored.add(m.responseId);if(!m.responseId||m.responseId===s.id){stopPlayback(s);setPhase('listening');}return;}
         if(m.type==='user_transcript'){if(typeof m.text==='string')setUser(m.text);return;}
@@ -201,7 +201,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
                 <a href={family.link} className="shrink-0 rounded-lg bg-orange-500 px-2.5 py-2 text-[10px] font-bold text-black">مشاهده</a>
               </div>
               {!!family.variants?.length&&<div className="mt-2 flex flex-wrap gap-1.5 border-t border-white/10 pt-2">
-                {family.variants.slice(0,5).map(variant=><span key={variant.code} className="rounded-md bg-black/40 px-2 py-1 text-[10px] text-white/80"><bdi dir="ltr" className="font-mono">{variant.code}</bdi>{variant.size?' · '+variant.size:''}</span>)}
+                {family.variants.slice(0,6).map(variant=><a key={variant.code} href={'/direct-product/'+encodeURIComponent(variant.code)} className="rounded-md bg-black/40 px-2 py-1 text-[10px] text-white/80 hover:bg-orange-500/20 hover:text-white"><bdi dir="ltr" className="font-mono">{variant.code}</bdi>{variant.size?' · '+variant.size:''}</a>)}
               </div>}
             </article>;
           })}
