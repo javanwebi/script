@@ -129,8 +129,8 @@ test('recoverable Gisoo flood errors do not tear down an established realtime se
 
 
 test('Qwen realtime session exposes the read-only Sanat Pish catalogue tool and richer advice budget', () => {
-  const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Ryan');
-  assert.equal(update.session.audio.output.voice, 'Ryan');
+  const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Raymond');
+  assert.equal(update.session.audio.output.voice, 'Raymond');
   assert.equal(update.session.max_output_tokens, 1536);
   assert.equal(update.session.tools[0].type, 'function');
   assert.equal(update.session.tools[0].name, 'search_sanatpish_catalog');
