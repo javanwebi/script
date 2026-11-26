@@ -94,6 +94,7 @@ test('deployment imports the pinned archive into the active DB before starting t
 
 test('archive importer only appends immutable private source snapshots, not live catalog data', () => {
   const importer = readFileSync('scripts/sync-popd-reference-archives.mjs', 'utf8');
+  assert.match(importer, /assertProductionDatabaseConfig\(\)/);
   assert.match(importer, /insert into app_private\.source_archives/);
   assert.match(importer, /on conflict \(source_path, sha256\) do update set imported_at = now\(\)/);
   assert.doesNotMatch(importer, /\b(?:delete|truncate)\s+(?:from\s+)?(?:public\.)?(?:catalog_|variant_commercial_specs|orders|inventory)/i);
