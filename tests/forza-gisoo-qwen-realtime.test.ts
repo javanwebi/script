@@ -17,6 +17,7 @@ test('Qwen session uses Gisoo direct-realtime PCM and server VAD contract', () =
     type: 'audio/pcm',
     rate: 24000,
   });
+  assert.equal(update.session.audio.output.voice, 'Andre');
   assert.equal(update.session.audio.input.turn_detection.type, 'server_vad');
   assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 1100);
   assert.equal(update.session.audio.input.turn_detection.interrupt_response, true);
