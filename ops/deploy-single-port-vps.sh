@@ -291,50 +291,19 @@ echo '===== VERIFY PRODUCTION NAVIGATION SCHEMA (SAME LIVE DATABASE) ====='
 # Executed inside the currently serving container, reusing its exact DATABASE_URL,
 # SSL configuration and private credentials. Only missing POPD categories and group membership arrays are reconciled.
 # Do not run this recovery against an unrelated connected Supabase project.
-if ! docker exec "$OLD" node --import tsx --input-type=module -e '
-  import {database, closeDatabase} from "./server/db/connection.ts";
+echo '===== APPLY NON-DESTRUCTIVE CATALOG SCHEMA REPAIR ====='
+# Database transaction either commits all new tables/groups or rolls back.
+# The SQL source comes from the same pinned commit as the frontend.
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+  import {readFileSync} from "node:fs";
+  import {database,closeDatabase} from "./server/db/connection.ts";
   try {
-    const rows=await database().query(
-      "select to_regclass(\x27public.catalog_navigation_groups\x27) as groups, " +
-      "to_regclass(\x27public.catalog_family_menu_assignments\x27) as assignments, " +
-      "to_regclass(\x27public.catalog_direct_skus\x27) as direct");
-    const row=rows.rows[0];
-    const approved=row.groups
-      ? await database().query("select count(*)::int as total from public.catalog_navigation_groups where id ~ \x27^excel-v2-[0-9]+$\x27 and is_active=true")
-      : {rows:[{total:0}]};
-    const categoryCount=await database().query(
-      "select count(*)::int as total from public.catalog_categories where is_active=true and slug ~ \x27^excel-v2-[0-9]+-[0-9]+$\x27 and metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27");
-    const groupCoverage=row.groups
-      ? await database().query(
-        "select count(distinct mapped.category_slug)::int as unique_categories, count(*)::int as links, " +
-        "count(*) filter(where category.slug is null)::int as unknown " +
-        "from public.catalog_navigation_groups g cross join unnest(g.category_slugs) as mapped(category_slug) " +
-        "left join public.catalog_categories category on category.slug=mapped.category_slug and category.is_active=true " +
-        "and category.metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27 " +
-        "where g.is_active=true and g.id ~ \x27^excel-v2-[0-9]+$\x27")
-      : {rows:[{unique_categories:0,links:0,unknown:0}]};
-    const coverage=groupCoverage.rows[0];
-    if (!row.groups || !row.assignments || !row.direct || Number(approved.rows[0].total)!==14 ||
-        Number(categoryCount.rows[0].total)!==40 || Number(coverage.unique_categories)!==40 ||
-        Number(coverage.links)!==40 || Number(coverage.unknown)!==0) process.exitCode=2;
-    else console.log("PRODUCTION_NAV_SCHEMA_ALREADY_OK", approved.rows[0].total, categoryCount.rows[0].total, coverage.unique_categories);
-  }catch(error){console.error("PRODUCTION_NAV_SCHEMA_CHECK_FAILED",error.code||"",error.message);process.exitCode=2}
+    const sql=readFileSync(0,"utf8");
+    await database().query(sql);
+    console.log("PRODUCTION_CATALOG_SCHEMA_RECOVERED");
+  }catch(error){console.error("PRODUCTION_CATALOG_SCHEMA_RECOVERY_FAILED",error.code||"",error.message);process.exitCode=1}
   finally{await closeDatabase()}
-'; then
-  echo '===== APPLY NON-DESTRUCTIVE CATALOG SCHEMA REPAIR ====='
-  # Database transaction either commits all new tables/groups or rolls back.
-  # The SQL source comes from the same pinned commit as the frontend.
-  docker exec -i "$OLD" node --import tsx --input-type=module -e '
-    import {readFileSync} from "node:fs";
-    import {database,closeDatabase} from "./server/db/connection.ts";
-    try {
-      const sql=readFileSync(0,"utf8");
-      await database().query(sql);
-      console.log("PRODUCTION_CATALOG_SCHEMA_RECOVERED");
-    }catch(error){console.error("PRODUCTION_CATALOG_SCHEMA_RECOVERY_FAILED",error.code||"",error.message);process.exitCode=1}
-    finally{await closeDatabase()}
-  ' < "$STAGE/ops/sql/20261103_recover_missing_production_catalog_navigation.sql"
-fi
+' < "$STAGE/ops/sql/20261103_recover_missing_production_catalog_navigation.sql"
 # A missing table must never be reported as a successful deploy.
 docker exec "$OLD" node --import tsx --input-type=module -e '
  import {database,closeDatabase} from "./server/db/connection.ts";
