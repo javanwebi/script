@@ -113,11 +113,16 @@ test('category artwork mapping remains the existing SCRIPT design', () => {
   assert.doesNotMatch(artwork, /excel-v2-1-5/);
 });
 
-test('all active Supabase categories and their database group assignments remain visible', () => {
+test('POPD reference API exposes only the exact 40-category, 14-group hierarchy and ignores legacy active categories', () => {
   const api = read('server/catalogReferenceApi.ts');
-  assert.match(api, /const activeCategorySlugs = categoryRes\.rows\.length/);
-  assert.match(api, /const activeGroupCategorySlugs = new Set/);
-  assert.match(api, /dbGroup\?\.categorySlugs/);
+  assert.match(api, /const approvedCategorySlugs = fallbackCategories\.map/);
+  assert.match(api, /categoryRes\.rows\.filter/);
+  assert.match(api, /fallbackGroups\.flatMap/);
+  assert.match(api, /categorySlugs: \[\.\.\.group\.categorySlugs\]/);
+  assert.doesNotMatch(api, /activeCategorySlugs/);
+  assert.doesNotMatch(api, /dbGroup\?\.categorySlugs/);
+  assert.match(api, /fallbackCategories\.length !== 40/);
+  assert.match(api, /fallbackGroups\.length !== 14/);
   assert.match(api, /metadata\.children/);
   assert.match(api, /hasMetadataChildren \? metadataChildren/);
   assert.match(api, /hasMetadataSubcategories/);
@@ -125,7 +130,6 @@ test('all active Supabase categories and their database group assignments remain
   assert.match(api, /activeVerifiedVariantImageUrls/);
   assert.match(api, /verifiedVariantImageCount: activeVerifiedVariantImageUrls\.size/);
   assert.match(api, /categoryRows\.map\(\(dbCategory: any\)/);
-  assert.match(api, /ungrouped\.length \|\| unknownGroupCategories\.length/);
 });
 
 test('reference catalog reports only attached artwork and preserves legacy product routes', () => {
