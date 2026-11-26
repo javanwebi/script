@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
+const qwenUi=readFileSync(new URL('../src/components/forza/ForzaQwenCallExperience.tsx',import.meta.url),'utf8');
 const audio=readFileSync(new URL('../src/utils/forzaContinuousWav.ts',import.meta.url),'utf8');
 const speechPipeline=readFileSync(new URL('../src/utils/forzaSpeechPipeline.ts',import.meta.url),'utf8');
 const consult=readFileSync(new URL('../server/ai/baiConsult.ts',import.meta.url),'utf8');
@@ -98,12 +99,15 @@ test('a pure stop consumes cumulative Chrome finals instead of replaying the sam
 
 test('FORZA route paints its shell while the voice controller and particle scene load independently',()=>{
   assert.match(forzaPage,/lazy\(\(\) =>/);
-  assert.match(forzaPage,/import\('\.\.\/components\/forza\/AiForzaCallExperience'\)/);
+  assert.match(forzaPage,/import\('\.\.\/components\/forza\/ForzaQwenCallExperience'\)/);
   assert.match(forzaPage,/<Suspense fallback=/);
-  assert.match(routePreload,/import\('\.\.\/forza\/AiForzaCallExperience'\)/);
+  assert.match(routePreload,/import\('\.\.\/forza\/ForzaQwenCallExperience'\)/);
+  assert.doesNotMatch(routePreload,/import\('\.\.\/forza\/AiForzaCallExperience'\)/);
 });
 
 test('FORZA opens its voice controller without putting Three.js in the first call bundle',()=>{
+  assert.match(qwenUi,/const ParticleAvatar = lazy\(\(\) => import\('\.\/ParticleAvatar'\)/);
+  assert.match(qwenUi,/<Suspense fallback=\{<div className="forza-avatar-fallback"/);
   assert.match(ui,/const ParticleAvatar = lazy\(async \(\) =>/);
   assert.match(ui,/await import\('\.\/ParticleAvatar'\)/);
   assert.match(ui,/<Suspense fallback=\{<div className="forza-avatar-fallback"/);
