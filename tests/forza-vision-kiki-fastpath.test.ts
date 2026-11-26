@@ -169,7 +169,7 @@ test('mobile image viewer supports automatic selection, manual drag crop and vis
   assert.ok(picker.includes('autoSelect?:boolean;'));
   assert.ok(picker.includes('selectCandidateAtPoint(event)'));
   assert.ok(picker.includes('if(disabled||event.button!==0||!event.isPrimary)return;'));
-  assert.ok(picker.includes('suppressClickRef.current=moved>8'));
+  assert.ok(picker.includes('suppressClickRef.current=true'));
   assert.ok(picker.includes('onPointerMove={event=>'));
   assert.ok(picker.includes('{value&&!disabled&&<div className="sanat-region-picker__handles"'));
   assert.ok(picker.includes('disabled={disabled}'));
