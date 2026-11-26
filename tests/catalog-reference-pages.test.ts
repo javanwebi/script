@@ -14,6 +14,14 @@ test('catalog reference API reads the engineered POPD archive without mutating c
   assert.doesNotMatch(api, /\b(?:INSERT\s+INTO|UPDATE\s+public\.catalog_|DELETE\s+FROM|ALTER\s+TABLE|DROP\s+TABLE)\b/i);
 });
 
+test('legacy family image aliases come from the pinned POPD archive, not a separate SQL table', () => {
+  const api = read('server/catalogReferenceApi.ts');
+  assert.match(api, /payload\.aliases/);
+  assert.match(api, /for \(const \[legacyCode, alias\] of aliases\)/);
+  assert.match(api, /normalizeCode\(alias\.newFamilyCode\)/);
+  assert.doesNotMatch(api, /public\.catalog_family_aliases/);
+});
+
 test('POPD reference API is used for family detail while category appearance remains in SCRIPT', () => {
   const detail = read('src/pages/PopdProductDetailPage.tsx');
   const category = read('src/pages/CategoryPage.tsx');
