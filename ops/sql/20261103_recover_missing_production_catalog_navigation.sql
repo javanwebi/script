@@ -1,6 +1,7 @@
 -- Additive recovery for the production VPS's missing navigation schema.
 -- Run ONLY through the canonical deployment against the live app's DATABASE_URL.
--- Existing rows, group customizations, product data and assignments are untouched.
+-- Existing category rows, group labels/images/order, product data and assignments are preserved.
+-- Only six missing POPD category rows are added and the 14 approved group membership arrays are reconciled.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '40s';
@@ -21,7 +22,7 @@ BEGIN
  END IF;
 END $$;
 
--- Reviewed 34-category Excel hierarchy, including all nested menu nodes.
+-- Pinned POPD 40-category Excel hierarchy, including all nested menu nodes.
 -- Insert missing slugs only; never replace any existing admin changes.
 INSERT INTO public.catalog_categories
  (id,slug,name,icon,image_url,description,sort_order,is_active,metadata) VALUES
@@ -58,7 +59,13 @@ INSERT INTO public.catalog_categories
  ('excel-v2-13-2','excel-v2-13-2','یاتاقان و متعلقات','Package',NULL,'',1302,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"انواع یاتاقان","children":[{"name":"یاتاقان و انواع محافظ یاتاقان"}]},{"name":"مهره و واشر","children":[{"name":"انواع مهره و واشر بلبرینگ و یاتاقان"}]}],"subcategories":["انواع یاتاقان","مهره و واشر"],"routeSlug":"excel-v2-13-2","nameEn":""}'::jsonb),
  ('excel-v2-14-1','excel-v2-14-1','ابر اسفنجی','Package',NULL,'',1401,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"ابرهای اسفنجی","children":[{"name":"انواع ابر اسفنجی صنعتی"}]}],"subcategories":["ابرهای اسفنجی"],"routeSlug":"excel-v2-14-1","nameEn":""}'::jsonb),
  ('excel-v2-14-2','excel-v2-14-2','نوار اسفنجی','Package',NULL,'',1402,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"نوار اسفنجی چسب‌دار و ساده","children":[{"name":"چسب‌دار و بدون چسب"}]},{"name":"نوار اسفنجی سیلیکونی","children":[{"name":"انواع نوار اسفنجی سیلیکونی"}]}],"subcategories":["نوار اسفنجی چسب‌دار و ساده","نوار اسفنجی سیلیکونی"],"routeSlug":"excel-v2-14-2","nameEn":""}'::jsonb),
- ('excel-v2-14-3','excel-v2-14-3','اسکاج صنعتی','Package',NULL,'',1403,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"انواع اسکاج","children":[{"name":"اسکاج صنعتی و اسکاج گرد"}]}],"subcategories":["انواع اسکاج"],"routeSlug":"excel-v2-14-3","nameEn":""}'::jsonb)
+ ('excel-v2-14-3','excel-v2-14-3','اسکاج صنعتی','Package',NULL,'',1403,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"انواع اسکاج","children":[{"name":"اسکاج صنعتی و اسکاج گرد"}]}],"subcategories":["انواع اسکاج"],"routeSlug":"excel-v2-14-3","nameEn":""}'::jsonb),
+  ('excel-v2-1-5','excel-v2-1-5','تسمه چندشیاری (Poly-V)','Package',NULL,'',105,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"پروفیل PJ","children":[{"name":"تسمه چندشیاری PJ"}]},{"name":"پروفیل PK","children":[{"name":"تسمه چندشیاری PK"}]},{"name":"پروفیل PL","children":[{"name":"تسمه چندشیاری PL"}]}],"subcategories":["پروفیل PJ","پروفیل PK","پروفیل PL"],"routeSlug":"excel-v2-1-5","nameEn":""}'::jsonb),
+  ('excel-v2-4-2','excel-v2-4-2','کوپلینگ انتقال قدرت','Package',NULL,'',402,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"کوپلینگ شفت و همزن","children":[{"name":"کوپلینگ آلومینیومی و انعطاف‌پذیر صنعتی"}]}],"subcategories":["کوپلینگ شفت و همزن"],"routeSlug":"excel-v2-4-2","nameEn":""}'::jsonb),
+  ('excel-v2-7-4','excel-v2-7-4','قطعات تفلونی و پلیمری مهندسی','Package',NULL,'',704,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"ورق و میلگرد پلیمری","children":[{"name":"ورق و میلگرد تفلون (PTFE / UHMWPE)، پلی‌آمید و پلی‌یورتان"}]},{"name":"بوش و قطعات پلیمری مهندسی","children":[{"name":"بوش، لقمه، تسمه‌پاک‌کن و قطعات مهندسی PTFE / PU"}]}],"subcategories":["ورق و میلگرد پلیمری","بوش و قطعات پلیمری مهندسی"],"routeSlug":"excel-v2-7-4","nameEn":""}'::jsonb),
+  ('excel-v2-7-5','excel-v2-7-5','شیلنگ، لوله خرطومی و اتصالات','Package',NULL,'',705,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"شیلنگ صنعتی","children":[{"name":"شیلنگ PVC، پلی‌یورتان (PU)، آبنما و برزنتی"}]},{"name":"اتصالات و لوله خرطومی","children":[{"name":"سرشیلنگی، رابط شیلنگ و لوله خرطومی"}]}],"subcategories":["شیلنگ صنعتی","اتصالات و لوله خرطومی"],"routeSlug":"excel-v2-7-5","nameEn":""}'::jsonb),
+  ('excel-v2-9-5','excel-v2-9-5','قاشقک الواتور و متعلقات','Package',NULL,'',905,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"قاشقک و پیچ الواتور","children":[{"name":"قاشقک استیل، پلیمری و پیچ الواتور"}]}],"subcategories":["قاشقک و پیچ الواتور"],"routeSlug":"excel-v2-9-5","nameEn":""}'::jsonb),
+  ('excel-v2-10-3','excel-v2-10-3','تجهیزات استاکر و راهنمای کاشی','Package',NULL,'',1003,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"قطعات دستگاه استاکر","children":[{"name":"تیغه، بازو، پلیت و لقمه استاکر"}]},{"name":"راهنمای کاشی و ردیف‌کن","children":[{"name":"تیغه، فکی، چرخ و هدایت‌کننده کاشی"}]}],"subcategories":["قطعات دستگاه استاکر","راهنمای کاشی و ردیف‌کن"],"routeSlug":"excel-v2-10-3","nameEn":""}'::jsonb)
 ON CONFLICT (slug) DO NOTHING;
 
 DO $$
@@ -69,8 +76,8 @@ BEGIN
  WHERE is_active=true
    AND slug ~ '^excel-v2-[0-9]+-[0-9]+$'
    AND metadata->>'source'='industrial_megamenu_hierarchy_v2';
- IF approved_categories < 34 THEN
-   RAISE EXCEPTION 'Approved category bootstrap incomplete: %/34. Existing records are not overwritten.', approved_categories;
+ IF approved_categories < 40 THEN
+    RAISE EXCEPTION 'Approved category bootstrap incomplete: %/40. Existing records are not overwritten.', approved_categories;
  END IF;
 END $$;
 
@@ -129,29 +136,59 @@ REVOKE ALL ON public.catalog_direct_skus FROM PUBLIC, anon, authenticated;
 -- ON CONFLICT DO NOTHING preserves everything already changed in Admin.
 INSERT INTO public.catalog_navigation_groups
  (id,title,icon_key,category_slugs,sort_order,is_active) VALUES
-  ('excel-v2-1','انواع تسمه‌های صنعتی','layers',ARRAY['excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4']::text[],0,true),
+  ('excel-v2-1','انواع تسمه‌های صنعتی','layers',ARRAY['excel-v2-1-1','excel-v2-1-2','excel-v2-1-3','excel-v2-1-4','excel-v2-1-5']::text[],0,true),
   ('excel-v2-2','نوارهای نقاله و انتقال مواد','layers',ARRAY['excel-v2-2-1','excel-v2-2-2']::text[],1,true),
   ('excel-v2-3','رولر و متعلقات رولر','layers',ARRAY['excel-v2-3-1','excel-v2-3-2','excel-v2-3-3']::text[],2,true),
-  ('excel-v2-4','پولی و تجهیزات انتقال قدرت','layers',ARRAY['excel-v2-4-1']::text[],3,true),
+  ('excel-v2-4','پولی و تجهیزات انتقال قدرت','layers',ARRAY['excel-v2-4-1','excel-v2-4-2']::text[],3,true),
   ('excel-v2-5','برس‌های صنعتی','layers',ARRAY['excel-v2-5-1','excel-v2-5-2']::text[],4,true),
   ('excel-v2-6','ریل، گاید و تجهیزات هدایت خطوط انتقال','layers',ARRAY['excel-v2-6-1','excel-v2-6-2','excel-v2-6-3','excel-v2-6-4']::text[],5,true),
-  ('excel-v2-7','قطعات پلیمری و لاستیکی','layers',ARRAY['excel-v2-7-1','excel-v2-7-2','excel-v2-7-3']::text[],6,true),
+  ('excel-v2-7','قطعات پلیمری و لاستیکی','layers',ARRAY['excel-v2-7-1','excel-v2-7-2','excel-v2-7-3','excel-v2-7-4','excel-v2-7-5']::text[],6,true),
   ('excel-v2-8','تجهیزات نسوز و حرارتی','layers',ARRAY['excel-v2-8-1','excel-v2-8-2']::text[],7,true),
-  ('excel-v2-9','زنجیر و قطعات مکانیکی انتقال حرکت','layers',ARRAY['excel-v2-9-1','excel-v2-9-2','excel-v2-9-3','excel-v2-9-4']::text[],8,true),
-  ('excel-v2-10','قطعات خطوط لعاب و چاپ','layers',ARRAY['excel-v2-10-1','excel-v2-10-2']::text[],9,true),
+  ('excel-v2-9','زنجیر و قطعات مکانیکی انتقال حرکت','layers',ARRAY['excel-v2-9-1','excel-v2-9-2','excel-v2-9-3','excel-v2-9-4','excel-v2-9-5']::text[],8,true),
+  ('excel-v2-10','قطعات خطوط لعاب و چاپ','layers',ARRAY['excel-v2-10-1','excel-v2-10-2','excel-v2-10-3']::text[],9,true),
   ('excel-v2-11','انواع توری مش','layers',ARRAY['excel-v2-11-1']::text[],10,true),
   ('excel-v2-12','قطعات سفارشی مطابق با نقشه فنی شما','layers',ARRAY['excel-v2-12-1']::text[],11,true),
   ('excel-v2-13','انواع بلبرینگ','layers',ARRAY['excel-v2-13-1','excel-v2-13-2']::text[],12,true),
   ('excel-v2-14','ابر و اسفنج و اسکاج صنعتی','layers',ARRAY['excel-v2-14-1','excel-v2-14-2','excel-v2-14-3']::text[],13,true)
-ON CONFLICT (id) DO NOTHING;
-
-DO $$
+ON CONFLICT (id) DO UPDATE
+ SET category_slugs = EXCLUDED.category_slugs,
+     updated_at = now()
+ WHERE public.catalog_navigation_groups.category_slugs IS DISTINCT FROM EXCLUDED.category_slugs;DO $$
 DECLARE available integer;
+DECLARE approved_categories integer;
+DECLARE grouped_categories integer;
+DECLARE grouped_links integer;
+DECLARE unknown_group_categories integer;
 BEGIN
  SELECT count(*) INTO available FROM public.catalog_navigation_groups
  WHERE is_active=true AND id ~ '^excel-v2-[0-9]+$';
- IF available < 6 THEN
-  RAISE EXCEPTION 'Failed to prepare approved mega-menu; only % approved groups are active', available;
+ IF available <> 14 THEN
+  RAISE EXCEPTION 'Expected 14 approved POPD groups, found %', available;
+ END IF;
+
+ SELECT count(*) INTO approved_categories
+ FROM public.catalog_categories
+ WHERE is_active=true
+   AND slug ~ '^excel-v2-[0-9]+-[0-9]+$'
+   AND metadata->>'source'='industrial_megamenu_hierarchy_v2';
+ IF approved_categories <> 40 THEN
+  RAISE EXCEPTION 'Expected exactly 40 approved POPD categories, found %', approved_categories;
+ END IF;
+
+ SELECT count(DISTINCT mapped.category_slug), count(*),
+        count(*) FILTER (WHERE category.slug IS NULL)
+ INTO grouped_categories, grouped_links, unknown_group_categories
+ FROM public.catalog_navigation_groups g
+ CROSS JOIN LATERAL unnest(g.category_slugs) AS mapped(category_slug)
+ LEFT JOIN public.catalog_categories category
+   ON category.slug=mapped.category_slug
+  AND category.is_active=true
+  AND category.metadata->>'source'='industrial_megamenu_hierarchy_v2'
+ WHERE g.is_active=true AND g.id ~ '^excel-v2-[0-9]+$';
+
+ IF grouped_categories <> 40 OR grouped_links <> 40 OR unknown_group_categories <> 0 THEN
+  RAISE EXCEPTION 'POPD group coverage invalid: unique %, links %, unknown %',
+    grouped_categories, grouped_links, unknown_group_categories;
  END IF;
 END $$;
 COMMIT;
