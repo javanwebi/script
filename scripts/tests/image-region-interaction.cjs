@@ -190,6 +190,7 @@ const {chromium}=require('playwright');
   const catalogueBody=page.locator('#kiki-image-workspace-catalog-body');
   assert.equal(await catalogueBody.evaluate(el=>getComputedStyle(el).overflowY),'auto','mobile result list must scroll independently');
   await catalogueBody.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+  await page.waitForTimeout(350); // let the sheet snap to its half-screen stop before the reverse swipe
   const halfHandleBox=await sheetHandle.boundingBox();assert.ok(halfHandleBox);
   await page.mouse.move(halfHandleBox.x+halfHandleBox.width/2,halfHandleBox.y+halfHandleBox.height/2);
   await page.mouse.down();
