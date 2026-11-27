@@ -1,4 +1,9 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import dotenv from "dotenv";
+import { WebSocket } from "ws";
+import { applyPrivateForzaConfig } from "../server/ai/privateForzaConfig.ts";
+import { buildGisooQwenSessionUpdate, isGisooQwenVoiceConfirmed, resolveGisooQwenVoice } from "../server/ai/gisooQwenRealtime.ts";
 
 const old = "http://" + process.env.OLD_HOST + ":3000";
 const candidate = "http://127.0.0.1:3000";
@@ -16,6 +21,87 @@ async function get(base, route) {
 
 async function json(base, route) {
   return (await get(base, route)).json();
+}
+
+const privateForzaPath = "/app/.env.forza-voice";
+if (fs.existsSync(privateForzaPath)) {
+  applyPrivateForzaConfig(process.env, dotenv.parse(fs.readFileSync(privateForzaPath)));
+}
+
+// The live call page uses native Gisoo/Qwen WebSocket, not the legacy
+// AvalAI/Piper desk voice. Promotion must prove that the exact realtime
+// provider accepts the same session contract and confirms the selected voice.
+const realtimeProvider = String(process.env.FORZA_REALTIME_PROVIDER || "qwen").trim().toLowerCase();
+if (realtimeProvider === "qwen") {
+  const qwenKey = String(process.env.FORZA_QWEN_API_KEY || "").trim();
+  assert.ok(qwenKey, "FORZA_QWEN_API_KEY_NOT_EFFECTIVE");
+  const model = "qwen3.8-omni-flash-realtime";
+  const target = new URL(process.env.FORZA_QWEN_REALTIME_URL?.trim() ||
+    "wss://ir.gisoo.pro/api/v1/realtime?model=" + model);
+  assert.equal(target.protocol, "wss:");
+  assert.ok(["gisoo.pro", "ir.gisoo.pro"].includes(target.hostname));
+  assert.equal(target.searchParams.get("model"), model);
+  const selectedVoice = resolveGisooQwenVoice();
+  const sessionUpdate = buildGisooQwenSessionUpdate(
+    "بررسی خصوصی اتصال است. هیچ پاسخ یا خوشامدگویی تولید نکن.",
+    Number(process.env.FORZA_QWEN_SILENCE_MS || 900),
+    selectedVoice,
+  );
+  await new Promise((resolve, reject) => {
+    const socket = new WebSocket(target, {
+      headers: { Authorization: "Bearer " + qwenKey },
+      handshakeTimeout: 15000,
+      maxPayload: 2097152,
+    });
+    let configured = false;
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      socket.terminate();
+      reject(new Error("FORZA_QWEN_GISOO_SESSION_UPDATE_TIMEOUT"));
+    }, 25000);
+    const settle = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      try { socket.close(1000, "private canary complete"); } catch {}
+      if (error) reject(error);
+      else resolve();
+    };
+    socket.on("message", raw => {
+      let event;
+      try { event = JSON.parse(raw.toString()); }
+      catch { settle(new Error("FORZA_QWEN_GISOO_INVALID_EVENT")); return; }
+      if (event.type === "error") {
+        const code = String(event.error?.code || "unknown").slice(0, 100);
+        settle(new Error("FORZA_QWEN_GISOO_PROVIDER_ERROR_" + code));
+        return;
+      }
+      if (event.type === "session.created" && !configured) {
+        configured = true;
+        socket.send(JSON.stringify(sessionUpdate));
+        return;
+      }
+      if (event.type === "session.updated") {
+        if (!isGisooQwenVoiceConfirmed(event.session || {}, selectedVoice)) {
+          settle(new Error("FORZA_QWEN_GISOO_VOICE_NOT_CONFIRMED"));
+          return;
+        }
+        console.log("FORZA_QWEN_GISOO_REALTIME_CANARY_OK model=" + model +
+          " voice=" + selectedVoice);
+        settle();
+      }
+    });
+    socket.on("error", error => settle(new Error("FORZA_QWEN_GISOO_SOCKET_ERROR_" +
+      String(error?.message || "unknown").slice(0, 160))));
+    socket.on("close", (code, reason) => {
+      if (!settled) settle(new Error("FORZA_QWEN_GISOO_CLOSED_" + code + "_" +
+        String(reason || "").slice(0, 100)));
+    });
+  });
+} else {
+  console.log("FORZA_QWEN_GISOO_REALTIME_CANARY_SKIPPED provider=" + realtimeProvider);
 }
 
 const health = await json(candidate, "/api/health");
