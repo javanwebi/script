@@ -168,8 +168,12 @@ const {chromium}=require('playwright');
   assert.equal(await page.getByTestId('forza-automatic-crop-thumbnail').count(),1,'mobile must show the exact selected crop preview');
   await page.screenshot({path:path.join('/tmp','forza-automatic-crop-mobile.png'),fullPage:true});
 
-  // The product cards are intentionally hidden in peek mode; reopen the sheet before opening a result.
-  await sheetHandle.click();
+  // Reopen the sheet with the same upward drag gesture a mobile customer uses.
+  const reopenHandleBox=await sheetHandle.boundingBox();assert.ok(reopenHandleBox);
+  await page.mouse.move(reopenHandleBox.x+reopenHandleBox.width/2,reopenHandleBox.y+reopenHandleBox.height/2);
+  await page.mouse.down();
+  await page.mouse.move(reopenHandleBox.x+reopenHandleBox.width/2,reopenHandleBox.y-115,{steps:8});
+  await page.mouse.up();
   await page.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='half');
   await page.waitForFunction(()=> {
     const element=document.querySelector('.kiki-image-workspace__catalog');
