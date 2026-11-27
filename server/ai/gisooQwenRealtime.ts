@@ -180,8 +180,9 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
       skuCount:Number(result.skuCount||0),
       results:displayResults
     });
-    send({type:'conversation.item.create',item:{type:'function_call_output',call_id:callId,output:JSON.stringify(result)}});
-    send({type:'response.create'});
+    const outputSent=send({type:'conversation.item.create',item:{type:'function_call_output',call_id:callId,output:JSON.stringify(result)}});
+    const responseSent=outputSent&&send({type:'response.create'});
+    if(!responseSent){toClient({type:'provider_error',code:'catalog_response_failed',reason:'نتیجه کاتالوگ آماده شد اما پاسخ فورزا شروع نشد؛ دوباره سؤال کن.',recoverable:true});log('catalog_tool_response_failed',{queryLength:query.length});return;}
     log('catalog_tool_completed',{queryLength:query.length,resultCount:displayResults.length,success:result.success!==false});
   };
   client.on('close',(code,reason)=>{log('browser_socket_closed',{code,reason:reason?reason.toString().slice(0,120):''});finish(undefined,code,reason?reason.toString():undefined);});
