@@ -204,6 +204,19 @@ test('legacy Andre selection is migrated to the professional Raymond voice', () 
   assert.equal(resolveGisooQwenVoice('unsupported-voice'), 'Raymond');
 });
 
+test('Realtime bridge records privacy-safe microphone energy, VAD, and first-audio timing without logging audio payloads', () => {
+  const server = readFileSync('server/ai/gisooQwenRealtime.ts', 'utf8');
+  assert.match(server, /log\('mic_first_frame'/);
+  assert.match(server, /log\('mic_stream'/);
+  assert.match(server, /rms:micSamples\?Math\.round\(Math\.sqrt\(micSquareSum\/micSamples\)\):0/);
+  assert.match(server, /log\('speech_started'/);
+  assert.match(server, /log\('speech_stopped'/);
+  assert.match(server, /log\('response_created'/);
+  assert.match(server, /log\('first_audio'/);
+  assert.match(server, /type:'input_audio_buffer\.append',audio:e\.audio/);
+  assert.doesNotMatch(server, /log\('mic_stream',[^\n]*audio:e\.audio/);
+});
+
 test('catalogue cards retain visible products during follow-up speech and expose direct SKU links', () => {
   const client = readFileSync('src/components/forza/ForzaQwenCallExperience.tsx', 'utf8');
   const start = client.indexOf("if(m.type==='speech_started')");
