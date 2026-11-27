@@ -102,13 +102,15 @@ test('Customer barge-in remains intact and the microphone starts immediately wit
   const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
   const app=readFileSync('server.ts','utf8');
-  const prompt=app.match(/const FORZA_SYSTEM_INSTRUCTION = `([\s\S]*?)`;/)?.[1]||'';
+  const prompt=app.match(/const FORZA_QWEN_SYSTEM_INSTRUCTION = `([\s\S]*?)`;/)?.[1]||'';
   assert.match(server,/speech_started'\)\{userSpeaking=true;[\s\S]*?send\(\{type:'response.cancel'\}\)/);
   assert.match(client,/if\(!s\.ready\|\|micMuted\.current\|\|scanning\.current/);
   assert.match(client,/setPhase\('listening'\);return;/);
   assert.doesNotMatch(client,/greeted|type:'text',text:greeting|سلام، به صنعت پیش خوش آمدید/);
   assert.match(prompt,/تو فورزا، مشاور فنی و راهنمای تأمین قطعات صنعتی صنعت پیش هستی/);
   assert.doesNotMatch(prompt,/سلام|مهندس جان|خوشامدگویی|۲۵ تا ۶۰ کلمه|۴ تا ۷ جمله/);
+  assert.match(app,/connectGisooQwenRealtime\(clientWs, FORZA_QWEN_SYSTEM_INSTRUCTION/);
+  assert.match(app,/systemInstruction: FORZA_SYSTEM_INSTRUCTION/);
   assert.doesNotMatch(server,/const ADVICE=|۷۰ تا ۱۳۰ کلمه/);
 });
  test('Native capture and stable light are enabled for exhibition calls', () => {
