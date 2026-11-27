@@ -30,7 +30,7 @@ The existing `applyPrivateForzaConfig` loader accepts `FORZA_*` values from this
 - The realtime session receives one concise role-and-mission instruction. The client does not inject synthetic greeting text or scripted conversation turns; the microphone starts sending audio as soon as the Gisoo session is ready.
 - Input is PCM 16 kHz mono; output is PCM 24 kHz mono.
 - Gisoo server VAD currently ends turns and interrupts generated audio when the customer starts speaking. A semantic noise-aware VAD mode is being validated separately before activation; do not assume it is live yet. The bridge reports whether the browser actually enabled echo cancellation, noise suppression, and automatic gain control.
-- Text input from the existing client remains supported. The native microphone is enabled immediately after session readiness; no synthetic greeting text turn is sent.
+- Text input from the existing client remains supported.
 - Provider usage metadata and actual browser capture-processing flags are logged without logging customer audio, transcripts, device identifiers, or API credentials.
 
 ## Revert after the exhibition
