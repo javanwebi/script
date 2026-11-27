@@ -18,6 +18,8 @@ FORZA_QWEN_SILENCE_MS=1100
 
 The key is read only by the server. Never put it in Vite variables, browser code, GitHub Actions, source files, or commits.
 
+The runtime defaults to eight concurrent calls. The code accepts a configured ceiling up to forty, but increase this only after confirming the Gisoo account's realtime concurrency quota. The deployment canary now opens the real Gisoo WebSocket, applies the same session/tool schema, and verifies the selected voice before traffic promotion; the legacy AvalAI/Piper check alone is not sufficient for the live call routes.
+
 The existing `applyPrivateForzaConfig` loader accepts `FORZA_*` values from this private file. The VPS deployment preserves the current container environment and its private mounts; verify the existing `.env.forza-voice` mount before deploying.
 
 ## Provider behavior
