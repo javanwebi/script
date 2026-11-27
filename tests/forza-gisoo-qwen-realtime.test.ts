@@ -31,6 +31,7 @@ test('Qwen session uses Gisoo direct-realtime PCM, Bodega voice, configured VAD,
   assert.equal(update.session.instructions, 'دستیار فارسی صنعت پیش');
   assert.equal(update.session.audio.input.turn_detection.type, 'semantic_vad_ec');
   assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 800);
+  assert.deepEqual(Object.keys(update.session.audio.input.turn_detection).sort(), ['silence_duration_ms','threshold','type']);
   assert.equal('turn_detection' in update.session, false);
   assert.equal(isGisooQwenTurnDetectionConfirmed({audio:{input:{turn_detection:{type:'semantic_vad_ec'}}}}), true);
   assert.equal(isGisooQwenTurnDetectionConfirmed({turn_detection:{type:'semantic_vad_ec'}}), true);
