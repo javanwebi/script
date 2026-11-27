@@ -141,7 +141,7 @@ function wav(){
 
   // Test the active Qwen route independently against a deterministic mock WebSocket.
   const qwenPage=await browser.newPage({permissions:['microphone'],viewport:{width:1180,height:750}});
-  const qwenErrors=[], legacyRequests=[], turns=[];
+  const qwenErrors=[], legacyRequests=[], turns=[], resumedContexts=[];
   let connectionCount=0, micFrames=0, currentSocket=null, responseNumber=0;
   qwenPage.on('pageerror',e=>qwenErrors.push(e.message));
   await qwenPage.route('**/api/runtime',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})}));
@@ -157,17 +157,20 @@ function wav(){
       {type:'turn_complete',responseId},
     ])socket.send(JSON.stringify(frame));
   }
-  await qwenPage.routeWebSocket('**/api/live?provider=qwen',socket=>{
+  await qwenPage.routeWebSocket(/\/api\/live\?provider=qwen(?:&resume=1)?$/,socket=>{
+     const resumed=new URL(socket.url()).searchParams.get('resume')==='1';
     connectionCount++; currentSocket=socket;
     socket.onMessage(raw=>{
       const m=JSON.parse(String(raw));
       if(m.type==='realtime_audio'){micFrames++;assert.ok(Buffer.from(m.audio,'base64').length>0);}
-      if(m.type==='text'){
+      if(m.type==='ping')socket.send(JSON.stringify({type:'pong'}));
+       if(m.type==='resume_context')resumedContexts.push(JSON.parse(m.text));
+       if(m.type==='text'){
         turns.push(m.text);
         reply(socket,'پاسخ فنی آزمایشی');
       }
     });
-    socket.send(JSON.stringify({type:'connected',provider:'qwen',voice:'Andre',voiceConfirmed:true}));
+    socket.send(JSON.stringify({type:'connected',provider:'qwen',voice:'Andre',voiceConfirmed:true,resumed}));
   });
   await qwenPage.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await qwenPage.getByText('فورزا گوش می‌دهد',{exact:true}).waitFor({timeout:25000});
@@ -191,6 +194,15 @@ function wav(){
   await qwenPage.getByRole('button',{name:'اتصال مجدد',exact:true}).click();
   await qwenPage.getByText('فورزا گوش می‌دهد',{exact:true}).waitFor({timeout:25000});
   assert.equal(connectionCount,2);
+   await qwenPage.waitForTimeout(200);
+   assert.equal(resumedContexts.length,1,'manual reconnect restores the recent consultation without a new text turn');
+   assert.ok(resumedContexts[0].history.some(t=>t.role==='user'&&t.text==='تسمه SPA'));
+   currentSocket.close({code:1012,reason:'temporary restart'});
+   await qwenPage.waitForFunction(()=>document.body.innerText.includes('در حال اتصال مجدد خودکار'),null,{timeout:3000});
+   await qwenPage.getByText('فورزا گوش می‌دهد',{exact:true}).waitFor({timeout:25000});
+   await qwenPage.waitForTimeout(200);
+   assert.equal(connectionCount,3,'transient disconnect should automatically reconnect');
+   assert.equal(resumedContexts.length,2);
   assert.equal(turns.length,turnsBeforeReconnect,'reconnecting must not inject any synthetic text turn');
   assert.deepEqual(legacyRequests,[]);
   assert.deepEqual(qwenErrors,[]);
