@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   buildGisooQwenSessionUpdate,
+  buildGisooQwenOpeningGreetingSeed,
   classifyGisooRealtimeError,
   mapGisooQwenEvent,
   resolveGisooQwenVoice,
@@ -29,6 +30,17 @@ test('Qwen session uses Gisoo direct-realtime PCM, Bodega voice, configured VAD,
   assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 500);
   assert.equal(update.session.audio.input.turn_detection.interrupt_response, true);
   assert.equal(update.session.reasoning.effort, 'none');
+});
+
+test('opening greeting is seeded as one system conversation item, never a synthetic user turn', () => {
+  const seed = buildGisooQwenOpeningGreetingSeed();
+  assert.equal(seed.type, 'conversation.item.create');
+  assert.equal(seed.item.type, 'message');
+  assert.equal(seed.item.role, 'system');
+  assert.deepEqual(seed.item.content.map(part => part.type), ['text']);
+  assert.match(seed.item.content[0].text, /خوشامدگویی آغازین/);
+  assert.match(seed.item.content[0].text, /فقط یک‌بار/);
+  assert.doesNotMatch(seed.item.content[0].text, /مهندس جان/);
 });
 
 test('Qwen audio deltas map to the existing FORZA audio chunk protocol', () => {
@@ -115,7 +127,9 @@ test('Customer barge-in remains intact and Gisoo generates one opening greeting 
   assert.match(prompt,/فقط یک‌بار طبیعی خوشامد بگو/);
   assert.match(prompt,/این تنها خوشامدگویی و معرفی تو در کل تماس است/);
   assert.match(prompt,/حتی اگر مشتری دوباره سلام کرد/);
-  assert.match(server,/toClient\(\{type:'connected'[\s\S]*?send\(\{type:'response\.create'\}\)/);
+  assert.match(server,/send\(buildGisooQwenOpeningGreetingSeed\(\)\)/);
+  assert.match(server,/greetingSeedPending&&item\.role==='system'/);
+  assert.match(server,/send\(\{type:'response\.create'\}\)/);
   assert.match(server,/log\('opening_greeting_requested'/);
   assert.doesNotMatch(prompt,/هیچ خوشامدگویی خودکار یا پیام آغازینی نساز/);
   assert.doesNotMatch(prompt,/۲۵ تا ۶۰ کلمه|۴ تا ۷ جمله/);
