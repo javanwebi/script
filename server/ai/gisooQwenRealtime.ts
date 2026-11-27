@@ -10,18 +10,20 @@ export type GisooCatalogSearchHandler=(query:string,limit:number)=>Promise<unkno
 let activeSessions=0;
 export function resolveGisooQwenVoice(configuredValue:unknown=process.env.FORZA_QWEN_VOICE){const configured=String(configuredValue||'').trim();if(configured.toLowerCase()==='andre')return DEFAULT_VOICE;const selected=VOICES.has(configured)?configured:[...VOICES].find(candidate=>candidate.toLowerCase()===configured.toLowerCase());return selected||DEFAULT_VOICE;}
 export function isGisooQwenVoiceConfirmed(session:Event,selectedVoice:string){const reported=session?.audio?.output?.voice??session?.voice;return typeof reported==='string'&&reported.trim().toLowerCase()===selectedVoice.toLowerCase();}
+export function isGisooQwenTurnDetectionConfirmed(session:Event){return session?.turn_detection?.type==='semantic_vad_ec';}
 function voice(){return resolveGisooQwenVoice();}
 function bounded(n:number,fallback:number,min:number,max:number){return Number.isFinite(n)?Math.max(min,Math.min(max,Math.round(n))):fallback;}
 function decode(raw:RawData):Event{return JSON.parse((Buffer.isBuffer(raw)?raw:Array.isArray(raw)?Buffer.concat(raw):Buffer.from(raw as ArrayBuffer)).toString('utf8'));}
 function id(e:Event,fallback=''){return String(e.response_id||e.response?.id||fallback);}
-export function buildGisooQwenSessionUpdate(instructions:string,silenceDurationMs=900,selectedVoice=voice()){
+export function buildGisooQwenSessionUpdate(instructions:string,silenceDurationMs=800,selectedVoice=voice()){
   return {
     type:'session.update',
     session:{
       output_modalities:['audio'],
       instructions:instructions.slice(0,16000),
+      turn_detection:{type:'semantic_vad_ec',threshold:0.5,prefix_padding_ms:300,silence_duration_ms:bounded(silenceDurationMs,800,800,2500),create_response:true,interrupt_response:true},
       audio:{
-        input:{format:{type:'audio/pcm',rate:16000},turn_detection:{type:'server_vad',threshold:0.5,prefix_padding_ms:300,silence_duration_ms:bounded(silenceDurationMs,900,800,2500),create_response:true,interrupt_response:true}},
+        input:{format:{type:'audio/pcm',rate:16000}},
         output:{format:{type:'audio/pcm',rate:24000},voice:selectedVoice}
       },
       tools:[
@@ -267,7 +269,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   upstream.on('message',raw=>{
     if(closed)return;let e:Event;try{e=decode(raw);}catch{return;}const t=String(e.type||'');
     if(t==='session.created'&&!configured){configured=true;send(buildGisooQwenSessionUpdate(instructions,Number(process.env.FORZA_QWEN_SILENCE_MS||900),selectedVoice));return;}
-    if(t==='session.updated'&&!ready&&configured){const reported=e.session?.audio?.output?.voice??e.session?.voice;const confirmed=isGisooQwenVoiceConfirmed(e.session||{},selectedVoice);if(!confirmed){finish('گیسو صدای درخواستی '+selectedVoice+' را تأیید نکرد'+(typeof reported==='string'&&reported.trim()?' (صدای گزارش‌شده: '+reported+')':' (صدای گزارش‌شده موجود نیست)')+'. اتصال با صدای پیش‌فرض ادامه پیدا نمی‌کند.');return;}ready=true;if(timer)clearTimeout(timer);log('session_ready',{ms:Date.now()-started,voice:selectedVoice,confirmed:true});if(resuming){toClient({type:'connected',provider:'qwen',model:MODEL,voice:selectedVoice,voiceConfirmed:true,inputSampleRate:16000,sampleRate:24000,resumed:true});return;}greetingTriggerId='forza-opening-'+started;greetingSeedPending=true;if(!send(buildGisooQwenOpeningGreetingTrigger(greetingTriggerId))){finish('فرمان آغاز مکالمه به گیسو ارسال نشد؛ اتصال قطع شد و دوباره تلاش می‌کنم.',undefined,undefined,true);return;}timer=setTimeout(()=>{if(greetingSeedPending)finish('گیسو فرمان آغاز تماس را ثبت نکرد؛ ارتباط قطع شد و دوباره تلاش می‌کنم.',undefined,undefined,true);},7000);log('opening_greeting_trigger_sent',{itemId:greetingTriggerId,role:'user',contentType:'input_text'});return;}
+    if(t==='session.updated'&&!ready&&configured){const reported=e.session?.audio?.output?.voice??e.session?.voice;const confirmed=isGisooQwenVoiceConfirmed(e.session||{},selectedVoice);const turnDetectionConfirmed=isGisooQwenTurnDetectionConfirmed(e.session||{});if(!turnDetectionConfirmed){finish('گیسو حالت تشخیص هوشمند صدای مشتری (semantic_vad_ec) را تأیید نکرد؛ تماس با تشخیص نویز معمولی شروع نمی‌شود.');return;}if(!confirmed){finish('گیسو صدای درخواستی '+selectedVoice+' را تأیید نکرد'+(typeof reported==='string'&&reported.trim()?' (صدای گزارش‌شده: '+reported+')':' (صدای گزارش‌شده موجود نیست)')+'. اتصال با صدای پیش‌فرض ادامه پیدا نمی‌کند.');return;}ready=true;if(timer)clearTimeout(timer);log('session_ready',{ms:Date.now()-started,voice:selectedVoice,confirmed:true,turnDetection:'semantic_vad_ec',modelNoiseAwareInterruption:true});if(resuming){toClient({type:'connected',provider:'qwen',model:MODEL,voice:selectedVoice,voiceConfirmed:true,inputSampleRate:16000,sampleRate:24000,resumed:true});return;}greetingTriggerId='forza-opening-'+started;greetingSeedPending=true;if(!send(buildGisooQwenOpeningGreetingTrigger(greetingTriggerId))){finish('فرمان آغاز مکالمه به گیسو ارسال نشد؛ اتصال قطع شد و دوباره تلاش می‌کنم.',undefined,undefined,true);return;}timer=setTimeout(()=>{if(greetingSeedPending)finish('گیسو فرمان آغاز تماس را ثبت نکرد؛ ارتباط قطع شد و دوباره تلاش می‌کنم.',undefined,undefined,true);},7000);log('opening_greeting_trigger_sent',{itemId:greetingTriggerId,role:'user',contentType:'input_text'});return;}
     if(!ready&&t!=='error')return;
     if(t==='input_audio_buffer.speech_started'){userSpeaking=true;lastSpeechStartedAt=Date.now();partial='';pendingText='';log('speech_started',{afterFirstMicFrameMs:firstMicFrameAt?Date.now()-firstMicFrameAt:null,activeResponse:Boolean(active)});toClient({type:'speech_started'});if(active&&!cancelled.has(active))cancelActiveResponse(active);else if(requested){send({type:'response.cancel'});}return;}
     if(t==='input_audio_buffer.speech_stopped'){userSpeaking=false;speechStop=Date.now();log('speech_stopped',{speechDurationMs:lastSpeechStartedAt?Date.now()-lastSpeechStartedAt:null});toClient({type:'speech_stopped'});return;}
