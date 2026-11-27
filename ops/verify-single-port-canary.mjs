@@ -88,9 +88,18 @@ if (realtimeProvider === "qwen") {
           settle(new Error("FORZA_QWEN_GISOO_VOICE_NOT_CONFIRMED"));
           return;
         }
+        socket.send(JSON.stringify({
+          type: "input_audio_buffer.append",
+          audio: Buffer.alloc(640).toString("base64"),
+        }));
         console.log("FORZA_QWEN_GISOO_REALTIME_CANARY_OK model=" + model +
           " voice=" + selectedVoice);
-        settle();
+        setTimeout(() => {
+          if (!settled) {
+            console.log("FORZA_QWEN_GISOO_AUDIO_APPEND_OK");
+            settle();
+          }
+        }, 350);
       }
     });
     socket.on("unexpected-response", (_request, response) => {
