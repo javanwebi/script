@@ -36,9 +36,9 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const history=useRef<{role:'user'|'assistant';text:string}[]>([]);
   const visionContext=useRef('');
   const remember=(role:'user'|'assistant',value:string)=>{
-    const clean=value.trim().slice(0,480);if(!clean)return;
+    const clean=value.trim().slice(0,700);if(!clean)return;
     const last=history.current.at(-1);if(last?.role===role&&last.text===clean)return;
-    history.current=[...history.current,{role,text:clean}].slice(-6);
+    history.current=[...history.current,{role,text:clean}].slice(-8);
   };
   const [phase,setPhase]=useState<Phase>('connecting');
   const [error,setError]=useState('');
