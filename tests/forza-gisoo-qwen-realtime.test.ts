@@ -386,7 +386,7 @@ test('mic resampling and PCM conversion run in AudioWorklet for the primary path
 test('FORZA consultant prompt follows a staged industrial diagnostic and recommendation workflow',()=>{
  const app=readFileSync('server.ts','utf8');
  const prompt=app.match(/const FORZA_QWEN_SYSTEM_INSTRUCTION = `([\s\S]*?)`;/)?.[1]||'';
- for(const term of ['پرونده مهندسی','تسمه‌ها','بلبرینگ و رولبرینگ','عیب‌یابی','کاتالوگ واقعی','دلیل انتخاب','یک سؤال مهم'])assert.ok(prompt.includes(term),term);
+ for(const term of ['پرونده مهندسی','تسمه‌ها','بلبرینگ و رولبرینگ','عیب‌یابی','کاتالوگ واقعی','دلیل انتخاب','یک سؤال مهم','وایسا','بله، بفرمایید'])assert.ok(prompt.includes(term),term);
  assert.match(prompt,/get_sanatpish_product_details/);
  assert.match(prompt,/compare_sanatpish_products/);
  assert.match(prompt,/update_forza_consultation/);
