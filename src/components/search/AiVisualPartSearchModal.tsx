@@ -175,6 +175,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const regionDetectionSequenceRef=useRef(0);
   const regionSelectionSequenceRef=useRef(0);
   const autoAnalysisKeyRef=useRef<string|null>(null);
+  const analyzeSelectedRegionRef=useRef<((region: ImageRegion, imageId: string) => void) | null>(null);
   const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
@@ -435,13 +436,19 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     if (regionDetectionState !== 'ready' || selectedIndex < 0) return;
     if (!fullImageSelected && sameImageRegion(queryRegion, region)) return;
     regionSelectionSequenceRef.current++;
-    autoAnalysisKeyRef.current = null;
+    const imageId = localImageId;
+    if (!imageId) return;
+    const regionKey = [region.x, region.y, region.width, region.height].map(value => value.toFixed(4)).join(':');
+    autoAnalysisKeyRef.current = `${imageId}:${regionKey}`;
     setQueryRegion(region);
     setFullImageSelected(false);
     setAnalysisResult(null);
     setSelectedProductId(undefined);
     setErrorMessage('');
     setRegionDetectionMessage(`قطعه ${toPersianDigits(String(selectedIndex + 1))} انتخاب شد؛ برش و جست‌وجوی کاتالوگ برای همین قطعه دوباره اجرا می‌شود.`);
+    // Start the new crop query directly from the user's tap. The matching
+    // auto-analysis key prevents the state-driven effect from duplicating it.
+    analyzeSelectedRegionRef.current?.(region, imageId);
   };
 
   const uploadAndPrepareImage = async (source: string | Blob, originalName = "customer-image") => {
@@ -776,6 +783,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (activeImageEventId) void completeCustomerImageIdentification(activeImageEventId, { status: "failed" }).catch(() => undefined);
       setErrorMessage(friendlyVisionError(error)); setCurrentStep(inlineWorkspace ? 1 : stage === "quick" ? 1 : 3);
     } finally { if (sequence === analysisSequenceRef.current) {analysisBusyRef.current = false;if(inlineWorkspace)setInlineAnalysisBusy(false);} }
+  };
+
+  analyzeSelectedRegionRef.current = (region, imageId) => {
+    void handleAnalyze('quick', region, imageId, true);
   };
 
   React.useEffect(()=>{
