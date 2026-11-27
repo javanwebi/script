@@ -91,7 +91,9 @@ test('FORZA Vision lets customers tap an automatic object proposal but never dra
   assert.match(crop, /candidateRegions/);
   assert.match(crop, /onSelectRegion/);
   assert.match(crop, /forza-region-candidate-/);
-  assert.match(crop, /onClick=\{\(\) => onSelectRegion\?\.\(candidate\)\}/);
+  assert.match(crop, /onClick=\{event => \{ framePointerDownRef\.current = null; event\.stopPropagation\(\); onSelectRegion\?\.\(candidate\); \}\}/);
+  assert.match(crop, /onPointerDown=\{handleFramePointerDown\}/);
+  assert.match(crop, /Math\.hypot\(event\.clientX - pointerDown\.x, event\.clientY - pointerDown\.y\) > 8/);
   assert.match(crop, /aria-pressed=\{selected\}/);
   assert.match(cropStyles, /\.forza-auto-crop__candidate/);
   assert.match(cropStyles, /touch-action: manipulation/);
