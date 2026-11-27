@@ -229,6 +229,8 @@ test("the private canary verifies the legacy AvalAI voice and the actual Gisoo Q
   assert.match(canary, /FORZA_QWEN_GISOO_AUDIO_APPEND_OK/);
   assert.match(canary, /buildGisooQwenSessionUpdate/);
   assert.match(canary, /isGisooQwenVoiceConfirmed/);
+  assert.match(canary, /isGisooQwenTurnDetectionConfirmed/);
+  assert.match(canary, /FORZA_QWEN_GISOO_SEMANTIC_VAD_EC_NOT_CONFIRMED/);
   assert.match(canary, /FORZA_QWEN_API_KEY_NOT_EFFECTIVE/);
   assert.match(canary, /FORZA_QWEN_MIC_WORKLET_ASSET_OK/);
 });
