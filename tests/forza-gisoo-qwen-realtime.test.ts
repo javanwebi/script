@@ -11,6 +11,8 @@ import {
 } from '../server/ai/gisooQwenRealtime';
 import { searchForzaRealtimeCatalog } from '../server/ai/forzaRealtimeCatalog';
 import type { Product } from '../src/types';
+import type { AiPartAnalysisResult } from '../src/services/aiVisualSearchService';
+import { buildLiveVisionCandidates, buildLiveVisionPrompt } from '../src/utils/forzaLiveVisionContext';
 
 test('Qwen session uses Gisoo direct-realtime PCM, Bodega voice, configured VAD, and only the supplied instruction', () => {
   const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Bodega');
@@ -214,7 +216,7 @@ test('native Gisoo server executes catalogue function calls and returns tool out
   assert.match(server, /type:'catalog_results'/);
   assert.match(server, /cancelled\.has\(response\)&&pendingText&&!userSpeaking/);
   assert.match(server, /toolResponseId&&cancelled\.has\(toolResponseId\)/);
-  assert.match(app, /connectGisooQwenRealtime\(clientWs, FORZA_QWEN_SYSTEM_INSTRUCTION, searchForzaLiveCatalog\)/);
+  assert.match(app, /connectGisooQwenRealtime\(clientWs, FORZA_QWEN_SYSTEM_INSTRUCTION, searchForzaLiveCatalog, resuming\)/);
   assert.match(app, /systemInstruction: FORZA_SYSTEM_INSTRUCTION/);
 });
 
@@ -276,4 +278,68 @@ test('catalogue cards retain visible products during follow-up speech and expose
   assert.doesNotMatch(client.slice(start, end), /setCatalogResults|setCatalogQuery/);
   assert.match(client, /href=\{'\/direct-product\/'\+encodeURIComponent\(variant\.code\)\}/);
   assert.match(client, /useState\('Bodega'\)/);
+});
+
+test('reconnect seeds context only on resumed calls and avoids an opening greeting',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ assert.match(server,/if\(resuming\)\{toClient\(\{type:'connected',[^\n]*resumed:true\}\);return;\}greetingTriggerId=/);
+ assert.match(server,/if\(!resuming\|\|resumeSeedAccepted\)return/);
+ assert.match(client,/retryCount\.current<3/);
+ assert.match(client,/type:'resume_context'/);
+ assert.match(client,/type:'ping'/);
+ assert.match(client,/m\.type==='pong'/);
+ assert.match(client,/clearInterval\(s\.heartbeat\)/);
+});
+test('live image input reuses the existing region detector and embedding service without full-screen navigation',()=>{
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ assert.match(client,/detectImageRegions\(base64\)/);
+ assert.match(client,/analyzePartWithAi\(\{imageBase64:base64/);
+ assert.match(client,/includeNearest:true/);
+ assert.match(client,/buildLiveVisionCandidates\(result\)/);
+ assert.match(client,/buildLiveVisionPrompt\(result,items\)/);
+ assert.doesNotMatch(client,/ImageSearch isOpen fullScreen/);
+});
+
+test('embedding-only model and nearest results reach the call with real codes, specs, and distinct uncertainty',()=>{
+ const suggestion={familyCode:'BELT-FAMILY',familyName:'تسمه',name:'تسمه صنعتی',brand:'Brand',imageScope:'none' as const,matchBasis:'family' as const,specs:[{key:'عرض',value:'13 mm'}],reason:'خانواده مشابه'};
+ const result={success:true,isAiGenerated:true,matchedProducts:[],similarCandidates:[],summary:{detectedPartType:'تسمه',detectedProfile:'تأیید نشده',visualAnalysis:'شباهت',confidence:0},technicalAdvice:'ابعاد را بررسی کنید',
+ modelSuggestions:[{...suggestion,code:'A49',matchBasis:'visual',image:'/not-authorized.png'}],
+ nearestCatalogSuggestions:[{...suggestion,code:'A49',matchBasis:'explore'},{...suggestion,familyCode:'OTHER',matchBasis:'explore'}]} as AiPartAnalysisResult;
+ const candidates=buildLiveVisionCandidates(result);
+ assert.equal(candidates.length,2);
+ assert.equal(candidates[0].code,'A49');
+ assert.equal(candidates[0].basis,'similar');
+ assert.equal(candidates[0].image,undefined);
+ assert.equal(candidates[0].link,'/direct-product/A49');
+ assert.equal(candidates[1].basis,'explore');
+ assert.equal(candidates[1].link,'/product/OTHER');
+ const prompt=buildLiveVisionPrompt(result,candidates);
+ assert.match(prompt,/A49/);
+ assert.match(prompt,/13 mm/);
+ assert.match(prompt,/OTHER/);
+ assert.ok(prompt.length<3000);
+});
+test('visual consultation payload remains complete JSON within the bridge limit',()=>{
+ const result={matchedProducts:[],summary:{whatYouSee:'الف'.repeat(5000),readableMarkings:['x'.repeat(400)]},catalogImageMatches:[],modelSuggestions:Array.from({length:16},(_,i)=>({familyCode:'family'+i,code:'SKU'+i,name:'تسمه'.repeat(200),familyName:'تسمه',brand:'brand',imageScope:'none',matchBasis:'visual',specs:Array.from({length:12},()=>({key:'عرض'.repeat(100),value:'100'.repeat(100)})),reason:'شبیه'.repeat(100)}))} as unknown as AiPartAnalysisResult;
+ const prompt=buildLiveVisionPrompt(result,buildLiveVisionCandidates(result));
+ assert.ok(prompt.length<=2900);
+ const payload=JSON.parse(prompt.slice(prompt.indexOf('{')));
+ assert.ok(payload.candidates.length>0);
+ assert.ok(payload.candidates.length<16);
+});
+
+test('exact SKU lookup prioritizes the requested active code and exposes its own technical specs only',()=>{
+ const product={code:'BELTS',name:'تسمه',brand:'SWR',images:[],technicalSpecs:[{key:'نوع',value:'V'}],variants:[
+ ...Array.from({length:12},(_,i)=>({code:'A19'+i,name:'تسمه دیگر',size:'19',active:true})),
+ {code:'A19',name:'تسمه مورد نظر',size:'13×8',model:'A',technicalSpecs:[{key:'عرض',value:'13 mm'}],description:'مدل ثبت شده',price:100,stock:10,active:true},
+ {code:'A1900',name:'غیرفعال',size:'',active:false}
+ ]} as unknown as Product;
+ const result=searchForzaRealtimeCatalog([product], 'A۱۹');
+ assert.equal(result.familyCount,1);
+ assert.equal(result.results[0].variants[0].code,'A19');
+ assert.deepEqual(result.results[0].variants[0].technicalSpecs,[{key:'عرض',value:'13 mm'}]);
+ assert.equal(result.results[0].variants[0].link,'/direct-product/A19');
+ assert.ok(!result.results[0].variants.some(v=>v.code==='A1900'));
+ assert.doesNotMatch(JSON.stringify(result), /"price"|"stock"/);
 });
