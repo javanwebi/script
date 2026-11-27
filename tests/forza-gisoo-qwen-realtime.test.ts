@@ -29,12 +29,12 @@ test('Qwen session uses Gisoo direct-realtime PCM, Bodega voice, configured VAD,
   });
   assert.equal(update.session.audio.output.voice, 'Bodega');
   assert.equal(update.session.instructions, 'دستیار فارسی صنعت پیش');
-  assert.equal(update.session.turn_detection.type, 'semantic_vad_ec');
-  assert.equal(update.session.turn_detection.silence_duration_ms, 800);
-  assert.equal(update.session.turn_detection.interrupt_response, true);
-  assert.equal('turn_detection' in update.session.audio.input, false);
+  assert.equal(update.session.audio.input.turn_detection.type, 'semantic_vad_ec');
+  assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 800);
+  assert.equal('turn_detection' in update.session, false);
+  assert.equal(isGisooQwenTurnDetectionConfirmed({audio:{input:{turn_detection:{type:'semantic_vad_ec'}}}}), true);
   assert.equal(isGisooQwenTurnDetectionConfirmed({turn_detection:{type:'semantic_vad_ec'}}), true);
-  assert.equal(isGisooQwenTurnDetectionConfirmed({turn_detection:{type:'server_vad'}}), false);
+  assert.equal(isGisooQwenTurnDetectionConfirmed({audio:{input:{turn_detection:{type:'server_vad'}}}}), false);
   assert.equal(update.session.reasoning.effort, 'none');
 });
 
@@ -365,7 +365,7 @@ test('exact SKU lookup prioritizes the requested active code and exposes its own
 
 test('Qwen realtime uses a natural Persian pause and exposes exact detail and comparison tools',()=>{
  const update=buildGisooQwenSessionUpdate('مشاور');
- assert.equal(update.session.turn_detection.silence_duration_ms,800);
+ assert.equal(update.session.audio.input.turn_detection.silence_duration_ms,800);
  assert.equal(update.session.tools.length,4);
  assert.equal(update.session.tools[0].name,'search_sanatpish_catalog');
  assert.equal(update.session.tools[1].name,'get_sanatpish_product_details');
