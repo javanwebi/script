@@ -222,7 +222,9 @@ const {chromium}=require('playwright');
   await fallbackPage.getByText('ناحیه‌های پیشنهادی پیدا شدند').waitFor();
   const fallbackSecondRequestPromise=fallbackPage.waitForRequest(request=>new URL(request.url()).pathname==='/api/ai/analyze-part');
   // Tap the second detected object itself; this is the same target customers use on the image overlay.
-  await fallbackCrop.getByTestId('forza-region-candidate-2').click();
+  const fallbackCandidate2=fallbackCrop.getByTestId('forza-region-candidate-2');
+  await fallbackCandidate2.click();
+  await fallbackPage.waitForFunction(()=>document.querySelector('[data-testid="forza-region-candidate-2"]')?.getAttribute('data-selected')==='true',null,{timeout:5000});
   const fallbackSecondRequest=await fallbackSecondRequestPromise;
   assert.deepEqual(fallbackSecondRequest.postDataJSON().region,{x:0.67,y:0.28,width:0.2,height:0.44});
   await fallbackPage.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
