@@ -48,7 +48,7 @@ export function buildGisooQwenSessionUpdate(instructions:string,silenceDurationM
             summary:{type:'string',description:'خلاصه یک‌جمله‌ای از وضعیت مشاوره؛ بدون حدس یا ادعای تأییدنشده.'},
             knownFacts:{type:'array',items:{type:'string'},maxItems:8,description:'اطلاعاتی که مشتری صریحاً گفته یا ابزار کاتالوگ تأیید کرده است.'},
             missingFacts:{type:'array',items:{type:'string'},maxItems:6,description:'اطلاعات ضروری که هنوز برای تشخیص یا انتخاب دقیق کم است.'}
-          },required:['stage','summary'],additionalProperties:false}
+          },required:['stage','summary','knownFacts','missingFacts'],additionalProperties:false}
         }
       ],
       reasoning:{effort:'none'},
