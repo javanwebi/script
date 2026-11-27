@@ -360,6 +360,8 @@ test('Qwen realtime uses a natural Persian pause and exposes exact detail and co
  assert.deepEqual(update.session.tools[2].parameters.required,['codes']);
  assert.equal(update.session.tools[3].name,'update_forza_consultation');
  assert.deepEqual(update.session.tools[3].parameters.required,['stage','summary']);
+ assert.ok(update.session.tools[3].parameters.properties.knownFacts);
+ assert.ok(update.session.tools[3].parameters.properties.missingFacts);
 });
 test('transport protects the call from brief backpressure and records provider close diagnostics',()=>{
  const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
@@ -437,7 +439,10 @@ test('live call displays and restores a real consultation stage instead of a dec
  assert.match(client,/CONSULTATION_STAGES/);
  assert.match(client,/m\.type==='consultation_update'/);
  assert.match(client,/consultation:consultationRef\.current/);
+ assert.match(client,/consultationState\.knownFacts/);
+ assert.match(client,/consultationState\.missingFacts/);
  assert.match(server,/type:'consultation_update'/);
  assert.match(server,/update_forza_consultation/);
+ assert.match(server,/knownFacts,missingFacts/);
  assert.match(server,/invalid_consultation_stage/);
 });
