@@ -82,6 +82,7 @@ export function mapGisooQwenEvent(e:Event,responseId=''):Array<Record<string,unk
 export function classifyGisooRealtimeError(code:string,ready:boolean):'ignore'|'active_response'|'recoverable'|'fatal'{
   if(code==='response_cancel_not_active'||code==='input_audio_buffer_commit_empty')return 'ignore';
   if(code==='conversation_already_has_active_response')return 'active_response';
+  if(['flood','rate_limit_exceeded','server_error','temporarily_unavailable','upstream_timeout'].includes(code))return 'recoverable';
   if(!ready||code==='session_closed'||code==='server_restart'||code==='insufficient_credit'||code==='invalid_api_key'||code==='authentication_error')return 'fatal';
   return 'recoverable';
 }
@@ -291,6 +292,9 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
       if(disposition==='fatal'){
         const reason=code==='insufficient_credit'?'اعتبار گیسو کافی نیست.':code==='session_closed'?'گیسو نشست را بسته است؛ دوباره متصل شوید.':code==='server_restart'?'گیسو در حال راه‌اندازی مجدد است؛ چند ثانیه بعد دوباره متصل شوید.': 'گیسو هنگام آماده‌سازی نشست خطا داد: '+code;
         finish(reason);return;
+      }
+      if(!ready&&disposition==='recoverable'){
+        finish('گیسو هنگام اتصال موقتاً خطا داد؛ ارتباط قطع شد و دوباره تلاش می‌کنم.',undefined,undefined,true);return;
       }
       const reason=code==='flood'||code==='rate_limit_exceeded'?'گیسو موقتاً درخواست‌ها را محدود کرده است؛ تماس را نگه داشتم. چند لحظه مکث کن و دوباره بگو.': 'خطای موقت گیسو ('+code+')؛ تماس برقرار است.';
       if(['flood','rate_limit_exceeded','server_error','temporarily_unavailable'].includes(code)&&(active||requested)){
