@@ -193,8 +193,23 @@ const {chromium}=require('playwright');
   await installRoutes(fallbackPage);
   await fallbackPage.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/index.html`);
   await fallbackPage.locator('input[type=file]').first().setInputFiles({name:'industrial-part-no-crop.png',mimeType:'image/png',buffer:imageBuffer});
-  await fallbackPage.getByTestId('kiki-inline-catalog-results').waitFor({timeout:45000});
+  const fallbackResults=fallbackPage.getByTestId('kiki-inline-catalog-results');
+  await fallbackResults.waitFor({state:'attached',timeout:45000});
   await fallbackPage.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
+  // In peek mode result cards are intentionally hidden; expand the mobile sheet as a customer would.
+  const fallbackSheet=fallbackPage.locator('.kiki-image-workspace__catalog');
+  const fallbackHandle=fallbackPage.locator('.kiki-image-workspace__sheet-handle');
+  const fallbackHandleBox=await fallbackHandle.boundingBox();assert.ok(fallbackHandleBox);
+  await fallbackPage.mouse.move(fallbackHandleBox.x+fallbackHandleBox.width/2,fallbackHandleBox.y+fallbackHandleBox.height/2);
+  await fallbackPage.mouse.down();
+  await fallbackPage.mouse.move(fallbackHandleBox.x+fallbackHandleBox.width/2,fallbackHandleBox.y-115,{steps:8});
+  await fallbackPage.mouse.up();
+  await fallbackPage.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='half');
+  await fallbackPage.waitForFunction(()=> {
+    const element=document.querySelector('.kiki-image-workspace__catalog');
+    return element && element.getBoundingClientRect().height >= window.innerHeight * .48;
+  },null,{timeout:5000});
+  await fallbackResults.waitFor({state:'visible',timeout:10000});
   assert.equal(detections.length,2);
   assert.equal(queries.length,4);
   assert.equal(queries[3].fullImage,true,'no confident crop must initially trigger full-image search');
