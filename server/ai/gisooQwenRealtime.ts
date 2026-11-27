@@ -3,11 +3,13 @@ import type { RawData } from 'ws';
 
 const MODEL='qwen3.8-omni-flash-realtime';
 const DEFAULT_URL='wss://ir.gisoo.pro/api/v1/realtime?model='+MODEL;
-const VOICES=new Set(['Andre','Raymond','Ethan','Ryan','Bodega','Tina']);
+const VOICES=new Set(['Raymond','Ryan','Bodega','Aiden','Wil','Evan','Eric','Peter','Marcus','Rizky','Jakub','Alek','Arda','Dolce','Emilien','Andre']);
+const DEFAULT_VOICE='Bodega';
 type Event=Record<string,any>;
 export type GisooCatalogSearchHandler=(query:string,limit:number)=>Promise<unknown>|unknown;
 let activeSessions=0;
-export function resolveGisooQwenVoice(configuredValue:unknown=process.env.FORZA_QWEN_VOICE){const configured=String(configuredValue||'').trim();const selected=VOICES.has(configured)?configured:[...VOICES].find(candidate=>candidate.toLowerCase()===configured.toLowerCase());return selected||'Andre';}
+export function resolveGisooQwenVoice(configuredValue:unknown=process.env.FORZA_QWEN_VOICE){const configured=String(configuredValue||'').trim();if(configured.toLowerCase()==='andre')return DEFAULT_VOICE;const selected=VOICES.has(configured)?configured:[...VOICES].find(candidate=>candidate.toLowerCase()===configured.toLowerCase());return selected||DEFAULT_VOICE;}
+export function isGisooQwenVoiceConfirmed(session:Event,selectedVoice:string){const reported=session?.audio?.output?.voice??session?.voice;return typeof reported==='string'&&reported.trim().toLowerCase()===selectedVoice.toLowerCase();}
 function voice(){return resolveGisooQwenVoice();}
 function bounded(n:number,fallback:number,min:number,max:number){return Number.isFinite(n)?Math.max(min,Math.min(max,Math.round(n))):fallback;}
 function decode(raw:RawData):Event{return JSON.parse((Buffer.isBuffer(raw)?raw:Array.isArray(raw)?Buffer.concat(raw):Buffer.from(raw as ArrayBuffer)).toString('utf8'));}
@@ -124,7 +126,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   upstream.on('message',raw=>{
     if(closed)return;let e:Event;try{e=decode(raw);}catch{return;}const t=String(e.type||'');
     if(t==='session.created'&&!configured){configured=true;send(buildGisooQwenSessionUpdate(instructions,Number(process.env.FORZA_QWEN_SILENCE_MS||500),selectedVoice));return;}
-    if(t==='session.updated'&&!ready&&configured){const reported=e.session?.audio?.output?.voice??e.session?.voice;const confirmed=typeof reported==='string'&&reported.trim().toLowerCase()===selectedVoice.toLowerCase();if(typeof reported==='string'&&reported.trim()&&!confirmed){finish('گیسو صدای درخواستی '+selectedVoice+' را نپذیرفت.');return;}ready=true;if(timer)clearTimeout(timer);log('session_ready',{ms:Date.now()-started,voice:selectedVoice,confirmed});toClient({type:'connected',provider:'qwen',model:MODEL,voice:selectedVoice,voiceConfirmed:confirmed,inputSampleRate:16000,sampleRate:24000});return;}
+    if(t==='session.updated'&&!ready&&configured){const reported=e.session?.audio?.output?.voice??e.session?.voice;const confirmed=isGisooQwenVoiceConfirmed(e.session||{},selectedVoice);if(!confirmed){finish('گیسو صدای درخواستی '+selectedVoice+' را تأیید نکرد'+(typeof reported==='string'&&reported.trim()?' (صدای گزارش‌شده: '+reported+')':' (صدای گزارش‌شده موجود نیست)')+'. اتصال با صدای پیش‌فرض ادامه پیدا نمی‌کند.');return;}ready=true;if(timer)clearTimeout(timer);log('session_ready',{ms:Date.now()-started,voice:selectedVoice,confirmed:true});toClient({type:'connected',provider:'qwen',model:MODEL,voice:selectedVoice,voiceConfirmed:true,inputSampleRate:16000,sampleRate:24000});if(!send({type:'response.create'})){finish('درخواست خوشامدگویی اولیه به گیسو ارسال نشد.');return;}log('opening_greeting_requested',{voice:selectedVoice});return;}
     if(!ready&&t!=='error')return;
     if(t==='input_audio_buffer.speech_started'){userSpeaking=true;lastSpeechStartedAt=Date.now();partial='';pendingText='';log('speech_started',{afterFirstMicFrameMs:firstMicFrameAt?Date.now()-firstMicFrameAt:null,activeResponse:Boolean(active)});toClient({type:'speech_started'});if(active&&!cancelled.has(active)){interrupt(active);send({type:'response.cancel'});}else if(requested){send({type:'response.cancel'});}return;}
     if(t==='input_audio_buffer.speech_stopped'){userSpeaking=false;speechStop=Date.now();log('speech_stopped',{speechDurationMs:lastSpeechStartedAt?Date.now()-lastSpeechStartedAt:null});toClient({type:'speech_stopped'});return;}
