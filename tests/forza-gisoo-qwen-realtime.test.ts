@@ -23,7 +23,7 @@ test('Qwen session uses Gisoo direct-realtime PCM, Andre voice, and configured V
     rate: 24000,
   });
   assert.equal(update.session.audio.output.voice, 'Andre');
-  assert.match(update.session.instructions, /مشاور ارشد مهندسی/);
+  assert.match(update.session.instructions, /تو فورزا هستی؛ مشاور صوتی فنی/);
   assert.equal(update.session.audio.input.turn_detection.type, 'server_vad');
   assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 500);
   assert.equal(update.session.audio.input.turn_detection.interrupt_response, true);
@@ -131,19 +131,19 @@ test('recoverable Gisoo flood errors do not tear down an established realtime se
 });
 
 
-test('Qwen realtime session exposes the read-only Sanat Pish catalogue tool and richer advice budget', () => {
+test('Qwen realtime session exposes the read-only Sanat Pish catalogue tool and voice-first consultation prompt', () => {
   const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Ryan');
   assert.equal(update.session.audio.output.voice, 'Ryan');
   assert.equal(update.session.max_output_tokens, 1536);
   assert.equal(update.session.tools[0].type, 'function');
   assert.equal(update.session.tools[0].name, 'search_sanatpish_catalog');
   assert.deepEqual(update.session.tools[0].parameters.required, ['query']);
-  assert.match(update.session.instructions, /مشاور ارشد مهندسی/);
+  assert.match(update.session.instructions, /تو فورزا هستی؛ مشاور صوتی فنی/);
   assert.match(update.session.instructions, /search_sanatpish_catalog/);
   assert.match(update.session.instructions, /هرگز با «سلام مهندس جان»/);
   assert.match(update.session.instructions, /۲۵ تا ۶۰ کلمه/);
   assert.doesNotMatch(update.session.instructions, /۴ تا ۷ جمله/);
-  assert.ok(update.session.instructions.lastIndexOf('مشاور ارشد مهندسی') > update.session.instructions.indexOf('دستیار فارسی صنعت پیش'));
+  assert.ok(update.session.instructions.lastIndexOf('قاعده نهایی:') > update.session.instructions.indexOf('دستیار فارسی صنعت پیش'));
 });
 
 test('live catalogue lookup returns real family/SKU metadata without commercial fields', () => {
@@ -195,7 +195,7 @@ test('live call renders catalogue product cards and does not disconnect on a twe
   assert.match(client, /href=\{family\.link\}/);
   assert.match(client, /s\.next-ctx\.currentTime>90/);
   assert.doesNotMatch(client, /s\.next-ctx\.currentTime>12/);
-  assert.match(client, /useState\('Raymond'\)/);
+  assert.match(client, /useState\('Andre'\)/);
 });
 
 
@@ -239,5 +239,5 @@ test('catalogue cards retain visible products during follow-up speech and expose
   assert.ok(start >= 0 && end > start);
   assert.doesNotMatch(client.slice(start, end), /setCatalogResults|setCatalogQuery/);
   assert.match(client, /href=\{'\/direct-product\/'\+encodeURIComponent\(variant\.code\)\}/);
-  assert.match(client, /useState\('Raymond'\)/);
+  assert.match(client, /useState\('Andre'\)/);
 });
