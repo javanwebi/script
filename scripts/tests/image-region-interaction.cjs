@@ -168,6 +168,13 @@ const {chromium}=require('playwright');
   assert.equal(await page.getByTestId('forza-automatic-crop-thumbnail').count(),1,'mobile must show the exact selected crop preview');
   await page.screenshot({path:path.join('/tmp','forza-automatic-crop-mobile.png'),fullPage:true});
 
+  // The product cards are intentionally hidden in peek mode; reopen the sheet before opening a result.
+  await sheetHandle.click();
+  await page.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='half');
+  await page.waitForFunction(()=> {
+    const element=document.querySelector('.kiki-image-workspace__catalog');
+    return element && element.getBoundingClientRect().height >= window.innerHeight * .48;
+  },null,{timeout:5000});
   await page.locator('[data-testid="kiki-inline-catalog-results"] button').first().click();
   await page.waitForFunction(()=>window.__kikiPath==='/product/TEST-A49');
   assert.equal(await page.evaluate(()=>window.__kikiPath),'/product/TEST-A49','catalog result must open its own product detail page');
