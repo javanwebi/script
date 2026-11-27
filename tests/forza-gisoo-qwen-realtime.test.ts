@@ -296,7 +296,7 @@ test('catalogue cards retain visible products during follow-up speech and expose
   assert.ok(start >= 0 && end > start);
   assert.doesNotMatch(client.slice(start, end), /setCatalogResults|setCatalogQuery/);
   assert.match(client, /href=\{'\/direct-product\/'\+encodeURIComponent\(variant\.code\)\}/);
-  assert.match(client, /useState\('Bodega'\)/);
+  assert.match(client, /useState\('Arda'\)/);
 });
 
 test('reconnect seeds context only on resumed calls and avoids an opening greeting',()=>{
