@@ -11,7 +11,7 @@ These values belong only in the private VPS `.env.forza-voice` file (which is ig
 ```dotenv
 FORZA_REALTIME_PROVIDER=qwen
 FORZA_QWEN_API_KEY=<Gisoo API key>
-FORZA_QWEN_VOICE=Raymond
+FORZA_QWEN_VOICE=Andre
 FORZA_QWEN_MAX_SESSIONS=8
 FORZA_QWEN_SILENCE_MS=1100
 ```
