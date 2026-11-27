@@ -328,3 +328,18 @@ test('visual consultation payload remains complete JSON within the bridge limit'
  assert.ok(payload.candidates.length>0);
  assert.ok(payload.candidates.length<16);
 });
+
+test('exact SKU lookup prioritizes the requested active code and exposes its own technical specs only',()=>{
+ const product={code:'BELTS',name:'تسمه',brand:'SWR',images:[],technicalSpecs:[{key:'نوع',value:'V'}],variants:[
+ ...Array.from({length:12},(_,i)=>({code:'A19'+i,name:'تسمه دیگر',size:'19',active:true})),
+ {code:'A19',name:'تسمه مورد نظر',size:'13×8',model:'A',technicalSpecs:[{key:'عرض',value:'13 mm'}],description:'مدل ثبت شده',price:100,stock:10,active:true},
+ {code:'A1900',name:'غیرفعال',size:'',active:false}
+ ]} as unknown as Product;
+ const result=searchForzaRealtimeCatalog([product], 'A۱۹');
+ assert.equal(result.familyCount,1);
+ assert.equal(result.results[0].variants[0].code,'A19');
+ assert.deepEqual(result.results[0].variants[0].technicalSpecs,[{key:'عرض',value:'13 mm'}]);
+ assert.equal(result.results[0].variants[0].link,'/direct-product/A19');
+ assert.ok(!result.results[0].variants.some(v=>v.code==='A1900'));
+ assert.doesNotMatch(JSON.stringify(result), /"price"|"stock"/);
+});
