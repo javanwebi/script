@@ -90,8 +90,9 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   const key=String(process.env.FORZA_QWEN_API_KEY||'').trim(),selectedVoice=voice();
   const limit=bounded(Number(process.env.FORZA_QWEN_MAX_SESSIONS||8),8,1,40);
   const toClient=(e:Record<string,unknown>)=>{if(client.readyState!==WebSocket.OPEN)return false;if(client.bufferedAmount>2000000){log('browser_output_backpressure',{bufferedBytes:client.bufferedAmount,eventType:String(e.type||'unknown')});client.close(1013,'Browser backpressure');return false;}client.send(JSON.stringify(e));return true;};
-  if(!key||activeSessions>=limit){toClient({type:'fallback_required',reason:!key?'کلید گیسو تنظیم نشده است.':'ظرفیت تماس تکمیل است.'});client.close(1013,'Qwen unavailable');return;}
+  if(!key||activeSessions>=limit){log('session_rejected',{reason:!key?'missing_key':'capacity',activeSessions,limit});toClient({type:'fallback_required',reason:!key?'کلید گیسو تنظیم نشده است.':'ظرفیت تماس تکمیل است.'});client.close(1013,'Qwen unavailable');return;}
   activeSessions++;
+  log('session_started',{activeSessions,limit,resuming,voice:selectedVoice});
   let upstream:WebSocket|null=null,closed=false,ready=false,configured=false,userSpeaking=false,requested=false,firstAudio=false,greetingSeedPending=false,greetingResponsePending=false,greetingTriggerId='';
   let active='',pendingText='',partial='',seq=0,speechStop=0,timer:ReturnType<typeof setTimeout>|undefined;
   let heartbeat:ReturnType<typeof setInterval>|undefined,responseStartTimer:ReturnType<typeof setTimeout>|undefined,cancelTimer:ReturnType<typeof setTimeout>|undefined,cancelTimerResponse='',lastUpstreamPong=Date.now(),upstreamCongestedSince=0,upstreamCongestedNotice=false;
