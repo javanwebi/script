@@ -117,7 +117,7 @@ test('Qwen late completion keeps the provider response identity', () => {
 });
 
 test('Qwen invalid VAD duration uses a finite default', () => {
-  assert.equal(buildGisooQwenSessionUpdate('فارسی', NaN).session.audio.input.turn_detection.silence_duration_ms, 900);
+  assert.equal(buildGisooQwenSessionUpdate('فارسی', NaN).session.audio.input.turn_detection.silence_duration_ms, 800);
 });
 
 test('Face-to-face page actually mounts the native Gisoo client without the old speech endpoints', () => {
