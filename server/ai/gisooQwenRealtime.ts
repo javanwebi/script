@@ -4,11 +4,11 @@ import type { RawData } from 'ws';
 const MODEL='qwen3.8-omni-flash-realtime';
 const DEFAULT_URL='wss://ir.gisoo.pro/api/v1/realtime?model='+MODEL;
 const VOICES=new Set(['Raymond','Ryan','Bodega','Aiden','Wil','Evan','Eric','Peter','Marcus','Rizky','Jakub','Alek','Arda','Dolce','Emilien','Andre']);
-const DEFAULT_VOICE='Bodega';
+const DEFAULT_VOICE='Arda';
 type Event=Record<string,any>;
 export type GisooCatalogSearchHandler=(query:string,limit:number)=>Promise<unknown>|unknown;
 let activeSessions=0;
-export function resolveGisooQwenVoice(configuredValue:unknown=process.env.FORZA_QWEN_VOICE){const configured=String(configuredValue||'').trim();if(configured.toLowerCase()==='andre')return DEFAULT_VOICE;const selected=VOICES.has(configured)?configured:[...VOICES].find(candidate=>candidate.toLowerCase()===configured.toLowerCase());return selected||DEFAULT_VOICE;}
+export function resolveGisooQwenVoice(configuredValue:unknown=process.env.FORZA_QWEN_VOICE){const configured=String(configuredValue||'').trim();const selected=VOICES.has(configured)?configured:[...VOICES].find(candidate=>candidate.toLowerCase()===configured.toLowerCase());return selected||DEFAULT_VOICE;}
 export function isGisooQwenVoiceConfirmed(session:Event,selectedVoice:string){const reported=session?.audio?.output?.voice??session?.voice;return typeof reported==='string'&&reported.trim().toLowerCase()===selectedVoice.toLowerCase();}
 export function isGisooQwenTurnDetectionConfirmed(session:Event){const type=session?.audio?.input?.turn_detection?.type??session?.turn_detection?.type;return type==='semantic_vad_ec';}
 function voice(){return resolveGisooQwenVoice();}
