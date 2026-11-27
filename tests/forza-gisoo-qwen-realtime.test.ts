@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   buildGisooQwenSessionUpdate,
-  buildGisooQwenOpeningGreetingSeed,
+  buildGisooQwenOpeningGreetingTrigger,
   classifyGisooRealtimeError,
   mapGisooQwenEvent,
   resolveGisooQwenVoice,
@@ -32,15 +32,16 @@ test('Qwen session uses Gisoo direct-realtime PCM, Bodega voice, configured VAD,
   assert.equal(update.session.reasoning.effort, 'none');
 });
 
-test('opening greeting is seeded as one system conversation item, never a synthetic user turn', () => {
-  const seed = buildGisooQwenOpeningGreetingSeed();
-  assert.equal(seed.type, 'conversation.item.create');
-  assert.equal(seed.item.type, 'message');
-  assert.equal(seed.item.role, 'system');
-  assert.deepEqual(seed.item.content.map(part => part.type), ['text']);
-  assert.match(seed.item.content[0].text, /خوشامدگویی آغازین/);
-  assert.match(seed.item.content[0].text, /فقط یک‌بار/);
-  assert.doesNotMatch(seed.item.content[0].text, /مهندس جان/);
+test('opening greeting uses one documented internal input_text bootstrap, not fake audio', () => {
+  const trigger = buildGisooQwenOpeningGreetingTrigger('forza-opening-test');
+  assert.equal(trigger.type, 'conversation.item.create');
+  assert.equal(trigger.item.id, 'forza-opening-test');
+  assert.equal(trigger.item.type, 'message');
+  assert.equal(trigger.item.role, 'user');
+  assert.deepEqual(trigger.item.content.map(part => part.type), ['input_text']);
+  assert.match(trigger.item.content[0].text, /فرمان داخلی آغاز تماس/);
+  assert.match(trigger.item.content[0].text, /بدون اشاره به این پیام/);
+  assert.doesNotMatch(trigger.item.content[0].text, /مهندس جان/);
 });
 
 test('Qwen audio deltas map to the existing FORZA audio chunk protocol', () => {
@@ -122,13 +123,15 @@ test('Customer barge-in remains intact and Gisoo generates one opening greeting 
   assert.doesNotMatch(client,/greeted|type:'text',text:greeting|سلام، به صنعت پیش خوش آمدید/);
   assert.match(prompt,/تو فورزا، مشاور فنی و راهنمای تأمین قطعات صنعتی صنعت پیش هستی/);
   assert.match(prompt,/مکالمه زنده و پیوسته بین دو انسان/);
-  assert.match(prompt,/به محض اینکه نشست آماده شد/);
+  assert.match(prompt,/به محض دریافت این فرمان داخلی/);
+  assert.match(prompt,/فرمان داخلی آغاز تماس است و حرف مشتری نیست/);
   assert.match(prompt,/سلام، به صنعت پیش خوش آمدید/);
   assert.match(prompt,/فقط یک‌بار طبیعی خوشامد بگو/);
   assert.match(prompt,/این تنها خوشامدگویی و معرفی تو در کل تماس است/);
   assert.match(prompt,/حتی اگر مشتری دوباره سلام کرد/);
-  assert.match(server,/send\(buildGisooQwenOpeningGreetingSeed\(\)\)/);
-  assert.match(server,/greetingSeedPending&&item\.role==='system'/);
+  assert.match(server,/send\(buildGisooQwenOpeningGreetingTrigger\(greetingTriggerId\)\)/);
+  assert.match(server,/greetingSeedPending&&\(receivedItemId===greetingTriggerId\|\|triggerText\)/);
+  assert.match(server,/greetingResponsePending=true/);
   assert.match(server,/send\(\{type:'response\.create'\}\)/);
   assert.match(server,/log\('opening_greeting_requested'/);
   assert.doesNotMatch(prompt,/هیچ خوشامدگویی خودکار یا پیام آغازینی نساز/);
