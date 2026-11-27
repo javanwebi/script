@@ -45,7 +45,9 @@ export function buildGisooQwenSessionUpdate(instructions:string,silenceDurationM
           description:'ثبت مرحله فعلی مشاوره در میزکار مشتری. هنگام عبور واقعی از یک مرحله به مرحله بعد، وضعیت را بی‌صدا به‌روز کن؛ این ابزار جای پاسخ صوتی را نمی‌گیرد.',
           parameters:{type:'object',properties:{
             stage:{type:'string',enum:['understand','diagnose','specify','catalog','compare','recommend']},
-            summary:{type:'string',description:'خلاصه یک‌جمله‌ای از چیزی که تا این مرحله از مشتری فهمیده‌ای؛ بدون حدس یا ادعای تأییدنشده.'}
+            summary:{type:'string',description:'خلاصه یک‌جمله‌ای از وضعیت مشاوره؛ بدون حدس یا ادعای تأییدنشده.'},
+            knownFacts:{type:'array',items:{type:'string'},maxItems:8,description:'اطلاعاتی که مشتری صریحاً گفته یا ابزار کاتالوگ تأیید کرده است.'},
+            missingFacts:{type:'array',items:{type:'string'},maxItems:6,description:'اطلاعات ضروری که هنوز برای تشخیص یا انتخاب دقیق کم است.'}
           },required:['stage','summary'],additionalProperties:false}
         }
       ],
@@ -168,8 +170,10 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
         const stage=String(args.stage||'');
         if(!stages.has(stage))throw new Error('invalid_consultation_stage');
         const summary=String(args.summary||'').trim().slice(0,320);
-        result={success:true,stage,summary};
-        toClient({type:'consultation_update',stage,summary});
+        const cleanFacts=(value:unknown,max:number)=>Array.isArray(value)?value.slice(0,max).map(v=>String(v||'').trim().slice(0,100)).filter(Boolean):[];
+        const knownFacts=cleanFacts(args.knownFacts,8),missingFacts=cleanFacts(args.missingFacts,6);
+        result={success:true,stage,summary,knownFacts,missingFacts};
+        toClient({type:'consultation_update',stage,summary,knownFacts,missingFacts});
       }else if(!catalogSearch)throw new Error('catalog_unavailable');
       else if(toolName==='search_sanatpish_catalog'){
         if(!query)throw new Error('empty_query');
