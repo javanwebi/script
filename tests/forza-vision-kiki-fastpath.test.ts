@@ -50,7 +50,12 @@ test('server catalog-guided detection is authoritative before automatic catalogu
   );
   assert.ok(detection.includes('aiVisualSearchService.detectImageRegions(imageUrl)'));
   assert.ok(detection.includes('const primaryRegion = detection.queryRegion'));
+  assert.ok(detection.includes('const detectedRegions = Array.isArray(detection.queryRegions)'));
+  assert.ok(detection.includes('setQueryRegions(orderedRegions)'));
   assert.ok(detection.includes('setQueryRegion(primaryRegion)'));
+  assert.ok(modal.includes('handleDetectedRegionSelect'));
+  assert.ok(modal.includes('regionSelectionSequenceRef'));
+  assert.ok(modal.includes('candidateRegions={queryRegions}'));
   assert.ok(detection.includes('setFullImageSelected(!primaryRegion)'));
   assert.ok(detection.indexOf('aiVisualSearchService.detectImageRegions(imageUrl)') < detection.indexOf("setRegionDetectionState('ready')"));
   assert.ok(modal.includes("void handleAnalyze('quick',region,localImageId,true)"));
@@ -61,7 +66,7 @@ test('server catalog-guided detection is authoritative before automatic catalogu
   assert.ok(modal.includes('temporaryImageDataUrl || await customerImageBlobToDataUrl(localRecord.blob)'));
 });
 
-test('mobile KIKI result sheet stays draggable while automatic crop selection remains read-only', () => {
+test('mobile KIKI result sheet stays draggable while only detected crop proposals are tappable', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const review = source('src/components/search/ImageRegionReview.tsx');
   const css = source('src/components/search/vision-camera-design.css');
@@ -72,6 +77,8 @@ test('mobile KIKI result sheet stays draggable while automatic crop selection re
   assert.ok(modal.includes('setMobileResultsExpanded(false)'));
   assert.ok(modal.includes('<AutomaticImageCrop'));
   assert.ok(review.includes('data-region-mode="automatic"'));
+  assert.ok(review.includes('candidateRegions={candidateRegions}'));
+  assert.ok(review.includes('onSelectRegion={onSelectRegion}'));
   assert.ok(!modal.includes('ImageRegionSelector'));
   assert.ok(!modal.includes('handleRegionSelection'));
   assert.ok(!modal.includes('onRegionChange'));
@@ -121,8 +128,10 @@ test('catalog-guided crop is applied automatically and product results open thei
   assert.ok(modal.includes("void handleAnalyze('quick',region,localImageId,true)"));
   assert.ok(!modal.includes('setCandidateRegions'));
   assert.ok(!modal.includes('ImageRegionSelector'));
-  assert.ok(review.includes('<AutomaticImageCrop src={image} region={selectedRegion} status={status} />'));
+  assert.ok(review.includes('<AutomaticImageCrop src={image} region={selectedRegion} candidateRegions={candidateRegions} onSelectRegion={onSelectRegion} status={status} />'));
   assert.ok(review.includes('data-region-mode="automatic"'));
+  assert.ok(review.includes('candidateRegions={candidateRegions}'));
+  assert.ok(review.includes('onSelectRegion={onSelectRegion}'));
   assert.ok(review.includes('onOpenProduct(item.id)'));
   assert.ok(review.includes('مشاهده صفحه محصول و مشخصات'));
   assert.ok(crop.includes('data-testid="forza-automatic-crop"'));
@@ -157,19 +166,26 @@ test('KIKI results header stays within the independently scrollable catalogue pa
 });
 
 
-test('desktop and mobile viewers show a non-interactive automatic crop and its exact preview', () => {
+test('desktop and mobile viewers allow taps only on server-detected crop proposals', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const review = source('src/components/search/ImageRegionReview.tsx');
   const crop = source('src/components/search/AutomaticImageCrop.tsx');
   const cropStyles = source('src/components/search/automatic-image-crop.css');
   const styles = source('src/components/search/image-region-review.css');
-  assert.ok(review.includes('<AutomaticImageCrop src={image} region={selectedRegion} status={status} />'));
+  assert.ok(review.includes('<AutomaticImageCrop src={image} region={selectedRegion} candidateRegions={candidateRegions} onSelectRegion={onSelectRegion} status={status} />'));
   assert.ok(review.includes('data-region-mode="automatic"'));
+  assert.ok(review.includes('candidateRegions={candidateRegions}'));
+  assert.ok(review.includes('onSelectRegion={onSelectRegion}'));
   assert.ok(crop.includes('data-crop-ready={cropReady ? \'true\' : \'false\'}'));
   assert.ok(crop.includes('aria-label="تشخیص و برش خودکار قطعه"'));
+  assert.ok(crop.includes('data-testid={\'forza-region-candidate-\' + (index + 1)}'));
+  assert.ok(crop.includes('onClick={() => onSelectRegion?.(candidate)}'));
+  assert.ok(crop.includes('aria-pressed={selected}'));
   assert.ok(crop.includes('کادر نارنجی و پیش‌نمایش'));
   assert.ok(crop.includes('جست‌وجو به‌صورت خودکار روی تصویر کامل انجام می‌شود'));
   assert.ok(cropStyles.includes('pointer-events: none;'));
+  assert.ok(cropStyles.includes('.forza-auto-crop__candidate'));
+  assert.ok(cropStyles.includes('touch-action: manipulation'));
   assert.ok(cropStyles.includes('@media (max-width: 760px)'));
   assert.ok(styles.includes('data-sheet-level="half"'));
   assert.ok(!modal.includes('ImageRegionSelector'));
