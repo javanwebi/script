@@ -245,25 +245,26 @@ test('live call renders catalogue product cards and does not disconnect on a twe
   assert.match(client, /href=\{family\.link\}/);
   assert.match(client, /s\.next-ctx\.currentTime>90/);
   assert.doesNotMatch(client, /s\.next-ctx\.currentTime>12/);
-  assert.match(client, /useState\('Bodega'\)/);
+  assert.match(client, /useState\('Arda'\)/);
 });
 
 
-test('FORZA selects a different documented Qwen3.8 male voice and rejects silent voice fallback', () => {
-  assert.equal(resolveGisooQwenVoice(undefined), 'Bodega');
-  assert.equal(resolveGisooQwenVoice('Andre'), 'Bodega');
-  assert.equal(resolveGisooQwenVoice('andre'), 'Bodega');
+test('FORZA defaults to the selected Arda voice and preserves explicitly supported Qwen3.8 male voices', () => {
+  assert.equal(resolveGisooQwenVoice(undefined), 'Arda');
+  assert.equal(resolveGisooQwenVoice('Andre'), 'Andre');
+  assert.equal(resolveGisooQwenVoice('andre'), 'Andre');
+  assert.equal(resolveGisooQwenVoice('Arda'), 'Arda');
   assert.equal(resolveGisooQwenVoice('Bodega'), 'Bodega');
   assert.equal(resolveGisooQwenVoice('Ryan'), 'Ryan');
   assert.equal(resolveGisooQwenVoice('Raymond'), 'Raymond');
   assert.equal(resolveGisooQwenVoice('Aiden'), 'Aiden');
-  assert.equal(resolveGisooQwenVoice('Tina'), 'Bodega');
-  assert.equal(resolveGisooQwenVoice('Ethan'), 'Bodega');
-  assert.equal(resolveGisooQwenVoice('unsupported-voice'), 'Bodega');
-  assert.equal(buildGisooQwenSessionUpdate('مشاور فنی فارسی').session.audio.output.voice, 'Bodega');
-  assert.equal(isGisooQwenVoiceConfirmed({audio:{output:{voice:'Bodega'}}},'Bodega'),true);
-  assert.equal(isGisooQwenVoiceConfirmed({audio:{output:{voice:'Tina'}}},'Bodega'),false);
-  assert.equal(isGisooQwenVoiceConfirmed({},'Bodega'),false);
+  assert.equal(resolveGisooQwenVoice('Tina'), 'Arda');
+  assert.equal(resolveGisooQwenVoice('Ethan'), 'Arda');
+  assert.equal(resolveGisooQwenVoice('unsupported-voice'), 'Arda');
+  assert.equal(buildGisooQwenSessionUpdate('مشاور فنی فارسی').session.audio.output.voice, 'Arda');
+  assert.equal(isGisooQwenVoiceConfirmed({audio:{output:{voice:'Arda'}}},'Arda'),true);
+  assert.equal(isGisooQwenVoiceConfirmed({audio:{output:{voice:'Tina'}}},'Arda'),false);
+  assert.equal(isGisooQwenVoiceConfirmed({},'Arda'),false);
 });
 
 test('Browser reports actual laptop microphone noise-processing settings without exposing device identity', () => {
