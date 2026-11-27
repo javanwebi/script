@@ -4772,7 +4772,8 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const result=localVisionResult(hits,products,coverage,'',threshold,query,body.includeNearest===true);
       const queryRegions=body.region ? [body.region] : cachedDetection?.queryRegions || (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
       const responsePayload=publicCatalog({...result,customerImageUrl:undefined,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")});
-      if(typeof body.detectionId==='string')localVisionDetectionCache.delete(body.detectionId);
+      // Keep this fingerprint/model-bound detection until its short TTL expires.
+      // A customer can tap another detected object and reuse that crop vector.
       return res.json(responsePayload);
     }catch(error){
       const errorId=crypto.randomUUID();
