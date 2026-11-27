@@ -359,7 +359,7 @@ test('Qwen realtime uses a natural Persian pause and exposes exact detail and co
  assert.equal(update.session.tools[2].name,'compare_sanatpish_products');
  assert.deepEqual(update.session.tools[2].parameters.required,['codes']);
  assert.equal(update.session.tools[3].name,'update_forza_consultation');
- assert.deepEqual(update.session.tools[3].parameters.required,['stage','summary']);
+ assert.deepEqual(update.session.tools[3].parameters.required,['stage','summary','knownFacts','missingFacts']);
  assert.ok(update.session.tools[3].parameters.properties.knownFacts);
  assert.ok(update.session.tools[3].parameters.properties.missingFacts);
 });
