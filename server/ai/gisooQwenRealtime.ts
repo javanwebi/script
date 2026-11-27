@@ -142,7 +142,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     if(!itemSent){requested=false;toClient({type:'provider_error',code:'input_send_failed',reason:'پیام به موتور مکالمه نرسید؛ دوباره بگو.',recoverable:true});return;}
     if(!send({type:'response.create'})){requested=false;toClient({type:'provider_error',code:'response_create_failed',reason:'پاسخ فورزا شروع نشد؛ دوباره تلاش کن.',recoverable:true});return;}
     if(responseStartTimer)clearTimeout(responseStartTimer);
-    responseStartTimer=setTimeout(()=>{if(requested&&!active){requested=false;toClient({type:'provider_error',code:'response_start_timeout',reason:'پاسخ موتور مکالمه دیر شروع شد؛ یک بار دیگر بگو.',recoverable:true});}},18000);
+    responseStartTimer=setTimeout(()=>{if(requested&&!active){requested=false;send({type:'response.cancel'});toClient({type:'provider_error',code:'response_start_timeout',reason:'پاسخ موتور مکالمه دیر شروع شد؛ یک بار دیگر بگو.',recoverable:true});}},18000);
   };
   const runCatalogTool=async(event:Event)=>{
     const callId=String(event.call_id||'').trim();
