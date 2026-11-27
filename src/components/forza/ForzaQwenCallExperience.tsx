@@ -10,10 +10,10 @@ const ParticleAvatar = lazy(() => import('./ParticleAvatar').then(m => ({default
 type Phase = 'connecting'|'listening'|'thinking'|'speaking'|'disconnected';
 type LiveCatalogVariant={code:string;name:string;size?:string;model?:string;brand?:string;description?:string;technicalSpecs?:{key:string;value:string}[]};
 type LiveCatalogFamily={code:string;name:string;brand?:string;images?:string[];link:string;description?:string;technicalSpecs?:{key:string;value:string}[];variants?:LiveCatalogVariant[]};
-type Session = { ws:WebSocket|null; stream:MediaStream|null; node:ScriptProcessorNode|AudioWorkletNode|null; mic:MediaStreamAudioSourceNode|null; sink:GainNode|null; output:GainNode|null; analyser:AnalyserNode|null; ctx:AudioContext|null; sources:Set<AudioBufferSourceNode>; next:number; ready:boolean; done:boolean; ignored:Set<string>; id:string; frame:number; lastVisual:number; heartbeat:number|null; lastPong:number; connectedAt:number; };
+type Session = { ws:WebSocket|null; stream:MediaStream|null; node:ScriptProcessorNode|AudioWorkletNode|null; mic:MediaStreamAudioSourceNode|null; sink:GainNode|null; output:GainNode|null; analyser:AnalyserNode|null; ctx:AudioContext|null; sources:Set<AudioBufferSourceNode>; next:number; ready:boolean; done:boolean; ignored:Set<string>; id:string; frame:number; lastVisual:number; heartbeat:number|null; lastPong:number; connectedAt:number; micCongestedSince:number; };
 
 function newSession():Session {
-  return {ws:null,stream:null,node:null,mic:null,sink:null,output:null,analyser:null,ctx:null,sources:new Set(),next:0,ready:false,done:true,ignored:new Set(),id:'',frame:0,lastVisual:0,heartbeat:null,lastPong:0,connectedAt:0};
+  return {ws:null,stream:null,node:null,mic:null,sink:null,output:null,analyser:null,ctx:null,sources:new Set(),next:0,ready:false,done:true,ignored:new Set(),id:'',frame:0,lastVisual:0,heartbeat:null,lastPong:0,connectedAt:0,micCongestedSince:0};
 }
 function encodePcm(samples:Float32Array,rate:number):string {
   const pcm=resampleDibaPcm(samples,rate);
@@ -88,8 +88,9 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
     setError('');setPhase('connecting');setConfirmed(false);
     const fail=(message:string,retry=false)=>{
       if(session.current!==s)return;dispose();setCatalogBusy(false);
-      if(retry&&callActive.current&&retryCount.current<3){
-        const delay=[1000,2500,5000][retryCount.current++];
+      if(retry&&callActive.current&&retryCount.current<5){
+        if(!navigator.onLine){setPhase('connecting');setError('اینترنت در دسترس نیست؛ به‌محض وصل‌شدن دوباره تلاش می‌کنم.');return;}
+        const delay=[1000,2000,4000,8000,15000][retryCount.current++];
         setPhase('connecting');setError('ارتباط موقتاً قطع شد؛ در حال اتصال مجدد خودکار…');
         retryTimer.current=window.setTimeout(()=>{retryTimer.current=null;if(callActive.current)void startRef.current();},delay);
       }else{setPhase('disconnected');setError(message);}
@@ -105,7 +106,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
       if(session.current!==s){stream.getTracks().forEach(t=>t.stop());return;}
       s.stream=stream;
-      for(const track of stream.getAudioTracks())track.onended=()=>fail('میکروفون قطع شد؛ اتصال مجدد را بزنید.');
+      for(const track of stream.getAudioTracks())track.onended=()=>fail('میکروفون قطع شد؛ در حال بازیابی تماس…',true);
       s.output=ctx.createGain();s.output.gain.value=speakerMuted.current?0:1;
       s.analyser=ctx.createAnalyser();s.analyser.fftSize=256;
       s.output.connect(s.analyser);s.analyser.connect(ctx.destination);
@@ -113,7 +114,12 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       s.sink=ctx.createGain();s.sink.gain.value=0;
       const sendMic=(samples:Float32Array)=>{
         if(!s.ready||micMuted.current||scanning.current||s.ws?.readyState!==WebSocket.OPEN)return;
-        if(s.ws.bufferedAmount>262144){fail('ارتباط صوتی کند شد؛ دوباره متصل شوید.',true);return;}
+        if(s.ws.bufferedAmount>131072){
+          if(!s.micCongestedSince){s.micCongestedSince=Date.now();setError('شبکه کند شده؛ موقتاً ارسال صدا را کنترل می‌کنم تا تماس قطع نشود.');}
+          if(Date.now()-s.micCongestedSince>15000)fail('ارسال صدا بیش از حد معطل مانده؛ در حال اتصال مجدد…',true);
+          return;
+        }
+        if(s.micCongestedSince){s.micCongestedSince=0;if(error.includes('شبکه کند شده'))setError('');}
         send(s,{type:'realtime_audio',audio:encodePcm(samples,ctx.sampleRate)});
       };
       if(ctx.audioWorklet){
@@ -142,6 +148,8 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         if(session.current!==s)return;
         let m:any;try{m=JSON.parse(e.data);}catch{return;}
         if(m.type==='pong'){s.lastPong=Date.now();return;}
+        if(m.type==='network_degraded'){setError('ارتباط با گیسو کند شده؛ تماس را حفظ می‌کنم و جریان صدا را کنترل می‌کنم.');return;}
+        if(m.type==='network_restored'){setError('');return;}
         if(m.type==='fallback_required'||m.type==='error'){const reason=String(m.reason||m.message||'خطای گیسو');fail(reason,/قطع|بسته شد|کند شده|راه‌اندازی مجدد|زمان مناسب/.test(reason)&&!/اعتبار|کلید|صدای درخواستی/.test(reason));return;}
         if(m.type==='provider_error'){
           setError(String(m.reason||'خطای موقت گیسو؛ اتصال برقرار است.'));
@@ -154,7 +162,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           if(s.ready)return;s.ready=true;s.connectedAt=s.lastPong=Date.now();
           if(m.resumed===true){send(s,{type:'resume_context',text:JSON.stringify({history:history.current,vision:visionContext.current.slice(0,2900)})});}
           wasConnected.current=true;
-          s.heartbeat=window.setInterval(()=>{if(session.current!==s)return;if(Date.now()-s.lastPong>30000){fail('پاسخی از ارتباط زنده دریافت نشد.',true);return;}if(Date.now()-s.connectedAt>45000)retryCount.current=0;send(s,{type:'ping'});},10000);
+          s.heartbeat=window.setInterval(()=>{if(session.current!==s)return;if(document.visibilityState==='visible'&&Date.now()-s.lastPong>60000){fail('پاسخی از ارتباط زنده دریافت نشد.',true);return;}if(Date.now()-s.connectedAt>60000)retryCount.current=0;if(document.visibilityState==='visible')send(s,{type:'ping'});},10000);
           setVoice(typeof m.voice==='string'?m.voice:'Bodega');setConfirmed(m.voiceConfirmed===true);const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});setPhase('listening');return;
         }
         if(m.type==='catalog_search_started'){setCatalogQuery(String(m.query||''));setCatalogResults([]);setCatalogBusy(true);return;}
@@ -193,7 +201,13 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   startRef.current=start;
   const pauseCall=()=>{callActive.current=false;if(retryTimer.current!==null){window.clearTimeout(retryTimer.current);retryTimer.current=null;}dispose();setPhase('disconnected');};
   const manualReconnect=()=>{retryCount.current=0;void start();};
-  useEffect(()=>{void start();return ()=>{callActive.current=false;scanVersion.current++;if(retryTimer.current!==null){window.clearTimeout(retryTimer.current);retryTimer.current=null;}dispose();};},[start,dispose]);
+  useEffect(()=>{
+    const onOnline=()=>{if(callActive.current&&!session.current){retryCount.current=0;void startRef.current();}};
+    const onOffline=()=>setError('اینترنت قطع شد؛ مکالمه را پس از بازگشت شبکه بازیابی می‌کنم.');
+    window.addEventListener('online',onOnline);window.addEventListener('offline',onOffline);
+    void start();
+    return ()=>{window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);callActive.current=false;scanVersion.current++;if(retryTimer.current!==null){window.clearTimeout(retryTimer.current);retryTimer.current=null;}dispose();};
+  },[start,dispose]);
   const cancel=()=>{const s=session.current;if(s?.ready){stopPlayback(s);send(s,{type:'cancel'});setPhase('listening');}};
   const toggleMic=()=>{micMuted.current=!micMuted.current;setMuted(micMuted.current);};
   const toggleSpeaker=()=>{speakerMuted.current=!speakerMuted.current;setSilent(speakerMuted.current);const out=session.current?.output;if(out)out.gain.value=speakerMuted.current?0:1;};
