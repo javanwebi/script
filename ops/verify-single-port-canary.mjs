@@ -44,7 +44,7 @@ if (realtimeProvider === "qwen") {
   const selectedVoice = resolveGisooQwenVoice();
   const sessionUpdate = buildGisooQwenSessionUpdate(
     "بررسی خصوصی اتصال است. هیچ پاسخ یا خوشامدگویی تولید نکن.",
-    Number(process.env.FORZA_QWEN_SILENCE_MS || 900),
+    Number(process.env.FORZA_QWEN_SILENCE_MS || 800),
     selectedVoice,
   );
   await new Promise((resolve, reject) => {
