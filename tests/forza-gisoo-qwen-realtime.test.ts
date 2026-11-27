@@ -421,6 +421,7 @@ test('provider failures cannot leave the live assistant waiting forever for a re
  const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
  assert.match(server,/responseStartTimer=setTimeout/);
  assert.match(server,/response_start_timeout/);
+ assert.match(server,/send\(\{type:'response\.cancel'\}\)/);
  assert.match(server,/\['flood','rate_limit_exceeded','server_error','temporarily_unavailable'\]/);
  assert.match(server,/authentication_error/);
 });
