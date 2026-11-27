@@ -5,6 +5,11 @@ export type ForzaRealtimeCatalogVariant = {
   code: string;
   name: string;
   size: string;
+  model?: string;
+  brand?: string;
+  description?: string;
+  technicalSpecs: Array<{ key: string; value: string }>;
+  link: string;
 };
 
 export type ForzaRealtimeCatalogFamily = {
@@ -46,7 +51,20 @@ export function searchForzaRealtimeCatalog(
   }
 
   const activeProducts = products.filter(product => product.active !== false);
-  const matches = findCatalogKnowledge(activeProducts, safeQuery, limit);
+  const normalizeCode = (value: string) => value.trim().toLowerCase()
+    .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
+  const queryCode = normalizeCode(safeQuery);
+  const exact = activeProducts.filter(product => normalizeCode(product.code) === queryCode ||
+    (product.variants || []).some(variant => variant.active !== false && normalizeCode(variant.code) === queryCode));
+  const matches = exact.length ? exact.slice(0,limit).map(product=>({
+    code:product.code,name:product.name,brand:product.brand,description:product.description,
+    images:product.images,technicalSpecs:product.technicalSpecs,
+    variants:(product.variants || []).filter(v=>v.active!==false && normalizeCode(v.code)===queryCode),
+    link:'/product/'+encodeURIComponent(product.code)
+  })) : findCatalogKnowledge(activeProducts, safeQuery, limit);
+  const safeSpecs = (items: Array<{key:string;value:string}> | undefined) => (items || [])
+    .slice(0,12).map(spec=>({key:String(spec.key || '').slice(0,80),value:String(spec.value || '').slice(0,180)}));
   const results: ForzaRealtimeCatalogFamily[] = matches.map(match => {
     const source = activeProducts.find(product => product.code === match.code);
     const matchedCodes = new Set(
@@ -54,12 +72,17 @@ export function searchForzaRealtimeCatalog(
     );
     const variants = (source?.variants || [])
       .filter(variant => variant.active !== false)
-      .sort((a, b) => Number(matchedCodes.has(b.code)) - Number(matchedCodes.has(a.code)))
+      .sort((a, b) => Number(normalizeCode(b.code) === queryCode) - Number(normalizeCode(a.code) === queryCode) || Number(matchedCodes.has(b.code)) - Number(matchedCodes.has(a.code)))
       .slice(0, 6)
       .map(variant => ({
         code: String(variant.code),
         name: String(variant.name || source?.name || match.name),
         size: String(variant.size || variant.model || ''),
+        model: variant.model ? String(variant.model).slice(0,100) : undefined,
+        brand: variant.brand ? String(variant.brand).slice(0,100) : undefined,
+        description: variant.description ? String(variant.description).slice(0,500) : undefined,
+        technicalSpecs: safeSpecs(variant.technicalSpecs),
+        link: '/direct-product/' + encodeURIComponent(variant.code),
       }));
 
     return {
@@ -69,12 +92,7 @@ export function searchForzaRealtimeCatalog(
       images: Array.isArray(match.images) ? match.images.slice(0, 1) : [],
       link: String(match.link || '/product/' + encodeURIComponent(String(match.code))),
       description: match.description ? String(match.description).slice(0, 700) : undefined,
-      technicalSpecs: Array.isArray(match.technicalSpecs)
-        ? match.technicalSpecs.slice(0, 12).map((spec: any) => ({
-            key: String(spec.key || '').slice(0, 80),
-            value: String(spec.value || '').slice(0, 180),
-          }))
-        : [],
+      technicalSpecs: safeSpecs(match.technicalSpecs),
       variants,
     };
   });
