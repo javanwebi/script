@@ -10,7 +10,7 @@ export type GisooCatalogSearchHandler=(query:string,limit:number)=>Promise<unkno
 let activeSessions=0;
 export function resolveGisooQwenVoice(configuredValue:unknown=process.env.FORZA_QWEN_VOICE){const configured=String(configuredValue||'').trim();if(configured.toLowerCase()==='andre')return DEFAULT_VOICE;const selected=VOICES.has(configured)?configured:[...VOICES].find(candidate=>candidate.toLowerCase()===configured.toLowerCase());return selected||DEFAULT_VOICE;}
 export function isGisooQwenVoiceConfirmed(session:Event,selectedVoice:string){const reported=session?.audio?.output?.voice??session?.voice;return typeof reported==='string'&&reported.trim().toLowerCase()===selectedVoice.toLowerCase();}
-export function isGisooQwenTurnDetectionConfirmed(session:Event){return session?.turn_detection?.type==='semantic_vad_ec';}
+export function isGisooQwenTurnDetectionConfirmed(session:Event){const type=session?.audio?.input?.turn_detection?.type??session?.turn_detection?.type;return type==='semantic_vad_ec';}
 function voice(){return resolveGisooQwenVoice();}
 function bounded(n:number,fallback:number,min:number,max:number){return Number.isFinite(n)?Math.max(min,Math.min(max,Math.round(n))):fallback;}
 function decode(raw:RawData):Event{return JSON.parse((Buffer.isBuffer(raw)?raw:Array.isArray(raw)?Buffer.concat(raw):Buffer.from(raw as ArrayBuffer)).toString('utf8'));}
@@ -21,9 +21,8 @@ export function buildGisooQwenSessionUpdate(instructions:string,silenceDurationM
     session:{
       output_modalities:['audio'],
       instructions:instructions.slice(0,16000),
-      turn_detection:{type:'semantic_vad_ec',threshold:0.5,prefix_padding_ms:300,silence_duration_ms:bounded(silenceDurationMs,800,800,900),create_response:true,interrupt_response:true},
       audio:{
-        input:{format:{type:'audio/pcm',rate:16000}},
+        input:{format:{type:'audio/pcm',rate:16000},turn_detection:{type:'semantic_vad_ec',threshold:0.5,silence_duration_ms:bounded(silenceDurationMs,800,800,900)}},
         output:{format:{type:'audio/pcm',rate:24000},voice:selectedVoice}
       },
       tools:[
