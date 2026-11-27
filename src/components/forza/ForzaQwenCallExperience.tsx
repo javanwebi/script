@@ -32,7 +32,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const [level,setLevel]=useState(0),[muted,setMuted]=useState(false),[silent,setSilent]=useState(false);
   const [showText,setShowText]=useState(false),[text,setText]=useState(''),[showScan,setShowScan]=useState(false);
   const [confirmed,setConfirmed]=useState(false);
-  const [voice,setVoice]=useState('Raymond');
+  const [voice,setVoice]=useState('Andre');
   const [catalogQuery,setCatalogQuery]=useState('');
   const [catalogResults,setCatalogResults]=useState<LiveCatalogFamily[]>([]);
   const [catalogBusy,setCatalogBusy]=useState(false);
