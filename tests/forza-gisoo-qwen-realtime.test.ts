@@ -8,6 +8,7 @@ import {
   mapGisooQwenEvent,
   resolveGisooQwenVoice,
   isGisooQwenVoiceConfirmed,
+  isGisooQwenTurnDetectionConfirmed,
 } from '../server/ai/gisooQwenRealtime';
 import { searchForzaRealtimeCatalog } from '../server/ai/forzaRealtimeCatalog';
 import type { Product } from '../src/types';
@@ -28,12 +29,25 @@ test('Qwen session uses Gisoo direct-realtime PCM, Bodega voice, configured VAD,
   });
   assert.equal(update.session.audio.output.voice, 'Bodega');
   assert.equal(update.session.instructions, 'دستیار فارسی صنعت پیش');
-  assert.equal(update.session.audio.input.turn_detection.type, 'server_vad');
-  assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 800);
-  assert.equal(update.session.audio.input.turn_detection.interrupt_response, true);
+  assert.equal(update.session.turn_detection.type, 'semantic_vad_ec');
+  assert.equal(update.session.turn_detection.silence_duration_ms, 800);
+  assert.equal(update.session.turn_detection.interrupt_response, true);
+  assert.equal('turn_detection' in update.session.audio.input, false);
+  assert.equal(isGisooQwenTurnDetectionConfirmed({turn_detection:{type:'semantic_vad_ec'}}), true);
+  assert.equal(isGisooQwenTurnDetectionConfirmed({turn_detection:{type:'server_vad'}}), false);
   assert.equal(update.session.reasoning.effort, 'none');
 });
 
+test('live microphone remains streaming while FORZA speaks so the model can interrupt in full duplex',()=>{
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ const mic=client.slice(client.indexOf('const sendMic='),client.indexOf('if(ctx.audioWorklet)'));
+ assert.match(mic,/if\(!s\.ready\|\|micMuted\.current\|\|scanning\.current\|\|s\.ws\?\.readyState!==WebSocket\.OPEN\)return/);
+ assert.doesNotMatch(mic,/phase|speaking|assistantSpeaking|s\.sources\.size/);
+ assert.match(client,/m\.type==='speech_started'\)\{setError\(''\);stopPlayback\(s\)/);
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(server,/turn_detection:\{type:'semantic_vad_ec'/);
+ assert.match(server,/cancelActiveResponse\(active\)/);
+});
 test('opening greeting uses one documented internal input_text bootstrap, not fake audio', () => {
   const trigger = buildGisooQwenOpeningGreetingTrigger('forza-opening-test');
   assert.equal(trigger.type, 'conversation.item.create');
