@@ -8,8 +8,8 @@ import './style.css';
 const ParticleAvatar = lazy(() => import('./ParticleAvatar').then(m => ({default:m.ParticleAvatar})));
 
 type Phase = 'connecting'|'listening'|'thinking'|'speaking'|'disconnected';
-type LiveCatalogVariant={code:string;name:string;size?:string};
-type LiveCatalogFamily={code:string;name:string;brand?:string;images?:string[];link:string;variants?:LiveCatalogVariant[]};
+type LiveCatalogVariant={code:string;name:string;size?:string;model?:string;brand?:string;description?:string;technicalSpecs?:{key:string;value:string}[]};
+type LiveCatalogFamily={code:string;name:string;brand?:string;images?:string[];link:string;description?:string;technicalSpecs?:{key:string;value:string}[];variants?:LiveCatalogVariant[]};
 type Session = { ws:WebSocket|null; stream:MediaStream|null; node:ScriptProcessorNode|AudioWorkletNode|null; mic:MediaStreamAudioSourceNode|null; sink:GainNode|null; output:GainNode|null; analyser:AnalyserNode|null; ctx:AudioContext|null; sources:Set<AudioBufferSourceNode>; next:number; ready:boolean; done:boolean; ignored:Set<string>; id:string; frame:number; lastVisual:number; heartbeat:number|null; lastPong:number; connectedAt:number; };
 
 function newSession():Session {
@@ -75,7 +75,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   },[stopPlayback]);
   const send=useCallback((s:Session,message:object)=>{
     if(session.current!==s||!s.ready||s.ws?.readyState!==WebSocket.OPEN)return false;
-    s.ws.send(JSON.stringify(message));return true;
+    try{s.ws.send(JSON.stringify(message));return true;}catch{return false;}
   },[]);
   const submit=useCallback((value:string,display=value)=>{
     const s=session.current;if(!s?.ready||!value.trim())return false;
@@ -275,9 +275,11 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
                 </div>
                 <a href={family.link} className="shrink-0 rounded-lg bg-orange-500 px-2.5 py-2 text-[10px] font-bold text-black">مشاهده</a>
               </div>
+              {(!!family.technicalSpecs?.length||family.description)&&<details className="mt-2 text-xs text-white/80"><summary className="cursor-pointer py-1">مشخصات خانواده</summary>{family.description&&<p className="py-1 leading-5">{family.description}</p>}{family.technicalSpecs?.map((spec,i)=><div key={i} className="flex justify-between gap-2 py-1"><span>{spec.key}</span><span>{spec.value}</span></div>)}</details>}
               {!!family.variants?.length&&<div className="mt-2 flex flex-wrap gap-1.5 border-t border-white/10 pt-2">
                 {family.variants.slice(0,6).map(variant=><a key={variant.code} href={'/direct-product/'+encodeURIComponent(variant.code)} className="rounded-md bg-black/40 px-2 py-1 text-[10px] text-white/80 hover:bg-orange-500/20 hover:text-white"><bdi dir="ltr" className="font-mono">{variant.code}</bdi>{variant.size?' · '+variant.size:''}</a>)}
               </div>}
+              {family.variants?.filter(v=>!!v.technicalSpecs?.length||v.description).map(variant=><details key={'spec:'+variant.code} className="mt-2 text-xs text-white/80"><summary className="cursor-pointer py-1">مشخصات کد <bdi>{variant.code}</bdi></summary>{variant.description&&<p className="py-1 leading-5">{variant.description}</p>}{variant.technicalSpecs?.map((spec,i)=><div key={i} className="flex justify-between gap-2 py-1"><span>{spec.key}</span><span>{spec.value}</span></div>)}</details>)}
             </article>;
           })}
         </div>
