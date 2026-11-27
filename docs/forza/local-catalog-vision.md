@@ -30,8 +30,8 @@ credential is reused automatically.
   Uniform borders use the existing crop; clutter uses compact Lab components.
   Proposals never assign a product category. The catalogue embeddings rank them.
 - Each crop is independent: a workshop background cannot dilute a good object
-  crop. The full image remains a candidate. Manual selection is applied before
-  proposals, so no part outside the owner's selected region is searched.
+  crop. The full image remains a candidate. Customers can tap only a server-detected
+  proposal; freeform drawing and resizing are not exposed in the customer UI.
 - The proposed region with the highest top-candidate score drives the returned
   region and geometric comparison. Similarity and ORB/OCR never certify a SKU,
   physical size, compatibility or stock.
@@ -121,19 +121,23 @@ solely for this pipeline change; changed photos/revisions still invalidate cover
 
 The query path now has these bounded stages:
 
-1. Optional customer-selected normalized rectangle, applied after EXIF orientation.
-   The inline region selector supports pointer/touch and keyboard editing. It is
-   only displayed when the local pipeline advertises support.
+1. The original uploaded image is retained in the device-local vault and sent to
+   the private detector after EXIF orientation. The customer never draws or resizes
+   a rectangle; only detected proposals can be selected.
 2. Full-frame query plus up to three bounded object-region proposals. The proposal
    stage combines border-foreground and Lab connected-component candidates, so
    separated objects in one frame can be offered independently. These are
    class-agnostic crop proposals, **not a trained industrial detector or pixel
    segmentation model**. The catalogue similarity scores choose which crop best
    matches; the system does not assume the largest or central object is correct.
-3. The interface draws every proposed region. Tapping a proposal switches the
-   crop and re-runs retrieval; a tap outside all valid proposals is a no-op and
-   preserves the current automatic selection. Dragging creates an explicit manual
-   rectangle. The crop is prepared server-side from the original uploaded image.
+3. The interface draws every proposed region as a numbered tap target. The best
+   catalogue-backed proposal is selected automatically; tapping another proposal
+   switches the exact crop and re-runs retrieval. If no proposal clears the confidence
+   threshold, the first search uses the full image while detected proposals remain
+   available for an explicit tap. Taps outside proposals do nothing. Detection vectors
+   stay in a fingerprint/model-bound short-lived cache so switching proposals does
+   not require another detector inference. No freeform crop is accepted. The crop is
+   prepared server-side from the original uploaded image.
 4. DINOv2 retrieval compares the full frame and up to three crop views (at most
    four query encodes). Its existing conservative score rule is retained: the
    stronger of the full-frame score and a 25% full-frame / 75% best-crop blend.
@@ -410,15 +414,17 @@ searching a partial catalogue.
 
 Gallery uploads start quick retrieval after upload completes; camera capture
 keeps its explicit confirmation. The query worker now returns the full-frame view
-plus up to three independent crop proposals. The interface overlays those
-proposals on the original photo and shows the currently selected crop. A tap
-inside a proposal selects that object and re-runs the same uploaded image. A tap
-outside every proposal preserves the current system selection; it never creates
-an arbitrary square around empty background. Dragging remains available as an
-explicit manual rectangle. Selection changes debounce for 300 ms, and stale
-requests cannot replace results after another photo is selected or the modal
-closes. These proposals are heuristic crop candidates, not pixel-perfect masks or
-a trained industrial object detector.
+plus up to three independent crop proposals. The interface overlays numbered
+proposals on the original photo and shows the currently selected crop and a real
+crop preview. The highest catalogue-backed proposal is selected automatically. A tap
+inside another proposal switches to that object and re-runs catalogue retrieval from
+the same uploaded image; a tap outside every proposal is a no-op. If no proposal
+clears the threshold, the initial search uses the full image, but customers may still
+tap a detected proposal to request a focused search. Detection vectors are retained
+in a short-lived, image-fingerprint/model-bound cache for repeated object switching.
+Freeform drawing and resizing are not exposed. Stale responses cannot replace the
+latest selected object's results. These proposals are heuristic crop candidates, not
+pixel-perfect masks or a trained industrial object detector.
 
 Every indexed catalogue vector is scored for every query view. Only hits attached
 to a real active catalogue family and above the visual threshold can become
@@ -435,10 +441,11 @@ silently counted as compared. The query uses precomputed catalogue features
 rather than rerunning a generative model over every catalogue image for each
 customer request.
 
-Browser pointer/touch/drag/keyboard smoke for the source selector:
+Browser desktop/mobile multi-object tap smoke:
 `node scripts/tests/image-region-interaction.cjs` (requires Playwright Chromium).
-The browser smoke also mounts the actual search modal with isolated identity/cart
-hooks and mocked HTTP responses. It verifies upload-triggered automatic search,
-tap-triggered requery, whole-image reset and reuse of the same uploaded image.
+The browser smoke mounts the actual search modal with isolated identity/cart hooks
+and mocked HTTP responses. It verifies upload-triggered automatic search, switching
+to a second detected object while the first search is in flight, exact crop preview,
+full-image fallback, mobile half-screen sheet height and independent product scrolling.
 This proves client interaction and request wiring, not model accuracy or a live
 production deployment.

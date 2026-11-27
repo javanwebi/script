@@ -27,7 +27,7 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
-import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
+import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectConfidentQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
 import {LocalVisionDetectionCache,selectCachedLocalQuery} from './src/services/localVisionDetectionCache';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
@@ -4652,7 +4652,7 @@ app.get('/api/ai/local-vision-status', async (_req,res)=>{
 
 const localVisionDetectionCache = new LocalVisionDetectionCache();
 app.post('/api/ai/detect-regions', async (req,res)=>{
-  if(!localVisionEnabled)return res.status(503).json({error:{code:'VISION_DISABLED',message:'تشخیص خودکار در این سرور فعال نیست؛ ناحیه را دستی انتخاب کنید.'}});
+  if(!localVisionEnabled)return res.status(503).json({error:{code:'VISION_DISABLED',message:'تشخیص خودکار در این سرور فعال نیست؛ جست‌وجو روی تصویر کامل انجام می‌شود.'}});
   if(localVisionQueries>=1)return res.status(429).json({error:{code:'VISION_BUSY',message:'موتور شناسایی در حال پردازش تصویر دیگری است.'}});
   localVisionQueries++;
   const started=Date.now();
@@ -4682,7 +4682,7 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
     const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,true);
     if(!retrieved)throw new Error('Index changed during region detection');
     const viewScores=bestBoundQueryViewScores(retrieved,products);
-    const selectedRegion=selectBestQueryRegion(query.viewRegions,viewScores,query.region);
+    const selectedRegion=selectConfidentQueryRegion(query.viewRegions,viewScores,localProfile.minSimilarity);
     const queryRegions=(query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
     if(selectedRegion && !queryRegions.some(region=>
       Math.abs(region.x-selectedRegion.x)<0.002 && Math.abs(region.y-selectedRegion.y)<0.002 &&
@@ -4711,7 +4711,7 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
     const errorId=crypto.randomUUID();
     const detail=error instanceof Error?error.message:String(error);
     console.warn('[Local vision region detection]',{errorId,name:error instanceof Error?error.name:'unknown',message:detail.slice(0,180)});
-    return res.status(503).json({error:{code:'VISION_UNAVAILABLE',message:'تشخیص خودکار موقتاً کامل نشد؛ می‌توانید ناحیه قطعه را دستی انتخاب کنید.'},errorId});
+    return res.status(503).json({error:{code:'VISION_UNAVAILABLE',message:'تشخیص خودکار موقتاً کامل نشد؛ جست‌وجو روی تصویر کامل انجام می‌شود.'},errorId});
   }finally{
     localVisionQueries--;
   }
@@ -4750,7 +4750,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
       const viewScores=bestBoundQueryViewScores(retrieved,products);
-      const selectedRegion=body.fullImage===true ? undefined : body.region || selectBestQueryRegion(query.viewRegions,viewScores,query.region);
+      const selectedRegion=body.fullImage===true ? undefined : body.region || selectConfidentQueryRegion(query.viewRegions,viewScores,localProfile.minSimilarity);
       const detailImage=body.fullImage===true || body.region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
       let geometryComplete=false;
       try{
@@ -4773,7 +4773,8 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const result=localVisionResult(hits,products,coverage,'',threshold,query,body.includeNearest===true);
       const queryRegions=body.region ? [body.region] : cachedDetection?.queryRegions || (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
       const responsePayload=publicCatalog({...result,customerImageUrl:undefined,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")});
-      if(typeof body.detectionId==='string')localVisionDetectionCache.delete(body.detectionId);
+      // Keep this fingerprint/model-bound detection until its short TTL expires.
+      // A customer can tap another detected object and reuse that crop vector.
       return res.json(responsePayload);
     }catch(error){
       const errorId=crypto.randomUUID();

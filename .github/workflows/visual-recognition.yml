@@ -88,7 +88,7 @@ jobs:
       - name: Install pinned Playwright browser runner
         run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1 onnxruntime-web@1.18.0
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Real U2NetP browser inference on an industrial photo
         run: node scripts/tests/client-ai-segmentation-browser.cjs
       - name: Real desktop/mobile pointer, crop and upload reuse smoke

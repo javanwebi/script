@@ -229,3 +229,31 @@ test('legacy DINO worker supports a full frame and one crop without inventing mu
   await assert.rejects(()=>describeLocalQuery(Buffer.from('photo'),env),/Missing query regions/);
  }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}
 });
+
+test('automatic crop is displayed only when a catalog-bound crop view clears the confidence floor',async()=>{
+ const {selectConfidentQueryRegion}=await import('../src/services/localVision');
+ const first={x:0.1,y:0.2,width:0.2,height:0.3};
+ const second={x:0.62,y:0.3,width:0.25,height:0.35};
+ assert.deepEqual(selectConfidentQueryRegion([null,first,second],[0.99,0.72,0.91],0.65),second);
+ assert.equal(selectConfidentQueryRegion([null,first],[0.99,0.58],0.65),undefined);
+ assert.equal(selectConfidentQueryRegion([null,first],[0.99,Number.NaN],0.65),undefined);
+ assert.equal(selectConfidentQueryRegion([null],[0.99],0.65),undefined);
+ assert.equal(selectConfidentQueryRegion([null,first],[0.99,0.58],0.55)?.x,first.x);
+});
+
+
+test('one cached detection can serve repeated exact crops for multiple detected objects',async()=>{
+ const {LocalVisionDetectionCache,selectCachedLocalQuery}=await import('../src/services/localVisionDetectionCache');
+ const first={x:0.12,y:0.18,width:0.24,height:0.36};
+ const second={x:0.64,y:0.2,width:0.25,height:0.4};
+ const query={model:LOCAL_VISION_MODEL,vectors:[[1],[2],[3]],viewRegions:[null,first,second],markings:[{text:'A49',confidence:96}],ocrAvailable:true};
+ const cache=new LocalVisionDetectionCache(180000,40);
+ cache.set('multi-object',{imageFingerprint:'original-image-sha',model:LOCAL_VISION_MODEL,query,queryRegions:[first,second],selectedRegion:first},1000);
+ const entry=cache.get('multi-object','original-image-sha',LOCAL_VISION_MODEL,1100);
+ assert.ok(entry);
+ assert.deepEqual(selectCachedLocalQuery(entry.query,first)?.vectors,[[2]]);
+ assert.deepEqual(selectCachedLocalQuery(entry.query,second)?.vectors,[[3]]);
+ assert.deepEqual(selectCachedLocalQuery(entry.query,second)?.markings,[]);
+ assert.ok(cache.get('multi-object','original-image-sha',LOCAL_VISION_MODEL,1200),'selecting one crop must not consume the other proposals');
+ assert.equal(cache.get('multi-object','different-image-sha',LOCAL_VISION_MODEL,1200),undefined);
+});

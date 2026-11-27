@@ -10,9 +10,9 @@ export interface LocalVisionDetectionEntry {
   createdAt: number;
 }
 
-/** Short-lived, bounded cache so the user can approve a crop without paying
- * for a second DINO inference. Entries are bound to the exact uploaded image
- * and model namespace and expire quickly.
+/** Short-lived, bounded cache so customers can switch between detected object
+ * proposals without paying for another encoder inference. Entries are bound to
+ * the exact uploaded image and model namespace and expire quickly.
  */
 export class LocalVisionDetectionCache {
   private readonly entries = new Map<string, LocalVisionDetectionEntry>();
@@ -61,9 +61,9 @@ export class LocalVisionDetectionCache {
   }
 }
 
-/** A selected crop must not retrieve another object from a cached full-frame
- * query. Reuse only the exact vector; discard OCR collected outside the crop.
- * A manual region not represented in the cache is encoded again by the caller.
+/** A selected proposal must not retrieve another object from a cached full-frame
+ * query. Reuse only the exact vector; discard OCR collected outside that crop.
+ * A proposal absent from the cache is encoded again by the caller.
  */
 export function selectCachedLocalQuery(query:QueryEvidence,region?:ImageRegion,fullImage=false):QueryEvidence|undefined{
  if(!region && !fullImage)return query;

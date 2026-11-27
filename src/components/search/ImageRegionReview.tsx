@@ -1,5 +1,9 @@
+import { useEffect, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import {
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
   Camera,
   CheckCircle2,
   LoaderCircle,
@@ -8,7 +12,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { ImageRegionSelector } from './ImageRegionSelector';
+import { AutomaticImageCrop } from './AutomaticImageCrop';
 import type { ImageRegion } from '../../utils/imageRegion';
 import './image-region-review.css';
 
@@ -36,7 +40,8 @@ interface Props {
   image: string;
   status: RegionPreparationState;
   selectedRegion?: ImageRegion;
-  candidateRegions: ImageRegion[];
+  candidateRegions?: ImageRegion[];
+  onSelectRegion?: (region: ImageRegion) => void;
   message?: string;
   analysisError?: string;
   busy?: boolean;
@@ -47,7 +52,6 @@ interface Props {
   analysisComplete?: boolean;
   results: VisionWorkspaceResult[];
   selectedProductId?: string;
-  onRegionChange: (region: ImageRegion | undefined) => void;
   onSelectProduct: (id: string) => void;
   onOpenProduct: (id: string) => void;
   onRetryAnalysis: () => void;
@@ -61,7 +65,8 @@ export function ImageRegionReview({
   image,
   status,
   selectedRegion,
-  candidateRegions,
+  candidateRegions = [],
+  onSelectRegion,
   message,
   analysisError,
   busy,
@@ -72,7 +77,6 @@ export function ImageRegionReview({
   analysisComplete,
   results,
   selectedProductId,
-  onRegionChange,
   onSelectProduct,
   onOpenProduct,
   onRetryAnalysis,
@@ -81,22 +85,64 @@ export function ImageRegionReview({
   onClose,
   onManufacture,
 }: Props) {
+  type MobileSheetLevel = 'peek' | 'half' | 'full';
+  const [mobileSheetLevel, setMobileSheetLevel] = useState<MobileSheetLevel>('peek');
+  const sheetPointerStart = useRef<{ pointerId: number; y: number } | null>(null);
+  const sheetWasDragged = useRef(false);
+
+  useEffect(() => {
+    setMobileSheetLevel('peek');
+  }, [image]);
+
+  const onSheetPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('.kiki-image-workspace__sheet-handle')) return;
+    if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    sheetWasDragged.current = false;
+    sheetPointerStart.current = { pointerId: event.pointerId, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onSheetPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
+    const start = sheetPointerStart.current;
+    sheetPointerStart.current = null;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const deltaY = event.clientY - start.y;
+    if (Math.abs(deltaY) < 18) return;
+    sheetWasDragged.current = true;
+    setMobileSheetLevel(level => {
+      if (deltaY < 0) return level === 'peek' ? 'half' : 'full';
+      return level === 'full' ? 'half' : 'peek';
+    });
+  };
+
+  const toggleMobileSheet = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (sheetWasDragged.current && event.detail > 0) {
+      sheetWasDragged.current = false;
+      return;
+    }
+    sheetWasDragged.current = false;
+    setMobileSheetLevel(level => level === 'peek' ? 'half' : level === 'half' ? 'full' : 'peek');
+  };
+
   const preparing = status === 'uploading' || status === 'detecting';
   const working = preparing || Boolean(analysisBusy);
-  const selectorDisabled = preparing || Boolean(busy) || Boolean(analysisBusy);
+  const controlsDisabled = working || Boolean(busy);
   const statusText = status === 'uploading'
     ? 'در حال آماده‌سازی تصویر'
     : status === 'detecting'
-      ? 'در حال تشخیص خودکار قطعات تصویر'
+      ? 'هوش مصنوعی در حال پیدا کردن قطعه در تصویر'
       : analysisBusy
-        ? 'در حال تطبیق قطعه با کاتالوگ صنعت پیش'
+        ? selectedRegion
+          ? 'در حال تطبیق برش خودکار با کاتالوگ صنعت پیش'
+          : 'در حال بررسی تصویر کامل با کاتالوگ صنعت پیش'
         : results.length
           ? 'برای مشاهده مشخصات، روی کارت محصول بزنید'
           : analysisComplete && !results.length
             ? 'جست‌وجو کامل شد؛ نتیجه قابل اتکایی پیدا نشد'
-            : status === 'fallback'
-              ? 'در حال بررسی تصویر کامل؛ نیازی به برش دستی نیست'
-              : 'تصویر آماده بررسی خودکار است';
+            : selectedRegion
+              ? 'قطعه پیدا شد و برش خودکار برای جست‌وجو فعال است'
+              : 'برش دقیق تأیید نشد؛ جست‌وجوی تصویر کامل انجام می‌شود';
 
   return (
     <section
@@ -105,26 +151,50 @@ export function ImageRegionReview({
       aria-label="میزکار شناسایی تصویری FORZA"
       aria-busy={working || Boolean(busy)}
       data-testid="image-region-review"
+      data-mobile-sheet-level={mobileSheetLevel}
+      data-selected-region={selectedRegion ? [selectedRegion.x, selectedRegion.y, selectedRegion.width, selectedRegion.height].join(',') : ''}
+      data-region-mode="automatic"
     >
-      <section className="kiki-image-workspace__catalog" dir="rtl" aria-label="محصولات مشابه کاتالوگ">
+      <section
+        className="kiki-image-workspace__catalog"
+        dir="rtl"
+        aria-label="محصولات مشابه کاتالوگ"
+        data-sheet-level={mobileSheetLevel}
+        onPointerDown={onSheetPointerDown}
+        onPointerUp={onSheetPointerUp}
+        onPointerCancel={() => { sheetPointerStart.current = null; }}
+        onLostPointerCapture={() => { sheetPointerStart.current = null; }}
+      >
+        <button
+          type="button"
+          className="kiki-image-workspace__sheet-handle"
+          aria-controls="kiki-image-workspace-catalog-body"
+          aria-expanded={mobileSheetLevel !== 'peek'}
+          aria-label={mobileSheetLevel === 'full' ? 'پایین کشیدن پنل پیشنهادها' : 'بالا کشیدن پنل پیشنهادها برای دیدن محصولات'}
+          onClick={toggleMobileSheet}
+        >
+          <span className="kiki-image-workspace__sheet-grabber" aria-hidden="true" />
+          <span>{mobileSheetLevel === 'peek' ? 'برای دیدن محصولات، بکشید بالا' : mobileSheetLevel === 'half' ? 'برای دیدن همه پیشنهادها، بیشتر بکشید بالا' : 'برای بازگشت به تصویر، پایین بکشید'}</span>
+          {mobileSheetLevel === 'full' ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}
+        </button>
         <header className="kiki-image-workspace__catalog-header">
           <div className="kiki-image-workspace__catalog-identity">
             <img src={image} alt="تصویر قطعه انتخاب‌شده" />
             <div>
               <h2>{results.length>0 && results.every(item=>item.matchBasis==='explore')?'نزدیک‌ترین گزینه‌ها؛ تأیید نشده':'محصولات مشابه کاتالوگ'}</h2>
-              <p>{analysisBusy ? 'نتایج به‌محض آماده‌شدن نمایش داده می‌شوند' : 'برای دیدن کد، مشخصات و مدل‌ها، کارت محصول را باز کنید'}</p>
+              <p>{results.length ? results.length.toLocaleString('fa-IR') + ' گزینه برای بررسی' : analysisBusy ? 'نتایج به‌محض آماده‌شدن نمایش داده می‌شوند' : 'برای دیدن کد، مشخصات و مدل‌ها، کارت محصول را باز کنید'}</p>
             </div>
           </div>
           <span className="kiki-image-workspace__catalog-mark" aria-hidden="true">FORZA</span>
         </header>
 
-        <div className="kiki-image-workspace__catalog-body">
+        <div id="kiki-image-workspace-catalog-body" className="kiki-image-workspace__catalog-body">
           <div className="kiki-image-workspace__status" role="status" aria-live="polite">
             {working
               ? <LoaderCircle size={16} aria-hidden="true" />
               : <span className="kiki-image-workspace__status-dot" aria-hidden="true" />}
             <span>{statusText}</span>
-            {selectedRegion && <small>قطعه انتخاب‌شده روی تصویر مشخص است</small>}
+            {selectedRegion && <small>برش خودکار روی تصویر مشخص است</small>}
           </div>
 
           {analysisBusy && typeof total === 'number' && total > 0 && (
@@ -143,7 +213,7 @@ export function ImageRegionReview({
                 <strong>تحلیل تصویر کامل نشد.</strong>
                 <span>{analysisError}</span>
               </div>
-              <button type="button" onClick={onRetryAnalysis} disabled={selectorDisabled}>
+              <button type="button" onClick={onRetryAnalysis} disabled={controlsDisabled}>
                 <RefreshCw size={14} aria-hidden="true" />
                 تلاش مجدد
               </button>
@@ -162,7 +232,7 @@ export function ImageRegionReview({
                     key={item.id} data-selected={selected || undefined}>
                     <button type="button" className="kiki-image-workspace__result-select"
                       onClick={() => { onSelectProduct(item.id); onOpenProduct(item.id); }}
-                      disabled={selectorDisabled}
+                      disabled={controlsDisabled}
                       aria-pressed={selected}
                       aria-label={'مشاهده صفحه محصول ' + item.name}>
                       <span className="kiki-image-workspace__result-image">
@@ -219,7 +289,7 @@ export function ImageRegionReview({
           ) : analysisError ? null : (
             <div className="kiki-image-workspace__empty-results" data-testid="kiki-inline-results-empty">
               <strong>تطابق قابل اتکایی در کاتالوگ پیدا نشد</strong>
-              <span>می‌توانید قطعه دیگری از همین تصویر را انتخاب کنید یا درخواست بررسی و ساخت سفارشی ثبت کنید.</span>
+              <span>تصویر کامل بررسی شده است؛ اگر نتیجه‌ای پیدا نشد، می‌توانید درخواست بررسی و ساخت سفارشی ثبت کنید.</span>
             </div>
           )}
 
@@ -262,19 +332,8 @@ export function ImageRegionReview({
         </header>
 
         <div className="kiki-image-workspace__stage">
-          <ImageRegionSelector
-            src={image}
-            value={selectedRegion}
-            candidateRegions={candidateRegions}
-            onChange={onRegionChange}
-            disabled={selectorDisabled}
-            autoSelect
-            variant="viewer"
-          />
+          <AutomaticImageCrop src={image} region={selectedRegion} candidateRegions={candidateRegions} onSelectRegion={onSelectRegion} status={status} />
         </div>
-        <p className="kiki-image-workspace__viewer-hint">
-          قطعات شناسایی‌شده روی تصویر مشخص‌اند؛ برای بررسی قطعه دیگر، روی کادر آن بزنید. نتایج کنار تصویر به‌روزرسانی می‌شوند.
-        </p>
       </aside>
     </section>
   );

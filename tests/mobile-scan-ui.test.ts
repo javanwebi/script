@@ -199,42 +199,54 @@ test("standalone identification route uses the new entry design and existing cam
 });
 
 
-test("visual identification preserves the existing production image input path", () => {
+test("visual identification preserves original image bytes and sends the catalog-guided crop separately", () => {
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
-  assert.match(modal, /imageBase64 = localSegmentation\.result\.whiteBgDataUrl/);
+  assert.match(modal, /imageBase64 = temporaryImageDataUrl \|\| await customerImageBlobToDataUrl\(localRecord\.blob\)/);
+  assert.match(modal, /region: requestRegion/);
+  assert.doesNotMatch(modal, /localSegmentation\.result\.whiteBgDataUrl/);
   assert.doesNotMatch(modal, /renderSegmentedVisionCutout|extractAlphaMaskContours|selectAlphaMaskContour/);
 });
 
 
-test("KIKI workspace auto-detects image regions, searches immediately and renders selectable catalog results beside the image", () => {
+test("KIKI workspace uses catalog-guided automatic crop proof and read-only image viewing", () => {
   const review = source("src/components/search/ImageRegionReview.tsx");
   const reviewStyles = source("src/components/search/image-region-review.css");
-  const picker = source("src/components/search/ImageRegionSelector.tsx");
+  const crop = source("src/components/search/AutomaticImageCrop.tsx");
+  const cropStyles = source("src/components/search/automatic-image-crop.css");
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const entry = source("src/components/search/VisionEntryPage.tsx");
   assert.match(modal, /<ImageRegionReview/);
   assert.match(modal, /results=\{workspaceResults\}/);
   assert.match(modal, /analysisBusy=\{inlineAnalysisBusy\}/);
+  assert.match(modal, /const primaryRegion = detection\.queryRegion/);
+  assert.match(modal, /setFullImageSelected\(!primaryRegion\)/);
   assert.match(modal, /void handleAnalyze\('quick',region,localImageId,true\)/);
   assert.match(modal, /onSelectProduct=\{\(id\)/);
   assert.match(modal, /onOpenProduct=\{\(id\)/);
   assert.match(modal, /navigate\('\/product\/'\+encodeURIComponent\(productCode\)\)/);
-  assert.match(review, /onOpenProduct/);
+  assert.match(modal, /candidateRegions=\{queryRegions\}/);
+  assert.match(modal, /handleDetectedRegionSelect/);
+  assert.match(review, /<AutomaticImageCrop src=\{image\} region=\{selectedRegion\} candidateRegions=\{candidateRegions\} onSelectRegion=\{onSelectRegion\} status=\{status\} \/>/);
+  assert.match(review, /data-region-mode="automatic"/);
   assert.match(review, /aria-pressed=\{selected\}/);
   assert.match(review, /مشاهده صفحه محصول و مشخصات/);
   assert.match(review, /data-testid="kiki-inline-catalog-results"/);
   assert.match(review, /onSelectProduct/);
   assert.match(review, /محصولات مشابه کاتالوگ/);
   assert.match(review, /ثبت سفارش ساخت/);
-  assert.match(review, /autoSelect/);
-  assert.doesNotMatch(review, /onSearch=|onFullImageSearch|viewer-actions|تأیید برش و جست‌وجو/);
+  assert.doesNotMatch(review, /ImageRegionSelector|onRegionChange|autoSelect|روی قطعه انگشت بگذارید|کادر بکشید/);
+  assert.match(crop, /data-testid="forza-automatic-crop"/);
+  assert.match(crop, /data-testid="forza-automatic-crop-thumbnail"/);
+  assert.match(crop, /forza-region-candidate-/);
+  assert.match(crop, /onSelectRegion\?\.\(candidate\)/);
+  assert.match(crop, /برش خودکار/);
+  assert.match(crop, /جست‌وجو به‌صورت خودکار روی تصویر کامل انجام می‌شود/);
+  assert.match(cropStyles, /pointer-events: none/);
+  assert.match(cropStyles, /touch-action: manipulation/);
+  assert.match(cropStyles, /@media \(max-width: 760px\)/);
   assert.match(reviewStyles, /\.kiki-vision-review-shell\.kiki-image-workspace/);
   assert.match(reviewStyles, /\.kiki-image-workspace__result-grid/);
-  assert.match(picker, /autoSelect\?:boolean/);
-  assert.match(picker, /onClick=\{selectCandidateAtPoint\}/);
-  assert.doesNotMatch(picker, /تأیید برش و جست‌وجوی این قطعه/);
-  assert.match(modal, /setSelectedProductId\(undefined\)/);
-  assert.match(modal, /selectCustomerImageProduct/);
+  assert.doesNotMatch(modal, /ImageRegionSelector|handleRegionSelection|localSegmentation\.result\.whiteBgDataUrl/);
   assert.match(entry, /شروع اسکن با دوربین/);
   assert.match(entry, /انتخاب تصویر از دستگاه/);
   assert.match(entry, /قطعه را با یک عکس بشناسید/);

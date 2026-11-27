@@ -1,172 +1,139 @@
-/* Real pointer/touch smoke against the source component, isolated from customer data. */
+/* Real desktop/mobile automatic-crop smoke against the actual FORZA modal. */
 const fs=require('node:fs/promises');
 const path=require('node:path');
-const os=require('node:os');
-const {execFileSync}=require('node:child_process');
 const assert=require('node:assert/strict');
 const {chromium}=require('playwright');
+
 (async()=>{
  const root=process.cwd();
- // Match npm predev/prebuild: generate ignored WebP imports from tracked source PNGs.
- execFileSync(process.execPath,['scripts/optimize-images.mjs'],{cwd:root,stdio:'inherit'});
- const fixture=await fs.mkdtemp(path.join(root,'region-smoke-'));
+ const fixture=await fs.mkdtemp(path.join(root,'automatic-crop-smoke-'));
  let server,browser;
  try{
   const {createServer}=await import('vite');
-  await fs.writeFile(path.join(fixture,'index.html'),'<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="./entry.tsx"></script>');
-  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="500"><rect width="1000" height="500" fill="#bcc4c9"/><circle cx="600" cy="250" r="70" fill="#e56b1e"/><rect x="150" y="150" width="140" height="140" fill="#55565a"/></svg>';
-  const portraitSvg='<svg xmlns="http://www.w3.org/2000/svg" width="500" height="1000"><rect width="500" height="1000" fill="#bcc4c9"/><circle cx="300" cy="500" r="70" fill="#e56b1e"/><rect x="75" y="300" width="70" height="140" fill="#55565a"/></svg>';
-  const source='data:image/svg+xml;base64,'+Buffer.from(svg).toString('base64');
-  const portraitSource='data:image/svg+xml;base64,'+Buffer.from(portraitSvg).toString('base64');
-  const entryPath=path.join(fixture,'entry.tsx');
-  const entry=(imageSource)=>`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {ImageRegionSelector} from '/src/components/search/ImageRegionSelector.tsx';import '/src/index.css';import '/src/components/search/industrial-scan.css';function App(){const [region,setRegion]=useState();const [disabled,setDisabled]=useState(false);window.setSelectorDisabled=setDisabled;window.__searchCount=window.__searchCount||0;return <ImageRegionSelector disabled={disabled} src={${JSON.stringify(imageSource)}} value={region} candidateRegions={[{x:0.53,y:0.36,width:0.14,height:0.28},{x:0.15,y:0.3,width:0.14,height:0.28}]} onChange={r=>{window.lastRegion=r || null;setRegion(r)}} onSearch={()=>{window.__searchCount++}}/>}createRoot(document.getElementById('root')).render(<App/>);`;
-  await fs.writeFile(entryPath,entry(source));
+  const sharp=(await import('sharp')).default;
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600"><rect width="1000" height="600" fill="#d9dde0"/><rect x="370" y="170" width="220" height="260" rx="28" fill="#24272b"/><circle cx="480" cy="300" r="72" fill="#e56b1e"/><text x="480" y="315" font-size="44" text-anchor="middle" fill="white">A49</text><rect x="690" y="190" width="170" height="230" rx="28" fill="#55565a"/><circle cx="775" cy="305" r="52" fill="#e56b1e"/><text x="775" y="320" font-size="38" text-anchor="middle" fill="white">B62</text></svg>';
+  const imageBuffer=await sharp(Buffer.from(svg)).png().toBuffer();
+  await fs.writeFile(path.join(fixture,'index.html'),'<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="./modal.tsx"></script>');
   await fs.writeFile(path.join(fixture,'auth.ts'),"export const useAuth=()=>({currentUser:null,openAuthModal:()=>{},activeRole:'guest',priceLayer:'retail'});");
   await fs.writeFile(path.join(fixture,'cart.ts'),"export const useCart=()=>({addItem:()=>{}});");
-  server=await createServer({root,logLevel:'error',resolve:{alias:[{find:/.*\/context\/AuthContext$/,replacement:path.join(fixture,'auth.ts')},{find:/.*\/context\/CartContext$/,replacement:path.join(fixture,'cart.ts')}]},server:{host:'127.0.0.1',port:0}});await server.listen();
-  browser=await chromium.launch({headless:true});
-  for(const mobile of [false,true]){
-   if(mobile)await fs.writeFile(entryPath,entry(portraitSource));
-   const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1000,height:900},hasTouch:mobile,isMobile:mobile});
-   const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
-   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/index.html`);
-   await page.getByTestId('image-region-selector').waitFor();const image=page.getByAltText('عکس ارسالی؛ ناحیه قطعه را انتخاب کنید');await image.waitFor({state:'visible'});
-   await page.waitForFunction(expected=>document.querySelector('img')?.naturalWidth===expected,mobile?500:1000);
-   const frame=page.locator('.sanat-region-picker__frame');const box=await frame.boundingBox();assert.ok(box,'region frame must be visible');const x=box.x+box.width*0.6,y=box.y+box.height*0.5;
-   if(mobile)await page.touchscreen.tap(x,y);else await page.mouse.click(x,y);
-   await page.waitForFunction(()=>{const r=window.lastRegion;return !!r&&typeof r.x==='number'&&typeof r.width==='number';});await page.getByText('پیش‌نمایش برش').waitFor();
-   await page.screenshot({path:path.join(os.tmpdir(),`sanat-region-${mobile?'touch':'desktop'}.png`)});
-   let r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.x+r.width/2-0.6)<0.01);assert.ok(Math.abs(r.y+r.height/2-0.5)<0.01);
-   if(mobile){
-    const previous={...r};
-    await page.touchscreen.tap(box.x+box.width*0.45,box.y+box.height*0.9);
-    await page.waitForFunction(()=>{const r=window.lastRegion;return !!r&&typeof r.width==='number';});
-    r=await page.evaluate(()=>window.lastRegion);
-    assert.notDeepEqual(r,previous);
-    assert.ok(0.45>=r.x&&0.45<=r.x+r.width&&0.9>=r.y&&0.9<=r.y+r.height);
-    await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
-    assert.equal(await page.evaluate(()=>window.__searchCount),1);
-   }
-   if(!mobile){
-    const dragBox=await frame.boundingBox();await page.mouse.move(dragBox.x+dragBox.width*0.12,dragBox.y+dragBox.height*0.2);await page.mouse.down();await page.mouse.move(dragBox.x+dragBox.width*0.32,dragBox.y+dragBox.height*0.7,{steps:8});await page.mouse.up();
-    r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.width-0.2)<0.01,JSON.stringify(r));assert.ok(Math.abs(r.height-0.5)<0.01,JSON.stringify(r));
-    await page.getByRole('group',{name:'انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت'}).press('ArrowRight');assert.ok((await page.evaluate(()=>window.lastRegion)).x>r.x);
-    const selectorFrame=page.getByRole('group',{name:'انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت'});
-    await selectorFrame.focus();
-    const beforeDisabled=await page.evaluate(()=>window.lastRegion);
-    await page.evaluate(()=>window.setSelectorDisabled(true));
-    // Wait for React to commit the busy state before asserting keyboard blocking.
-    await page.waitForFunction(()=>{
-     const frame=document.querySelector('.sanat-region-picker__frame');
-     return frame?.getAttribute('tabindex')==='-1' && frame.getAttribute('aria-disabled')==='true';
-    });
-    await page.keyboard.press('ArrowRight');
-    assert.deepEqual(await page.evaluate(()=>window.lastRegion),beforeDisabled,'keyboard must not change the selected region while busy');
-    assert.equal(await selectorFrame.getAttribute('tabindex'),'-1');
-    assert.equal(await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).isDisabled(),true);
-    assert.equal(await page.getByRole('button',{name:'جست‌وجوی کل تصویر'}).isDisabled(),true);
-    assert.equal(await page.getByRole('button',{name:'قطعه ۲'}).isDisabled(),true);
-    await page.evaluate(()=>window.setSelectorDisabled(false));
-    // React commits updates scheduled from page.evaluate asynchronously; wait
-    // until the selector is actually re-enabled before restoring keyboard focus.
-    await page.waitForFunction(()=>{
-     const frame=document.querySelector('.sanat-region-picker__frame');
-     return frame?.getAttribute('tabindex')==='0' && frame.getAttribute('aria-disabled')!=='true';
-    });
-    await selectorFrame.focus();
-    await page.waitForFunction(()=>document.activeElement?.classList.contains('sanat-region-picker__frame'));
-    await page.keyboard.press('ArrowRight');
-    await page.waitForFunction(previous=>window.lastRegion?.x>previous.x,beforeDisabled);
-    assert.ok((await page.evaluate(()=>window.lastRegion)).x>beforeDisabled.x,'keyboard selection must resume when ready');
-    await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
-    assert.equal(await page.evaluate(()=>window.__searchCount),1);
-   }
-   // Original KIKI quick selector must choose a real second region, not run a search.
-   const rail=page.getByTestId('vision-region-candidates');
-   await rail.getByRole('button',{name:'قطعه ۲'}).click();
-   const second=await page.evaluate(()=>window.lastRegion);
-   assert.ok(Math.abs(second.x-0.15)<0.01 && Math.abs(second.y-0.3)<0.01,JSON.stringify(second));
-   assert.equal(await page.evaluate(()=>window.__searchCount),1,'candidate change must not auto-search');
-   await page.getByRole('button',{name:'جست‌وجوی کل تصویر'}).click();assert.equal(await page.evaluate(()=>window.lastRegion),null);
-   assert.deepEqual(errors,[]);await context.close();console.log(mobile?'TOUCH_SELECTION_OK':'POINTER_DRAG_KEYBOARD_OK');
-  }
-  // Mount the actual modal and verify the new automatic detect -> search -> inline results flow.
-  await fs.writeFile(path.join(fixture,'modal.html'),'<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="./modal.tsx"></script>');
   await fs.writeFile(path.join(fixture,'modal.tsx'),`import React from 'react';import {createRoot} from 'react-dom/client';import {MemoryRouter,useLocation} from 'react-router-dom';import {AiVisualPartSearchModal} from '/src/components/search/AiVisualPartSearchModal.tsx';import '/src/index.css';function RouteProbe(){const location=useLocation();window.__kikiPath=location.pathname;return null;}createRoot(document.getElementById('root')).render(<MemoryRouter><RouteProbe/><AiVisualPartSearchModal isOpen={true} onClose={()=>{}}/></MemoryRouter>);`);
-  const page=await browser.newPage({viewport:{width:1280,height:960}});
-  let uploads=0;
-  const detections=[],queries=[],errors=[];
-  const catalogSvg='<svg xmlns="http://www.w3.org/2000/svg" width="500" height="300"><rect width="500" height="300" fill="#f6f7f8"/><path d="M70 155 C80 35 420 35 430 155 C420 260 80 260 70 155Z" fill="#24272b"/><text x="250" y="170" font-size="54" text-anchor="middle" fill="white">A-49</text></svg>';
-  const catalogImage='data:image/svg+xml;base64,'+Buffer.from(catalogSvg).toString('base64');
-  page.on('pageerror',e=>errors.push(e.message));
-  await page.route('**/api/**',async route=>{
-   const pathname=new URL(route.request().url()).pathname;
-   let body={success:true,values:{},products:[]};
-   if(pathname==='/api/ai/local-vision-status')body={enabled:true,pipeline:'local-lens-v2',ready:true,total:869,indexed:869};
-   if(pathname==='/api/ai/customer-images'){uploads++;body={imageUrl:'/api/ai/customer-images/isolated-test.png'};}
-   if(pathname==='/api/ai/detect-regions'){
-    detections.push(route.request().postDataJSON());
-    body={success:true,detectionId:'test-detection-id',autoDetected:true,queryRegion:{x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],model:'dinov2-test',pipeline:'local-lens-v2',elapsedMs:120};
-   }
-   if(pathname==='/api/ai/analyze-part'){
-    const request=route.request().postDataJSON();queries.push(request);
-    await new Promise(resolve=>setTimeout(resolve,180));
-    body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'تسمه وی شکل',detectedProfile:'A',visualAnalysis:'تسمه مشکی با نوشته A-49',confidence:94},matchedProducts:[{code:'TEST-A49',name:'تسمه وی شکل A-49',brand:'FORZA',image:catalogImage,imageScope:'variant',similarityScore:94,visualVerdictFarsi:'تطبیق تصویری قوی',specs:[{key:'سری',value:'A'},{key:'طول',value:'49 اینچ'}],catalogProduct:{image:catalogImage,imageScope:'sku-verified',categoryName:'تسمه صنعتی'}}],similarCandidates:[],modelSuggestions:[],technicalAdvice:'',queryRegion:request.fullImage?undefined:request.region||{x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:1}};
-   }
-   await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
-  });
-  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/modal.html`);
-  await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
-  await page.getByTestId('image-region-review').waitFor();
-  await page.getByTestId('kiki-inline-catalog-results').waitFor({timeout:45000});
-  await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
-  await page.getByRole('button',{name:/تسمه وی شکل A-49/}).waitFor();
-  assert.equal(queries.length,1,'catalog analysis must start automatically after image detection');
-  assert.match(queries[0].imageBase64,/^data:image\/(?:png|jpeg|webp);base64,/);
-  assert.ok(queries[0].region||queries[0].fullImage,'automatic analysis must use a detected region or the safe full-image fallback');
-  assert.equal(queries[0].includeNearest,true);
-  assert.equal(uploads,0,'customer image must remain in the browser-local vault');
-  assert.equal(await page.locator('.sanat-region-picker__search').count(),0,'manual crop-confirm action must be removed');
-  assert.equal(await page.locator('.sanat-region-picker__full-image').count(),0,'manual full-image action must be removed');
-  const selectedProduct=page.getByRole('button',{name:/تسمه وی شکل A-49/});
-  await selectedProduct.click();
-  assert.equal(await selectedProduct.getAttribute('aria-pressed'),'true','catalog result must remain accessible as selected');
-  await page.waitForFunction(()=>window.__kikiPath==='/product/TEST-A49');
-  assert.equal(await page.evaluate(()=>window.__kikiPath),'/product/TEST-A49','catalog result must open its own product detail page');
-  await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-desktop.png'),fullPage:true});
+  server=await createServer({root,logLevel:'error',resolve:{alias:[{find:/.*\/context\/AuthContext$/,replacement:path.join(fixture,'auth.ts')},{find:/.*\/context\/CartContext$/,replacement:path.join(fixture,'cart.ts')}]},server:{host:'127.0.0.1',port:0}});
+  await server.listen();
+  browser=await chromium.launch({headless:true});
 
-  const candidateButtons=page.getByTestId('vision-region-candidates').getByRole('button');
-  const candidateCount=await candidateButtons.count();
-  let nextCandidateIndex=-1;
-  for(let index=0;index<candidateCount;index++){
-   if(await candidateButtons.nth(index).getAttribute('aria-pressed')!=='true'){nextCandidateIndex=index;break;}
-  }
-  if(nextCandidateIndex>=0){
-   const previousRegion=queries[0].region;
-   await candidateButtons.nth(nextCandidateIndex).click();
-   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='true',null,{timeout:10000});
-   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
-   assert.equal(queries.length,2,'selecting another detected object must automatically run a new search');
-   assert.ok(queries[1].region,'second object search must use its own detected region');
-   assert.notDeepEqual(queries[1].region,previousRegion,'selecting another detected object must change the analyzed region');
-  }
+  let detectionMode='matched';
+  let uploads=0;
+  const detections=[],queries=[],errors=[],browserDiagnostics=[];
+  const installRoutes=async page=>{
+   page.on('pageerror',error=>{errors.push(error.message);browserDiagnostics.push('PAGEERROR '+error.stack);});
+   page.on('console',message=>{if(message.type()==='error')browserDiagnostics.push('CONSOLE '+message.text());});
+   await page.route('**/api/**',async route=>{
+    const pathname=new URL(route.request().url()).pathname;
+    let body={success:true,values:{},products:[]};
+    if(pathname==='/api/ai/local-vision-status'){
+     body={enabled:true,pipeline:'local-lens-v2',ready:true,total:869,indexed:869};
+    }
+    if(pathname==='/api/ai/customer-images'){
+     uploads++;body={imageUrl:'/api/ai/customer-images/isolated-test.png'};
+    }
+    if(pathname==='/api/ai/detect-regions'){
+     const request=route.request().postDataJSON();detections.push(request);
+     body=detectionMode==='matched'
+      ? {success:true,detectionId:'test-detection-id',autoDetected:true,queryRegion:{x:0.37,y:0.27,width:0.26,height:0.46},queryRegions:[{x:0.37,y:0.27,width:0.26,height:0.46},{x:0.67,y:0.28,width:0.2,height:0.44}],model:'dinov2-test',pipeline:'local-lens-v2',elapsedMs:120}
+      : {success:true,detectionId:'test-no-confident-crop',autoDetected:false,queryRegion:null,queryRegions:[{x:0.37,y:0.27,width:0.26,height:0.46},{x:0.67,y:0.28,width:0.2,height:0.44}],model:'dinov2-test',pipeline:'local-lens-v2',elapsedMs:120};
+    }
+    if(pathname==='/api/ai/analyze-part'){
+     const request=route.request().postDataJSON();queries.push(request);
+     await new Promise(resolve=>setTimeout(resolve,250));
+     body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه صنعتی',detectedProfile:'A',visualAnalysis:'قطعه مشکی با نشانه A49',confidence:94},matchedProducts:Array.from({length:8},(_,index)=>({code:index===0?'TEST-A49':'TEST-A49-'+index,name:index===0?'قطعه صنعتی A-49':'قطعه صنعتی مشابه '+(index+1),brand:'FORZA',image:'data:image/svg+xml;base64,PHN2Zy8+',imageScope:'variant',similarityScore:94-index,visualVerdictFarsi:'تطبیق تصویری قوی',specs:[{key:'کد',value:index===0?'A-49':'A-'+(49+index)}],catalogProduct:{image:'data:image/svg+xml;base64,PHN2Zy8+',imageScope:'sku-verified',categoryName:'قطعات صنعتی'}})),similarCandidates:[],modelSuggestions:[],nearestCatalogSuggestions:[],catalogImageMatches:[],technicalAdvice:'',queryRegion:request.fullImage?undefined:request.region,queryRegions:request.fullImage?[]:[request.region],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:8},localVisionMetrics:{pipeline:'local-lens-v2',queryViews:2,geometryComplete:true,ocrAvailable:false,retrievalMs:120}};
+    }
+    await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
+   });
+  };
+
+  // Attach rejection handlers immediately so a slow initial render cannot
+  // produce an unhandled Playwright rejection before the assertion awaits it.
+  const waitForAnalysisRequest=page=>page.waitForRequest(
+    request=>new URL(request.url()).pathname==='/api/ai/analyze-part',
+    {timeout:90000},
+  ).then(request=>({request}),error=>({error}));
+  const requireAnalysisRequest=async(pending,page,label)=>{
+    const outcome=await pending;
+    if(outcome.error){
+      const state=await page.evaluate(()=>({
+        bodyText:document.body.innerText.slice(0,2200),
+        reviewBusy:document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy'),
+        reviewState:document.querySelector('[data-testid="image-region-review"]')?.getAttribute('data-selected-region'),
+        cropState:document.querySelector('[data-testid="forza-automatic-crop"]')?.outerHTML.slice(0,1200),
+      }));
+      throw new Error('ANALYSIS_REQUEST_TIMEOUT '+label+' '+JSON.stringify({
+        state,errors,browserDiagnostics,detectionCount:detections.length,
+        queryCount:queries.length,uploads,
+      })+' '+outcome.error.message);
+    }
+    return outcome.request;
+  };
+
+  const page=await browser.newPage({viewport:{width:1280,height:960}});
+  await installRoutes(page);
+  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/index.html`);
+  const firstAnalysisRequestPromise=waitForAnalysisRequest(page);
+  await page.locator('input[type=file]').first().setInputFiles({name:'industrial-part.png',mimeType:'image/png',buffer:imageBuffer});
+  await page.getByTestId('image-region-review').waitFor();
+  const candidate2=page.getByTestId('forza-region-candidate-2');
+  await candidate2.waitFor({state:'visible'});
+  const firstAnalysisRequest=await requireAnalysisRequest(firstAnalysisRequestPromise,page,'initial');
+  assert.deepEqual(firstAnalysisRequest.postDataJSON().region,{x:0.37,y:0.27,width:0.26,height:0.46});
+  const secondAnalysisRequestPromise=waitForAnalysisRequest(page);
+  await candidate2.click();
+  const secondAnalysisRequest=await requireAnalysisRequest(secondAnalysisRequestPromise,page,'second-object');
+  assert.deepEqual(secondAnalysisRequest.postDataJSON().region,{x:0.67,y:0.28,width:0.2,height:0.44},'tapping the second detected object must send its exact crop');
+  await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
+  await page.getByTestId('kiki-inline-catalog-results').waitFor({timeout:45000});
+  assert.equal(detections.length,1,'all object proposals must come from one server detection request');
+  assert.match(detections[0].imageBase64,/^data:image\/png;base64,/,'the server detector must receive the original uploaded image');
+  assert.equal(queries.length,2,'switching objects must run a new catalog search without redetecting the image');
+  assert.deepEqual(queries[0].region,{x:0.37,y:0.27,width:0.26,height:0.46},'the initial automatic crop must be searched');
+  assert.deepEqual(queries[1].region,{x:0.67,y:0.28,width:0.2,height:0.44},'the second object crop must be searched');
+  assert.equal(queries[1].detectionId,'test-detection-id','the second crop must reuse the original detection cache');
+  assert.notEqual(queries[1].fullImage,true,'a verified object crop must not be widened to the full image');
+
+  const review=page.getByTestId('image-region-review');
+  assert.equal(await review.getAttribute('data-region-mode'),'automatic');
+  const crop=page.getByTestId('forza-automatic-crop');
+  assert.equal(await crop.getAttribute('data-crop-ready'),'true');
+  assert.equal(await crop.getAttribute('data-region'),'0.67000,0.28000,0.20000,0.44000');
+  const cropBox=crop.locator('.forza-auto-crop__candidate.is-selected');
+  await cropBox.waitFor({state:'visible'});
+  await cropBox.locator('.forza-auto-crop__selected-label').getByText('برش فعال').waitFor({state:'visible'});
+  const overlay=await cropBox.evaluate(element=>({left:element.style.left,top:element.style.top,width:element.style.width,height:element.style.height,pointerEvents:getComputedStyle(element).pointerEvents}));
+  assert.deepEqual(overlay,{left:'67%',top:'28%',width:'20%',height:'44%',pointerEvents:'auto'});
+  await page.getByTestId('forza-automatic-crop-thumbnail').waitFor({state:'visible'});
+  await page.getByText('قطعه پیدا شد؛ برش خودکار انجام شد').waitFor();
+  assert.equal(await page.locator('.sanat-region-picker__frame,.sanat-region-picker__handle,.sanat-region-picker__draft,[data-testid="image-region-selector"]').count(),0,'the customer must not see any manual crop control');
+  await page.screenshot({path:path.join('/tmp','forza-automatic-crop-desktop.png'),fullPage:true});
+
+  const desktopImage=crop.locator('.forza-auto-crop__frame > img');
+  const desktopImageBox=await desktopImage.boundingBox();assert.ok(desktopImageBox);
+  const regionBeforeDrag=await review.getAttribute('data-selected-region');
+  await page.mouse.move(desktopImageBox.x+desktopImageBox.width*.12,desktopImageBox.y+desktopImageBox.height*.18);
+  await page.mouse.down();
+  await page.mouse.move(desktopImageBox.x+desktopImageBox.width*.32,desktopImageBox.y+desktopImageBox.height*.72,{steps:8});
+  await page.mouse.up();
+  await page.waitForTimeout(180);
+  assert.equal(await review.getAttribute('data-selected-region'),regionBeforeDrag,'desktop image dragging must never alter the AI-selected crop');
+  assert.equal(queries.length,2,'desktop image dragging must not start a manual re-search');
 
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(120);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'mobile workspace must not overflow horizontally');
-  const mobileImage=page.locator('.sanat-region-picker--viewer .sanat-region-picker__frame > img');
+  const mobileImage=crop.locator('.forza-auto-crop__frame > img');
   await mobileImage.waitFor({state:'visible'});
-  const mobileFit=await page.locator('.sanat-region-picker--viewer .sanat-region-picker__frame').evaluate(frame=>{
+  const mobileFit=await crop.locator('.forza-auto-crop__frame').evaluate(frame=>{
    const image=frame.querySelector('img');
    const imageRect=image.getBoundingClientRect(),frameRect=frame.getBoundingClientRect();
    const imageStyle=getComputedStyle(image),frameStyle=getComputedStyle(frame);
-   return {
-    naturalWidth:image.naturalWidth,naturalHeight:image.naturalHeight,
-    width:imageRect.width,height:imageRect.height,frameWidth:frameRect.width,frameHeight:frameRect.height,
-    objectFit:imageStyle.objectFit,imageBorder:imageStyle.borderTopWidth,frameBorder:frameStyle.borderTopWidth,
-    frameShadow:frameStyle.boxShadow,displayRatio:imageRect.width/imageRect.height,
-    naturalRatio:image.naturalWidth/image.naturalHeight
-   };
+   return {naturalWidth:image.naturalWidth,naturalHeight:image.naturalHeight,width:imageRect.width,height:imageRect.height,frameWidth:frameRect.width,frameHeight:frameRect.height,objectFit:imageStyle.objectFit,imageBorder:imageStyle.borderTopWidth,frameBorder:frameStyle.borderTopWidth,frameShadow:frameStyle.boxShadow,displayRatio:imageRect.width/imageRect.height,naturalRatio:image.naturalWidth/image.naturalHeight};
   });
   assert.equal(mobileFit.objectFit,'contain','mobile viewer must preserve the complete uploaded image');
   assert.equal(mobileFit.imageBorder,'0px','uploaded image must not have an added white border');
@@ -174,11 +141,157 @@ const {chromium}=require('playwright');
   assert.equal(mobileFit.frameShadow,'none','image holder must not add a white frame shadow');
   assert.ok(mobileFit.width>0&&mobileFit.height>0&&mobileFit.width<=mobileFit.frameWidth+1&&mobileFit.height<=mobileFit.frameHeight+1,JSON.stringify(mobileFit));
   assert.ok(Math.abs(mobileFit.displayRatio-mobileFit.naturalRatio)<0.03,'mobile viewer must show the entire image without cropping or stretching');
-  await page.screenshot({path:path.join(os.tmpdir(),'sanat-forza-vision-auto-inline-mobile.png'),fullPage:true});
-  assert.equal(await page.getByTestId('kiki-inline-catalog-results').count(),1,'results stay beside the selected image without a separate results page');
-  assert.equal(uploads,0);
+  assert.equal(await crop.getByTestId('forza-region-candidate-2').evaluate(element=>getComputedStyle(element).pointerEvents),'auto','detected object proposals must remain tappable on mobile');
+  assert.equal(await page.locator('.sanat-region-picker__frame,.sanat-region-picker__handle,.sanat-region-picker__draft,[data-testid="image-region-selector"]').count(),0,'mobile must not render manual crop controls');
+
+  // The catalogue remains a draggable bottom sheet; only this handle is interactive.
+  const sheet=page.locator('.kiki-image-workspace__catalog');
+  const sheetHandle=page.locator('.kiki-image-workspace__sheet-handle');
+  await sheetHandle.waitFor({state:'visible'});
+  assert.equal(await sheet.getAttribute('data-sheet-level'),'peek');
+  const handleBox=await sheetHandle.boundingBox();assert.ok(handleBox);
+  await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y+handleBox.height/2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y-115,{steps:8});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='half');
+  // Wait for the 280 ms CSS height transition to settle before measuring the sheet.
+  await page.waitForFunction(()=> {
+    const element=document.querySelector('.kiki-image-workspace__catalog');
+    return element && element.getBoundingClientRect().height >= window.innerHeight * .48;
+  },null,{timeout:5000});
+  const halfSheetBox=await sheet.boundingBox();assert.ok(halfSheetBox);
+  assert.ok(halfSheetBox.height>=844*.48&&halfSheetBox.height<=844*.60,'the mobile catalogue sheet must cover roughly half the viewport after its transition');
+  const catalogueBody=page.locator('#kiki-image-workspace-catalog-body');
+  assert.equal(await catalogueBody.evaluate(element=>getComputedStyle(element).overflowY),'auto','mobile result list must scroll independently');
+  await catalogueBody.evaluate(element=>{element.scrollTop=element.scrollHeight;});
+  await page.waitForTimeout(300);
+  assert.ok(await catalogueBody.evaluate(element=>element.scrollTop>0),'the expanded mobile product list must scroll through all suggested products');
+  const halfHandleBox=await sheetHandle.boundingBox();assert.ok(halfHandleBox);
+  await page.mouse.move(halfHandleBox.x+halfHandleBox.width/2,halfHandleBox.y+halfHandleBox.height/2);
+  await page.mouse.down();
+  await page.mouse.move(halfHandleBox.x+halfHandleBox.width/2,halfHandleBox.y+halfHandleBox.height/2+115,{steps:8});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='peek');
+
+  const thirdAnalysisRequestPromise=waitForAnalysisRequest(page);
+  await page.getByTestId('forza-region-candidate-1').click();
+  const thirdAnalysisRequest=await requireAnalysisRequest(thirdAnalysisRequestPromise,page,'mobile-first-object');
+  assert.deepEqual(thirdAnalysisRequest.postDataJSON().region,{x:0.37,y:0.27,width:0.26,height:0.46},'mobile tapping the first object must switch back to its automatic crop');
+  await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
+  assert.equal(queries.length,3,'mobile object selection must trigger a fresh catalog query');
+  assert.deepEqual(queries[2].region,{x:0.37,y:0.27,width:0.26,height:0.46});
+  const mobileRegionBeforeDrag=await review.getAttribute('data-selected-region');
+  const mobileImageBox=await mobileImage.boundingBox();assert.ok(mobileImageBox);
+  await page.mouse.move(mobileImageBox.x+mobileImageBox.width*.1,mobileImageBox.y+mobileImageBox.height*.2);
+  await page.mouse.down();
+  await page.mouse.move(mobileImageBox.x+mobileImageBox.width*.34,mobileImageBox.y+mobileImageBox.height*.74,{steps:8});
+  await page.mouse.up();
+  await page.waitForTimeout(180);
+  assert.equal(await review.getAttribute('data-selected-region'),mobileRegionBeforeDrag,'mobile image dragging must never create or alter a crop');
+  assert.equal(queries.length,3,'dragging outside detected proposals must not start a manual re-search');
+  assert.equal(await page.getByTestId('forza-automatic-crop-thumbnail').count(),1,'mobile must show the exact selected crop preview');
+  await page.screenshot({path:path.join('/tmp','forza-automatic-crop-mobile.png'),fullPage:true});
+
+  // Reopen the sheet with the same upward drag gesture a mobile customer uses.
+  const reopenHandleBox=await sheetHandle.boundingBox();assert.ok(reopenHandleBox);
+  await page.mouse.move(reopenHandleBox.x+reopenHandleBox.width/2,reopenHandleBox.y+reopenHandleBox.height/2);
+  await page.mouse.down();
+  await page.mouse.move(reopenHandleBox.x+reopenHandleBox.width/2,reopenHandleBox.y-115,{steps:8});
+  await page.mouse.up();
+  await page.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='half');
+  await page.waitForFunction(()=> {
+    const element=document.querySelector('.kiki-image-workspace__catalog');
+    return element && element.getBoundingClientRect().height >= window.innerHeight * .48;
+  },null,{timeout:5000});
+  await page.locator('[data-testid="kiki-inline-catalog-results"] button').first().click();
+  await page.waitForFunction(()=>window.__kikiPath==='/product/TEST-A49');
+  assert.equal(await page.evaluate(()=>window.__kikiPath),'/product/TEST-A49','catalog result must open its own product detail page');
+  assert.equal(uploads,0,'customer image bytes must remain in the browser-local vault');
   assert.deepEqual(errors,[]);
   await page.close();
-  console.log('AUTO_REGION_DETECTION_INLINE_CATALOG_RESULTS_MOBILE_OK');
- }finally{await browser?.close();await server?.close();await fs.rm(fixture,{recursive:true,force:true});}
-})().catch(e=>{console.error(e);process.exitCode=1;});
+
+  // If the server cannot confirm a crop, never promote an arbitrary proposal.
+  // Search the original full image and say clearly that no precise crop was used.
+  detectionMode='no-match';
+  const fallbackPage=await browser.newPage({viewport:{width:390,height:844}});
+  await installRoutes(fallbackPage);
+  await fallbackPage.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/index.html`);
+  await fallbackPage.locator('input[type=file]').first().setInputFiles({name:'industrial-part-no-crop.png',mimeType:'image/png',buffer:imageBuffer});
+  const fallbackResults=fallbackPage.getByTestId('kiki-inline-catalog-results');
+  await fallbackResults.waitFor({state:'attached',timeout:45000});
+  await fallbackPage.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
+  // In peek mode result cards are intentionally hidden; expand the mobile sheet as a customer would.
+  const fallbackSheet=fallbackPage.locator('.kiki-image-workspace__catalog');
+  const fallbackHandle=fallbackPage.locator('.kiki-image-workspace__sheet-handle');
+  const fallbackHandleBox=await fallbackHandle.boundingBox();assert.ok(fallbackHandleBox);
+  await fallbackPage.mouse.move(fallbackHandleBox.x+fallbackHandleBox.width/2,fallbackHandleBox.y+fallbackHandleBox.height/2);
+  await fallbackPage.mouse.down();
+  await fallbackPage.mouse.move(fallbackHandleBox.x+fallbackHandleBox.width/2,fallbackHandleBox.y-115,{steps:8});
+  await fallbackPage.mouse.up();
+  await fallbackPage.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='half');
+  await fallbackPage.waitForFunction(()=> {
+    const element=document.querySelector('.kiki-image-workspace__catalog');
+    return element && element.getBoundingClientRect().height >= window.innerHeight * .48;
+  },null,{timeout:5000});
+  await fallbackResults.waitFor({state:'visible',timeout:10000});
+  // Collapse the overlay before tapping a part in the covered lower half.
+  // The image remains interactive wherever it is visible; the sheet must not
+  // receive clicks intended for a hidden region beneath it.
+  const fallbackHandleAfterExpand=await fallbackHandle.boundingBox();assert.ok(fallbackHandleAfterExpand);
+  await fallbackPage.mouse.move(fallbackHandleAfterExpand.x+fallbackHandleAfterExpand.width/2,fallbackHandleAfterExpand.y+fallbackHandleAfterExpand.height/2);
+  await fallbackPage.mouse.down();
+  await fallbackPage.mouse.move(fallbackHandleAfterExpand.x+fallbackHandleAfterExpand.width/2,fallbackHandleAfterExpand.y+115,{steps:8});
+  await fallbackPage.mouse.up();
+  await fallbackPage.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='peek');
+  await fallbackPage.waitForFunction(()=> {
+    const sheet=document.querySelector('.kiki-image-workspace__catalog');
+    return sheet && sheet.getBoundingClientRect().height <= window.innerHeight * .16;
+  },null,{timeout:5000});
+  assert.equal(detections.length,2);
+  assert.equal(queries.length,4);
+  assert.equal(queries[3].fullImage,true,'no confident crop must initially trigger full-image search');
+  assert.equal(queries[3].region,undefined,'an unverified proposal must never be promoted to the initial crop');
+  const fallbackCrop=fallbackPage.getByTestId('forza-automatic-crop');
+  assert.equal(await fallbackCrop.getAttribute('data-crop-ready'),'false');
+  assert.equal(await fallbackCrop.locator('.forza-auto-crop__bounds').count(),0,'no confirmed crop box may be displayed');
+  assert.equal(await fallbackCrop.getByTestId('forza-automatic-crop-thumbnail').count(),0,'no unconfirmed crop preview may be displayed');
+  assert.equal(await fallbackCrop.locator('.forza-auto-crop__candidate').count(),2,'the customer may still choose one of the detected proposals');
+  await fallbackPage.getByText('ناحیه‌های پیشنهادی پیدا شدند').waitFor();
+  const fallbackSecondRequestPromise=waitForAnalysisRequest(fallbackPage);
+  // Choose a real visible point inside the second proposal after the sheet is collapsed.
+  const fallbackTapPoint=await fallbackPage.evaluate(()=> {
+    const candidate=document.querySelector('[data-testid="forza-region-candidate-2"]');
+    if(!candidate)return null;
+    const rect=candidate.getBoundingClientRect();
+    const x=rect.left+rect.width/2;
+    for(let y=rect.top+4;y<rect.bottom-4;y+=4){
+      const hit=document.elementFromPoint(x,y);
+      if(hit===candidate||candidate.contains(hit))return {x,y};
+    }
+    return null;
+  });
+  assert.ok(fallbackTapPoint,'second proposal must have a visible, tappable point after collapsing the product sheet');
+  const fallbackCandidate2=fallbackCrop.getByTestId('forza-region-candidate-2');
+  await fallbackPage.mouse.click(fallbackTapPoint.x,fallbackTapPoint.y);
+  await fallbackPage.waitForFunction(()=>document.querySelector('[data-testid="forza-region-candidate-2"]')?.getAttribute('data-selected')==='true',null,{timeout:5000});
+  const fallbackSecondRequest=await requireAnalysisRequest(fallbackSecondRequestPromise,fallbackPage,'fallback-second-object');
+  assert.deepEqual(fallbackSecondRequest.postDataJSON().region,{x:0.67,y:0.28,width:0.2,height:0.44});
+  await fallbackPage.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
+  assert.equal(queries.length,5);
+  assert.deepEqual(queries[4].region,{x:0.67,y:0.28,width:0.2,height:0.44});
+  assert.equal(queries[4].detectionId,'test-no-confident-crop');
+  assert.equal(await fallbackCrop.getAttribute('data-crop-ready'),'true','a customer-selected detected proposal becomes the active crop');
+  assert.equal(await fallbackCrop.getAttribute('data-region'),'0.67000,0.28000,0.20000,0.44000');
+  assert.equal(await fallbackCrop.getByTestId('forza-automatic-crop-thumbnail').count(),1);
+  assert.equal(await fallbackPage.locator('.sanat-region-picker__frame,.sanat-region-picker__handle,.sanat-region-picker__draft,[data-testid="image-region-selector"]').count(),0);
+  assert.deepEqual(errors,[]);
+  await fallbackPage.close();
+  console.log('AUTOMATIC_MULTI_OBJECT_SELECTION_DESKTOP_MOBILE_OK');
+  console.log('NO_CONFIDENT_CROP_FALLS_BACK_AND_ALLOWS_TAPPING_DETECTED_PROPOSALS_OK');
+ }finally{
+  await browser?.close();
+  await server?.close();
+  await fs.rm(fixture,{recursive:true,force:true});
+ }
+})().catch(error=>{console.error(error);process.exitCode=1;});

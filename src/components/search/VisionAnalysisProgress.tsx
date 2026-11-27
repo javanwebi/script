@@ -56,7 +56,7 @@ export function VisionAnalysisProgress({
             <span className="sp-vision-analysis__photo-label"><CircleDot size={13}/> تصویر مشتری</span>
             {image ? (
               region ? (
-                <div className="sp-vision-analysis__image-crop" data-testid="analysis-approved-crop" style={cropStyle} role="img" aria-label="برش تأییدشده قطعه در حال تحلیل" />
+                <div className="sp-vision-analysis__image-crop" data-testid="analysis-automatic-crop" style={cropStyle} role="img" aria-label="برش خودکار قطعه در حال تحلیل" />
               ) : (
                 <img src={image} alt="عکس واقعی قطعه در حال شناسایی" className="sp-vision-analysis__image" />
               )
@@ -82,10 +82,10 @@ export function VisionAnalysisProgress({
         <div className="sp-vision-analysis__details">
           <div className="sp-vision-analysis__status">
             <span className="sp-vision-analysis__status-dot" aria-hidden="true" />
-            <span>{quickMode ? "تحلیل برش تأییدشده" : "تحلیل تصویر و مشخصات فنی"}</span>
+            <span>{quickMode ? "تحلیل برش خودکار قطعه" : "تحلیل تصویر و مشخصات فنی"}</span>
           </div>
           <h2>در حال تطبیق قطعه با کاتالوگ صنعت پیش</h2>
-          <p>{region ? "برش تأییدشده شما مبنای استخراج ویژگی‌ها و مقایسه با تصاویر واقعی کاتالوگ است." : "تصویر کامل شما برای استخراج ویژگی‌های ظاهری و مقایسه با تصاویر واقعی کاتالوگ بررسی می‌شود."}</p>
+          <p>{region ? "برش خودکار تشخیص‌داده‌شده مبنای استخراج ویژگی‌ها و مقایسه با تصاویر واقعی کاتالوگ است." : "تصویر کامل شما برای استخراج ویژگی‌های ظاهری و مقایسه با تصاویر واقعی کاتالوگ بررسی می‌شود."}</p>
 
           <div className="sp-vision-analysis__active-phase" aria-live="polite" aria-atomic="true">
             <span>مرحله {toPersianDigits(activeIndex + 1)} از {toPersianDigits(phases.length)}</span>
