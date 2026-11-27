@@ -244,6 +244,10 @@ const {chromium}=require('playwright');
   await fallbackPage.mouse.move(fallbackHandleAfterExpand.x+fallbackHandleAfterExpand.width/2,fallbackHandleAfterExpand.y+115,{steps:8});
   await fallbackPage.mouse.up();
   await fallbackPage.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='peek');
+  await fallbackPage.waitForFunction(()=> {
+    const sheet=document.querySelector('.kiki-image-workspace__catalog');
+    return sheet && sheet.getBoundingClientRect().height <= window.innerHeight * .16;
+  },null,{timeout:5000});
   assert.equal(detections.length,2);
   assert.equal(queries.length,4);
   assert.equal(queries[3].fullImage,true,'no confident crop must initially trigger full-image search');
@@ -255,9 +259,21 @@ const {chromium}=require('playwright');
   assert.equal(await fallbackCrop.locator('.forza-auto-crop__candidate').count(),2,'the customer may still choose one of the detected proposals');
   await fallbackPage.getByText('ناحیه‌های پیشنهادی پیدا شدند').waitFor();
   const fallbackSecondRequestPromise=waitForAnalysisRequest(fallbackPage);
-  // Tap the second detected object itself; this is the same target customers use on the image overlay.
+  // Choose a real visible point inside the second proposal after the sheet is collapsed.
+  const fallbackTapPoint=await fallbackPage.evaluate(()=> {
+    const candidate=document.querySelector('[data-testid="forza-region-candidate-2"]');
+    if(!candidate)return null;
+    const rect=candidate.getBoundingClientRect();
+    const x=rect.left+rect.width/2;
+    for(let y=rect.top+4;y<rect.bottom-4;y+=4){
+      const hit=document.elementFromPoint(x,y);
+      if(hit===candidate||candidate.contains(hit))return {x,y};
+    }
+    return null;
+  });
+  assert.ok(fallbackTapPoint,'second proposal must have a visible, tappable point after collapsing the product sheet');
   const fallbackCandidate2=fallbackCrop.getByTestId('forza-region-candidate-2');
-  await fallbackCandidate2.click();
+  await fallbackPage.mouse.click(fallbackTapPoint.x,fallbackTapPoint.y);
   await fallbackPage.waitForFunction(()=>document.querySelector('[data-testid="forza-region-candidate-2"]')?.getAttribute('data-selected')==='true',null,{timeout:5000});
   const fallbackSecondRequest=await requireAnalysisRequest(fallbackSecondRequestPromise,fallbackPage,'fallback-second-object');
   assert.deepEqual(fallbackSecondRequest.postDataJSON().region,{x:0.67,y:0.28,width:0.2,height:0.44});
