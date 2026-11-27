@@ -102,7 +102,7 @@ test('Qwen late completion keeps the provider response identity', () => {
 });
 
 test('Qwen invalid VAD duration uses a finite default', () => {
-  assert.equal(buildGisooQwenSessionUpdate('فارسی', NaN).session.audio.input.turn_detection.silence_duration_ms, 500);
+  assert.equal(buildGisooQwenSessionUpdate('فارسی', NaN).session.audio.input.turn_detection.silence_duration_ms, 900);
 });
 
 test('Face-to-face page actually mounts the native Gisoo client without the old speech endpoints', () => {
@@ -285,7 +285,7 @@ test('reconnect seeds context only on resumed calls and avoids an opening greeti
  const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
  assert.match(server,/if\(resuming\)\{toClient\(\{type:'connected',[^\n]*resumed:true\}\);return;\}greetingTriggerId=/);
  assert.match(server,/if\(!resuming\|\|resumeSeedAccepted\)return/);
- assert.match(client,/retryCount\.current<3/);
+ assert.match(client,/retryCount\.current<5/);
  assert.match(client,/type:'resume_context'/);
  assert.match(client,/type:'ping'/);
  assert.match(client,/m\.type==='pong'/);
@@ -342,4 +342,51 @@ test('exact SKU lookup prioritizes the requested active code and exposes its own
  assert.equal(result.results[0].variants[0].link,'/direct-product/A19');
  assert.ok(!result.results[0].variants.some(v=>v.code==='A1900'));
  assert.doesNotMatch(JSON.stringify(result), /"price"|"stock"/);
+});
+
+test('Qwen realtime uses a natural Persian pause and exposes exact detail and comparison tools',()=>{
+ const update=buildGisooQwenSessionUpdate('مشاور');
+ assert.equal(update.session.audio.input.turn_detection.silence_duration_ms,900);
+ assert.equal(update.session.tools.length,3);
+ assert.equal(update.session.tools[0].name,'search_sanatpish_catalog');
+ assert.equal(update.session.tools[1].name,'get_sanatpish_product_details');
+ assert.deepEqual(update.session.tools[1].parameters.required,['code']);
+ assert.equal(update.session.tools[2].name,'compare_sanatpish_products');
+ assert.deepEqual(update.session.tools[2].parameters.required,['codes']);
+});
+test('transport protects the call from brief backpressure and records provider close diagnostics',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ assert.match(server,/upstream\.ping\(\)/);
+ assert.match(server,/upstream\.on\('pong'/);
+ assert.match(server,/upstream_closed/);
+ assert.match(server,/session_end/);
+ assert.match(server,/upstream_audio_backpressure_started/);
+ assert.match(server,/network_degraded/);
+ assert.match(client,/retryCount\.current<5/);
+ assert.match(client,/document\.visibilityState==='visible'/);
+ assert.match(client,/window\.addEventListener\('online'/);
+ assert.match(client,/micCongestedSince/);
+ assert.doesNotMatch(client,/bufferedAmount>262144\)\{fail/);
+});
+test('mic resampling and PCM conversion run in AudioWorklet for the primary path',()=>{
+ const worklet=readFileSync('public/forza-runtime/qwen-mic-worklet.js','utf8');
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ assert.match(worklet,/targetRate = 16000/);
+ assert.match(worklet,/new Int16Array\(outputLength\)/);
+ assert.match(worklet,/this\.port\.postMessage\(pcm, \[pcm\.buffer\]\)/);
+ assert.match(client,/e\.data instanceof Int16Array/);
+ assert.match(client,/encodePcm16\(samples\)/);
+});
+test('FORZA consultant prompt follows a staged industrial diagnostic and recommendation workflow',()=>{
+ const app=readFileSync('server.ts','utf8');
+ const prompt=app.match(/const FORZA_QWEN_SYSTEM_INSTRUCTION = `([\s\S]*?)`;/)?.[1]||'';
+ for(const term of ['پرونده مهندسی','تسمه‌ها','بلبرینگ و رولبرینگ','عیب‌یابی','کاتالوگ واقعی','دلیل انتخاب','یک سؤال مهم'])assert.ok(prompt.includes(term),term);
+ assert.match(prompt,/get_sanatpish_product_details/);
+ assert.match(prompt,/compare_sanatpish_products/);
+});
+test('catalog lookup does not claim success when no family or SKU matched',()=>{
+ const products=[{code:'OTHER',name:'قطعه دیگر',brand:'',categorySlug:'other',categoryName:'سایر',subcategory:'',technicalSpecs:[],prices:{base:0,retail:0,wholesale:0,dealer:0},stock:0,inquiryOnly:true,images:[],tags:[],unit:'عدد',active:true,variants:[]}] as unknown as Product[];
+ const result=searchForzaRealtimeCatalog(products,'قطعه ناشناخته');
+ if(result.results.length===0)assert.equal(result.success,false);
 });
