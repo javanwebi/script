@@ -100,20 +100,20 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   let micFrames=0,micBytes=0,micSquareSum=0,micSamples=0,micPeak=0,micWindowStarted=Date.now(),firstMicFrameAt=0,lastSpeechStartedAt=0;
   const cancelled=new Set<string>(),toolResponseIds=new Set<string>(),processedToolCalls=new Set<string>(),started=Date.now();
   const log=(event:string,data:Record<string,unknown>={})=>console.info('[FORZA QWEN] '+event+' '+JSON.stringify(data));
-  const finish=(reason?:string,closeCode?:number,closeReason?:string)=>{
+  const finish=(reason?:string,closeCode?:number,closeReason?:string,retryable=false)=>{
     if(closed)return;closed=true;activeSessions=Math.max(0,activeSessions-1);
     if(timer)clearTimeout(timer);if(heartbeat)clearInterval(heartbeat);if(clientHeartbeat)clearInterval(clientHeartbeat);if(responseStartTimer)clearTimeout(responseStartTimer);if(cancelTimer)clearTimeout(cancelTimer);
     log('session_end',{durationMs:Date.now()-started,reason:reason||'client_closed',upstreamCloseCode:closeCode??null,upstreamCloseReason:closeReason?closeReason.slice(0,120):null,upstreamBufferedBytes:upstream?.bufferedAmount||0,clientBufferedBytes:client.bufferedAmount});
-    if(reason){toClient({type:'fallback_required',reason});if(client.readyState===WebSocket.OPEN)client.close(1011,'Qwen session ended');}
+    if(reason){toClient({type:'fallback_required',reason,retryable});if(client.readyState===WebSocket.OPEN)client.close(1011,'Qwen session ended');}
     try{if(upstream?.readyState===WebSocket.CONNECTING)upstream.terminate();else if(upstream?.readyState===WebSocket.OPEN)upstream.close(1000,'Call ended');}catch{}
   };
-  const send=(e:Record<string,unknown>)=>{if(closed||upstream?.readyState!==WebSocket.OPEN)return false;if(upstream.bufferedAmount>1000000){log('upstream_control_backpressure',{bufferedBytes:upstream.bufferedAmount,eventType:String(e.type||'unknown')});finish('ارتباط سرور گیسو برای مدت طولانی پاسخ‌گو نیست؛ اتصال دوباره تلاش می‌شود.');return false;}upstream.send(JSON.stringify(e));return true;};
+  const send=(e:Record<string,unknown>)=>{if(closed||upstream?.readyState!==WebSocket.OPEN)return false;if(upstream.bufferedAmount>1000000){log('upstream_control_backpressure',{bufferedBytes:upstream.bufferedAmount,eventType:String(e.type||'unknown')});finish('ارتباط سرور گیسو کند و ناپایدار شده؛ اتصال دوباره تلاش می‌شود.',undefined,undefined,true);return false;}upstream.send(JSON.stringify(e));return true;};
   const sendAudio=(e:Record<string,unknown>)=>{
     if(closed||upstream?.readyState!==WebSocket.OPEN)return false;
     const queued=upstream.bufferedAmount;
     if(queued>131072){
       if(!upstreamCongestedSince){upstreamCongestedSince=Date.now();log('upstream_audio_backpressure_started',{bufferedBytes:queued});toClient({type:'network_degraded',bufferedBytes:queued});}
-      if(Date.now()-upstreamCongestedSince>15000)finish('اتصال گیسو بیش از حد کند شده است؛ در حال تلاش برای اتصال مجدد.');
+      if(Date.now()-upstreamCongestedSince>15000)finish('اتصال گیسو بیش از حد کند شده است؛ در حال تلاش برای اتصال مجدد.',undefined,undefined,true);
       return false;
     }
     if(upstreamCongestedSince){log('upstream_audio_backpressure_recovered',{durationMs:Date.now()-upstreamCongestedSince,bufferedBytes:queued});upstreamCongestedSince=0;upstreamCongestedNotice=false;toClient({type:'network_restored'});}
@@ -130,7 +130,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     cancelTimer=setTimeout(()=>{
       if(active===response&&cancelled.has(response)){
         log('response_cancel_timeout',{responseId:response});
-        finish('گیسو به فرمان توقف پاسخ واکنش نشان نداد؛ تماس در حال بازیابی است.');
+        finish('اتصال گیسو پس از توقف پاسخ قفل شد؛ تماس را دوباره وصل می‌کنم.',undefined,undefined,true);
       }
     },8000);
   };
@@ -217,34 +217,34 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   client.on('pong',()=>{lastClientPong=Date.now();});
   clientHeartbeat=setInterval(()=>{
     if(closed||client.readyState!==WebSocket.OPEN)return;
-    if(Date.now()-lastClientPong>90000){log('browser_heartbeat_timeout',{lastPongAgeMs:Date.now()-lastClientPong});finish('ارتباط مرورگر پاسخ‌گو نیست؛ تماس را بازیابی می‌کنم.');return;}
+    if(Date.now()-lastClientPong>90000){log('browser_heartbeat_timeout',{lastPongAgeMs:Date.now()-lastClientPong});finish('ارتباط مرورگر قطع شده؛ تماس را دوباره وصل می‌کنم.',undefined,undefined,true);return;}
     try{client.ping();}catch(error){log('browser_ping_failed',{message:error instanceof Error?error.message:'unknown'});}
   },30000);
   client.on('close',(code,reason)=>{log('browser_socket_closed',{code,reason:reason?reason.toString().slice(0,120):''});finish(undefined,code,reason?reason.toString():undefined);});
   client.on('error',(error)=>{log('browser_socket_error',{name:error.name,message:error.message.slice(0,180)});finish('ارتباط مرورگر با سرور قطع شد.');});
   try{const target=new URL(process.env.FORZA_QWEN_REALTIME_URL?.trim()||DEFAULT_URL);if(target.protocol!=='wss:'||!['gisoo.pro','ir.gisoo.pro'].includes(target.hostname)||target.searchParams.get('model')!==MODEL)throw Error('invalid URL');upstream=new WebSocket(target,{headers:{Authorization:'Bearer '+key},handshakeTimeout:15000,maxPayload:2097152});}catch{finish('نشانی اتصال گیسو معتبر نیست.');return;}
-  timer=setTimeout(()=>{if(!ready)finish('گیسو نشست را در زمان مناسب آماده نکرد.');},20000);
+  timer=setTimeout(()=>{if(!ready)finish('گیسو نشست را در زمان مناسب آماده نکرد؛ اتصال دوباره تلاش می‌شود.',undefined,undefined,true);},20000);
   upstream.on('open',()=>{
     lastUpstreamPong=Date.now();log('socket_open',{ms:Date.now()-started});
     heartbeat=setInterval(()=>{
       if(closed||!ready||upstream?.readyState!==WebSocket.OPEN)return;
-      if(Date.now()-lastUpstreamPong>60000){log('upstream_heartbeat_timeout',{lastPongAgeMs:Date.now()-lastUpstreamPong});finish('ارتباط زنده با گیسو پاسخ‌گو نیست؛ اتصال مجدد انجام می‌شود.');return;}
+      if(Date.now()-lastUpstreamPong>60000){log('upstream_heartbeat_timeout',{lastPongAgeMs:Date.now()-lastUpstreamPong});finish('ارتباط زنده با گیسو قطع شده؛ اتصال مجدد انجام می‌شود.',undefined,undefined,true);return;}
       try{upstream.ping();}catch(error){log('upstream_ping_failed',{message:error instanceof Error?error.message:'unknown'});}
     },20000);
   });
   upstream.on('pong',()=>{lastUpstreamPong=Date.now();});
-  upstream.on('unexpected-response',(_req,res)=>{res.resume();log('upstream_rejected',{statusCode:res.statusCode||0});finish('گیسو اتصال را نپذیرفت (HTTP '+String(res.statusCode||0)+').');});
-  upstream.on('error',(error)=>{log('upstream_error',{name:error.name,message:error.message.slice(0,180),readyState:upstream?.readyState??null});finish('ارتباط WebSocket گیسو قطع شد.');});
-  upstream.on('close',(code,reason)=>{log('upstream_closed',{code,reason:reason?reason.toString().slice(0,120):'',durationMs:Date.now()-started});if(!closed)finish('نشست گیسو بسته شد؛ دوباره متصل شوید.',code,reason?reason.toString():undefined);});
+  upstream.on('unexpected-response',(_req,res)=>{res.resume();log('upstream_rejected',{statusCode:res.statusCode||0});finish('گیسو اتصال را نپذیرفت (HTTP '+String(res.statusCode||0)+').',undefined,undefined,[408,425,429,500,502,503,504].includes(Number(res.statusCode||0)));});
+  upstream.on('error',(error)=>{log('upstream_error',{name:error.name,message:error.message.slice(0,180),readyState:upstream?.readyState??null});finish('ارتباط WebSocket گیسو قطع شد.',undefined,undefined,true);});
+  upstream.on('close',(code,reason)=>{log('upstream_closed',{code,reason:reason?reason.toString().slice(0,120):'',durationMs:Date.now()-started});if(!closed)finish('نشست گیسو بسته شد؛ دوباره متصل شوید.',code,reason?reason.toString():undefined,true);});
   upstream.on('message',raw=>{
     if(closed)return;let e:Event;try{e=decode(raw);}catch{return;}const t=String(e.type||'');
     if(t==='session.created'&&!configured){configured=true;send(buildGisooQwenSessionUpdate(instructions,Number(process.env.FORZA_QWEN_SILENCE_MS||900),selectedVoice));return;}
-    if(t==='session.updated'&&!ready&&configured){const reported=e.session?.audio?.output?.voice??e.session?.voice;const confirmed=isGisooQwenVoiceConfirmed(e.session||{},selectedVoice);if(!confirmed){finish('گیسو صدای درخواستی '+selectedVoice+' را تأیید نکرد'+(typeof reported==='string'&&reported.trim()?' (صدای گزارش‌شده: '+reported+')':' (صدای گزارش‌شده موجود نیست)')+'. اتصال با صدای پیش‌فرض ادامه پیدا نمی‌کند.');return;}ready=true;if(timer)clearTimeout(timer);log('session_ready',{ms:Date.now()-started,voice:selectedVoice,confirmed:true});if(resuming){toClient({type:'connected',provider:'qwen',model:MODEL,voice:selectedVoice,voiceConfirmed:true,inputSampleRate:16000,sampleRate:24000,resumed:true});return;}greetingTriggerId='forza-opening-'+started;greetingSeedPending=true;if(!send(buildGisooQwenOpeningGreetingTrigger(greetingTriggerId))){finish('فرمان آغاز مکالمه به گیسو ارسال نشد.');return;}timer=setTimeout(()=>{if(greetingSeedPending)finish('گیسو فرمان آغاز تماس را ثبت نکرد.');},7000);log('opening_greeting_trigger_sent',{itemId:greetingTriggerId,role:'user',contentType:'input_text'});return;}
+    if(t==='session.updated'&&!ready&&configured){const reported=e.session?.audio?.output?.voice??e.session?.voice;const confirmed=isGisooQwenVoiceConfirmed(e.session||{},selectedVoice);if(!confirmed){finish('گیسو صدای درخواستی '+selectedVoice+' را تأیید نکرد'+(typeof reported==='string'&&reported.trim()?' (صدای گزارش‌شده: '+reported+')':' (صدای گزارش‌شده موجود نیست)')+'. اتصال با صدای پیش‌فرض ادامه پیدا نمی‌کند.');return;}ready=true;if(timer)clearTimeout(timer);log('session_ready',{ms:Date.now()-started,voice:selectedVoice,confirmed:true});if(resuming){toClient({type:'connected',provider:'qwen',model:MODEL,voice:selectedVoice,voiceConfirmed:true,inputSampleRate:16000,sampleRate:24000,resumed:true});return;}greetingTriggerId='forza-opening-'+started;greetingSeedPending=true;if(!send(buildGisooQwenOpeningGreetingTrigger(greetingTriggerId))){finish('فرمان آغاز مکالمه به گیسو ارسال نشد؛ اتصال قطع شد و دوباره تلاش می‌کنم.',undefined,undefined,true);return;}timer=setTimeout(()=>{if(greetingSeedPending)finish('گیسو فرمان آغاز تماس را ثبت نکرد؛ ارتباط قطع شد و دوباره تلاش می‌کنم.',undefined,undefined,true);},7000);log('opening_greeting_trigger_sent',{itemId:greetingTriggerId,role:'user',contentType:'input_text'});return;}
     if(!ready&&t!=='error')return;
     if(t==='input_audio_buffer.speech_started'){userSpeaking=true;lastSpeechStartedAt=Date.now();partial='';pendingText='';log('speech_started',{afterFirstMicFrameMs:firstMicFrameAt?Date.now()-firstMicFrameAt:null,activeResponse:Boolean(active)});toClient({type:'speech_started'});if(active&&!cancelled.has(active))cancelActiveResponse(active);else if(requested){send({type:'response.cancel'});}return;}
     if(t==='input_audio_buffer.speech_stopped'){userSpeaking=false;speechStop=Date.now();log('speech_stopped',{speechDurationMs:lastSpeechStartedAt?Date.now()-lastSpeechStartedAt:null});toClient({type:'speech_stopped'});return;}
     if(t==='input_audio_buffer.committed'){log('audio_committed',{afterSpeechStopMs:speechStop?Date.now()-speechStop:null});return;}
-    if(t==='conversation.item.created'||t==='conversation.item.added'){const item=e.item&&typeof e.item==='object'?e.item as Event:{};const receivedItemId=String(item.id||e.item_id||'');const content=Array.isArray(item.content)?item.content as Event[]:[];const contentTypes=content.map((part:Event)=>String(part.type||'unknown')).slice(0,4);log('conversation_item_received',{eventType:t,itemId:receivedItemId||null,role:String(item.role||'unknown'),contentTypes});const triggerText=content.some((part:Event)=>part.type==='input_text'&&String(part.text||'').includes('تماس صوتی اکنون برقرار شده است'));if(greetingSeedPending&&(receivedItemId===greetingTriggerId||triggerText)){greetingSeedPending=false;if(timer)clearTimeout(timer);toClient({type:'connected',provider:'qwen',model:MODEL,voice:selectedVoice,voiceConfirmed:true,inputSampleRate:16000,sampleRate:24000});requested=true;greetingResponsePending=true;if(!send({type:'response.create'})){finish('درخواست خوشامدگویی اولیه به گیسو ارسال نشد.');return;}timer=setTimeout(()=>{if(greetingResponsePending)finish('گیسو پاسخ خوشامدگویی را شروع نکرد.');},10000);log('opening_greeting_requested',{voice:selectedVoice,triggerItemId:receivedItemId||greetingTriggerId});}return;}
+    if(t==='conversation.item.created'||t==='conversation.item.added'){const item=e.item&&typeof e.item==='object'?e.item as Event:{};const receivedItemId=String(item.id||e.item_id||'');const content=Array.isArray(item.content)?item.content as Event[]:[];const contentTypes=content.map((part:Event)=>String(part.type||'unknown')).slice(0,4);log('conversation_item_received',{eventType:t,itemId:receivedItemId||null,role:String(item.role||'unknown'),contentTypes});const triggerText=content.some((part:Event)=>part.type==='input_text'&&String(part.text||'').includes('تماس صوتی اکنون برقرار شده است'));if(greetingSeedPending&&(receivedItemId===greetingTriggerId||triggerText)){greetingSeedPending=false;if(timer)clearTimeout(timer);toClient({type:'connected',provider:'qwen',model:MODEL,voice:selectedVoice,voiceConfirmed:true,inputSampleRate:16000,sampleRate:24000});requested=true;greetingResponsePending=true;if(!send({type:'response.create'})){finish('درخواست خوشامدگویی اولیه به گیسو ارسال نشد؛ اتصال قطع شد و دوباره تلاش می‌کنم.',undefined,undefined,true);return;}timer=setTimeout(()=>{if(greetingResponsePending)finish('گیسو پاسخ خوشامدگویی را شروع نکرد؛ اتصال قطع شد و دوباره تلاش می‌کنم.',undefined,undefined,true);},10000);log('opening_greeting_requested',{voice:selectedVoice,triggerItemId:receivedItemId||greetingTriggerId});}return;}
     if(t==='response.created'){if(greetingResponsePending){greetingResponsePending=false;if(timer)clearTimeout(timer);}if(responseStartTimer)clearTimeout(responseStartTimer);active=id(e,'qwen-'+(++seq));requested=false;firstAudio=false;log('response_created',{afterSpeechStopMs:speechStop?Date.now()-speechStop:null,afterSpeechStartedMs:lastSpeechStartedAt?Date.now()-lastSpeechStartedAt:null});if(userSpeaking||pendingText){cancelActiveResponse(active);}else toClient({type:'response_started',responseId:active});return;}
     if(t==='response.function_call_arguments.done'){void runCatalogTool(e);return;}
     if(t==='response.done'){
@@ -277,7 +277,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
       const code=String(details.code||'unknown').slice(0,80),disposition=classifyGisooRealtimeError(code,ready);
       const providerMessage=String(details.message||'').replace(/[\r\n]+/g,' ').slice(0,240);
       log('provider_error',{code,type:String(details.type||'').slice(0,80),message:providerMessage,param:String(details.param||'').slice(0,80),eventId:String(details.event_id||'').slice(0,80),ready,disposition});
-      if(greetingSeedPending||greetingResponsePending){finish('گیسو شروع مکالمه را نپذیرفت: '+(providerMessage||code));return;}
+      if(greetingSeedPending||greetingResponsePending){finish('گیسو شروع مکالمه را نپذیرفت: '+(providerMessage||code),undefined,undefined,disposition==='recoverable');return;}
       if(disposition==='ignore'){
         if(code==='response_cancel_not_active'&&active&&cancelled.has(active)){
           const cancelledId=active;active='';requested=false;
