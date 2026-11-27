@@ -10,8 +10,8 @@ import {
 import { searchForzaRealtimeCatalog } from '../server/ai/forzaRealtimeCatalog';
 import type { Product } from '../src/types';
 
-test('Qwen session uses Gisoo direct-realtime PCM and server VAD contract', () => {
-  const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Raymond');
+test('Qwen session uses Gisoo direct-realtime PCM, Andre voice, and configured VAD contract', () => {
+  const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Andre');
   assert.equal(update.type, 'session.update');
   assert.deepEqual(update.session.output_modalities, ['audio']);
   assert.deepEqual(update.session.audio.input.format, {
@@ -22,8 +22,8 @@ test('Qwen session uses Gisoo direct-realtime PCM and server VAD contract', () =
     type: 'audio/pcm',
     rate: 24000,
   });
-  assert.equal(update.session.audio.output.voice, 'Raymond');
-  assert.match(update.session.instructions, /مشاور ارشد مهندسی/);
+  assert.equal(update.session.audio.output.voice, 'Andre');
+  assert.match(update.session.instructions, /تو فورزا هستی؛ مشاور صوتی فنی/);
   assert.equal(update.session.audio.input.turn_detection.type, 'server_vad');
   assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 500);
   assert.equal(update.session.audio.input.turn_detection.interrupt_response, true);
@@ -98,13 +98,15 @@ test('Face-to-face page actually mounts the native Gisoo client without the old 
   assert.doesNotMatch(client,/\/api\/ai\/(?:stt|forza-speech|consult-stream|forza-live)/);
 });
 
- test('Customer barge-in cancels upstream generation and greeting is not fed back into the mic', () => {
+test('Customer barge-in cancels upstream generation, mic waits for first greeting, and reconnect never greets again', () => {
   const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
   assert.match(server,/speech_started'\)\{userSpeaking=true;[\s\S]*?send\(\{type:'response.cancel'\}\)/);
   assert.match(client,/if\(!s\.ready\|\|!s\.greeted\|\|micMuted\.current/);
-  assert.match(client,/send\(s,\{type:'text',text:greeting\}\);return;/);
- });
+  assert.match(client,/if\(greeted\.current\)\{s\.greeted=true;setPhase\('listening'\);return;\}/);
+  assert.match(client,/سلام، به صنعت پیش خوش آمدید/);
+  assert.doesNotMatch(client,/من آماده‌ام مهندس جان/);
+});
  test('Native capture and stable light are enabled for exhibition calls', () => {
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
   const worklet=readFileSync('public/forza-runtime/qwen-mic-worklet.js','utf8');
@@ -129,17 +131,19 @@ test('recoverable Gisoo flood errors do not tear down an established realtime se
 });
 
 
-test('Qwen realtime session exposes the read-only Sanat Pish catalogue tool and richer advice budget', () => {
+test('Qwen realtime session exposes the read-only Sanat Pish catalogue tool and voice-first consultation prompt', () => {
   const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Ryan');
   assert.equal(update.session.audio.output.voice, 'Ryan');
   assert.equal(update.session.max_output_tokens, 1536);
   assert.equal(update.session.tools[0].type, 'function');
   assert.equal(update.session.tools[0].name, 'search_sanatpish_catalog');
   assert.deepEqual(update.session.tools[0].parameters.required, ['query']);
-  assert.match(update.session.instructions, /مشاور ارشد مهندسی/);
+  assert.match(update.session.instructions, /تو فورزا هستی؛ مشاور صوتی فنی/);
   assert.match(update.session.instructions, /search_sanatpish_catalog/);
-  assert.match(update.session.instructions, /۷۰ تا ۱۳۰ کلمه/);
-  assert.ok(update.session.instructions.lastIndexOf('مشاور ارشد مهندسی') > update.session.instructions.indexOf('دستیار فارسی صنعت پیش'));
+  assert.match(update.session.instructions, /هرگز با «سلام مهندس جان»/);
+  assert.match(update.session.instructions, /۲۵ تا ۶۰ کلمه/);
+  assert.doesNotMatch(update.session.instructions, /۴ تا ۷ جمله/);
+  assert.ok(update.session.instructions.lastIndexOf('قاعده نهایی:') > update.session.instructions.indexOf('دستیار فارسی صنعت پیش'));
 });
 
 test('live catalogue lookup returns real family/SKU metadata without commercial fields', () => {
@@ -191,17 +195,41 @@ test('live call renders catalogue product cards and does not disconnect on a twe
   assert.match(client, /href=\{family\.link\}/);
   assert.match(client, /s\.next-ctx\.currentTime>90/);
   assert.doesNotMatch(client, /s\.next-ctx\.currentTime>12/);
-  assert.match(client, /useState\('Raymond'\)/);
+  assert.match(client, /useState\('Andre'\)/);
 });
 
 
-test('legacy Andre selection is migrated to the professional Raymond voice', () => {
-  assert.equal(resolveGisooQwenVoice(undefined), 'Raymond');
-  assert.equal(resolveGisooQwenVoice('Andre'), 'Raymond');
-  assert.equal(resolveGisooQwenVoice('Ryan'), 'Raymond');
+test('FORZA uses the natural steady male Andre voice and preserves supported Qwen voice choices', () => {
+  assert.equal(resolveGisooQwenVoice(undefined), 'Andre');
+  assert.equal(resolveGisooQwenVoice('Andre'), 'Andre');
+  assert.equal(resolveGisooQwenVoice('andre'), 'Andre');
+  assert.equal(resolveGisooQwenVoice('Ryan'), 'Ryan');
   assert.equal(resolveGisooQwenVoice('Raymond'), 'Raymond');
   assert.equal(resolveGisooQwenVoice('Tina'), 'Tina');
-  assert.equal(resolveGisooQwenVoice('unsupported-voice'), 'Raymond');
+  assert.equal(resolveGisooQwenVoice('unsupported-voice'), 'Andre');
+  assert.equal(buildGisooQwenSessionUpdate('مشاور فنی فارسی').session.audio.output.voice, 'Andre');
+});
+
+test('Browser reports actual laptop microphone noise-processing settings without exposing device identity', () => {
+  const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+  const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+  assert.match(client,/getSettings\(\)/);
+  assert.match(client,/type:'capture_settings'/);
+  assert.match(server,/log\('capture_settings'/);
+  assert.doesNotMatch(client,/deviceId:|label:capture/);
+});
+
+test('Realtime bridge records privacy-safe microphone energy, VAD, and first-audio timing without logging audio payloads', () => {
+  const server = readFileSync('server/ai/gisooQwenRealtime.ts', 'utf8');
+  assert.match(server, /log\('mic_first_frame'/);
+  assert.match(server, /log\('mic_stream'/);
+  assert.match(server, /rms:micSamples\?Math\.round\(Math\.sqrt\(micSquareSum\/micSamples\)\):0/);
+  assert.match(server, /log\('speech_started'/);
+  assert.match(server, /log\('speech_stopped'/);
+  assert.match(server, /log\('response_created'/);
+  assert.match(server, /log\('first_audio'/);
+  assert.match(server, /type:'input_audio_buffer\.append',audio:e\.audio/);
+  assert.doesNotMatch(server, /log\('mic_stream',[^\n]*audio:e\.audio/);
 });
 
 test('catalogue cards retain visible products during follow-up speech and expose direct SKU links', () => {
@@ -211,5 +239,5 @@ test('catalogue cards retain visible products during follow-up speech and expose
   assert.ok(start >= 0 && end > start);
   assert.doesNotMatch(client.slice(start, end), /setCatalogResults|setCatalogQuery/);
   assert.match(client, /href=\{'\/direct-product\/'\+encodeURIComponent\(variant\.code\)\}/);
-  assert.match(client, /useState\('Raymond'\)/);
+  assert.match(client, /useState\('Andre'\)/);
 });

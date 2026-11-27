@@ -32,7 +32,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const [level,setLevel]=useState(0),[muted,setMuted]=useState(false),[silent,setSilent]=useState(false);
   const [showText,setShowText]=useState(false),[text,setText]=useState(''),[showScan,setShowScan]=useState(false);
   const [confirmed,setConfirmed]=useState(false);
-  const [voice,setVoice]=useState('Raymond');
+  const [voice,setVoice]=useState('Andre');
   const [catalogQuery,setCatalogQuery]=useState('');
   const [catalogResults,setCatalogResults]=useState<LiveCatalogFamily[]>([]);
   const [catalogBusy,setCatalogBusy]=useState(false);
@@ -123,8 +123,10 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         }
         if(m.type==='connected'){
           if(m.provider!=='qwen'){fail('سرور هنوز روی Qwen تنظیم نشده است.');return;}
-          if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Raymond');setConfirmed(m.voiceConfirmed===true);setPhase('thinking');
-          const greeting=greeted.current?'فقط بگو: من آماده‌ام مهندس جان، بفرمایید.':'فقط با لحن گرم و پرانرژی بگو: سلام مهندس جان، به صنعت پیش خوش آمدید. من فورزا هستم، بفرمایید.';
+          if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Andre');setConfirmed(m.voiceConfirmed===true);const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});
+          if(greeted.current){s.greeted=true;setPhase('listening');return;}
+          setPhase('thinking');
+          const greeting='فقط یک بار در ابتدای تماس، با لحن طبیعی و گرم دقیقاً این خوشامدگویی کوتاه را بگو: سلام، به صنعت پیش خوش آمدید. من فورزا هستم؛ چطور می‌توانم کمکتان کنم؟ بعد از آن منتظر صحبت مشتری بمان و در نوبت‌های بعد سلام یا معرفی را تکرار نکن.';
           send(s,{type:'text',text:greeting});return;
         }
         if(m.type==='catalog_search_started'){setCatalogQuery(String(m.query||''));setCatalogResults([]);setCatalogBusy(true);return;}
