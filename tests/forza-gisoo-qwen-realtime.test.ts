@@ -214,7 +214,7 @@ test('native Gisoo server executes catalogue function calls and returns tool out
   assert.match(server, /type:'catalog_results'/);
   assert.match(server, /cancelled\.has\(response\)&&pendingText&&!userSpeaking/);
   assert.match(server, /toolResponseId&&cancelled\.has\(toolResponseId\)/);
-  assert.match(app, /connectGisooQwenRealtime\(clientWs, FORZA_QWEN_SYSTEM_INSTRUCTION, searchForzaLiveCatalog\)/);
+  assert.match(app, /connectGisooQwenRealtime\(clientWs, FORZA_QWEN_SYSTEM_INSTRUCTION, searchForzaLiveCatalog, resuming\)/);
   assert.match(app, /systemInstruction: FORZA_SYSTEM_INSTRUCTION/);
 });
 
@@ -276,4 +276,25 @@ test('catalogue cards retain visible products during follow-up speech and expose
   assert.doesNotMatch(client.slice(start, end), /setCatalogResults|setCatalogQuery/);
   assert.match(client, /href=\{'\/direct-product\/'\+encodeURIComponent\(variant\.code\)\}/);
   assert.match(client, /useState\('Bodega'\)/);
+});
+
+test('reconnect seeds context only on resumed calls and avoids an opening greeting',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ assert.match(server,/if\(resuming\)\{toClient\(\{type:'connected',[^\n]*resumed:true\}\);return;\}greetingTriggerId=/);
+ assert.match(server,/if\(!resuming\|\|resumeSeedAccepted\)return/);
+ assert.match(client,/retryCount\.current<3/);
+ assert.match(client,/type:'resume_context'/);
+ assert.match(client,/type:'ping'/);
+ assert.match(client,/m\.type==='pong'/);
+ assert.match(client,/clearInterval\(s\.heartbeat\)/);
+});
+test('live image input reuses the existing region detector and embedding service without full-screen navigation',()=>{
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ assert.match(client,/detectImageRegions\(base64\)/);
+ assert.match(client,/analyzePartWithAi\(\{imageBase64:base64/);
+ assert.match(client,/includeNearest:true/);
+ assert.match(client,/buildLiveVisionCandidates\(result\)/);
+ assert.match(client,/buildLiveVisionPrompt\(result,items\)/);
+ assert.doesNotMatch(client,/ImageSearch isOpen fullScreen/);
 });
