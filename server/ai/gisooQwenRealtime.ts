@@ -95,14 +95,14 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   log('session_started',{activeSessions,limit,resuming,voice:selectedVoice});
   let upstream:WebSocket|null=null,closed=false,ready=false,configured=false,userSpeaking=false,requested=false,firstAudio=false,greetingSeedPending=false,greetingResponsePending=false,greetingTriggerId='';
   let active='',pendingText='',partial='',seq=0,speechStop=0,timer:ReturnType<typeof setTimeout>|undefined;
-  let heartbeat:ReturnType<typeof setInterval>|undefined,responseStartTimer:ReturnType<typeof setTimeout>|undefined,cancelTimer:ReturnType<typeof setTimeout>|undefined,cancelTimerResponse='',lastUpstreamPong=Date.now(),upstreamCongestedSince=0,upstreamCongestedNotice=false;
+  let heartbeat:ReturnType<typeof setInterval>|undefined,clientHeartbeat:ReturnType<typeof setInterval>|undefined,responseStartTimer:ReturnType<typeof setTimeout>|undefined,cancelTimer:ReturnType<typeof setTimeout>|undefined,cancelTimerResponse='',lastUpstreamPong=Date.now(),lastClientPong=Date.now(),upstreamCongestedSince=0,upstreamCongestedNotice=false;
   let resumeSeedAccepted=false;
   let micFrames=0,micBytes=0,micSquareSum=0,micSamples=0,micPeak=0,micWindowStarted=Date.now(),firstMicFrameAt=0,lastSpeechStartedAt=0;
   const cancelled=new Set<string>(),toolResponseIds=new Set<string>(),processedToolCalls=new Set<string>(),started=Date.now();
   const log=(event:string,data:Record<string,unknown>={})=>console.info('[FORZA QWEN] '+event+' '+JSON.stringify(data));
   const finish=(reason?:string,closeCode?:number,closeReason?:string)=>{
     if(closed)return;closed=true;activeSessions=Math.max(0,activeSessions-1);
-    if(timer)clearTimeout(timer);if(heartbeat)clearInterval(heartbeat);if(responseStartTimer)clearTimeout(responseStartTimer);if(cancelTimer)clearTimeout(cancelTimer);
+    if(timer)clearTimeout(timer);if(heartbeat)clearInterval(heartbeat);if(clientHeartbeat)clearInterval(clientHeartbeat);if(responseStartTimer)clearTimeout(responseStartTimer);if(cancelTimer)clearTimeout(cancelTimer);
     log('session_end',{durationMs:Date.now()-started,reason:reason||'client_closed',upstreamCloseCode:closeCode??null,upstreamCloseReason:closeReason?closeReason.slice(0,120):null,upstreamBufferedBytes:upstream?.bufferedAmount||0,clientBufferedBytes:client.bufferedAmount});
     if(reason){toClient({type:'fallback_required',reason});if(client.readyState===WebSocket.OPEN)client.close(1011,'Qwen session ended');}
     try{if(upstream?.readyState===WebSocket.CONNECTING)upstream.terminate();else if(upstream?.readyState===WebSocket.OPEN)upstream.close(1000,'Call ended');}catch{}
@@ -214,6 +214,12 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     if(!responseSent){toClient({type:'provider_error',code:'catalog_response_failed',reason:'نتیجه کاتالوگ آماده شد اما پاسخ فورزا شروع نشد؛ دوباره سؤال کن.',recoverable:true});log('catalog_tool_response_failed',{queryLength:query.length});return;}
     log('tool_completed',{toolName,queryLength:query.length,resultCount:displayResults.length,success:result.success!==false});
   };
+  client.on('pong',()=>{lastClientPong=Date.now();});
+  clientHeartbeat=setInterval(()=>{
+    if(closed||client.readyState!==WebSocket.OPEN)return;
+    if(Date.now()-lastClientPong>90000){log('browser_heartbeat_timeout',{lastPongAgeMs:Date.now()-lastClientPong});finish('ارتباط مرورگر پاسخ‌گو نیست؛ تماس را بازیابی می‌کنم.');return;}
+    try{client.ping();}catch(error){log('browser_ping_failed',{message:error instanceof Error?error.message:'unknown'});}
+  },30000);
   client.on('close',(code,reason)=>{log('browser_socket_closed',{code,reason:reason?reason.toString().slice(0,120):''});finish(undefined,code,reason?reason.toString():undefined);});
   client.on('error',(error)=>{log('browser_socket_error',{name:error.name,message:error.message.slice(0,180)});finish('ارتباط مرورگر با سرور قطع شد.');});
   try{const target=new URL(process.env.FORZA_QWEN_REALTIME_URL?.trim()||DEFAULT_URL);if(target.protocol!=='wss:'||!['gisoo.pro','ir.gisoo.pro'].includes(target.hostname)||target.searchParams.get('model')!==MODEL)throw Error('invalid URL');upstream=new WebSocket(target,{headers:{Authorization:'Bearer '+key},handshakeTimeout:15000,maxPayload:2097152});}catch{finish('نشانی اتصال گیسو معتبر نیست.');return;}
