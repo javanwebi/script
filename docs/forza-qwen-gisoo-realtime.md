@@ -13,12 +13,12 @@ FORZA_REALTIME_PROVIDER=qwen
 FORZA_QWEN_API_KEY=<Gisoo API key>
 FORZA_QWEN_VOICE=Bodega
 FORZA_QWEN_MAX_SESSIONS=8
-FORZA_QWEN_SILENCE_MS=1100
+FORZA_QWEN_SILENCE_MS=800
 ```
 
 The key is read only by the server. Never put it in Vite variables, browser code, GitHub Actions, source files, or commits.
 
-The runtime defaults to eight concurrent calls. The code accepts a configured ceiling up to forty, but increase this only after confirming the Gisoo account's realtime concurrency quota. The deployment canary now opens the real Gisoo WebSocket, applies the same session/tool schema, and verifies the selected voice before traffic promotion; the legacy AvalAI/Piper check alone is not sufficient for the live call routes.
+The runtime defaults to eight concurrent calls. The code accepts a configured ceiling up to forty, but increase this only after confirming the Gisoo account's realtime concurrency quota. The deployment canary now opens the real Gisoo WebSocket, applies the same session/tool schema, and verifies the selected voice and `semantic_vad_ec` mode before traffic promotion; the legacy AvalAI/Piper check alone is not sufficient for the live call routes.
 
 The existing `applyPrivateForzaConfig` loader accepts `FORZA_*` values from this private file. The VPS deployment preserves the current container environment and its private mounts; verify the existing `.env.forza-voice` mount before deploying.
 
@@ -31,7 +31,9 @@ The existing `applyPrivateForzaConfig` loader accepts `FORZA_*` values from this
 - A catalogue tool result is returned to the model through `function_call_output` and is also rendered as product cards in the live call panel. Family cards link to the real product detail route.
 - The realtime session receives one role, mission, and natural multi-turn conversation instruction. Once Gisoo confirms `session.updated`, the bridge sends one documented `conversation.item.create` containing a short `user`-role `input_text` bootstrap message with a unique item ID. This is a hidden internal call-start signal, not microphone audio and not displayed as customer transcript. The bridge waits for the matching `conversation.item.added` acknowledgement (by item ID, with a text fallback) before sending exactly one `response.create` and enabling the browser microphone. The Qwen system instruction explicitly says not to quote or mention this internal signal. The model then continues the same conversation and must never repeat its greeting or self-introduction in later turns.
 - Input is PCM 16 kHz mono; output is PCM 24 kHz mono.
-- Gisoo server VAD currently ends turns and interrupts generated audio when the customer starts speaking. A semantic noise-aware VAD mode is being validated separately before activation; do not assume it is live yet. The bridge reports whether the browser actually enabled echo cancellation, noise suppression, and automatic gain control.
+- The session uses the documented top-level `session.turn_detection.type=semantic_vad_ec` mode for Qwen3.8 Omni Realtime. It is confirmed from `session.updated`; the deployment canary fails if Gisoo does not echo this mode. This model mode is intended for customer-service conversations: it filters meaningless/background sounds while detecting customer speech more readily to interrupt FORZA.
+- Full duplex is intentional: the browser keeps streaming microphone frames while FORZA audio is playing. It does not wait for `response.done` before sending the next user audio. On `input_audio_buffer.speech_started`, the bridge immediately cancels the active response and the browser clears queued playback.
+- `semantic_vad_ec` is noise-aware turn detection, not a guaranteed biometric speaker lock or voiceprint authentication. Qwen-Audio 3.1 Realtime documents a separate voiceprint speaker-enhancement mode, but its currently documented realtime language list does not include Persian; do not switch FORZA's Persian consultant to it without a verified Persian-capable provider/model. The bridge also reports whether the browser enabled echo cancellation, noise suppression, and automatic gain control.
 - Text input from the existing client remains supported.
 - Provider usage metadata and actual browser capture-processing flags are logged without logging customer audio, transcripts, device identifiers, or API credentials.
 
