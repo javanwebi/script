@@ -9,6 +9,7 @@ export type ForzaRealtimeCatalogVariant = {
   brand?: string;
   description?: string;
   technicalSpecs: Array<{ key: string; value: string }>;
+  images: string[];
   link: string;
 };
 
@@ -16,6 +17,9 @@ export type ForzaRealtimeCatalogFamily = {
   code: string;
   name: string;
   brand?: string;
+  categoryName?: string;
+  subcategory?: string;
+  nameEn?: string;
   images: string[];
   link: string;
   description?: string;
@@ -82,6 +86,7 @@ export function searchForzaRealtimeCatalog(
         brand: variant.brand ? String(variant.brand).slice(0,100) : undefined,
         description: variant.description ? String(variant.description).slice(0,500) : undefined,
         technicalSpecs: safeSpecs(variant.technicalSpecs),
+        images: Array.isArray(variant.images) ? variant.images.slice(0,2) : [],
         link: '/direct-product/' + encodeURIComponent(variant.code),
       }));
 
@@ -89,6 +94,9 @@ export function searchForzaRealtimeCatalog(
       code: String(match.code),
       name: String(match.name),
       brand: match.brand ? String(match.brand) : undefined,
+      categoryName: source?.categoryName ? String(source.categoryName) : undefined,
+      subcategory: source?.subcategory ? String(source.subcategory) : undefined,
+      nameEn: source?.nameEn ? String(source.nameEn) : undefined,
       images: Array.isArray(match.images) ? match.images.slice(0, 1) : [],
       link: String(match.link || '/product/' + encodeURIComponent(String(match.code))),
       description: match.description ? String(match.description).slice(0, 700) : undefined,
@@ -98,7 +106,7 @@ export function searchForzaRealtimeCatalog(
   });
 
   return {
-    success: true,
+    success: results.length > 0,
     query: safeQuery,
     familyCount: results.length,
     skuCount: results.reduce((sum, family) => sum + family.variants.length, 0),
