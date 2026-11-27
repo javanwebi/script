@@ -222,7 +222,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     try{client.ping();}catch(error){log('browser_ping_failed',{message:error instanceof Error?error.message:'unknown'});}
   },30000);
   client.on('close',(code,reason)=>{log('browser_socket_closed',{code,reason:reason?reason.toString().slice(0,120):''});finish(undefined,code,reason?reason.toString():undefined);});
-  client.on('error',(error)=>{log('browser_socket_error',{name:error.name,message:error.message.slice(0,180)});finish('ارتباط مرورگر با سرور قطع شد.');});
+  client.on('error',(error)=>{log('browser_socket_error',{name:error.name,message:error.message.slice(0,180)});finish('ارتباط مرورگر با سرور قطع شد.',undefined,undefined,true);});
   try{const target=new URL(process.env.FORZA_QWEN_REALTIME_URL?.trim()||DEFAULT_URL);if(target.protocol!=='wss:'||!['gisoo.pro','ir.gisoo.pro'].includes(target.hostname)||target.searchParams.get('model')!==MODEL)throw Error('invalid URL');upstream=new WebSocket(target,{headers:{Authorization:'Bearer '+key},handshakeTimeout:15000,maxPayload:2097152});}catch{finish('نشانی اتصال گیسو معتبر نیست.');return;}
   timer=setTimeout(()=>{if(!ready)finish('گیسو نشست را در زمان مناسب آماده نکرد؛ اتصال دوباره تلاش می‌شود.',undefined,undefined,true);},20000);
   upstream.on('open',()=>{
