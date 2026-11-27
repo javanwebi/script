@@ -27,7 +27,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const session=useRef<Session|null>(null);
   const micMuted=useRef(false), speakerMuted=useRef(false), scanning=useRef(false);
   const scanVersion=useRef(0);
-  const wasConnected=useRef(false), callActive=useRef(true), retryCount=useRef(0);
+  const wasConnected=useRef(false), callActive=useRef(true), retryCount=useRef(0), networkWarning=useRef(false);
   const retryTimer=useRef<number|null>(null), startRef=useRef<()=>Promise<void>>(async()=>{});
   const history=useRef<{role:'user'|'assistant';text:string}[]>([]);
   const visionContext=useRef('');
@@ -115,11 +115,11 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       const sendMic=(samples:Float32Array)=>{
         if(!s.ready||micMuted.current||scanning.current||s.ws?.readyState!==WebSocket.OPEN)return;
         if(s.ws.bufferedAmount>131072){
-          if(!s.micCongestedSince){s.micCongestedSince=Date.now();setError('شبکه کند شده؛ موقتاً ارسال صدا را کنترل می‌کنم تا تماس قطع نشود.');}
+          if(!s.micCongestedSince){s.micCongestedSince=Date.now();networkWarning.current=true;setError('شبکه کند شده؛ موقتاً ارسال صدا را کنترل می‌کنم تا تماس قطع نشود.');}
           if(Date.now()-s.micCongestedSince>15000)fail('ارسال صدا بیش از حد معطل مانده؛ در حال اتصال مجدد…',true);
           return;
         }
-        if(s.micCongestedSince){s.micCongestedSince=0;if(error.includes('شبکه کند شده'))setError('');}
+        if(s.micCongestedSince){s.micCongestedSince=0;if(networkWarning.current){networkWarning.current=false;setError('');}}
         send(s,{type:'realtime_audio',audio:encodePcm(samples,ctx.sampleRate)});
       };
       if(ctx.audioWorklet){
