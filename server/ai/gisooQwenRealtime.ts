@@ -277,18 +277,10 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     if(t==='response.function_call_arguments.done'){void runCatalogTool(e);return;}
     if(t==='response.done'){
       const response=id(e,active);
-      if(response&&toolResponseIds.delete(response)){
-        if(response===active){
-          active='';
-          requested=false;
-          if(cancelTimer&&cancelTimerResponse===response){clearTimeout(cancelTimer);cancelTimer=undefined;cancelTimerResponse='';}
-          if(cancelled.has(response)&&pendingText&&!userSpeaking){
-            const nextText=pendingText;
-            pendingText='';
-            textTurn(nextText);
-          }
-        }
-        log('tool_response_done',{responseId:response,status:e.response?.status||'unknown'});
+      if(response&&toolResponseIds.has(response)){
+        toolResponseDone.add(response);
+        continueAfterToolCalls(response);
+        log('tool_response_done',{responseId:response,status:e.response?.status||'unknown',pendingToolCount:toolPendingCounts.get(response)||0});
         return;
       }
       if(response===active){active='';requested=false;if(responseStartTimer)clearTimeout(responseStartTimer);if(cancelTimer&&cancelTimerResponse===response){clearTimeout(cancelTimer);cancelTimer=undefined;cancelTimerResponse='';}
