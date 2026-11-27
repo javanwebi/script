@@ -142,14 +142,21 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     const toolName=String(event.name||'');
     const query=String(args.query||args.code||'').trim().slice(0,120);
     const limit=bounded(Number(args.limit||6),6,1,6);
-    const mode=toolName==='compare_sanatpish_products'?'compare':toolName==='get_sanatpish_product_details'?'details':'search';
-    toClient({type:'catalog_search_started',query,mode});
+    const mode=toolName==='update_forza_consultation'?'consultation':toolName==='compare_sanatpish_products'?'compare':toolName==='get_sanatpish_product_details'?'details':'search';
+    if(toolName!=='update_forza_consultation')toClient({type:'catalog_search_started',query,mode});
     let result:Record<string,unknown>;
     const normalizeCode=(value:string)=>value.trim().toLowerCase().replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
     const isExact=(family:Event,code:string)=>normalizeCode(String(family.code||''))===normalizeCode(code)||(Array.isArray(family.variants)&&family.variants.some((v:Event)=>normalizeCode(String(v.code||''))===normalizeCode(code)));
     try{
-      if(!catalogSearch)throw new Error('catalog_unavailable');
-      if(toolName==='search_sanatpish_catalog'){
+      if(toolName==='update_forza_consultation'){
+        const stages=new Set(['understand','diagnose','specify','catalog','compare','recommend']);
+        const stage=String(args.stage||'');
+        if(!stages.has(stage))throw new Error('invalid_consultation_stage');
+        const summary=String(args.summary||'').trim().slice(0,320);
+        result={success:true,stage,summary};
+        toClient({type:'consultation_update',stage,summary});
+      }else if(!catalogSearch)throw new Error('catalog_unavailable');
+      else if(toolName==='search_sanatpish_catalog'){
         if(!query)throw new Error('empty_query');
         const value=await catalogSearch(query,limit);
         result=value&&typeof value==='object'?value as Record<string,unknown>:{success:false,query,familyCount:0,skuCount:0,results:[]};
@@ -179,7 +186,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
       return;
     }
     const displayResults=Array.isArray(result.results)?result.results:[];
-    toClient({
+    if(toolName!=='update_forza_consultation')toClient({
       type:'catalog_results',
       mode,
       query,
@@ -191,7 +198,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     const outputSent=send({type:'conversation.item.create',item:{type:'function_call_output',call_id:callId,output:JSON.stringify(result)}});
     const responseSent=outputSent&&send({type:'response.create'});
     if(!responseSent){toClient({type:'provider_error',code:'catalog_response_failed',reason:'نتیجه کاتالوگ آماده شد اما پاسخ فورزا شروع نشد؛ دوباره سؤال کن.',recoverable:true});log('catalog_tool_response_failed',{queryLength:query.length});return;}
-    log('catalog_tool_completed',{queryLength:query.length,resultCount:displayResults.length,success:result.success!==false});
+    log('tool_completed',{toolName,queryLength:query.length,resultCount:displayResults.length,success:result.success!==false});
   };
   client.on('close',(code,reason)=>{log('browser_socket_closed',{code,reason:reason?reason.toString().slice(0,120):''});finish(undefined,code,reason?reason.toString():undefined);});
   client.on('error',(error)=>{log('browser_socket_error',{name:error.name,message:error.message.slice(0,180)});finish('ارتباط مرورگر با سرور قطع شد.');});
