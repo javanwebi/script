@@ -130,6 +130,7 @@ export function AutomaticImageCrop({
                 }}
               >
                 <span aria-hidden="true">{index + 1}</span>
+                {selected && <em className="forza-auto-crop__selected-label">برش فعال</em>}
               </button>
             );
           }) : region && (
