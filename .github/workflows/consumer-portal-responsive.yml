@@ -80,7 +80,8 @@ jobs:
       - name: Install browser dependencies
         run: |
           npm install --no-save --ignore-scripts --no-package-lock playwright@1.56.1
-          npx playwright install --with-deps chromium
+          # GitHub-hosted Ubuntu runners already include Chromium's OS libraries; avoid apt mirror failures.
+          npx playwright install chromium
       - name: Launch local Vite preview
         run: |
           nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/consumer-preview.log 2>&1 &
