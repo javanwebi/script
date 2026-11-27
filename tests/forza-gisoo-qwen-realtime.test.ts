@@ -210,6 +210,15 @@ test('FORZA uses the natural steady male Andre voice and preserves supported Qwe
   assert.equal(buildGisooQwenSessionUpdate('مشاور فنی فارسی').session.audio.output.voice, 'Andre');
 });
 
+test('Browser reports actual laptop microphone noise-processing settings without exposing device identity', () => {
+  const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+  const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+  assert.match(client,/getSettings\(\)/);
+  assert.match(client,/type:'capture_settings'/);
+  assert.match(server,/log\('capture_settings'/);
+  assert.doesNotMatch(client,/deviceId:|label:capture/);
+});
+
 test('Realtime bridge records privacy-safe microphone energy, VAD, and first-audio timing without logging audio payloads', () => {
   const server = readFileSync('server/ai/gisooQwenRealtime.ts', 'utf8');
   assert.match(server, /log\('mic_first_frame'/);
