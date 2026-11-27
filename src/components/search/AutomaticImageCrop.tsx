@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { AlertCircle, CheckCircle2, LoaderCircle, Scan } from 'lucide-react';
 import type { ImageRegion } from '../../utils/imageRegion';
 import './automatic-image-crop.css';
@@ -64,6 +64,22 @@ export function AutomaticImageCrop({
   const regionValue = region
     ? [region.x, region.y, region.width, region.height].map(value => value.toFixed(5)).join(',')
     : '';
+  const handleFrameTap = (event: MouseEvent<HTMLDivElement>) => {
+    if (!canSelectRegion || !onSelectRegion) return;
+    if ((event.target as HTMLElement).closest('.forza-auto-crop__candidate')) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return;
+    const x = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+    const y = Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height));
+    const nearest = selectableRegions.map(candidate => {
+      const dx = x < candidate.x ? candidate.x - x : x > candidate.x + candidate.width ? x - candidate.x - candidate.width : 0;
+      const dy = y < candidate.y ? candidate.y - y : y > candidate.y + candidate.height ? y - candidate.y - candidate.height : 0;
+      return { candidate, distance: Math.hypot(dx, dy) };
+    }).sort((left, right) => left.distance - right.distance)[0];
+    // A tap on the part just outside an imperfect proposal edge still selects
+    // the nearest detected object; distant background taps remain a no-op.
+    if (nearest && nearest.distance <= 0.11) onSelectRegion(nearest.candidate);
+  };
 
   return (
     <section
@@ -75,7 +91,7 @@ export function AutomaticImageCrop({
       aria-label="تشخیص و برش خودکار قطعه"
     >
       <div className="forza-auto-crop__image-stage">
-        <div className="forza-auto-crop__frame" data-testid="forza-automatic-crop-frame">
+        <div className="forza-auto-crop__frame" data-testid="forza-automatic-crop-frame" onClick={handleFrameTap}>
           <img
             src={src}
             alt="تصویر کامل ارسالی مشتری؛ کادرهای شماره‌دار محدوده قطعات شناسایی‌شده را نشان می‌دهند"
@@ -96,7 +112,7 @@ export function AutomaticImageCrop({
                 data-selected={selected ? 'true' : 'false'}
                 aria-label={'انتخاب قطعه ' + (index + 1) + ' از ' + selectableRegions.length}
                 aria-pressed={selected}
-                onClick={() => onSelectRegion?.(candidate)}
+                onClick={event => { event.stopPropagation(); onSelectRegion?.(candidate); }}
                 style={{
                   left: candidate.x * 100 + '%',
                   top: candidate.y * 100 + '%',
