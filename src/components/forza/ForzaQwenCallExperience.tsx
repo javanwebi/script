@@ -166,7 +166,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         if(m.type==='pong'){s.lastPong=Date.now();return;}
         if(m.type==='network_degraded'){setError('ارتباط با گیسو کند شده؛ تماس را حفظ می‌کنم و جریان صدا را کنترل می‌کنم.');return;}
         if(m.type==='network_restored'){setError('');return;}
-        if(m.type==='fallback_required'||m.type==='error'){const reason=String(m.reason||m.message||'خطای گیسو');fail(reason,/قطع|بسته شد|کند شده|راه‌اندازی مجدد|زمان مناسب/.test(reason)&&!/اعتبار|کلید|صدای درخواستی/.test(reason));return;}
+        if(m.type==='fallback_required'||m.type==='error'){const reason=String(m.reason||m.message||'خطای گیسو');const retryable=m.retryable===true||(m.retryable!==false&&/قطع|بسته شد|کند شده|راه‌اندازی مجدد|زمان مناسب/.test(reason)&&!/اعتبار|کلید|صدای درخواستی/.test(reason));fail(reason,retryable);return;}
         if(m.type==='provider_error'){
           setError(String(m.reason||'خطای موقت گیسو؛ اتصال برقرار است.'));
           s.done=true;
