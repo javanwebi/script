@@ -23,9 +23,10 @@ const {chromium}=require('playwright');
 
   let detectionMode='matched';
   let uploads=0;
-  const detections=[],queries=[],errors=[];
+  const detections=[],queries=[],errors=[],browserDiagnostics=[];
   const installRoutes=async page=>{
-   page.on('pageerror',error=>errors.push(error.message));
+   page.on('pageerror',error=>{errors.push(error.message);browserDiagnostics.push('PAGEERROR '+error.stack);});
+   page.on('console',message=>{if(message.type()==='error')browserDiagnostics.push('CONSOLE '+message.text());});
    await page.route('**/api/**',async route=>{
     const pathname=new URL(route.request().url()).pathname;
     let body={success:true,values:{},products:[]};
@@ -58,7 +59,17 @@ const {chromium}=require('playwright');
   await page.getByTestId('image-region-review').waitFor();
   const candidate2=page.getByTestId('forza-region-candidate-2');
   await candidate2.waitFor({state:'visible'});
-  const firstAnalysisRequest=await firstAnalysisRequestPromise;
+  let firstAnalysisRequest;
+  try {
+   firstAnalysisRequest=await firstAnalysisRequestPromise;
+  } catch(error) {
+   const state=await page.evaluate(()=>({
+    bodyText:document.body.innerText.slice(0,2200),
+    review:document.querySelector('[data-testid="image-region-review"]')?.outerHTML.slice(0,1800),
+    crop:document.querySelector('[data-testid="forza-automatic-crop"]')?.getAttribute('data-region')
+   }));
+   throw new Error('INITIAL_ANALYSIS_REQUEST_MISSING '+JSON.stringify({state,errors,browserDiagnostics,lastDetection:detections.at(-1),uploads})+' '+error.message);
+  }
   assert.deepEqual(firstAnalysisRequest.postDataJSON().region,{x:0.37,y:0.27,width:0.26,height:0.46});
   const secondAnalysisRequestPromise=page.waitForRequest(request=>new URL(request.url()).pathname==='/api/ai/analyze-part');
   await candidate2.click();
