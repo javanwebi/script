@@ -106,7 +106,9 @@ test('Customer barge-in remains intact and the microphone starts immediately wit
   assert.match(client,/if\(!s\.ready\|\|micMuted\.current\|\|scanning\.current/);
   assert.match(client,/setPhase\('listening'\);return;/);
   assert.doesNotMatch(client,/greeted|type:'text',text:greeting|سلام، به صنعت پیش خوش آمدید/);
-  assert.doesNotMatch(app,/سلام مهندس جان|خوشامدگویی فقط یک بار/);
+  assert.match(app,/تو فورزا، مشاور فنی و راهنمای تأمین قطعات صنعتی صنعت پیش هستی/);
+  assert.doesNotMatch(app,/سلام|مهندس جان|خوشامدگویی|۲۵ تا ۶۰ کلمه|۴ تا ۷ جمله/);
+  assert.doesNotMatch(server,/const ADVICE=|۷۰ تا ۱۳۰ کلمه/);
 });
  test('Native capture and stable light are enabled for exhibition calls', () => {
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
