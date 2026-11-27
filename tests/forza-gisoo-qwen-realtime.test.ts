@@ -108,7 +108,11 @@ test('Customer barge-in remains intact and the microphone starts immediately wit
   assert.match(client,/setPhase\('listening'\);return;/);
   assert.doesNotMatch(client,/greeted|type:'text',text:greeting|سلام، به صنعت پیش خوش آمدید/);
   assert.match(prompt,/تو فورزا، مشاور فنی و راهنمای تأمین قطعات صنعتی صنعت پیش هستی/);
-  assert.doesNotMatch(prompt,/سلام|مهندس جان|خوشامدگویی|۲۵ تا ۶۰ کلمه|۴ تا ۷ جمله/);
+  assert.match(prompt,/تماس پیوسته و چندنوبتی/);
+  assert.match(prompt,/در هیچ نوبت دیگری سلام.*تکرار نکن/);
+  assert.match(prompt,/هرگز از خطاب «مهندس جان» استفاده نکن/);
+  assert.match(prompt,/حتی اگر مشتری دوباره سلام کرد/);
+  assert.doesNotMatch(prompt,/۲۵ تا ۶۰ کلمه|۴ تا ۷ جمله/);
   assert.match(app,/connectGisooQwenRealtime\(clientWs, FORZA_QWEN_SYSTEM_INSTRUCTION/);
   assert.match(app,/systemInstruction: FORZA_SYSTEM_INSTRUCTION/);
   assert.doesNotMatch(server,/const ADVICE=|۷۰ تا ۱۳۰ کلمه/);
