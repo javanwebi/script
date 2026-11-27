@@ -43,15 +43,16 @@ export function buildGisooQwenSessionUpdate(instructions:string,silenceDurationM
     }
   };
 }
-export function buildGisooQwenOpeningGreetingSeed(){
+export function buildGisooQwenOpeningGreetingTrigger(itemId:string){
   return {
     type:'conversation.item.create',
     item:{
+      id:itemId,
       type:'message',
-      role:'system',
+      role:'user',
       content:[{
-        type:'text',
-        text:'این نخستین نوبت مکالمه است. مطابق دستور اصلی نشست، خوشامدگویی آغازین تعریف‌شده را همین حالا فقط یک‌بار، طبیعی و محاوره‌ای بیان کن؛ یک پرسش کوتاه برای شروع مشاوره بپرس و سپس مکث کن تا مشتری پاسخ دهد. در ادامهٔ تماس دوباره سلام یا خودت را معرفی نکن.'
+        type:'input_text',
+        text:'تماس صوتی اکنون برقرار شده است. این فقط فرمان داخلی آغاز تماس است، نه حرف مشتری. بدون اشاره به این پیام، خوشامدگویی آغازین تعریف‌شده در دستور جلسه را یک‌بار بیان کن و سپس منتظر صحبت مشتری بمان.'
       }]
     }
   };
@@ -80,7 +81,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   const toClient=(e:Record<string,unknown>)=>{if(client.readyState!==WebSocket.OPEN)return false;if(client.bufferedAmount>2000000){client.close(1013,'Browser backpressure');return false;}client.send(JSON.stringify(e));return true;};
   if(!key||activeSessions>=limit){toClient({type:'fallback_required',reason:!key?'کلید گیسو تنظیم نشده است.':'ظرفیت تماس تکمیل است.'});client.close(1013,'Qwen unavailable');return;}
   activeSessions++;
-  let upstream:WebSocket|null=null,closed=false,ready=false,configured=false,userSpeaking=false,requested=false,firstAudio=false,greetingSeedPending=false;
+  let upstream:WebSocket|null=null,closed=false,ready=false,configured=false,userSpeaking=false,requested=false,firstAudio=false,greetingSeedPending=false,greetingResponsePending=false,greetingTriggerId='';
   let active='',pendingText='',partial='',seq=0,speechStop=0,timer:ReturnType<typeof setTimeout>|undefined;
   let micFrames=0,micBytes=0,micSquareSum=0,micSamples=0,micPeak=0,micWindowStarted=Date.now(),firstMicFrameAt=0,lastSpeechStartedAt=0;
   const cancelled=new Set<string>(),toolResponseIds=new Set<string>(),processedToolCalls=new Set<string>(),started=Date.now();
@@ -139,13 +140,13 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   upstream.on('message',raw=>{
     if(closed)return;let e:Event;try{e=decode(raw);}catch{return;}const t=String(e.type||'');
     if(t==='session.created'&&!configured){configured=true;send(buildGisooQwenSessionUpdate(instructions,Number(process.env.FORZA_QWEN_SILENCE_MS||500),selectedVoice));return;}
-    if(t==='session.updated'&&!ready&&configured){const reported=e.session?.audio?.output?.voice??e.session?.voice;const confirmed=isGisooQwenVoiceConfirmed(e.session||{},selectedVoice);if(!confirmed){finish('گیسو صدای درخواستی '+selectedVoice+' را تأیید نکرد'+(typeof reported==='string'&&reported.trim()?' (صدای گزارش‌شده: '+reported+')':' (صدای گزارش‌شده موجود نیست)')+'. اتصال با صدای پیش‌فرض ادامه پیدا نمی‌کند.');return;}ready=true;if(timer)clearTimeout(timer);log('session_ready',{ms:Date.now()-started,voice:selectedVoice,confirmed:true});greetingSeedPending=true;if(!send(buildGisooQwenOpeningGreetingSeed())){finish('دستور آغاز مکالمه به گیسو ارسال نشد.');return;}timer=setTimeout(()=>{if(greetingSeedPending)finish('گیسو پیام آغاز مکالمه را ثبت نکرد.');},5000);log('opening_greeting_context_seeded',{role:'system'});return;}
+    if(t==='session.updated'&&!ready&&configured){const reported=e.session?.audio?.output?.voice??e.session?.voice;const confirmed=isGisooQwenVoiceConfirmed(e.session||{},selectedVoice);if(!confirmed){finish('گیسو صدای درخواستی '+selectedVoice+' را تأیید نکرد'+(typeof reported==='string'&&reported.trim()?' (صدای گزارش‌شده: '+reported+')':' (صدای گزارش‌شده موجود نیست)')+'. اتصال با صدای پیش‌فرض ادامه پیدا نمی‌کند.');return;}ready=true;if(timer)clearTimeout(timer);log('session_ready',{ms:Date.now()-started,voice:selectedVoice,confirmed:true});greetingTriggerId='forza-opening-'+started;greetingSeedPending=true;if(!send(buildGisooQwenOpeningGreetingTrigger(greetingTriggerId))){finish('فرمان آغاز مکالمه به گیسو ارسال نشد.');return;}timer=setTimeout(()=>{if(greetingSeedPending)finish('گیسو فرمان آغاز تماس را ثبت نکرد.');},7000);log('opening_greeting_trigger_sent',{itemId:greetingTriggerId,role:'user',contentType:'input_text'});return;}
     if(!ready&&t!=='error')return;
     if(t==='input_audio_buffer.speech_started'){userSpeaking=true;lastSpeechStartedAt=Date.now();partial='';pendingText='';log('speech_started',{afterFirstMicFrameMs:firstMicFrameAt?Date.now()-firstMicFrameAt:null,activeResponse:Boolean(active)});toClient({type:'speech_started'});if(active&&!cancelled.has(active)){interrupt(active);send({type:'response.cancel'});}else if(requested){send({type:'response.cancel'});}return;}
     if(t==='input_audio_buffer.speech_stopped'){userSpeaking=false;speechStop=Date.now();log('speech_stopped',{speechDurationMs:lastSpeechStartedAt?Date.now()-lastSpeechStartedAt:null});toClient({type:'speech_stopped'});return;}
     if(t==='input_audio_buffer.committed'){log('audio_committed',{afterSpeechStopMs:speechStop?Date.now()-speechStop:null});return;}
-    if(t==='conversation.item.created'||t==='conversation.item.added'){const item=e.item&&typeof e.item==='object'?e.item as Event:{};log('conversation_item_received',{role:String(item.role||'unknown'),contentTypes:Array.isArray(item.content)?item.content.map((part:Event)=>String(part.type||'unknown')).slice(0,4):[]});if(greetingSeedPending&&item.role==='system'){greetingSeedPending=false;if(timer)clearTimeout(timer);if(!send({type:'response.create'})){finish('درخواست خوشامدگویی اولیه به گیسو ارسال نشد.');return;}log('opening_greeting_requested',{voice:selectedVoice,seedRole:'system'});toClient({type:'connected',provider:'qwen',model:MODEL,voice:selectedVoice,voiceConfirmed:true,inputSampleRate:16000,sampleRate:24000});}return;}
-    if(t==='response.created'){active=id(e,'qwen-'+(++seq));requested=false;firstAudio=false;log('response_created',{afterSpeechStopMs:speechStop?Date.now()-speechStop:null,afterSpeechStartedMs:lastSpeechStartedAt?Date.now()-lastSpeechStartedAt:null});if(userSpeaking||pendingText){interrupt(active);send({type:'response.cancel'});}else toClient({type:'response_started',responseId:active});return;}
+    if(t==='conversation.item.created'||t==='conversation.item.added'){const item=e.item&&typeof e.item==='object'?e.item as Event:{};const receivedItemId=String(item.id||e.item_id||'');const content=Array.isArray(item.content)?item.content as Event[]:[];const contentTypes=content.map((part:Event)=>String(part.type||'unknown')).slice(0,4);log('conversation_item_received',{eventType:t,itemId:receivedItemId||null,role:String(item.role||'unknown'),contentTypes});const triggerText=content.some((part:Event)=>part.type==='input_text'&&String(part.text||'').includes('تماس صوتی اکنون برقرار شده است'));if(greetingSeedPending&&(receivedItemId===greetingTriggerId||triggerText)){greetingSeedPending=false;if(timer)clearTimeout(timer);toClient({type:'connected',provider:'qwen',model:MODEL,voice:selectedVoice,voiceConfirmed:true,inputSampleRate:16000,sampleRate:24000});requested=true;greetingResponsePending=true;if(!send({type:'response.create'})){finish('درخواست خوشامدگویی اولیه به گیسو ارسال نشد.');return;}timer=setTimeout(()=>{if(greetingResponsePending)finish('گیسو پاسخ خوشامدگویی را شروع نکرد.');},10000);log('opening_greeting_requested',{voice:selectedVoice,triggerItemId:receivedItemId||greetingTriggerId});}return;}
+    if(t==='response.created'){if(greetingResponsePending){greetingResponsePending=false;if(timer)clearTimeout(timer);}active=id(e,'qwen-'+(++seq));requested=false;firstAudio=false;log('response_created',{afterSpeechStopMs:speechStop?Date.now()-speechStop:null,afterSpeechStartedMs:lastSpeechStartedAt?Date.now()-lastSpeechStartedAt:null,openingGreeting:!firstAudio&&Boolean(greetingTriggerId)});if(userSpeaking||pendingText){interrupt(active);send({type:'response.cancel'});}else toClient({type:'response_started',responseId:active});return;}
     if(t==='response.function_call_arguments.done'){void runCatalogTool(e);return;}
     if(t==='response.done'){
       const response=id(e,active);
@@ -170,7 +171,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
       const code=String(details.code||'unknown').slice(0,80),disposition=classifyGisooRealtimeError(code,ready);
       const providerMessage=String(details.message||'').replace(/[\r\n]+/g,' ').slice(0,240);
       log('provider_error',{code,type:String(details.type||'').slice(0,80),message:providerMessage,param:String(details.param||'').slice(0,80),eventId:String(details.event_id||'').slice(0,80),ready,disposition});
-      if(greetingSeedPending){finish('گیسو دستور آغاز مکالمه را نپذیرفت: '+(providerMessage||code));return;}
+      if(greetingSeedPending||greetingResponsePending){finish('گیسو شروع مکالمه را نپذیرفت: '+(providerMessage||code));return;}
       if(disposition==='ignore')return;
       if(disposition==='active_response'){requested=false;return;}
       if(disposition==='fatal'){
