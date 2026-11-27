@@ -130,8 +130,8 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       s.mic=ctx.createMediaStreamSource(stream);
       s.sink=ctx.createGain();s.sink.gain.value=0;
       // Full duplex: keep streaming microphone frames even while FORZA audio is playing.
-      // Do not gate on UI phase or playback state; Qwen semantic_vad_ec decides when the
-      // primary customer is speaking and interrupts the generated response.
+      // Do not gate on UI phase or playback state; Qwen semantic_vad_ec handles
+      // noise-aware speech-turn detection and barge-in while the model is speaking.
       const sendMic=(samples:Float32Array|Int16Array)=>{
         if(!s.ready||micMuted.current||scanning.current||s.ws?.readyState!==WebSocket.OPEN)return;
         if(s.ws.bufferedAmount>131072){
