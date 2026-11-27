@@ -10,10 +10,10 @@ const ParticleAvatar = lazy(() => import('./ParticleAvatar').then(m => ({default
 type Phase = 'connecting'|'listening'|'thinking'|'speaking'|'disconnected';
 type LiveCatalogVariant={code:string;name:string;size?:string;model?:string;brand?:string;description?:string;technicalSpecs?:{key:string;value:string}[];images?:string[]};
 type LiveCatalogFamily={code:string;name:string;brand?:string;categoryName?:string;subcategory?:string;nameEn?:string;images?:string[];link:string;description?:string;technicalSpecs?:{key:string;value:string}[];variants?:LiveCatalogVariant[]};
-type Session = { ws:WebSocket|null; stream:MediaStream|null; node:ScriptProcessorNode|AudioWorkletNode|null; mic:MediaStreamAudioSourceNode|null; sink:GainNode|null; output:GainNode|null; analyser:AnalyserNode|null; ctx:AudioContext|null; sources:Set<AudioBufferSourceNode>; next:number; ready:boolean; done:boolean; ignored:Set<string>; id:string; frame:number; lastVisual:number; heartbeat:number|null; lastPong:number; connectedAt:number; micCongestedSince:number; };
+type Session = { ws:WebSocket|null; stream:MediaStream|null; node:ScriptProcessorNode|AudioWorkletNode|null; mic:MediaStreamAudioSourceNode|null; sink:GainNode|null; output:GainNode|null; analyser:AnalyserNode|null; ctx:AudioContext|null; sources:Set<AudioBufferSourceNode>; next:number; ready:boolean; done:boolean; ignored:Set<string>; id:string; frame:number; lastVisual:number; heartbeat:number|null; lastPong:number; connectedAt:number; micCongestedSince:number; visibilityHandler:(()=>void)|null; };
 
 function newSession():Session {
-  return {ws:null,stream:null,node:null,mic:null,sink:null,output:null,analyser:null,ctx:null,sources:new Set(),next:0,ready:false,done:true,ignored:new Set(),id:'',frame:0,lastVisual:0,heartbeat:null,lastPong:0,connectedAt:0,micCongestedSince:0};
+  return {ws:null,stream:null,node:null,mic:null,sink:null,output:null,analyser:null,ctx:null,sources:new Set(),next:0,ready:false,done:true,ignored:new Set(),id:'',frame:0,lastVisual:0,heartbeat:null,lastPong:0,connectedAt:0,micCongestedSince:0,visibilityHandler:null};
 }
 function encodePcm16(pcm:Int16Array):string {
   const bytes=new Uint8Array(pcm.buffer,pcm.byteOffset,pcm.byteLength);
@@ -72,7 +72,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const dispose=useCallback(()=>{
     const s=session.current;session.current=null;
     if(!s)return;
-    cancelAnimationFrame(s.frame);if(s.heartbeat!==null)window.clearInterval(s.heartbeat);stopPlayback(s);
+    cancelAnimationFrame(s.frame);if(s.heartbeat!==null)window.clearInterval(s.heartbeat);if(s.visibilityHandler)document.removeEventListener('visibilitychange',s.visibilityHandler);stopPlayback(s);
     if(s.ws){s.ws.onopen=null;s.ws.onmessage=null;s.ws.onerror=null;s.ws.onclose=null;try{s.ws.close();}catch{}}
     if(s.node){if('port' in s.node){s.node.port.onmessage=null;s.node.port.close();}else s.node.onaudioprocess=null;}
     for(const node of [s.node,s.mic,s.sink,s.output,s.analyser])try{node?.disconnect();}catch{}
@@ -140,6 +140,8 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       if(!s.node){const node=ctx.createScriptProcessor(1024,1,1);node.onaudioprocess=e=>sendMic(e.inputBuffer.getChannelData(0));s.node=node;}
       s.mic.connect(s.node);s.node.connect(s.sink);s.sink.connect(ctx.destination);
       const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/api/live?provider=qwen'+(wasConnected.current?'&resume=1':''));s.ws=ws;
+      s.visibilityHandler=()=>{if(document.visibilityState==='visible'){s.lastPong=Date.now();send(s,{type:'ping'});}};
+      document.addEventListener('visibilitychange',s.visibilityHandler);
       ws.onerror=()=>fail('اتصال زنده به گیسو برقرار نشد.',true);
       ws.onclose=()=>fail('ارتباط گیسو قطع شد؛ اتصال مجدد را بزنید.',true);
       const samples=new Float32Array(s.analyser.fftSize);
