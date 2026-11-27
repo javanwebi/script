@@ -223,8 +223,10 @@ test("KIKI workspace uses catalog-guided automatic crop proof and read-only imag
   assert.match(modal, /void handleAnalyze\('quick',region,localImageId,true\)/);
   assert.match(modal, /onSelectProduct=\{\(id\)/);
   assert.match(modal, /onOpenProduct=\{\(id\)/);
-  assert.match(modal, /navigate\('\/product\/'+encodeURIComponent\(productCode\)\)/);
-  assert.match(review, /<AutomaticImageCrop src=\{image\} region=\{selectedRegion\} status=\{status\} \/>/);
+  assert.match(modal, /navigate\('\/product\/'\+encodeURIComponent\(productCode\)\)/);
+  assert.match(modal, /candidateRegions=\{queryRegions\}/);
+  assert.match(modal, /handleDetectedRegionSelect/);
+  assert.match(review, /<AutomaticImageCrop src=\{image\} region=\{selectedRegion\} candidateRegions=\{candidateRegions\} onSelectRegion=\{onSelectRegion\} status=\{status\} \/>/);
   assert.match(review, /data-region-mode="automatic"/);
   assert.match(review, /aria-pressed=\{selected\}/);
   assert.match(review, /مشاهده صفحه محصول و مشخصات/);
@@ -235,9 +237,12 @@ test("KIKI workspace uses catalog-guided automatic crop proof and read-only imag
   assert.doesNotMatch(review, /ImageRegionSelector|onRegionChange|autoSelect|روی قطعه انگشت بگذارید|کادر بکشید/);
   assert.match(crop, /data-testid="forza-automatic-crop"/);
   assert.match(crop, /data-testid="forza-automatic-crop-thumbnail"/);
+  assert.match(crop, /forza-region-candidate-/);
+  assert.match(crop, /onSelectRegion\?\.\(candidate\)/);
   assert.match(crop, /برش خودکار/);
   assert.match(crop, /جست‌وجو به‌صورت خودکار روی تصویر کامل انجام می‌شود/);
   assert.match(cropStyles, /pointer-events: none/);
+  assert.match(cropStyles, /touch-action: manipulation/);
   assert.match(cropStyles, /@media \(max-width: 760px\)/);
   assert.match(reviewStyles, /\.kiki-vision-review-shell\.kiki-image-workspace/);
   assert.match(reviewStyles, /\.kiki-image-workspace__result-grid/);
