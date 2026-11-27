@@ -40,6 +40,8 @@ interface Props {
   image: string;
   status: RegionPreparationState;
   selectedRegion?: ImageRegion;
+  candidateRegions?: ImageRegion[];
+  onSelectRegion?: (region: ImageRegion) => void;
   message?: string;
   analysisError?: string;
   busy?: boolean;
@@ -63,6 +65,8 @@ export function ImageRegionReview({
   image,
   status,
   selectedRegion,
+  candidateRegions = [],
+  onSelectRegion,
   message,
   analysisError,
   busy,
@@ -328,7 +332,7 @@ export function ImageRegionReview({
         </header>
 
         <div className="kiki-image-workspace__stage">
-          <AutomaticImageCrop src={image} region={selectedRegion} status={status} />
+          <AutomaticImageCrop src={image} region={selectedRegion} candidateRegions={candidateRegions} onSelectRegion={onSelectRegion} status={status} />
         </div>
       </aside>
     </section>
