@@ -164,14 +164,15 @@ function wav(){
       if(m.type==='realtime_audio'){micFrames++;assert.ok(Buffer.from(m.audio,'base64').length>0);}
       if(m.type==='text'){
         turns.push(m.text);
-        reply(socket,m.text.includes('مهندس جان')?'سلام مهندس جان':'پاسخ فنی آزمایشی');
+        reply(socket,m.text.includes('سلام، به صنعت پیش خوش آمدید')?'سلام، به صنعت پیش خوش آمدید. من فورزا هستم.':'پاسخ فنی آزمایشی');
       }
     });
-    socket.send(JSON.stringify({type:'connected',provider:'qwen',voice:'Ryan',voiceConfirmed:true}));
+    socket.send(JSON.stringify({type:'connected',provider:'qwen',voice:'Andre',voiceConfirmed:true}));
   });
   await qwenPage.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await qwenPage.getByText('فورزا گوش می‌دهد',{exact:true}).waitFor({timeout:25000});
-  assert.match(turns[0],/مهندس جان/);
+  assert.match(turns[0],/سلام، به صنعت پیش خوش آمدید/);
+  assert.doesNotMatch(turns[0],/مهندس جان/);
   await qwenPage.waitForTimeout(500);
   assert.ok(micFrames>0,'native microphone frames reach the websocket after greeting');
   currentSocket.send(JSON.stringify({type:'speech_started'}));
@@ -185,11 +186,13 @@ function wav(){
   await qwenPage.getByRole('button',{name:'ارسال',exact:true}).click();
   await qwenPage.getByText('پاسخ فنی آزمایشی',{exact:true}).waitFor({timeout:4000});
   assert.ok(turns.includes('تسمه SPA'));
+  const turnsBeforeReconnect=turns.length;
   await qwenPage.getByRole('button',{name:'قطع اتصال',exact:true}).click();
   await qwenPage.getByText('اتصال قطع است',{exact:true}).waitFor({timeout:4000});
   await qwenPage.getByRole('button',{name:'اتصال مجدد',exact:true}).click();
   await qwenPage.getByText('فورزا گوش می‌دهد',{exact:true}).waitFor({timeout:25000});
   assert.equal(connectionCount,2);
+  assert.equal(turns.length,turnsBeforeReconnect,'reconnecting an already-greeted call must not send a second greeting');
   assert.deepEqual(legacyRequests,[]);
   assert.deepEqual(qwenErrors,[]);
   await qwenPage.close();
