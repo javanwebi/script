@@ -347,12 +347,14 @@ test('exact SKU lookup prioritizes the requested active code and exposes its own
 test('Qwen realtime uses a natural Persian pause and exposes exact detail and comparison tools',()=>{
  const update=buildGisooQwenSessionUpdate('مشاور');
  assert.equal(update.session.audio.input.turn_detection.silence_duration_ms,900);
- assert.equal(update.session.tools.length,3);
+ assert.equal(update.session.tools.length,4);
  assert.equal(update.session.tools[0].name,'search_sanatpish_catalog');
  assert.equal(update.session.tools[1].name,'get_sanatpish_product_details');
  assert.deepEqual(update.session.tools[1].parameters.required,['code']);
  assert.equal(update.session.tools[2].name,'compare_sanatpish_products');
  assert.deepEqual(update.session.tools[2].parameters.required,['codes']);
+ assert.equal(update.session.tools[3].name,'update_forza_consultation');
+ assert.deepEqual(update.session.tools[3].parameters.required,['stage','summary']);
 });
 test('transport protects the call from brief backpressure and records provider close diagnostics',()=>{
  const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
@@ -384,6 +386,7 @@ test('FORZA consultant prompt follows a staged industrial diagnostic and recomme
  for(const term of ['پرونده مهندسی','تسمه‌ها','بلبرینگ و رولبرینگ','عیب‌یابی','کاتالوگ واقعی','دلیل انتخاب','یک سؤال مهم'])assert.ok(prompt.includes(term),term);
  assert.match(prompt,/get_sanatpish_product_details/);
  assert.match(prompt,/compare_sanatpish_products/);
+ assert.match(prompt,/update_forza_consultation/);
 });
 test('catalog lookup does not claim success when no family or SKU matched',()=>{
  const products=[{code:'OTHER',name:'قطعه دیگر',brand:'',categorySlug:'other',categoryName:'سایر',subcategory:'',technicalSpecs:[],prices:{base:0,retail:0,wholesale:0,dealer:0},stock:0,inquiryOnly:true,images:[],tags:[],unit:'عدد',active:true,variants:[]}] as unknown as Product[];
@@ -408,4 +411,15 @@ test('provider failures cannot leave the live assistant waiting forever for a re
  assert.match(server,/response_start_timeout/);
  assert.match(server,/\['flood','rate_limit_exceeded','server_error','temporarily_unavailable'\]/);
  assert.match(server,/authentication_error/);
+});
+
+test('live call displays and restores a real consultation stage instead of a decorative progress bar',()=>{
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(client,/CONSULTATION_STAGES/);
+ assert.match(client,/m\.type==='consultation_update'/);
+ assert.match(client,/consultation:consultationRef\.current/);
+ assert.match(server,/type:'consultation_update'/);
+ assert.match(server,/update_forza_consultation/);
+ assert.match(server,/invalid_consultation_stage/);
 });
