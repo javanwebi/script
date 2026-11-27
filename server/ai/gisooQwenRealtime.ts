@@ -91,8 +91,26 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   let micFrames=0,micBytes=0,micSquareSum=0,micSamples=0,micPeak=0,micWindowStarted=Date.now(),firstMicFrameAt=0,lastSpeechStartedAt=0;
   const cancelled=new Set<string>(),toolResponseIds=new Set<string>(),processedToolCalls=new Set<string>(),started=Date.now();
   const log=(event:string,data:Record<string,unknown>={})=>console.info('[FORZA QWEN] '+event+' '+JSON.stringify(data));
-  const finish=(reason?:string)=>{if(closed)return;closed=true;activeSessions=Math.max(0,activeSessions-1);if(timer)clearTimeout(timer);if(reason){toClient({type:'fallback_required',reason});if(client.readyState===WebSocket.OPEN)client.close(1011,'Qwen session ended');}try{if(upstream?.readyState===WebSocket.CONNECTING)upstream.terminate();else if(upstream?.readyState===WebSocket.OPEN)upstream.close(1000,'Call ended');}catch{}};
-  const send=(e:Record<string,unknown>)=>{if(closed||upstream?.readyState!==WebSocket.OPEN)return false;if(upstream.bufferedAmount>1000000){finish('ارتباط گیسو کند شده است؛ دوباره متصل شوید.');return false;}upstream.send(JSON.stringify(e));return true;};
+  const finish=(reason?:string,closeCode?:number,closeReason?:string)=>{
+    if(closed)return;closed=true;activeSessions=Math.max(0,activeSessions-1);
+    if(timer)clearTimeout(timer);if(heartbeat)clearInterval(heartbeat);
+    log('session_end',{durationMs:Date.now()-started,reason:reason||'client_closed',upstreamCloseCode:closeCode??null,upstreamCloseReason:closeReason?closeReason.slice(0,120):null,upstreamBufferedBytes:upstream?.bufferedAmount||0,clientBufferedBytes:client.bufferedAmount});
+    if(reason){toClient({type:'fallback_required',reason});if(client.readyState===WebSocket.OPEN)client.close(1011,'Qwen session ended');}
+    try{if(upstream?.readyState===WebSocket.CONNECTING)upstream.terminate();else if(upstream?.readyState===WebSocket.OPEN)upstream.close(1000,'Call ended');}catch{}
+  };
+  const send=(e:Record<string,unknown>)=>{if(closed||upstream?.readyState!==WebSocket.OPEN)return false;if(upstream.bufferedAmount>1000000){log('upstream_control_backpressure',{bufferedBytes:upstream.bufferedAmount,eventType:String(e.type||'unknown')});finish('ارتباط سرور گیسو برای مدت طولانی پاسخ‌گو نیست؛ اتصال دوباره تلاش می‌شود.');return false;}upstream.send(JSON.stringify(e));return true;};
+  const sendAudio=(e:Record<string,unknown>)=>{
+    if(closed||upstream?.readyState!==WebSocket.OPEN)return false;
+    const queued=upstream.bufferedAmount;
+    if(queued>131072){
+      if(!upstreamCongestedSince){upstreamCongestedSince=Date.now();log('upstream_audio_backpressure_started',{bufferedBytes:queued});toClient({type:'network_degraded',bufferedBytes:queued});}
+      if(Date.now()-upstreamCongestedSince>15000)finish('اتصال گیسو بیش از حد کند شده است؛ در حال تلاش برای اتصال مجدد.');
+      return false;
+    }
+    if(upstreamCongestedSince){log('upstream_audio_backpressure_recovered',{durationMs:Date.now()-upstreamCongestedSince,bufferedBytes:queued});upstreamCongestedSince=0;upstreamCongestedNotice=false;toClient({type:'network_restored'});}
+    if(queued>65536&&!upstreamCongestedNotice){upstreamCongestedNotice=true;toClient({type:'network_degraded',bufferedBytes:queued});}
+    upstream.send(JSON.stringify(e));return true;
+  };
   const interrupt=(response:string)=>{if(!response||cancelled.has(response))return;cancelled.add(response);if(cancelled.size>64){const oldest=cancelled.values().next().value;if(oldest)cancelled.delete(oldest);}toClient({type:'interrupted',responseId:response});};
   const textTurn=(text:string)=>{if(closed||!ready)return;if(active||requested){pendingText=text;if(active&&!cancelled.has(active)){interrupt(active);send({type:'response.cancel'});}return;}requested=true;speechStop=Date.now();send({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text}]}});send({type:'response.create'});};
   const runCatalogTool=async(event:Event)=>{
@@ -157,13 +175,22 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     send({type:'response.create'});
     log('catalog_tool_completed',{queryLength:query.length,resultCount:displayResults.length,success:result.success!==false});
   };
-  client.on('close',()=>finish());client.on('error',()=>finish());
+  client.on('close',(code,reason)=>{log('browser_socket_closed',{code,reason:reason?reason.toString().slice(0,120):''});finish(undefined,code,reason?reason.toString():undefined);});
+  client.on('error',(error)=>{log('browser_socket_error',{name:error.name,message:error.message.slice(0,180)});finish('ارتباط مرورگر با سرور قطع شد.');});
   try{const target=new URL(process.env.FORZA_QWEN_REALTIME_URL?.trim()||DEFAULT_URL);if(target.protocol!=='wss:'||!['gisoo.pro','ir.gisoo.pro'].includes(target.hostname)||target.searchParams.get('model')!==MODEL)throw Error('invalid URL');upstream=new WebSocket(target,{headers:{Authorization:'Bearer '+key},handshakeTimeout:15000,maxPayload:2097152});}catch{finish('نشانی اتصال گیسو معتبر نیست.');return;}
   timer=setTimeout(()=>{if(!ready)finish('گیسو نشست را در زمان مناسب آماده نکرد.');},20000);
-  upstream.on('open',()=>log('socket_open',{ms:Date.now()-started}));
-  upstream.on('unexpected-response',(_req,res)=>{res.resume();finish('گیسو اتصال را نپذیرفت (HTTP '+String(res.statusCode||0)+').');});
-  upstream.on('error',()=>finish('ارتباط WebSocket گیسو قطع شد.'));
-  upstream.on('close',()=>{if(!closed)finish('نشست گیسو بسته شد؛ دوباره متصل شوید.');});
+  upstream.on('open',()=>{
+    lastUpstreamPong=Date.now();log('socket_open',{ms:Date.now()-started});
+    heartbeat=setInterval(()=>{
+      if(closed||!ready||upstream?.readyState!==WebSocket.OPEN)return;
+      if(Date.now()-lastUpstreamPong>60000){log('upstream_heartbeat_timeout',{lastPongAgeMs:Date.now()-lastUpstreamPong});finish('ارتباط زنده با گیسو پاسخ‌گو نیست؛ اتصال مجدد انجام می‌شود.');return;}
+      try{upstream.ping();}catch(error){log('upstream_ping_failed',{message:error instanceof Error?error.message:'unknown'});}
+    },20000);
+  });
+  upstream.on('pong',()=>{lastUpstreamPong=Date.now();});
+  upstream.on('unexpected-response',(_req,res)=>{res.resume();log('upstream_rejected',{statusCode:res.statusCode||0});finish('گیسو اتصال را نپذیرفت (HTTP '+String(res.statusCode||0)+').');});
+  upstream.on('error',(error)=>{log('upstream_error',{name:error.name,message:error.message.slice(0,180),readyState:upstream?.readyState??null});finish('ارتباط WebSocket گیسو قطع شد.');});
+  upstream.on('close',(code,reason)=>{log('upstream_closed',{code,reason:reason?reason.toString().slice(0,120):'',durationMs:Date.now()-started});if(!closed)finish('نشست گیسو بسته شد؛ دوباره متصل شوید.',code,reason?reason.toString():undefined);});
   upstream.on('message',raw=>{
     if(closed)return;let e:Event;try{e=decode(raw);}catch{return;}const t=String(e.type||'');
     if(t==='session.created'&&!configured){configured=true;send(buildGisooQwenSessionUpdate(instructions,Number(process.env.FORZA_QWEN_SILENCE_MS||500),selectedVoice));return;}
@@ -218,6 +245,6 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     const now=Date.now();if(!firstMicFrameAt){firstMicFrameAt=now;micWindowStarted=now;log('mic_first_frame',{afterSessionReadyMs:now-started,bytes:pcm.length,sampleRate:Number(e.sampleRate)||16000});}
     micFrames++;micBytes+=pcm.length;for(let i=0;i<pcm.length;i+=2){const sample=pcm.readInt16LE(i);micSquareSum+=sample*sample;micSamples++;const peak=Math.abs(sample);if(peak>micPeak)micPeak=peak;}
     if(now-micWindowStarted>=5000){log('mic_stream',{intervalMs:now-micWindowStarted,frames:micFrames,bytes:micBytes,samples:micSamples,rms:micSamples?Math.round(Math.sqrt(micSquareSum/micSamples)):0,peak:micPeak,sampleRate:16000});micFrames=0;micBytes=0;micSquareSum=0;micSamples=0;micPeak=0;micWindowStarted=now;}
-    if(!send({type:'input_audio_buffer.append',audio:e.audio}))log('mic_forward_failed',{bytes:pcm.length,upstreamBufferedBytes:upstream?.bufferedAmount||0});return;
+    if(!sendAudio({type:'input_audio_buffer.append',audio:e.audio}))log('mic_forward_skipped',{bytes:pcm.length,upstreamBufferedBytes:upstream?.bufferedAmount||0});return;
   }if(e.type==='cancel'){pendingText='';if(active){interrupt(active);send({type:'response.cancel'});}else if(requested)send({type:'response.cancel'});return;}if(e.type==='text'&&typeof e.text==='string'&&e.text.trim())textTurn(e.text.trim().slice(0,3000));});
 }
