@@ -441,10 +441,11 @@ silently counted as compared. The query uses precomputed catalogue features
 rather than rerunning a generative model over every catalogue image for each
 customer request.
 
-Browser pointer/touch/drag/keyboard smoke for the source selector:
+Browser desktop/mobile multi-object tap smoke:
 `node scripts/tests/image-region-interaction.cjs` (requires Playwright Chromium).
-The browser smoke also mounts the actual search modal with isolated identity/cart
-hooks and mocked HTTP responses. It verifies upload-triggered automatic search,
-tap-triggered requery, whole-image reset and reuse of the same uploaded image.
+The browser smoke mounts the actual search modal with isolated identity/cart hooks
+and mocked HTTP responses. It verifies upload-triggered automatic search, switching
+to a second detected object while the first search is in flight, exact crop preview,
+full-image fallback, mobile half-screen sheet height and independent product scrolling.
 This proves client interaction and request wiring, not model accuracy or a live
 production deployment.
