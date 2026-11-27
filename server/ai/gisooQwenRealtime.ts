@@ -80,7 +80,7 @@ export function classifyGisooRealtimeError(code:string,ready:boolean):'ignore'|'
 /** Exhibition-only native audio bridge. The site's legacy speech stack remains intact. */
 export function connectGisooQwenRealtime(client:WebSocket,instructions:string,catalogSearch?:GisooCatalogSearchHandler,resuming=false):void{
   const key=String(process.env.FORZA_QWEN_API_KEY||'').trim(),selectedVoice=voice();
-  const limit=bounded(Number(process.env.FORZA_QWEN_MAX_SESSIONS||8),8,1,8);
+  const limit=bounded(Number(process.env.FORZA_QWEN_MAX_SESSIONS||8),8,1,40);
   const toClient=(e:Record<string,unknown>)=>{if(client.readyState!==WebSocket.OPEN)return false;if(client.bufferedAmount>2000000){client.close(1013,'Browser backpressure');return false;}client.send(JSON.stringify(e));return true;};
   if(!key||activeSessions>=limit){toClient({type:'fallback_required',reason:!key?'کلید گیسو تنظیم نشده است.':'ظرفیت تماس تکمیل است.'});client.close(1013,'Qwen unavailable');return;}
   activeSessions++;
