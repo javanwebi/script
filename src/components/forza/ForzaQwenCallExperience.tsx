@@ -9,10 +9,10 @@ const ImageSearch = lazy(() => import('../search/AiVisualPartSearchModal').then(
 type Phase = 'connecting'|'listening'|'thinking'|'speaking'|'disconnected';
 type LiveCatalogVariant={code:string;name:string;size?:string};
 type LiveCatalogFamily={code:string;name:string;brand?:string;images?:string[];link:string;variants?:LiveCatalogVariant[]};
-type Session = { ws:WebSocket|null; stream:MediaStream|null; node:ScriptProcessorNode|AudioWorkletNode|null; mic:MediaStreamAudioSourceNode|null; sink:GainNode|null; output:GainNode|null; analyser:AnalyserNode|null; ctx:AudioContext|null; sources:Set<AudioBufferSourceNode>; next:number; ready:boolean; done:boolean; ignored:Set<string>; id:string; frame:number; lastVisual:number; greeted:boolean; };
+type Session = { ws:WebSocket|null; stream:MediaStream|null; node:ScriptProcessorNode|AudioWorkletNode|null; mic:MediaStreamAudioSourceNode|null; sink:GainNode|null; output:GainNode|null; analyser:AnalyserNode|null; ctx:AudioContext|null; sources:Set<AudioBufferSourceNode>; next:number; ready:boolean; done:boolean; ignored:Set<string>; id:string; frame:number; lastVisual:number; };
 
 function newSession():Session {
-  return {ws:null,stream:null,node:null,mic:null,sink:null,output:null,analyser:null,ctx:null,sources:new Set(),next:0,ready:false,done:true,ignored:new Set(),id:'',frame:0,lastVisual:0,greeted:false};
+  return {ws:null,stream:null,node:null,mic:null,sink:null,output:null,analyser:null,ctx:null,sources:new Set(),next:0,ready:false,done:true,ignored:new Set(),id:'',frame:0,lastVisual:0};
 }
 function encodePcm(samples:Float32Array,rate:number):string {
   const pcm=resampleDibaPcm(samples,rate);
@@ -24,7 +24,7 @@ function encodePcm(samples:Float32Array,rate:number):string {
 
 export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const session=useRef<Session|null>(null);
-  const micMuted=useRef(false), speakerMuted=useRef(false), scanning=useRef(false), greeted=useRef(false);
+  const micMuted=useRef(false), speakerMuted=useRef(false), scanning=useRef(false);
   const scanVersion=useRef(0);
   const [phase,setPhase]=useState<Phase>('connecting');
   const [error,setError]=useState('');
@@ -59,7 +59,6 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   },[]);
   const submit=useCallback((value:string)=>{
     const s=session.current;if(!s?.ready||!value.trim())return false;
-    if(!s.greeted)return false;
     stopPlayback(s);setUser(value);setAssistant('');setPhase('thinking');
     return send(s,{type:'text',text:value});
   },[send,stopPlayback]);
@@ -85,7 +84,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       s.mic=ctx.createMediaStreamSource(stream);
       s.sink=ctx.createGain();s.sink.gain.value=0;
       const sendMic=(samples:Float32Array)=>{
-        if(!s.ready||!s.greeted||micMuted.current||scanning.current||s.ws?.readyState!==WebSocket.OPEN)return;
+        if(!s.ready||micMuted.current||scanning.current||s.ws?.readyState!==WebSocket.OPEN)return;
         if(s.ws.bufferedAmount>262144){fail('ارتباط صوتی کند شد؛ دوباره متصل شوید.');return;}
         send(s,{type:'realtime_audio',audio:encodePcm(samples,ctx.sampleRate)});
       };
@@ -123,11 +122,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         }
         if(m.type==='connected'){
           if(m.provider!=='qwen'){fail('سرور هنوز روی Qwen تنظیم نشده است.');return;}
-          if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Andre');setConfirmed(m.voiceConfirmed===true);const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});
-          if(greeted.current){s.greeted=true;setPhase('listening');return;}
-          setPhase('thinking');
-          const greeting='فقط یک بار در ابتدای تماس، با لحن طبیعی و گرم دقیقاً این خوشامدگویی کوتاه را بگو: سلام، به صنعت پیش خوش آمدید. من فورزا هستم؛ چطور می‌توانم کمکتان کنم؟ بعد از آن منتظر صحبت مشتری بمان و در نوبت‌های بعد سلام یا معرفی را تکرار نکن.';
-          send(s,{type:'text',text:greeting});return;
+          if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Andre');setConfirmed(m.voiceConfirmed===true);const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});setPhase('listening');return;
         }
         if(m.type==='catalog_search_started'){setCatalogQuery(String(m.query||''));setCatalogResults([]);setCatalogBusy(true);return;}
         if(m.type==='catalog_results'){
@@ -145,7 +140,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         if(id&&s.id&&id!==s.id)return;
         if(m.type==='ai_text_chunk'){setAssistant(prev=>prev+String(m.text||''));return;}
         if(m.type==='ai_transcript'){setAssistant(String(m.text||''));return;}
-        if(m.type==='turn_complete'){s.done=true;if(!s.sources.size){s.greeted=true;setPhase('listening');greeted.current=true;}return;}
+        if(m.type==='turn_complete'){s.done=true;if(!s.sources.size)setPhase('listening');return;}
         if(m.type!=='audio_chunk'||typeof m.data!=='string'||!s.output)return;
         try{
           const raw=atob(m.data), bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
@@ -155,7 +150,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           const source=ctx.createBufferSource();source.buffer=buffer;source.connect(s.output);
           if(s.next-ctx.currentTime>90){setError('پاسخ صوتی از سقف ۹۰ ثانیه عبور کرد؛ اتصال برقرار است. سؤال را مرحله‌ای بپرسید.');stopPlayback(s);send(s,{type:'cancel'});setPhase('listening');return;}
           const at=s.next>ctx.currentTime?s.next:ctx.currentTime+0.015;s.next=at+buffer.duration;
-          s.sources.add(source);source.onended=()=>{s.sources.delete(source);source.disconnect();if(session.current===s&&!s.sources.size&&s.done){s.greeted=true;setPhase('listening');setLevel(0);greeted.current=true;}};
+          s.sources.add(source);source.onended=()=>{s.sources.delete(source);source.disconnect();if(session.current===s&&!s.sources.size&&s.done){setPhase('listening');setLevel(0);}};
           source.start(at);setPhase('speaking');
         }catch{fail('داده صوتی دریافتی گیسو قابل پخش نیست.');}
       };
@@ -163,7 +158,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   },[dispose,send,stopPlayback]);
 
   useEffect(()=>{void start();return dispose;},[start,dispose]);
-  const cancel=()=>{const s=session.current;if(s?.ready){stopPlayback(s);s.greeted=true;greeted.current=true;send(s,{type:'cancel'});setPhase('listening');}};
+  const cancel=()=>{const s=session.current;if(s?.ready){stopPlayback(s);send(s,{type:'cancel'});setPhase('listening');}};
   const toggleMic=()=>{micMuted.current=!micMuted.current;setMuted(micMuted.current);};
   const toggleSpeaker=()=>{speakerMuted.current=!speakerMuted.current;setSilent(speakerMuted.current);const out=session.current?.output;if(out)out.gain.value=speakerMuted.current?0:1;};
   const closeScan=()=>{scanVersion.current++;scanning.current=false;setShowScan(false);};
