@@ -178,12 +178,17 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     if(processedToolCalls.size>128){const first=processedToolCalls.values().next().value;if(first)processedToolCalls.delete(first);}
     const toolResponseId=id(event,active);
     if(toolResponseId){toolResponseIds.add(toolResponseId);toolPendingCounts.set(toolResponseId,(toolPendingCounts.get(toolResponseId)||0)+1);if(toolResponseIds.size>64){const first=toolResponseIds.values().next().value;if(first){toolResponseIds.delete(first);toolResponseDone.delete(first);toolPendingCounts.delete(first);}}}
+    if(toolResponseId&&cancelled.has(toolResponseId)){
+      log('catalog_tool_cancelled',{toolName:String(event.name||'')});
+      completeToolCall(toolResponseId);return;
+    }
     let args:Event={};
     try{args=typeof event.arguments==='string'?JSON.parse(event.arguments):event.arguments||{};}catch{}
     const toolName=String(event.name||'');
-    const query=String(args.query||args.code||'').trim().slice(0,120);
-    const limit=bounded(Number(args.limit||6),6,1,6);
     const mode=toolName==='update_forza_consultation'?'consultation':toolName==='compare_sanatpish_products'?'compare':toolName==='get_sanatpish_product_details'?'details':'search';
+    const comparisonCodes=mode==='compare'&&Array.isArray(args.codes)?[...new Set(args.codes.map((v:unknown)=>String(v||'').trim().slice(0,80)).filter(Boolean))].slice(0,4):[];
+    const query=mode==='compare'?(comparisonCodes.join(' / ')||'مقایسه محصولات'):String(args.query||args.code||'').trim().slice(0,120);
+    const limit=bounded(Number(args.limit||6),6,1,6);
     if(toolName!=='update_forza_consultation')toClient({type:'catalog_search_started',query,mode});
     let result:Record<string,unknown>;
     const normalizeCode=(value:string)=>value.trim().toLowerCase().replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
@@ -210,7 +215,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
         const exact=rows.filter((family:Event)=>isExact(family,query));
         result={success:exact.length>0,query,familyCount:exact.length,skuCount:exact.reduce((n:number,f:Event)=>n+(Array.isArray(f.variants)?f.variants.length:0),0),results:exact,error:exact.length?'':'exact_code_not_found'};
       }else if(toolName==='compare_sanatpish_products'){
-        const codes=Array.isArray(args.codes)?[...new Set(args.codes.map((v:unknown)=>String(v||'').trim().slice(0,80)).filter(Boolean))].slice(0,4):[];
+        const codes=comparisonCodes;
         if(codes.length<2)throw new Error('compare_requires_two_codes');
         const found=await Promise.all(codes.map(async(code:string)=>{
           const value=await catalogSearch(code,1) as Event;
