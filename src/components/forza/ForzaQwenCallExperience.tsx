@@ -8,33 +8,40 @@ import './style.css';
 const ParticleAvatar = lazy(() => import('./ParticleAvatar').then(m => ({default:m.ParticleAvatar})));
 
 type Phase = 'connecting'|'listening'|'thinking'|'speaking'|'disconnected';
-type LiveCatalogVariant={code:string;name:string;size?:string;model?:string;brand?:string;description?:string;technicalSpecs?:{key:string;value:string}[]};
-type LiveCatalogFamily={code:string;name:string;brand?:string;images?:string[];link:string;description?:string;technicalSpecs?:{key:string;value:string}[];variants?:LiveCatalogVariant[]};
-type Session = { ws:WebSocket|null; stream:MediaStream|null; node:ScriptProcessorNode|AudioWorkletNode|null; mic:MediaStreamAudioSourceNode|null; sink:GainNode|null; output:GainNode|null; analyser:AnalyserNode|null; ctx:AudioContext|null; sources:Set<AudioBufferSourceNode>; next:number; ready:boolean; done:boolean; ignored:Set<string>; id:string; frame:number; lastVisual:number; heartbeat:number|null; lastPong:number; connectedAt:number; };
+type LiveCatalogVariant={code:string;name:string;size?:string;model?:string;brand?:string;description?:string;technicalSpecs?:{key:string;value:string}[];images?:string[]};
+type LiveCatalogFamily={code:string;name:string;brand?:string;categoryName?:string;subcategory?:string;nameEn?:string;images?:string[];link:string;description?:string;technicalSpecs?:{key:string;value:string}[];variants?:LiveCatalogVariant[]};
+type ConsultationStage='understand'|'diagnose'|'specify'|'catalog'|'compare'|'recommend';
+type ConsultationState={stage:ConsultationStage;summary:string;knownFacts:string[];missingFacts:string[]};
+const CONSULTATION_STAGES:{id:ConsultationStage;label:string}[]=[{id:'understand',label:'شناخت نیاز'},{id:'diagnose',label:'عیب‌یابی'},{id:'specify',label:'مشخصات فنی'},{id:'catalog',label:'کاتالوگ'},{id:'compare',label:'مقایسه'},{id:'recommend',label:'پیشنهاد'}];
+type Session = { ws:WebSocket|null; stream:MediaStream|null; node:ScriptProcessorNode|AudioWorkletNode|null; mic:MediaStreamAudioSourceNode|null; sink:GainNode|null; output:GainNode|null; analyser:AnalyserNode|null; ctx:AudioContext|null; sources:Set<AudioBufferSourceNode>; next:number; ready:boolean; done:boolean; ignored:Set<string>; id:string; frame:number; lastVisual:number; heartbeat:number|null; lastPong:number; connectedAt:number; micCongestedSince:number; visibilityHandler:(()=>void)|null; };
 
 function newSession():Session {
-  return {ws:null,stream:null,node:null,mic:null,sink:null,output:null,analyser:null,ctx:null,sources:new Set(),next:0,ready:false,done:true,ignored:new Set(),id:'',frame:0,lastVisual:0,heartbeat:null,lastPong:0,connectedAt:0};
+  return {ws:null,stream:null,node:null,mic:null,sink:null,output:null,analyser:null,ctx:null,sources:new Set(),next:0,ready:false,done:true,ignored:new Set(),id:'',frame:0,lastVisual:0,heartbeat:null,lastPong:0,connectedAt:0,micCongestedSince:0,visibilityHandler:null};
+}
+function encodePcm16(pcm:Int16Array):string {
+  const bytes=new Uint8Array(pcm.buffer,pcm.byteOffset,pcm.byteLength);
+  let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);
+  return btoa(binary);
 }
 function encodePcm(samples:Float32Array,rate:number):string {
   const pcm=resampleDibaPcm(samples,rate);
   const bytes=new Uint8Array(pcm.length*2), view=new DataView(bytes.buffer);
   for(let i=0;i<pcm.length;i++){const x=Math.max(-1,Math.min(1,pcm[i]));view.setInt16(i*2,x<0?x*32768:x*32767,true);}
-  let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);
-  return btoa(binary);
+  return encodePcm16(new Int16Array(bytes.buffer));
 }
 
 export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const session=useRef<Session|null>(null);
   const micMuted=useRef(false), speakerMuted=useRef(false), scanning=useRef(false);
   const scanVersion=useRef(0);
-  const wasConnected=useRef(false), callActive=useRef(true), retryCount=useRef(0);
+  const wasConnected=useRef(false), callActive=useRef(true), retryCount=useRef(0), networkWarning=useRef(false);
   const retryTimer=useRef<number|null>(null), startRef=useRef<()=>Promise<void>>(async()=>{});
   const history=useRef<{role:'user'|'assistant';text:string}[]>([]);
   const visionContext=useRef('');
   const remember=(role:'user'|'assistant',value:string)=>{
-    const clean=value.trim().slice(0,480);if(!clean)return;
+    const clean=value.trim().slice(0,700);if(!clean)return;
     const last=history.current.at(-1);if(last?.role===role&&last.text===clean)return;
-    history.current=[...history.current,{role,text:clean}].slice(-6);
+    history.current=[...history.current,{role,text:clean}].slice(-8);
   };
   const [phase,setPhase]=useState<Phase>('connecting');
   const [error,setError]=useState('');
@@ -52,9 +59,19 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const [sheetHeight,setSheetHeight]=useState(58);
   const sheetDrag=useRef<{y:number;height:number}|null>(null);
   const [confirmed,setConfirmed]=useState(false);
-  const [voice,setVoice]=useState('Bodega');
+  const [noiseAwareVadReady,setNoiseAwareVadReady]=useState(false);
+  const [voice,setVoice]=useState('Arda');
   const [catalogQuery,setCatalogQuery]=useState('');
   const [catalogResults,setCatalogResults]=useState<LiveCatalogFamily[]>([]);
+  const [catalogMode,setCatalogMode]=useState<'search'|'details'|'compare'>('search');
+  const [consultationState,setConsultationState]=useState<ConsultationState>({stage:'understand',summary:'',knownFacts:[],missingFacts:[]});
+  const consultationRef=useRef<ConsultationState>({stage:'understand',summary:'',knownFacts:[],missingFacts:[]});
+  const updateConsultation=(stage:unknown,summary:unknown,knownFacts?:unknown,missingFacts?:unknown)=>{
+    const valid=CONSULTATION_STAGES.some(item=>item.id===stage);if(!valid)return;
+    const clean=(value:unknown,fallback:string[],max:number)=>Array.isArray(value)?value.slice(0,max).map(v=>String(v||'').trim().slice(0,100)).filter(Boolean):fallback;
+    const next:ConsultationState={stage:stage as ConsultationStage,summary:String(summary||'').trim().slice(0,320),knownFacts:clean(knownFacts,consultationRef.current.knownFacts,8),missingFacts:clean(missingFacts,consultationRef.current.missingFacts,6)};
+    consultationRef.current=next;setConsultationState(next);
+  };
   const [catalogBusy,setCatalogBusy]=useState(false);
   const [stats,setStats]=useState<{fps:number|null;particles?:number;tier:string}>({fps:null,tier:'ULTRA'});
   const [clean,setClean]=useState(false);
@@ -67,7 +84,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const dispose=useCallback(()=>{
     const s=session.current;session.current=null;
     if(!s)return;
-    cancelAnimationFrame(s.frame);if(s.heartbeat!==null)window.clearInterval(s.heartbeat);stopPlayback(s);
+    cancelAnimationFrame(s.frame);if(s.heartbeat!==null)window.clearInterval(s.heartbeat);if(s.visibilityHandler)document.removeEventListener('visibilitychange',s.visibilityHandler);stopPlayback(s);
     if(s.ws){s.ws.onopen=null;s.ws.onmessage=null;s.ws.onerror=null;s.ws.onclose=null;try{s.ws.close();}catch{}}
     if(s.node){if('port' in s.node){s.node.port.onmessage=null;s.node.port.close();}else s.node.onaudioprocess=null;}
     for(const node of [s.node,s.mic,s.sink,s.output,s.analyser])try{node?.disconnect();}catch{}
@@ -85,11 +102,12 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const start=useCallback(async()=>{
     if(retryTimer.current!==null){window.clearTimeout(retryTimer.current);retryTimer.current=null;}
     callActive.current=true;dispose();const s=newSession();session.current=s;
-    setError('');setPhase('connecting');setConfirmed(false);
+    setError('');setPhase('connecting');setConfirmed(false);setNoiseAwareVadReady(false);
     const fail=(message:string,retry=false)=>{
       if(session.current!==s)return;dispose();setCatalogBusy(false);
-      if(retry&&callActive.current&&retryCount.current<3){
-        const delay=[1000,2500,5000][retryCount.current++];
+      if(retry&&callActive.current&&retryCount.current<5){
+        if(!navigator.onLine){setPhase('connecting');setError('اینترنت در دسترس نیست؛ به‌محض وصل‌شدن دوباره تلاش می‌کنم.');return;}
+        const delay=[1000,2000,4000,8000,15000][retryCount.current++];
         setPhase('connecting');setError('ارتباط موقتاً قطع شد؛ در حال اتصال مجدد خودکار…');
         retryTimer.current=window.setTimeout(()=>{retryTimer.current=null;if(callActive.current)void startRef.current();},delay);
       }else{setPhase('disconnected');setError(message);}
@@ -105,23 +123,31 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
       if(session.current!==s){stream.getTracks().forEach(t=>t.stop());return;}
       s.stream=stream;
-      for(const track of stream.getAudioTracks())track.onended=()=>fail('میکروفون قطع شد؛ اتصال مجدد را بزنید.');
+      for(const track of stream.getAudioTracks())track.onended=()=>fail('میکروفون قطع شد؛ در حال بازیابی تماس…',true);
       s.output=ctx.createGain();s.output.gain.value=speakerMuted.current?0:1;
       s.analyser=ctx.createAnalyser();s.analyser.fftSize=256;
       s.output.connect(s.analyser);s.analyser.connect(ctx.destination);
       s.mic=ctx.createMediaStreamSource(stream);
       s.sink=ctx.createGain();s.sink.gain.value=0;
-      const sendMic=(samples:Float32Array)=>{
+      // Full duplex: keep streaming microphone frames even while FORZA audio is playing.
+      // Do not gate on UI phase or playback state; Qwen semantic_vad_ec handles
+      // noise-aware speech-turn detection and barge-in while the model is speaking.
+      const sendMic=(samples:Float32Array|Int16Array)=>{
         if(!s.ready||micMuted.current||scanning.current||s.ws?.readyState!==WebSocket.OPEN)return;
-        if(s.ws.bufferedAmount>262144){fail('ارتباط صوتی کند شد؛ دوباره متصل شوید.',true);return;}
-        send(s,{type:'realtime_audio',audio:encodePcm(samples,ctx.sampleRate)});
+        if(s.ws.bufferedAmount>131072){
+          if(!s.micCongestedSince){s.micCongestedSince=Date.now();networkWarning.current=true;setError('شبکه کند شده؛ موقتاً ارسال صدا را کنترل می‌کنم تا تماس قطع نشود.');}
+          if(Date.now()-s.micCongestedSince>15000)fail('ارسال صدا بیش از حد معطل مانده؛ در حال اتصال مجدد…',true);
+          return;
+        }
+        if(s.micCongestedSince){s.micCongestedSince=0;if(networkWarning.current){networkWarning.current=false;setError('');}}
+        send(s,{type:'realtime_audio',audio:samples instanceof Int16Array?encodePcm16(samples):encodePcm(samples,ctx.sampleRate)});
       };
       if(ctx.audioWorklet){
         try{
           await ctx.audioWorklet.addModule('/forza-runtime/qwen-mic-worklet.js');
           if(session.current!==s)return;
           const node=new AudioWorkletNode(ctx,'forza-qwen-mic',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1]});
-          node.port.onmessage=e=>{if(e.data instanceof Float32Array)sendMic(e.data);};
+          node.port.onmessage=e=>{if(e.data instanceof Int16Array)sendMic(e.data);};
           s.node=node;
         }catch(error){console.warn('[FORZA QWEN] AudioWorklet unavailable',error);}
       }
@@ -129,6 +155,8 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       if(!s.node){const node=ctx.createScriptProcessor(1024,1,1);node.onaudioprocess=e=>sendMic(e.inputBuffer.getChannelData(0));s.node=node;}
       s.mic.connect(s.node);s.node.connect(s.sink);s.sink.connect(ctx.destination);
       const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/api/live?provider=qwen'+(wasConnected.current?'&resume=1':''));s.ws=ws;
+      s.visibilityHandler=()=>{if(document.visibilityState==='visible'){s.lastPong=Date.now();send(s,{type:'ping'});}};
+      document.addEventListener('visibilitychange',s.visibilityHandler);
       ws.onerror=()=>fail('اتصال زنده به گیسو برقرار نشد.',true);
       ws.onclose=()=>fail('ارتباط گیسو قطع شد؛ اتصال مجدد را بزنید.',true);
       const samples=new Float32Array(s.analyser.fftSize);
@@ -142,7 +170,9 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         if(session.current!==s)return;
         let m:any;try{m=JSON.parse(e.data);}catch{return;}
         if(m.type==='pong'){s.lastPong=Date.now();return;}
-        if(m.type==='fallback_required'||m.type==='error'){const reason=String(m.reason||m.message||'خطای گیسو');fail(reason,/قطع|بسته شد|کند شده|راه‌اندازی مجدد|زمان مناسب/.test(reason)&&!/اعتبار|کلید|صدای درخواستی/.test(reason));return;}
+        if(m.type==='network_degraded'){setError('ارتباط با گیسو کند شده؛ تماس را حفظ می‌کنم و جریان صدا را کنترل می‌کنم.');return;}
+        if(m.type==='network_restored'){setError('');return;}
+        if(m.type==='fallback_required'||m.type==='error'){const reason=String(m.reason||m.message||'خطای گیسو');const retryable=m.retryable===true||(m.retryable!==false&&/قطع|بسته شد|کند شده|راه‌اندازی مجدد|زمان مناسب/.test(reason)&&!/اعتبار|کلید|صدای درخواستی/.test(reason));fail(reason,retryable);return;}
         if(m.type==='provider_error'){
           setError(String(m.reason||'خطای موقت گیسو؛ اتصال برقرار است.'));
           s.done=true;
@@ -152,14 +182,15 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         if(m.type==='connected'){
           if(m.provider!=='qwen'){fail('سرور هنوز روی Qwen تنظیم نشده است.');return;}
           if(s.ready)return;s.ready=true;s.connectedAt=s.lastPong=Date.now();
-          if(m.resumed===true){send(s,{type:'resume_context',text:JSON.stringify({history:history.current,vision:visionContext.current.slice(0,2900)})});}
+          if(m.resumed===true){send(s,{type:'resume_context',text:JSON.stringify({history:history.current,vision:visionContext.current.slice(0,2900),consultation:consultationRef.current})});}
           wasConnected.current=true;
-          s.heartbeat=window.setInterval(()=>{if(session.current!==s)return;if(Date.now()-s.lastPong>30000){fail('پاسخی از ارتباط زنده دریافت نشد.',true);return;}if(Date.now()-s.connectedAt>45000)retryCount.current=0;send(s,{type:'ping'});},10000);
-          setVoice(typeof m.voice==='string'?m.voice:'Bodega');setConfirmed(m.voiceConfirmed===true);const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});setPhase('listening');return;
+          s.heartbeat=window.setInterval(()=>{if(session.current!==s)return;if(document.visibilityState==='visible'&&Date.now()-s.lastPong>60000){fail('پاسخی از ارتباط زنده دریافت نشد.',true);return;}if(Date.now()-s.connectedAt>60000)retryCount.current=0;if(document.visibilityState==='visible')send(s,{type:'ping'});},10000);
+          setVoice(typeof m.voice==='string'?m.voice:'Bodega');setConfirmed(m.voiceConfirmed===true);setNoiseAwareVadReady(m.turnDetection==='semantic_vad_ec');const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});setPhase('listening');return;
         }
-        if(m.type==='catalog_search_started'){setCatalogQuery(String(m.query||''));setCatalogResults([]);setCatalogBusy(true);return;}
+        if(m.type==='catalog_search_started'){setCatalogQuery(String(m.query||''));setCatalogMode(m.mode==='compare'?'compare':m.mode==='details'?'details':'search');setCatalogResults([]);setCatalogBusy(true);updateConsultation(m.mode==='compare'?'compare':'catalog',consultationRef.current.summary);return;}
+        if(m.type==='consultation_update'){updateConsultation(m.stage,m.summary,m.knownFacts,m.missingFacts);return;}
         if(m.type==='catalog_results'){
-          setCatalogQuery(String(m.query||''));
+          setCatalogQuery(String(m.query||''));setCatalogMode(m.mode==='compare'?'compare':m.mode==='details'?'details':'search');
           setCatalogResults(Array.isArray(m.results)?m.results:[]);
           setCatalogBusy(false);
           return;
@@ -193,13 +224,19 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   startRef.current=start;
   const pauseCall=()=>{callActive.current=false;if(retryTimer.current!==null){window.clearTimeout(retryTimer.current);retryTimer.current=null;}dispose();setPhase('disconnected');};
   const manualReconnect=()=>{retryCount.current=0;void start();};
-  useEffect(()=>{void start();return ()=>{callActive.current=false;scanVersion.current++;if(retryTimer.current!==null){window.clearTimeout(retryTimer.current);retryTimer.current=null;}dispose();};},[start,dispose]);
+  useEffect(()=>{
+    const onOnline=()=>{if(callActive.current&&!session.current){retryCount.current=0;void startRef.current();}};
+    const onOffline=()=>setError('اینترنت قطع شد؛ مکالمه را پس از بازگشت شبکه بازیابی می‌کنم.');
+    window.addEventListener('online',onOnline);window.addEventListener('offline',onOffline);
+    void start();
+    return ()=>{window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);callActive.current=false;scanVersion.current++;if(retryTimer.current!==null){window.clearTimeout(retryTimer.current);retryTimer.current=null;}dispose();};
+  },[start,dispose]);
   const cancel=()=>{const s=session.current;if(s?.ready){stopPlayback(s);send(s,{type:'cancel'});setPhase('listening');}};
   const toggleMic=()=>{micMuted.current=!micMuted.current;setMuted(micMuted.current);};
   const toggleSpeaker=()=>{speakerMuted.current=!speakerMuted.current;setSilent(speakerMuted.current);const out=session.current?.output;if(out)out.gain.value=speakerMuted.current?0:1;};
   const scanImage=async(file:File)=>{
     const sequence=++scanVersion.current;
-    visionContext.current='';setSheetHeight(72);setVisionExpanded(true);setVisionError('');setVisionItems([]);setVisionPrompt('');setVisionRegion(null);setVisionImage('');
+    visionContext.current='';updateConsultation('specify','در حال بررسی تصویر قطعه و استخراج مشخصات قابل مشاهده');setSheetHeight(72);setVisionExpanded(true);setVisionError('');setVisionItems([]);setVisionPrompt('');setVisionRegion(null);setVisionImage('');
     if(!/^(image\/jpeg|image\/png|image\/webp)$/.test(file.type)||file.size>10*1024*1024){setVisionBusy(false);setVisionError('تصویر JPG، PNG یا WebP تا ۱۰ مگابایت انتخاب کنید.');return;}
     setVisionBusy(true);
     try{
@@ -222,6 +259,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   };
   const clearVision=()=>{scanVersion.current++;visionContext.current='';setVisionImage('');setVisionItems([]);setVisionPrompt('');setVisionRegion(null);setVisionBusy(false);setVisionError('');};
   const labels:Record<Phase,string>={connecting:'در حال اتصال به گیسو…',listening:'فورزا گوش می‌دهد',thinking:'فورزا در حال پاسخ‌گویی…',speaking:'فورزا در حال صحبت است',disconnected:'اتصال قطع است'};
+  const consultationStageIndex=CONSULTATION_STAGES.findIndex(item=>item.id===consultationState.stage);
   const control='p-1.5 rounded-md text-white/80 hover:bg-white/10';
   return <main className="forza-stage" dir="ltr">
     <Suspense fallback={<div className="forza-avatar-fallback"/>}><ParticleAvatar mode={phase==='speaking'?'speak':phase==='listening'?'listen':'auto'} intensity={1} stableLight audioLevel={phase==='speaking'?level:0} quality="high" background backgroundSpeed={2} onStats={setStats}/></Suspense>
@@ -231,7 +269,16 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
     <div dir="rtl" className="forza-conversation-panel absolute bottom-3 right-3 sm:bottom-20 sm:right-10 w-[calc(100%-1.5rem)] sm:w-[min(36vw,30rem)] max-h-[var(--forza-sheet-height)] sm:max-h-[min(74dvh,760px)] overflow-y-auto overscroll-contain max-w-[34rem] z-30 flex flex-col gap-3 pointer-events-none" style={{'--forza-sheet-height':sheetHeight+'dvh'} as CSSProperties}>
       <button type="button" aria-label="تغییر ارتفاع پنل مشاوره" className="sm:hidden sticky top-0 z-10 pointer-events-auto self-center w-20 min-h-8 rounded-full bg-black/85 border border-white/20 touch-none flex items-center justify-center" onPointerDown={e=>{sheetDrag.current={y:e.clientY,height:sheetHeight};e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{const drag=sheetDrag.current;if(drag)setSheetHeight(Math.max(35,Math.min(88,drag.height+(drag.y-e.clientY)/window.innerHeight*100)));}} onPointerUp={()=>{sheetDrag.current=null;}} onPointerCancel={()=>{sheetDrag.current=null;}} onClick={e=>{if(e.detail===0)setSheetHeight(v=>v>70?45:85);}}><span className="w-10 h-1 rounded-full bg-white/60"/></button>
       <div className="forza-status-dock sticky top-0 sm:static z-10 self-end inline-flex flex-wrap items-center gap-2 px-4 py-2 rounded-full bg-black/90 border border-white/15 text-xs pointer-events-auto"><span className="font-semibold text-white">{labels[phase]}</span><button className={control} onClick={toggleMic} aria-label="میکروفون">{muted?<MicOff size={14}/>:<Mic size={14}/>}</button><button className={control} onClick={toggleSpeaker} aria-label="بلندگو">{silent?<VolumeX size={14}/>:<Volume2 size={14}/>}</button><button className={control} onClick={cancel} aria-label="قطع پاسخ"><Square size={13}/></button><button className={control} onClick={()=>setShowText(v=>!v)} aria-label="پیام متنی"><MessageSquare size={14}/></button><button className={control} onClick={pauseCall} aria-label="قطع اتصال"><PhoneOff size={14}/></button><button className={control} onClick={manualReconnect} aria-label="اتصال مجدد"><RotateCcw size={14}/></button></div>
-      <div className="forza-voice-meta self-end text-[10px] text-white/70">گیسو · Qwen Realtime · {voice} {confirmed?'(تأیید پارامتر)':'(صدای تأییدنشده)'}</div>
+      <div className="forza-voice-meta self-end text-[10px] text-white/70">گیسو · Qwen Realtime · {voice} {confirmed?'(صدای تأییدشده)':'(صدای تأییدنشده)'} · {noiseAwareVadReady?'فیلتر هوشمند نویز و تشخیص گفتار فعال':'در انتظار تأیید فیلتر هوشمند نویز'}</div>
+      <section dir="rtl" aria-label="مراحل مشاوره مهندسی" className="pointer-events-auto rounded-2xl border border-white/10 bg-[#100a06]/90 p-3">
+        <div className="flex items-center justify-between gap-2 mb-2"><strong className="text-xs text-orange-300">مسیر مشاوره مهندسی</strong><span className="text-[10px] text-white/55">{consultationStageIndex+1} از ۶</span></div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {CONSULTATION_STAGES.map((item,index)=><div key={item.id} aria-current={item.id===consultationState.stage?'step':undefined} className={'rounded-lg px-2 py-1.5 text-center text-[10px] border '+(index===consultationStageIndex?'border-orange-400 bg-orange-500/20 text-orange-200':index<consultationStageIndex?'border-orange-400/25 bg-orange-500/5 text-white/65':'border-white/10 bg-white/[0.03] text-white/45')}>{item.label}</div>)}
+        </div>
+        {consultationState.summary&&<p className="mt-2 text-[11px] leading-5 text-white/75">{consultationState.summary}</p>}
+        {!!consultationState.knownFacts.length&&<div className="mt-2"><div className="text-[10px] text-emerald-200/80 mb-1">اطلاعات دریافت‌شده</div><div className="flex flex-wrap gap-1">{consultationState.knownFacts.map((fact,i)=><span key={i} className="rounded-full bg-emerald-500/10 border border-emerald-400/20 px-2 py-1 text-[10px] text-white/75">{fact}</span>)}</div></div>}
+        {!!consultationState.missingFacts.length&&<div className="mt-2"><div className="text-[10px] text-orange-200/80 mb-1">اطلاعات موردنیاز</div><div className="flex flex-wrap gap-1">{consultationState.missingFacts.map((fact,i)=><span key={i} className="rounded-full bg-orange-500/10 border border-orange-400/20 px-2 py-1 text-[10px] text-white/75">{fact}</span>)}</div></div>}
+      </section>
       {error&&<div role="alert" className="pointer-events-auto rounded-xl bg-red-950/90 border border-red-500/50 p-3 text-xs text-white">{error}<button className="block mt-2 underline" onClick={manualReconnect}>اتصال مجدد</button></div>}
       <button type="button" className="forza-image-scan-button pointer-events-auto self-end flex gap-3 items-center rounded-2xl border border-orange-400/60 bg-orange-950/90 px-5 py-3 text-white" onClick={()=>fileInput.current?.click()}><Eye size={22} className="text-orange-400"/> ارسال تصویر قطعه</button>
       <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)void scanImage(f);}}/>
@@ -256,7 +303,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       {(user||assistant)&&<div className="forza-message-card pointer-events-auto" aria-live="polite">{user&&<><div className="text-xs font-bold text-white mb-1">شما</div><p className="forza-persian-copy text-sm text-white">{user}</p></>}{assistant&&<><div className="text-xs font-bold text-orange-400 mt-2 mb-1">FORZA</div><p className="forza-persian-copy text-sm text-white">{assistant}</p></>}</div>}
       {(catalogBusy||catalogQuery)&&<section className="pointer-events-auto rounded-2xl border border-orange-400/35 bg-[#100a06]/95 p-3 shadow-xl" aria-label="نتایج کاتالوگ صنعت پیش" dir="rtl">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <strong className="text-xs font-bold text-orange-300">نتایج کاتالوگ صنعت پیش</strong>
+          <strong className="text-xs font-bold text-orange-300">{catalogMode==='compare'?'مقایسه محصولات صنعت پیش':catalogMode==='details'?'مشخصات محصول در کاتالوگ':'نتایج کاتالوگ صنعت پیش'}</strong>
           <span className="text-[10px] text-white/60">{catalogBusy?'در حال جست‌وجو…':catalogResults.length+' خانواده محصول'}</span>
         </div>
         {catalogBusy&&<p className="py-2 text-xs text-white/70">در حال بررسی خانواده‌ها و کدهای کالا…</p>}
@@ -271,13 +318,13 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <strong className="block text-xs font-bold leading-5 text-white">{family.name}</strong>
-                  <div className="mt-0.5 text-[10px] text-white/60">{family.brand?family.brand+' · ':''}<span dir="ltr" className="font-mono">{family.code}</span></div>
+                  <div className="mt-0.5 text-[10px] text-white/60">{[family.brand,family.categoryName,family.subcategory].filter(Boolean).join(' · ')} · <span dir="ltr" className="font-mono">{family.code}</span></div>
                 </div>
                 <a href={family.link} className="shrink-0 rounded-lg bg-orange-500 px-2.5 py-2 text-[10px] font-bold text-black">مشاهده</a>
               </div>
               {(!!family.technicalSpecs?.length||family.description)&&<details className="mt-2 text-xs text-white/80"><summary className="cursor-pointer py-1">مشخصات خانواده</summary>{family.description&&<p className="py-1 leading-5">{family.description}</p>}{family.technicalSpecs?.map((spec,i)=><div key={i} className="flex justify-between gap-2 py-1"><span>{spec.key}</span><span>{spec.value}</span></div>)}</details>}
               {!!family.variants?.length&&<div className="mt-2 flex flex-wrap gap-1.5 border-t border-white/10 pt-2">
-                {family.variants.slice(0,6).map(variant=><a key={variant.code} href={'/direct-product/'+encodeURIComponent(variant.code)} className="rounded-md bg-black/40 px-2 py-1 text-[10px] text-white/80 hover:bg-orange-500/20 hover:text-white"><bdi dir="ltr" className="font-mono">{variant.code}</bdi>{variant.size?' · '+variant.size:''}</a>)}
+                {family.variants.slice(0,6).map(variant=><a key={variant.code} href={'/direct-product/'+encodeURIComponent(variant.code)} className="inline-flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-1 text-[10px] text-white/80 hover:bg-orange-500/20 hover:text-white">{variant.images?.[0]&&<img src={variant.images[0]} alt="" loading="lazy" className="h-7 w-7 rounded bg-white object-contain"/>}<bdi dir="ltr" className="font-mono">{variant.code}</bdi>{variant.size?' · '+variant.size:''}</a>)}
               </div>}
               {family.variants?.filter(v=>!!v.technicalSpecs?.length||v.description).map(variant=><details key={'spec:'+variant.code} className="mt-2 text-xs text-white/80"><summary className="cursor-pointer py-1">مشخصات کد <bdi>{variant.code}</bdi></summary>{variant.description&&<p className="py-1 leading-5">{variant.description}</p>}{variant.technicalSpecs?.map((spec,i)=><div key={i} className="flex justify-between gap-2 py-1"><span>{spec.key}</span><span>{spec.value}</span></div>)}</details>)}
             </article>;

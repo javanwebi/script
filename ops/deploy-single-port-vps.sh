@@ -827,7 +827,7 @@ if [[ -f "$APP/.env.forza-voice" ]]; then
       " voice=" + voiceProvider + " key=SET");
   '
 fi
-if ! docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs; then
+if ! docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node --import tsx ops/verify-single-port-canary.mjs; then
   echo '===== PRIVATE CANARY APPLICATION LOGS (LAST 160 LINES) =====' >&2
   docker logs --tail 160 "$CANARY_NAME" >&2 || true
   exit 1

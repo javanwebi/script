@@ -213,7 +213,7 @@ test("AvalAI private config is required for Voice while Desk may retain its inde
   assert.match(configGate, /PRIVATE_FORZA_CONFIG_MOUNT_OK/);
 });
 
-test("the private canary verifies effective AvalAI voice and Nima readiness before promotion", () => {
+test("the private canary verifies the legacy AvalAI voice and the actual Gisoo Qwen realtime call before promotion", () => {
   const canary = file("ops/verify-single-port-canary.mjs");
   const voice = canary.indexOf('"/api/ai/forza-voice-info"');
   const stt = canary.indexOf('"/api/ai/forza-stt-info"');
@@ -225,6 +225,14 @@ test("the private canary verifies effective AvalAI voice and Nima readiness befo
   assert.match(gate, /incrementalSpeech, true/);
   assert.match(gate, /FORZA_PRIVATE_VOICE_NOT_READY/);
   assert.match(gate, /FORZA_VOICE_CANARY_AVALAI_READY_OK/);
+  assert.match(canary, /FORZA_QWEN_GISOO_REALTIME_CANARY_OK/);
+  assert.match(canary, /FORZA_QWEN_GISOO_AUDIO_APPEND_OK/);
+  assert.match(canary, /buildGisooQwenSessionUpdate/);
+  assert.match(canary, /isGisooQwenVoiceConfirmed/);
+  assert.match(canary, /isGisooQwenTurnDetectionConfirmed/);
+  assert.match(canary, /FORZA_QWEN_GISOO_SEMANTIC_VAD_EC_NOT_CONFIRMED/);
+  assert.match(canary, /FORZA_QWEN_API_KEY_NOT_EFFECTIVE/);
+  assert.match(canary, /FORZA_QWEN_MIC_WORKLET_ASSET_OK/);
 });
 
 test("private FORZA provider credentials are mounted read-only into each release", () => {
@@ -494,7 +502,7 @@ test("the production canary verifies the POPD reference archive and every approv
   assert.ok(referenceGate.includes('url.startsWith("/images/")'));
   assert.ok(referenceGate.indexOf("POPD_REFERENCE_STORAGE_IMAGES_OK") <
     referenceGate.indexOf("POPD_REFERENCE_CATEGORY_FAMILY_SKU_ROUTES_OK"));
-  assert.ok(one.indexOf("node ops/verify-single-port-canary.mjs") <
+  assert.ok(one.indexOf("node --import tsx ops/verify-single-port-canary.mjs") <
     one.indexOf("===== PROMOTE ON SAME FIXED PORT"));
   const syntax = spawnSync("node", ["--check", "ops/verify-single-port-canary.mjs"], { encoding: "utf8" });
   assert.equal(syntax.status, 0, syntax.stderr || syntax.stdout);

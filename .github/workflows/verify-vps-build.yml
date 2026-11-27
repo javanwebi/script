@@ -189,7 +189,10 @@ jobs:
       - name: Install Chromium for belt category responsive smoke
         run: |
           npm install --no-save --ignore-scripts --no-package-lock playwright@1.56.1 onnxruntime-web@1.18.0
-          npx playwright install --with-deps chromium
+          # GitHub-hosted Ubuntu 24.04 runners already provide Chromium's OS libraries.
+          # Avoid apt-get update here: the hosted Microsoft package mirror can return 403
+          # and fail the build before the responsive browser smoke tests even start.
+          npx playwright install chromium
       - name: Launch production preview for catalogue browser tests
         run: |
           nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/storefront-preview.log 2>&1 &

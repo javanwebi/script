@@ -8,6 +8,7 @@ import {
   mapGisooQwenEvent,
   resolveGisooQwenVoice,
   isGisooQwenVoiceConfirmed,
+  isGisooQwenTurnDetectionConfirmed,
 } from '../server/ai/gisooQwenRealtime';
 import { searchForzaRealtimeCatalog } from '../server/ai/forzaRealtimeCatalog';
 import type { Product } from '../src/types';
@@ -28,12 +29,26 @@ test('Qwen session uses Gisoo direct-realtime PCM, Bodega voice, configured VAD,
   });
   assert.equal(update.session.audio.output.voice, 'Bodega');
   assert.equal(update.session.instructions, 'دستیار فارسی صنعت پیش');
-  assert.equal(update.session.audio.input.turn_detection.type, 'server_vad');
-  assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 500);
-  assert.equal(update.session.audio.input.turn_detection.interrupt_response, true);
+  assert.equal(update.session.audio.input.turn_detection.type, 'semantic_vad_ec');
+  assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 800);
+  assert.deepEqual(Object.keys(update.session.audio.input.turn_detection).sort(), ['silence_duration_ms','threshold','type']);
+  assert.equal('turn_detection' in update.session, false);
+  assert.equal(isGisooQwenTurnDetectionConfirmed({audio:{input:{turn_detection:{type:'semantic_vad_ec'}}}}), true);
+  assert.equal(isGisooQwenTurnDetectionConfirmed({turn_detection:{type:'semantic_vad_ec'}}), true);
+  assert.equal(isGisooQwenTurnDetectionConfirmed({audio:{input:{turn_detection:{type:'server_vad'}}}}), false);
   assert.equal(update.session.reasoning.effort, 'none');
 });
 
+test('live microphone remains streaming while FORZA speaks so the model can interrupt in full duplex',()=>{
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ const mic=client.slice(client.indexOf('const sendMic='),client.indexOf('if(ctx.audioWorklet)'));
+ assert.match(mic,/if\(!s\.ready\|\|micMuted\.current\|\|scanning\.current\|\|s\.ws\?\.readyState!==WebSocket\.OPEN\)return/);
+ assert.doesNotMatch(mic,/phase|speaking|assistantSpeaking|s\.sources\.size/);
+ assert.match(client,/m\.type==='speech_started'\)\{setError\(''\);stopPlayback\(s\)/);
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(server,/turn_detection:\{type:'semantic_vad_ec'/);
+ assert.match(server,/cancelActiveResponse\(active\)/);
+});
 test('opening greeting uses one documented internal input_text bootstrap, not fake audio', () => {
   const trigger = buildGisooQwenOpeningGreetingTrigger('forza-opening-test');
   assert.equal(trigger.type, 'conversation.item.create');
@@ -102,7 +117,7 @@ test('Qwen late completion keeps the provider response identity', () => {
 });
 
 test('Qwen invalid VAD duration uses a finite default', () => {
-  assert.equal(buildGisooQwenSessionUpdate('فارسی', NaN).session.audio.input.turn_detection.silence_duration_ms, 500);
+  assert.equal(buildGisooQwenSessionUpdate('فارسی', NaN).session.audio.input.turn_detection.silence_duration_ms, 800);
 });
 
 test('Face-to-face page actually mounts the native Gisoo client without the old speech endpoints', () => {
@@ -123,7 +138,7 @@ test('Customer barge-in remains intact and Gisoo generates one opening greeting 
   assert.match(client,/if\(!s\.ready\|\|micMuted\.current\|\|scanning\.current/);
   assert.match(client,/setPhase\('listening'\);return;/);
   assert.doesNotMatch(client,/greeted|type:'text',text:greeting|سلام، به صنعت پیش خوش آمدید/);
-  assert.match(prompt,/تو فورزا، مشاور فنی و راهنمای تأمین قطعات صنعتی صنعت پیش هستی/);
+  assert.match(prompt,/تو فورزا هستی؛ مشاور مهندسی و راهنمای تأمین قطعات صنعتی صنعت پیش/);
   assert.match(prompt,/مکالمه زنده و پیوسته بین دو انسان/);
   assert.match(prompt,/به محض دریافت این فرمان داخلی/);
   assert.match(prompt,/فرمان داخلی آغاز تماس است و حرف مشتری نیست/);
@@ -154,10 +169,12 @@ test('Customer barge-in remains intact and Gisoo generates one opening greeting 
 test('recoverable Gisoo flood errors do not tear down an established realtime session', () => {
   assert.equal(classifyGisooRealtimeError('flood', true), 'recoverable');
   assert.equal(classifyGisooRealtimeError('rate_limit_exceeded', true), 'recoverable');
-  assert.equal(classifyGisooRealtimeError('session_closed', true), 'fatal');
-  assert.equal(classifyGisooRealtimeError('server_restart', true), 'fatal');
+  assert.equal(classifyGisooRealtimeError('session_closed', true), 'recoverable');
+  assert.equal(classifyGisooRealtimeError('server_restart', true), 'recoverable');
   assert.equal(classifyGisooRealtimeError('insufficient_credit', true), 'fatal');
-  assert.equal(classifyGisooRealtimeError('flood', false), 'fatal');
+  assert.equal(classifyGisooRealtimeError('flood', false), 'recoverable');
+  assert.equal(classifyGisooRealtimeError('rate_limit_exceeded', false), 'recoverable');
+  assert.equal(classifyGisooRealtimeError('server_error', false), 'recoverable');
   assert.equal(classifyGisooRealtimeError('response_cancel_not_active', true), 'ignore');
   assert.equal(classifyGisooRealtimeError('conversation_already_has_active_response', true), 'active_response');
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
@@ -214,7 +231,8 @@ test('native Gisoo server executes catalogue function calls and returns tool out
   assert.match(server, /response\.function_call_arguments\.done/);
   assert.match(server, /function_call_output/);
   assert.match(server, /type:'catalog_results'/);
-  assert.match(server, /cancelled\.has\(response\)&&pendingText&&!userSpeaking/);
+  assert.match(server, /if\(cancelled\.has\(response\)\|\|userSpeaking\)/);
+  assert.match(server, /if\(pendingText&&!userSpeaking\)/);
   assert.match(server, /toolResponseId&&cancelled\.has\(toolResponseId\)/);
   assert.match(app, /connectGisooQwenRealtime\(clientWs, FORZA_QWEN_SYSTEM_INSTRUCTION, searchForzaLiveCatalog, resuming\)/);
   assert.match(app, /systemInstruction: FORZA_SYSTEM_INSTRUCTION/);
@@ -227,25 +245,26 @@ test('live call renders catalogue product cards and does not disconnect on a twe
   assert.match(client, /href=\{family\.link\}/);
   assert.match(client, /s\.next-ctx\.currentTime>90/);
   assert.doesNotMatch(client, /s\.next-ctx\.currentTime>12/);
-  assert.match(client, /useState\('Bodega'\)/);
+  assert.match(client, /useState\('Arda'\)/);
 });
 
 
-test('FORZA selects a different documented Qwen3.8 male voice and rejects silent voice fallback', () => {
-  assert.equal(resolveGisooQwenVoice(undefined), 'Bodega');
-  assert.equal(resolveGisooQwenVoice('Andre'), 'Bodega');
-  assert.equal(resolveGisooQwenVoice('andre'), 'Bodega');
+test('FORZA defaults to the selected Arda voice and preserves explicitly supported Qwen3.8 male voices', () => {
+  assert.equal(resolveGisooQwenVoice(undefined), 'Arda');
+  assert.equal(resolveGisooQwenVoice('Andre'), 'Andre');
+  assert.equal(resolveGisooQwenVoice('andre'), 'Andre');
+  assert.equal(resolveGisooQwenVoice('Arda'), 'Arda');
   assert.equal(resolveGisooQwenVoice('Bodega'), 'Bodega');
   assert.equal(resolveGisooQwenVoice('Ryan'), 'Ryan');
   assert.equal(resolveGisooQwenVoice('Raymond'), 'Raymond');
   assert.equal(resolveGisooQwenVoice('Aiden'), 'Aiden');
-  assert.equal(resolveGisooQwenVoice('Tina'), 'Bodega');
-  assert.equal(resolveGisooQwenVoice('Ethan'), 'Bodega');
-  assert.equal(resolveGisooQwenVoice('unsupported-voice'), 'Bodega');
-  assert.equal(buildGisooQwenSessionUpdate('مشاور فنی فارسی').session.audio.output.voice, 'Bodega');
-  assert.equal(isGisooQwenVoiceConfirmed({audio:{output:{voice:'Bodega'}}},'Bodega'),true);
-  assert.equal(isGisooQwenVoiceConfirmed({audio:{output:{voice:'Tina'}}},'Bodega'),false);
-  assert.equal(isGisooQwenVoiceConfirmed({},'Bodega'),false);
+  assert.equal(resolveGisooQwenVoice('Tina'), 'Arda');
+  assert.equal(resolveGisooQwenVoice('Ethan'), 'Arda');
+  assert.equal(resolveGisooQwenVoice('unsupported-voice'), 'Arda');
+  assert.equal(buildGisooQwenSessionUpdate('مشاور فنی فارسی').session.audio.output.voice, 'Arda');
+  assert.equal(isGisooQwenVoiceConfirmed({audio:{output:{voice:'Arda'}}},'Arda'),true);
+  assert.equal(isGisooQwenVoiceConfirmed({audio:{output:{voice:'Tina'}}},'Arda'),false);
+  assert.equal(isGisooQwenVoiceConfirmed({},'Arda'),false);
 });
 
 test('Browser reports actual laptop microphone noise-processing settings without exposing device identity', () => {
@@ -277,7 +296,7 @@ test('catalogue cards retain visible products during follow-up speech and expose
   assert.ok(start >= 0 && end > start);
   assert.doesNotMatch(client.slice(start, end), /setCatalogResults|setCatalogQuery/);
   assert.match(client, /href=\{'\/direct-product\/'\+encodeURIComponent\(variant\.code\)\}/);
-  assert.match(client, /useState\('Bodega'\)/);
+  assert.match(client, /useState\('Arda'\)/);
 });
 
 test('reconnect seeds context only on resumed calls and avoids an opening greeting',()=>{
@@ -285,7 +304,10 @@ test('reconnect seeds context only on resumed calls and avoids an opening greeti
  const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
  assert.match(server,/if\(resuming\)\{toClient\(\{type:'connected',[^\n]*resumed:true\}\);return;\}greetingTriggerId=/);
  assert.match(server,/if\(!resuming\|\|resumeSeedAccepted\)return/);
- assert.match(client,/retryCount\.current<3/);
+ assert.match(client,/retryCount\.current<5/);
+ assert.match(client,/m\.retryable===true/);
+ assert.match(server,/retryable=false/);
+ assert.match(server,/browser_heartbeat_timeout/);
  assert.match(client,/type:'resume_context'/);
  assert.match(client,/type:'ping'/);
  assert.match(client,/m\.type==='pong'/);
@@ -342,4 +364,130 @@ test('exact SKU lookup prioritizes the requested active code and exposes its own
  assert.equal(result.results[0].variants[0].link,'/direct-product/A19');
  assert.ok(!result.results[0].variants.some(v=>v.code==='A1900'));
  assert.doesNotMatch(JSON.stringify(result), /"price"|"stock"/);
+});
+
+test('Qwen realtime uses a natural Persian pause and exposes exact detail and comparison tools',()=>{
+ const update=buildGisooQwenSessionUpdate('مشاور');
+ assert.equal(update.session.audio.input.turn_detection.silence_duration_ms,800);
+ assert.equal(update.session.tools.length,4);
+ assert.equal(update.session.tools[0].name,'search_sanatpish_catalog');
+ assert.equal(update.session.tools[1].name,'get_sanatpish_product_details');
+ assert.deepEqual(update.session.tools[1].parameters.required,['code']);
+ assert.equal(update.session.tools[2].name,'compare_sanatpish_products');
+ assert.deepEqual(update.session.tools[2].parameters.required,['codes']);
+ assert.equal(update.session.tools[3].name,'update_forza_consultation');
+ assert.deepEqual(update.session.tools[3].parameters.required,['stage','summary','knownFacts','missingFacts']);
+ assert.ok(update.session.tools[3].parameters.properties.knownFacts);
+ assert.ok(update.session.tools[3].parameters.properties.missingFacts);
+});
+test('transport protects the call from brief backpressure and records provider close diagnostics',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ assert.match(server,/upstream\.ping\(\)/);
+ assert.match(server,/upstream\.on\('pong'/);
+ assert.match(server,/client\.on\('pong'/);
+ assert.match(server,/browser_heartbeat_timeout/);
+ assert.match(server,/upstream_closed/);
+ assert.match(server,/session_end/);
+ assert.match(server,/session_started/);
+ assert.match(server,/session_rejected/);
+ assert.match(server,/upstream_audio_backpressure_started/);
+ assert.match(server,/upstreamCongestedNotice&&queued<32768/);
+ assert.match(server,/browser_output_backpressure/);
+ assert.match(server,/network_degraded/);
+ assert.match(client,/retryCount\.current<5/);
+ assert.match(client,/document\.visibilityState==='visible'/);
+ assert.match(client,/window\.addEventListener\('online'/);
+ assert.match(client,/micCongestedSince/);
+ assert.doesNotMatch(client,/bufferedAmount>262144\)\{fail/);
+});
+test('mic resampling and PCM conversion run in AudioWorklet for the primary path',()=>{
+ const worklet=readFileSync('public/forza-runtime/qwen-mic-worklet.js','utf8');
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ assert.match(worklet,/targetRate = 16000/);
+ assert.match(worklet,/new Int16Array\(outputLength\)/);
+ assert.match(worklet,/this\.port\.postMessage\(pcm, \[pcm\.buffer\]\)/);
+ assert.match(client,/e\.data instanceof Int16Array/);
+ assert.match(client,/encodePcm16\(samples\)/);
+});
+test('FORZA consultant prompt follows a staged industrial diagnostic and recommendation workflow',()=>{
+ const app=readFileSync('server.ts','utf8');
+ const prompt=app.match(/const FORZA_QWEN_SYSTEM_INSTRUCTION = `([\s\S]*?)`;/)?.[1]||'';
+ for(const term of ['پرونده مهندسی','تسمه‌ها','بلبرینگ و رولبرینگ','عیب‌یابی','کاتالوگ واقعی','دلیل انتخاب','یک سؤال مهم','وایسا','بله، بفرمایید'])assert.ok(prompt.includes(term),term);
+ assert.match(prompt,/get_sanatpish_product_details/);
+ assert.match(prompt,/compare_sanatpish_products/);
+ assert.match(prompt,/update_forza_consultation/);
+});
+test('catalog lookup does not claim success when no family or SKU matched',()=>{
+ const products=[{code:'OTHER',name:'قطعه دیگر',brand:'',categorySlug:'other',categoryName:'سایر',subcategory:'',technicalSpecs:[],prices:{base:0,retail:0,wholesale:0,dealer:0},stock:0,inquiryOnly:true,images:[],tags:[],unit:'عدد',active:true,variants:[]}] as unknown as Product[];
+ const result=searchForzaRealtimeCatalog(products,'ناشناخته');
+ assert.equal(result.results.length,0);
+ assert.equal(result.success,false);
+});
+test('comparison UI query is derived from the compared product codes',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(server,/const comparisonCodes=mode==='compare'&&Array\.isArray\(args\.codes\)/);
+ assert.match(server,/comparisonCodes\.join\(' \/ '\)/);
+});
+test('cancelled consultation tool calls are rejected before publishing stale consultation state',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ const start=server.indexOf('const runCatalogTool=');
+ const early=server.indexOf('if(toolResponseId&&cancelled.has(toolResponseId))',start);
+ const consultation=server.indexOf("toClient({type:'consultation_update'",start);
+ const late=server.indexOf('if(toolResponseId&&cancelled.has(toolResponseId))',early+1);
+ assert.ok(start>=0&&early>start&&early<consultation);
+ assert.ok(late>consultation);
+});
+
+test('live Qwen call keeps a provider-safe concurrency ceiling configurable up to forty sessions',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(server,/FORZA_QWEN_MAX_SESSIONS\|\|8\),8,1,40/);
+});
+test('reconnect preserves transcript and vision context while avoiding false background heartbeat timeouts',()=>{
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ assert.match(client,/history\.current=\[\.\.\.history\.current,\{role,text:clean\}\]\.slice\(-8\)/);
+ assert.match(client,/visibilitychange/);
+ assert.match(client,/visibilityHandler=\(\)=>\{if\(document\.visibilityState==='visible'\)/);
+ assert.match(client,/document\.removeEventListener\('visibilitychange'/);
+});
+test('parallel Qwen function calls wait for every tool output and create only one continuation',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ const start=server.indexOf('const runCatalogTool');
+ const end=server.indexOf("client.on('pong'",start);
+ const handler=server.slice(start,end);
+ assert.match(server,/toolPendingCounts\.set\(toolResponseId,\(toolPendingCounts\.get\(toolResponseId\)\|\|0\)\+1\)/);
+ assert.match(server,/toolResponseDone\.add\(response\)/);
+ assert.match(server,/continueAfterToolCalls\(response\)/);
+ assert.match(server,/completeToolCall\(toolResponseId\)/);
+ assert.doesNotMatch(handler,/type:'response\.create'/);
+ assert.match(server,/if\(!send\(\{type:'response\.create'\}\)\)/);
+});
+test('barge-in cancellation is bounded and clears stale active responses',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(server,/cancelActiveResponse/);
+ assert.match(server,/cancelTimer=setTimeout/);
+ assert.match(server,/response_cancel_timeout/);
+ assert.match(server,/code==='response_cancel_not_active'&&active&&cancelled\.has\(active\)/);
+});
+test('provider failures cannot leave the live assistant waiting forever for a response start',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(server,/responseStartTimer=setTimeout/);
+ assert.match(server,/response_start_timeout/);
+ assert.match(server,/send\(\{type:'response\.cancel'\}\)/);
+ assert.match(server,/\['flood','rate_limit_exceeded','server_error','temporarily_unavailable'\]/);
+ assert.match(server,/authentication_error/);
+});
+
+test('live call displays and restores a real consultation stage instead of a decorative progress bar',()=>{
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(client,/CONSULTATION_STAGES/);
+ assert.match(client,/m\.type==='consultation_update'/);
+ assert.match(client,/consultation:consultationRef\.current/);
+ assert.match(client,/consultationState\.knownFacts/);
+ assert.match(client,/consultationState\.missingFacts/);
+ assert.match(server,/type:'consultation_update'/);
+ assert.match(server,/update_forza_consultation/);
+ assert.match(server,/knownFacts,missingFacts/);
+ assert.match(server,/invalid_consultation_stage/);
 });
