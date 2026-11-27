@@ -438,6 +438,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     regionSelectionSequenceRef.current++;
     const imageId = localImageId;
     if (!imageId) return;
+    // Invalidate an in-flight search for the previously selected object.
+    // Otherwise handleAnalyze's busy guard would discard this tap and the
+    // old response would be ignored without ever querying the newly selected crop.
+    analysisSequenceRef.current++;
+    analysisBusyRef.current = false;
+    setInlineAnalysisBusy(false);
     const regionKey = [region.x, region.y, region.width, region.height].map(value => value.toFixed(4)).join(':');
     autoAnalysisKeyRef.current = `${imageId}:${regionKey}`;
     setQueryRegion(region);
