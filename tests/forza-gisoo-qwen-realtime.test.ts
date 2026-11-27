@@ -418,6 +418,18 @@ test('reconnect preserves transcript and vision context while avoiding false bac
  assert.match(client,/visibilityHandler=\(\)=>\{if\(document\.visibilityState==='visible'\)/);
  assert.match(client,/document\.removeEventListener\('visibilitychange'/);
 });
+test('parallel Qwen function calls wait for every tool output and create only one continuation',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ const start=server.indexOf('const runCatalogTool');
+ const end=server.indexOf("client.on('pong'",start);
+ const handler=server.slice(start,end);
+ assert.match(server,/toolPendingCounts\.set\(toolResponseId,\(toolPendingCounts\.get\(toolResponseId\)\|\|0\)\+1\)/);
+ assert.match(server,/toolResponseDone\.add\(response\)/);
+ assert.match(server,/continueAfterToolCalls\(response\)/);
+ assert.match(server,/completeToolCall\(toolResponseId\)/);
+ assert.doesNotMatch(handler,/type:'response\.create'/);
+ assert.match(server,/if\(!send\(\{type:'response\.create'\}\)\)/);
+});
 test('barge-in cancellation is bounded and clears stale active responses',()=>{
  const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
  assert.match(server,/cancelActiveResponse/);
