@@ -10,7 +10,7 @@ import {
 import { searchForzaRealtimeCatalog } from '../server/ai/forzaRealtimeCatalog';
 import type { Product } from '../src/types';
 
-test('Qwen session uses Gisoo direct-realtime PCM, Andre voice, and configured VAD contract', () => {
+test('Qwen session uses Gisoo direct-realtime PCM, Andre voice, configured VAD, and only the supplied instruction', () => {
   const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Andre');
   assert.equal(update.type, 'session.update');
   assert.deepEqual(update.session.output_modalities, ['audio']);
@@ -23,7 +23,7 @@ test('Qwen session uses Gisoo direct-realtime PCM, Andre voice, and configured V
     rate: 24000,
   });
   assert.equal(update.session.audio.output.voice, 'Andre');
-  assert.match(update.session.instructions, /تو فورزا هستی؛ مشاور صوتی فنی/);
+  assert.equal(update.session.instructions, 'دستیار فارسی صنعت پیش');
   assert.equal(update.session.audio.input.turn_detection.type, 'server_vad');
   assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 500);
   assert.equal(update.session.audio.input.turn_detection.interrupt_response, true);
@@ -187,7 +187,8 @@ test('native Gisoo server executes catalogue function calls and returns tool out
   assert.match(server, /type:'catalog_results'/);
   assert.match(server, /cancelled\.has\(response\)&&pendingText&&!userSpeaking/);
   assert.match(server, /toolResponseId&&cancelled\.has\(toolResponseId\)/);
-  assert.match(app, /connectGisooQwenRealtime\(clientWs, FORZA_SYSTEM_INSTRUCTION, searchForzaLiveCatalog\)/);
+  assert.match(app, /connectGisooQwenRealtime\(clientWs, FORZA_QWEN_SYSTEM_INSTRUCTION, searchForzaLiveCatalog\)/);
+  assert.match(app, /systemInstruction: FORZA_SYSTEM_INSTRUCTION/);
 });
 
 test('live call renders catalogue product cards and does not disconnect on a twelve-second audio queue', () => {
