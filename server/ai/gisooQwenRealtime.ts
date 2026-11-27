@@ -148,6 +148,28 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     if(responseStartTimer)clearTimeout(responseStartTimer);
     responseStartTimer=setTimeout(()=>{if(requested&&!active){requested=false;send({type:'response.cancel'});toClient({type:'provider_error',code:'response_start_timeout',reason:'پاسخ موتور مکالمه دیر شروع شد؛ یک بار دیگر بگو.',recoverable:true});}},18000);
   };
+  const continueAfterToolCalls=(response:string)=>{
+    if(!response||!toolResponseDone.has(response)||(toolPendingCounts.get(response)||0)>0||toolContinuationStarted.has(response))return;
+    toolContinuationStarted.add(response);
+    toolResponseDone.delete(response);toolResponseIds.delete(response);toolPendingCounts.delete(response);
+    if(toolContinuationStarted.size>64){const first=toolContinuationStarted.values().next().value;if(first)toolContinuationStarted.delete(first);}
+    if(response===active){active='';requested=false;if(cancelTimer&&cancelTimerResponse===response){clearTimeout(cancelTimer);cancelTimer=undefined;cancelTimerResponse='';}}
+    if(cancelled.has(response)||userSpeaking){
+      if(pendingText&&!userSpeaking){const next=pendingText;pendingText='';textTurn(next);}
+      return;
+    }
+    if(pendingText){const next=pendingText;pendingText='';textTurn(next);return;}
+    requested=true;
+    if(!send({type:'response.create'})){requested=false;toClient({type:'provider_error',code:'tool_continuation_failed',reason:'نتیجه بررسی آماده شد اما ادامه پاسخ شروع نشد؛ دوباره بپرس.',recoverable:true});return;}
+    if(responseStartTimer)clearTimeout(responseStartTimer);
+    responseStartTimer=setTimeout(()=>{if(requested&&!active){requested=false;send({type:'response.cancel'});toClient({type:'provider_error',code:'response_start_timeout',reason:'پاسخ موتور مکالمه دیر شروع شد؛ یک بار دیگر بگو.',recoverable:true});}},18000);
+  };
+  const completeToolCall=(response:string)=>{
+    if(!response)return;
+    const remaining=Math.max(0,(toolPendingCounts.get(response)||1)-1);
+    if(remaining>0)toolPendingCounts.set(response,remaining);else toolPendingCounts.delete(response);
+    continueAfterToolCalls(response);
+  };
   const runCatalogTool=async(event:Event)=>{
     const callId=String(event.call_id||'').trim();
     if(!callId||processedToolCalls.has(callId))return;
