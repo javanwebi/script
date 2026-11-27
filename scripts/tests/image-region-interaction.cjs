@@ -67,7 +67,7 @@ const {chromium}=require('playwright');
   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
   await page.getByTestId('kiki-inline-catalog-results').waitFor({timeout:45000});
   assert.equal(detections.length,1,'all object proposals must come from one server detection request');
-  assert.match(detections[0].imageBase64,/^data:image\\/png;base64,/,'the server detector must receive the original uploaded image');
+  assert.match(detections[0].imageBase64,/^data:image\/png;base64,/,'the server detector must receive the original uploaded image');
   assert.equal(queries.length,2,'switching objects must run a new catalog search without redetecting the image');
   assert.deepEqual(queries[0].region,{x:0.37,y:0.27,width:0.26,height:0.46},'the initial automatic crop must be searched');
   assert.deepEqual(queries[1].region,{x:0.67,y:0.28,width:0.2,height:0.44},'the second object crop must be searched');
@@ -97,7 +97,7 @@ const {chromium}=require('playwright');
   await page.mouse.up();
   await page.waitForTimeout(180);
   assert.equal(await review.getAttribute('data-selected-region'),regionBeforeDrag,'desktop image dragging must never alter the AI-selected crop');
-  assert.equal(queries.length,1,'desktop image dragging must not start a manual re-search');
+  assert.equal(queries.length,2,'desktop image dragging must not start a manual re-search');
 
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(120);
