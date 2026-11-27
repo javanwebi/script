@@ -32,7 +32,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const [level,setLevel]=useState(0),[muted,setMuted]=useState(false),[silent,setSilent]=useState(false);
   const [showText,setShowText]=useState(false),[text,setText]=useState(''),[showScan,setShowScan]=useState(false);
   const [confirmed,setConfirmed]=useState(false);
-  const [voice,setVoice]=useState('Andre');
+  const [voice,setVoice]=useState('Bodega');
   const [catalogQuery,setCatalogQuery]=useState('');
   const [catalogResults,setCatalogResults]=useState<LiveCatalogFamily[]>([]);
   const [catalogBusy,setCatalogBusy]=useState(false);
@@ -122,7 +122,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
         }
         if(m.type==='connected'){
           if(m.provider!=='qwen'){fail('سرور هنوز روی Qwen تنظیم نشده است.');return;}
-          if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Andre');setConfirmed(m.voiceConfirmed===true);const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});setPhase('listening');return;
+          if(s.ready)return;s.ready=true;setVoice(typeof m.voice==='string'?m.voice:'Bodega');setConfirmed(m.voiceConfirmed===true);const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});setPhase('listening');return;
         }
         if(m.type==='catalog_search_started'){setCatalogQuery(String(m.query||''));setCatalogResults([]);setCatalogBusy(true);return;}
         if(m.type==='catalog_results'){
