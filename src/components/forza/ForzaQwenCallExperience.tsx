@@ -59,7 +59,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const [sheetHeight,setSheetHeight]=useState(58);
   const sheetDrag=useRef<{y:number;height:number}|null>(null);
   const [confirmed,setConfirmed]=useState(false);
-  const [noiseAwareVadReady,setVoiceFocusReady]=useState(false);
+  const [noiseAwareVadReady,setNoiseAwareVadReady]=useState(false);
   const [voice,setVoice]=useState('Bodega');
   const [catalogQuery,setCatalogQuery]=useState('');
   const [catalogResults,setCatalogResults]=useState<LiveCatalogFamily[]>([]);
@@ -102,7 +102,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const start=useCallback(async()=>{
     if(retryTimer.current!==null){window.clearTimeout(retryTimer.current);retryTimer.current=null;}
     callActive.current=true;dispose();const s=newSession();session.current=s;
-    setError('');setPhase('connecting');setConfirmed(false);setVoiceFocusReady(false);
+    setError('');setPhase('connecting');setConfirmed(false);setNoiseAwareVadReady(false);
     const fail=(message:string,retry=false)=>{
       if(session.current!==s)return;dispose();setCatalogBusy(false);
       if(retry&&callActive.current&&retryCount.current<5){
@@ -185,7 +185,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           if(m.resumed===true){send(s,{type:'resume_context',text:JSON.stringify({history:history.current,vision:visionContext.current.slice(0,2900),consultation:consultationRef.current})});}
           wasConnected.current=true;
           s.heartbeat=window.setInterval(()=>{if(session.current!==s)return;if(document.visibilityState==='visible'&&Date.now()-s.lastPong>60000){fail('پاسخی از ارتباط زنده دریافت نشد.',true);return;}if(Date.now()-s.connectedAt>60000)retryCount.current=0;if(document.visibilityState==='visible')send(s,{type:'ping'});},10000);
-          setVoice(typeof m.voice==='string'?m.voice:'Bodega');setConfirmed(m.voiceConfirmed===true);setVoiceFocusReady(m.turnDetection==='semantic_vad_ec');const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});setPhase('listening');return;
+          setVoice(typeof m.voice==='string'?m.voice:'Bodega');setConfirmed(m.voiceConfirmed===true);setNoiseAwareVadReady(m.turnDetection==='semantic_vad_ec');const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});setPhase('listening');return;
         }
         if(m.type==='catalog_search_started'){setCatalogQuery(String(m.query||''));setCatalogMode(m.mode==='compare'?'compare':m.mode==='details'?'details':'search');setCatalogResults([]);setCatalogBusy(true);updateConsultation(m.mode==='compare'?'compare':'catalog',consultationRef.current.summary);return;}
         if(m.type==='consultation_update'){updateConsultation(m.stage,m.summary,m.knownFacts,m.missingFacts);return;}
