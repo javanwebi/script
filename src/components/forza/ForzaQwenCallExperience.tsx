@@ -11,6 +11,7 @@ type Phase = 'connecting'|'listening'|'thinking'|'speaking'|'disconnected';
 type LiveCatalogVariant={code:string;name:string;size?:string;model?:string;brand?:string;description?:string;technicalSpecs?:{key:string;value:string}[];images?:string[]};
 type LiveCatalogFamily={code:string;name:string;brand?:string;categoryName?:string;subcategory?:string;nameEn?:string;images?:string[];link:string;description?:string;technicalSpecs?:{key:string;value:string}[];variants?:LiveCatalogVariant[]};
 type ConsultationStage='understand'|'diagnose'|'specify'|'catalog'|'compare'|'recommend';
+type ConsultationState={stage:ConsultationStage;summary:string;knownFacts:string[];missingFacts:string[]};
 const CONSULTATION_STAGES:{id:ConsultationStage;label:string}[]=[{id:'understand',label:'شناخت نیاز'},{id:'diagnose',label:'عیب‌یابی'},{id:'specify',label:'مشخصات فنی'},{id:'catalog',label:'کاتالوگ'},{id:'compare',label:'مقایسه'},{id:'recommend',label:'پیشنهاد'}];
 type Session = { ws:WebSocket|null; stream:MediaStream|null; node:ScriptProcessorNode|AudioWorkletNode|null; mic:MediaStreamAudioSourceNode|null; sink:GainNode|null; output:GainNode|null; analyser:AnalyserNode|null; ctx:AudioContext|null; sources:Set<AudioBufferSourceNode>; next:number; ready:boolean; done:boolean; ignored:Set<string>; id:string; frame:number; lastVisual:number; heartbeat:number|null; lastPong:number; connectedAt:number; micCongestedSince:number; visibilityHandler:(()=>void)|null; };
 
@@ -62,11 +63,12 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const [catalogQuery,setCatalogQuery]=useState('');
   const [catalogResults,setCatalogResults]=useState<LiveCatalogFamily[]>([]);
   const [catalogMode,setCatalogMode]=useState<'search'|'details'|'compare'>('search');
-  const [consultationState,setConsultationState]=useState<{stage:ConsultationStage;summary:string}>({stage:'understand',summary:''});
-  const consultationRef=useRef<{stage:ConsultationStage;summary:string}>({stage:'understand',summary:''});
-  const updateConsultation=(stage:unknown,summary:unknown)=>{
+  const [consultationState,setConsultationState]=useState<ConsultationState>({stage:'understand',summary:'',knownFacts:[],missingFacts:[]});
+  const consultationRef=useRef<ConsultationState>({stage:'understand',summary:'',knownFacts:[],missingFacts:[]});
+  const updateConsultation=(stage:unknown,summary:unknown,knownFacts?:unknown,missingFacts?:unknown)=>{
     const valid=CONSULTATION_STAGES.some(item=>item.id===stage);if(!valid)return;
-    const next={stage:stage as ConsultationStage,summary:String(summary||'').trim().slice(0,320)};
+    const clean=(value:unknown,fallback:string[],max:number)=>Array.isArray(value)?value.slice(0,max).map(v=>String(v||'').trim().slice(0,100)).filter(Boolean):fallback;
+    const next:ConsultationState={stage:stage as ConsultationStage,summary:String(summary||'').trim().slice(0,320),knownFacts:clean(knownFacts,consultationRef.current.knownFacts,8),missingFacts:clean(missingFacts,consultationRef.current.missingFacts,6)};
     consultationRef.current=next;setConsultationState(next);
   };
   const [catalogBusy,setCatalogBusy]=useState(false);
@@ -182,7 +184,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           setVoice(typeof m.voice==='string'?m.voice:'Bodega');setConfirmed(m.voiceConfirmed===true);const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});setPhase('listening');return;
         }
         if(m.type==='catalog_search_started'){setCatalogQuery(String(m.query||''));setCatalogMode(m.mode==='compare'?'compare':m.mode==='details'?'details':'search');setCatalogResults([]);setCatalogBusy(true);updateConsultation(m.mode==='compare'?'compare':'catalog',consultationRef.current.summary);return;}
-        if(m.type==='consultation_update'){updateConsultation(m.stage,m.summary);return;}
+        if(m.type==='consultation_update'){updateConsultation(m.stage,m.summary,m.knownFacts,m.missingFacts);return;}
         if(m.type==='catalog_results'){
           setCatalogQuery(String(m.query||''));setCatalogMode(m.mode==='compare'?'compare':m.mode==='details'?'details':'search');
           setCatalogResults(Array.isArray(m.results)?m.results:[]);
@@ -270,6 +272,8 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           {CONSULTATION_STAGES.map((item,index)=><div key={item.id} aria-current={item.id===consultationState.stage?'step':undefined} className={'rounded-lg px-2 py-1.5 text-center text-[10px] border '+(index===consultationStageIndex?'border-orange-400 bg-orange-500/20 text-orange-200':index<consultationStageIndex?'border-orange-400/25 bg-orange-500/5 text-white/65':'border-white/10 bg-white/[0.03] text-white/45')}>{item.label}</div>)}
         </div>
         {consultationState.summary&&<p className="mt-2 text-[11px] leading-5 text-white/75">{consultationState.summary}</p>}
+        {!!consultationState.knownFacts.length&&<div className="mt-2"><div className="text-[10px] text-emerald-200/80 mb-1">اطلاعات دریافت‌شده</div><div className="flex flex-wrap gap-1">{consultationState.knownFacts.map((fact,i)=><span key={i} className="rounded-full bg-emerald-500/10 border border-emerald-400/20 px-2 py-1 text-[10px] text-white/75">{fact}</span>)}</div></div>}
+        {!!consultationState.missingFacts.length&&<div className="mt-2"><div className="text-[10px] text-orange-200/80 mb-1">اطلاعات موردنیاز</div><div className="flex flex-wrap gap-1">{consultationState.missingFacts.map((fact,i)=><span key={i} className="rounded-full bg-orange-500/10 border border-orange-400/20 px-2 py-1 text-[10px] text-white/75">{fact}</span>)}</div></div>}
       </section>
       {error&&<div role="alert" className="pointer-events-auto rounded-xl bg-red-950/90 border border-red-500/50 p-3 text-xs text-white">{error}<button className="block mt-2 underline" onClick={manualReconnect}>اتصال مجدد</button></div>}
       <button type="button" className="forza-image-scan-button pointer-events-auto self-end flex gap-3 items-center rounded-2xl border border-orange-400/60 bg-orange-950/90 px-5 py-3 text-white" onClick={()=>fileInput.current?.click()}><Eye size={22} className="text-orange-400"/> ارسال تصویر قطعه</button>
