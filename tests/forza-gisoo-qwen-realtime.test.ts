@@ -420,8 +420,23 @@ test('FORZA consultant prompt follows a staged industrial diagnostic and recomme
 });
 test('catalog lookup does not claim success when no family or SKU matched',()=>{
  const products=[{code:'OTHER',name:'قطعه دیگر',brand:'',categorySlug:'other',categoryName:'سایر',subcategory:'',technicalSpecs:[],prices:{base:0,retail:0,wholesale:0,dealer:0},stock:0,inquiryOnly:true,images:[],tags:[],unit:'عدد',active:true,variants:[]}] as unknown as Product[];
- const result=searchForzaRealtimeCatalog(products,'قطعه ناشناخته');
- if(result.results.length===0)assert.equal(result.success,false);
+ const result=searchForzaRealtimeCatalog(products,'ناشناخته');
+ assert.equal(result.results.length,0);
+ assert.equal(result.success,false);
+});
+test('comparison UI query is derived from the compared product codes',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(server,/const comparisonCodes=mode==='compare'&&Array\.isArray\(args\.codes\)/);
+ assert.match(server,/comparisonCodes\.join\(' \/ '\)/);
+});
+test('cancelled consultation tool calls are rejected before publishing stale consultation state',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ const start=server.indexOf('const runCatalogTool=');
+ const early=server.indexOf('if(toolResponseId&&cancelled.has(toolResponseId))',start);
+ const consultation=server.indexOf("toClient({type:'consultation_update'",start);
+ const late=server.indexOf('if(toolResponseId&&cancelled.has(toolResponseId))',early+1);
+ assert.ok(start>=0&&early>start&&early<consultation);
+ assert.ok(late>consultation);
 });
 
 test('live Qwen call keeps a provider-safe concurrency ceiling configurable up to forty sessions',()=>{
