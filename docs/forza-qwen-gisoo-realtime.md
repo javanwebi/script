@@ -53,7 +53,7 @@ Run:
 
 ```bash
 npm run lint
-node --import tsx --test tests/forza-gisoo-qwen-realtime.test.ts
+node --import tsx --test tests/forza-gisoo-qwen-realtime.test.ts tests/single-port-deploy.test.ts
 ```
 
 Do not merge or deploy until CI and a real browser microphone test pass. Do not change the current Gemini code while validating Qwen.
