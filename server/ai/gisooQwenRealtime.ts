@@ -14,7 +14,7 @@ function voice(){return resolveGisooQwenVoice();}
 function bounded(n:number,fallback:number,min:number,max:number){return Number.isFinite(n)?Math.max(min,Math.min(max,Math.round(n))):fallback;}
 function decode(raw:RawData):Event{return JSON.parse((Buffer.isBuffer(raw)?raw:Array.isArray(raw)?Buffer.concat(raw):Buffer.from(raw as ArrayBuffer)).toString('utf8'));}
 function id(e:Event,fallback=''){return String(e.response_id||e.response?.id||fallback);}
-export function buildGisooQwenSessionUpdate(instructions:string,silenceDurationMs=500,selectedVoice=voice()){
+export function buildGisooQwenSessionUpdate(instructions:string,silenceDurationMs=900,selectedVoice=voice()){
   return {
     type:'session.update',
     session:{
@@ -24,20 +24,23 @@ export function buildGisooQwenSessionUpdate(instructions:string,silenceDurationM
         input:{format:{type:'audio/pcm',rate:16000},turn_detection:{type:'server_vad',threshold:0.5,prefix_padding_ms:300,silence_duration_ms:bounded(silenceDurationMs,500,500,2500),create_response:true,interrupt_response:true}},
         output:{format:{type:'audio/pcm',rate:24000},voice:selectedVoice}
       },
-      tools:[{
-        type:'function',
-        name:'search_sanatpish_catalog',
-        description:'جست‌وجوی فقط‌خواندنی در کاتالوگ زنده صنعت پیش برای نام قطعه، خانواده محصول یا کد SKU. هنگام درخواست خرید، یافتن یا مقایسه قطعه از این ابزار استفاده کن. فقط نتایج واقعی کاتالوگ برگردانده می‌شوند و قیمت/موجودی در خروجی نیست.',
-        parameters:{
-          type:'object',
-          properties:{
-            query:{type:'string',description:'نام فارسی قطعه یا کد دقیق کالا؛ در صورت نیاز مترادف رایج انگلیسی'},
-            limit:{type:'integer',minimum:1,maximum:6,description:'حداکثر تعداد خانواده‌های محصول؛ پیش‌فرض ۶'}
-          },
-          required:['query'],
-          additionalProperties:false
+      tools:[
+        {
+          type:'function',name:'search_sanatpish_catalog',
+          description:'جست‌وجوی فقط‌خواندنی کاتالوگ زنده صنعت پیش با نام قطعه، کاربرد، برند یا کد. قبل از پیشنهاد محصول و هنگام نیاز به گزینه‌های واقعی از این ابزار استفاده کن.',
+          parameters:{type:'object',properties:{query:{type:'string',description:'نام قطعه، کاربرد، برند یا کد کالا'},limit:{type:'integer',minimum:1,maximum:6}},required:['query'],additionalProperties:false}
+        },
+        {
+          type:'function',name:'get_sanatpish_product_details',
+          description:'دریافت مشخصات خانواده و SKU دقیق با کد کالا. پیش از توضیح کامل یا تأیید مشخصات یک کد، این ابزار را اجرا کن.',
+          parameters:{type:'object',properties:{code:{type:'string',description:'کد دقیق خانواده یا SKU؛ اعداد فارسی نیز پذیرفته می‌شوند'}},required:['code'],additionalProperties:false}
+        },
+        {
+          type:'function',name:'compare_sanatpish_products',
+          description:'مقایسه دو تا چهار کد واقعی کاتالوگ. فقط تفاوت‌های ثبت‌شده را مقایسه کن و اطلاعات غایب را نامشخص اعلام کن.',
+          parameters:{type:'object',properties:{codes:{type:'array',items:{type:'string'},minItems:2,maxItems:4,description:'دو تا چهار کد خانواده یا SKU برای مقایسه'}} ,required:['codes'],additionalProperties:false}
         }
-      }],
+      ],
       reasoning:{effort:'none'},
       max_output_tokens:1536
     }
@@ -83,6 +86,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   activeSessions++;
   let upstream:WebSocket|null=null,closed=false,ready=false,configured=false,userSpeaking=false,requested=false,firstAudio=false,greetingSeedPending=false,greetingResponsePending=false,greetingTriggerId='';
   let active='',pendingText='',partial='',seq=0,speechStop=0,timer:ReturnType<typeof setTimeout>|undefined;
+  let heartbeat:ReturnType<typeof setInterval>|undefined,lastUpstreamPong=Date.now(),upstreamCongestedSince=0,upstreamCongestedNotice=false;
   let resumeSeedAccepted=false;
   let micFrames=0,micBytes=0,micSquareSum=0,micSamples=0,micPeak=0,micWindowStarted=Date.now(),firstMicFrameAt=0,lastSpeechStartedAt=0;
   const cancelled=new Set<string>(),toolResponseIds=new Set<string>(),processedToolCalls=new Set<string>(),started=Date.now();
