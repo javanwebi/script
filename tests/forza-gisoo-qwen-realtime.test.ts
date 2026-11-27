@@ -11,6 +11,8 @@ import {
 } from '../server/ai/gisooQwenRealtime';
 import { searchForzaRealtimeCatalog } from '../server/ai/forzaRealtimeCatalog';
 import type { Product } from '../src/types';
+import type { AiPartAnalysisResult } from '../src/services/aiVisualSearchService';
+import { buildLiveVisionCandidates, buildLiveVisionPrompt } from '../src/utils/forzaLiveVisionContext';
 
 test('Qwen session uses Gisoo direct-realtime PCM, Bodega voice, configured VAD, and only the supplied instruction', () => {
   const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Bodega');
@@ -297,4 +299,32 @@ test('live image input reuses the existing region detector and embedding service
  assert.match(client,/buildLiveVisionCandidates\(result\)/);
  assert.match(client,/buildLiveVisionPrompt\(result,items\)/);
  assert.doesNotMatch(client,/ImageSearch isOpen fullScreen/);
+});
+
+test('embedding-only model and nearest results reach the call with real codes, specs, and distinct uncertainty',()=>{
+ const suggestion={familyCode:'BELT-FAMILY',familyName:'تسمه',name:'تسمه صنعتی',brand:'Brand',imageScope:'none' as const,matchBasis:'family' as const,specs:[{key:'عرض',value:'13 mm'}],reason:'خانواده مشابه'};
+ const result={success:true,isAiGenerated:true,matchedProducts:[],similarCandidates:[],summary:{detectedPartType:'تسمه',detectedProfile:'تأیید نشده',visualAnalysis:'شباهت',confidence:0},technicalAdvice:'ابعاد را بررسی کنید',
+ modelSuggestions:[{...suggestion,code:'A49',matchBasis:'visual',image:'/not-authorized.png'}],
+ nearestCatalogSuggestions:[{...suggestion,code:'A49',matchBasis:'explore'},{...suggestion,familyCode:'OTHER',matchBasis:'explore'}]} as AiPartAnalysisResult;
+ const candidates=buildLiveVisionCandidates(result);
+ assert.equal(candidates.length,2);
+ assert.equal(candidates[0].code,'A49');
+ assert.equal(candidates[0].basis,'similar');
+ assert.equal(candidates[0].image,undefined);
+ assert.equal(candidates[0].link,'/direct-product/A49');
+ assert.equal(candidates[1].basis,'explore');
+ assert.equal(candidates[1].link,'/product/OTHER');
+ const prompt=buildLiveVisionPrompt(result,candidates);
+ assert.match(prompt,/A49/);
+ assert.match(prompt,/13 mm/);
+ assert.match(prompt,/OTHER/);
+ assert.ok(prompt.length<3000);
+});
+test('visual consultation payload remains complete JSON within the bridge limit',()=>{
+ const result={matchedProducts:[],summary:{whatYouSee:'الف'.repeat(5000),readableMarkings:['x'.repeat(400)]},catalogImageMatches:[],modelSuggestions:Array.from({length:16},(_,i)=>({familyCode:'family'+i,code:'SKU'+i,name:'تسمه'.repeat(200),familyName:'تسمه',brand:'brand',imageScope:'none',matchBasis:'visual',specs:Array.from({length:12},()=>({key:'عرض'.repeat(100),value:'100'.repeat(100)})),reason:'شبیه'.repeat(100)}))} as unknown as AiPartAnalysisResult;
+ const prompt=buildLiveVisionPrompt(result,buildLiveVisionCandidates(result));
+ assert.ok(prompt.length<=2900);
+ const payload=JSON.parse(prompt.slice(prompt.indexOf('{')));
+ assert.ok(payload.candidates.length>0);
+ assert.ok(payload.candidates.length<16);
 });
