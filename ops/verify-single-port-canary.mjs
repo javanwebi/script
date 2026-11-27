@@ -3,7 +3,7 @@ import fs from "node:fs";
 import dotenv from "dotenv";
 import { WebSocket } from "ws";
 import { applyPrivateForzaConfig } from "../server/ai/privateForzaConfig.ts";
-import { buildGisooQwenSessionUpdate, isGisooQwenVoiceConfirmed, resolveGisooQwenVoice } from "../server/ai/gisooQwenRealtime.ts";
+import { buildGisooQwenSessionUpdate, isGisooQwenVoiceConfirmed, isGisooQwenTurnDetectionConfirmed, resolveGisooQwenVoice } from "../server/ai/gisooQwenRealtime.ts";
 
 const old = "http://" + process.env.OLD_HOST + ":3000";
 const candidate = "http://127.0.0.1:3000";
@@ -84,6 +84,10 @@ if (realtimeProvider === "qwen") {
         return;
       }
       if (event.type === "session.updated") {
+        if (!isGisooQwenTurnDetectionConfirmed(event.session || {})) {
+          settle(new Error("FORZA_QWEN_GISOO_SEMANTIC_VAD_EC_NOT_CONFIRMED"));
+          return;
+        }
         if (!isGisooQwenVoiceConfirmed(event.session || {}, selectedVoice)) {
           settle(new Error("FORZA_QWEN_GISOO_VOICE_NOT_CONFIRMED"));
           return;
@@ -93,7 +97,7 @@ if (realtimeProvider === "qwen") {
           audio: Buffer.alloc(640).toString("base64"),
         }));
         console.log("FORZA_QWEN_GISOO_REALTIME_CANARY_OK model=" + model +
-          " voice=" + selectedVoice);
+          " voice=" + selectedVoice + " turn_detection=semantic_vad_ec");
         setTimeout(() => {
           if (!settled) {
             console.log("FORZA_QWEN_GISOO_AUDIO_APPEND_OK");
