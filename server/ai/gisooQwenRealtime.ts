@@ -93,6 +93,7 @@ export function classifyGisooRealtimeError(code:string,ready:boolean):'ignore'|'
 export function connectGisooQwenRealtime(client:WebSocket,instructions:string,catalogSearch?:GisooCatalogSearchHandler,resuming=false):void{
   const key=String(process.env.FORZA_QWEN_API_KEY||'').trim(),selectedVoice=voice();
   const limit=bounded(Number(process.env.FORZA_QWEN_MAX_SESSIONS||8),8,1,40);
+  const log=(event:string,data:Record<string,unknown>={})=>console.info('[FORZA QWEN] '+event+' '+JSON.stringify(data));
   const toClient=(e:Record<string,unknown>)=>{if(client.readyState!==WebSocket.OPEN)return false;if(client.bufferedAmount>2000000){log('browser_output_backpressure',{bufferedBytes:client.bufferedAmount,eventType:String(e.type||'unknown')});client.close(1013,'Browser backpressure');return false;}client.send(JSON.stringify(e));return true;};
   if(!key||activeSessions>=limit){log('session_rejected',{reason:!key?'missing_key':'capacity',activeSessions,limit});toClient({type:'fallback_required',reason:!key?'کلید گیسو تنظیم نشده است.':'ظرفیت تماس تکمیل است.'});client.close(1013,'Qwen unavailable');return;}
   activeSessions++;
@@ -103,7 +104,6 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   let resumeSeedAccepted=false;
   let micFrames=0,micBytes=0,micSquareSum=0,micSamples=0,micPeak=0,micWindowStarted=Date.now(),firstMicFrameAt=0,lastSpeechStartedAt=0;
   const cancelled=new Set<string>(),toolResponseIds=new Set<string>(),toolResponseDone=new Set<string>(),toolContinuationStarted=new Set<string>(),toolPendingCounts=new Map<string,number>(),processedToolCalls=new Set<string>(),started=Date.now();
-  const log=(event:string,data:Record<string,unknown>={})=>console.info('[FORZA QWEN] '+event+' '+JSON.stringify(data));
   const finish=(reason?:string,closeCode?:number,closeReason?:string,retryable=false)=>{
     if(closed)return;closed=true;activeSessions=Math.max(0,activeSessions-1);
     if(timer)clearTimeout(timer);if(heartbeat)clearInterval(heartbeat);if(clientHeartbeat)clearInterval(clientHeartbeat);if(responseStartTimer)clearTimeout(responseStartTimer);if(cancelTimer)clearTimeout(cancelTimer);
