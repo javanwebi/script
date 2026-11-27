@@ -104,19 +104,40 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     if(toolResponseId){toolResponseIds.add(toolResponseId);if(toolResponseIds.size>64){const first=toolResponseIds.values().next().value;if(first)toolResponseIds.delete(first);}}
     let args:Event={};
     try{args=typeof event.arguments==='string'?JSON.parse(event.arguments):event.arguments||{};}catch{}
-    const query=String(args.query||'').trim().slice(0,120);
+    const toolName=String(event.name||'');
+    const query=String(args.query||args.code||'').trim().slice(0,120);
     const limit=bounded(Number(args.limit||6),6,1,6);
-    toClient({type:'catalog_search_started',query});
+    const mode=toolName==='compare_sanatpish_products'?'compare':toolName==='get_sanatpish_product_details'?'details':'search';
+    toClient({type:'catalog_search_started',query,mode});
     let result:Record<string,unknown>;
+    const normalizeCode=(value:string)=>value.trim().toLowerCase().replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+    const isExact=(family:Event,code:string)=>normalizeCode(String(family.code||''))===normalizeCode(code)||(Array.isArray(family.variants)&&family.variants.some((v:Event)=>normalizeCode(String(v.code||''))===normalizeCode(code)));
     try{
-      if(event.name!=='search_sanatpish_catalog')throw new Error('unknown_tool');
-      if(!query)throw new Error('empty_query');
       if(!catalogSearch)throw new Error('catalog_unavailable');
-      const value=await catalogSearch(query,limit);
-      result=value&&typeof value==='object'?value as Record<string,unknown>:{success:false,query,familyCount:0,skuCount:0,results:[]};
+      if(toolName==='search_sanatpish_catalog'){
+        if(!query)throw new Error('empty_query');
+        const value=await catalogSearch(query,limit);
+        result=value&&typeof value==='object'?value as Record<string,unknown>:{success:false,query,familyCount:0,skuCount:0,results:[]};
+      }else if(toolName==='get_sanatpish_product_details'){
+        if(!query)throw new Error('empty_code');
+        const value=await catalogSearch(query,1) as Event;
+        const rows=Array.isArray(value?.results)?value.results:[];
+        const exact=rows.filter((family:Event)=>isExact(family,query));
+        result={success:exact.length>0,query,familyCount:exact.length,skuCount:exact.reduce((n:number,f:Event)=>n+(Array.isArray(f.variants)?f.variants.length:0),0),results:exact,error:exact.length?'':'exact_code_not_found'};
+      }else if(toolName==='compare_sanatpish_products'){
+        const codes=Array.isArray(args.codes)?[...new Set(args.codes.map((v:unknown)=>String(v||'').trim().slice(0,80)).filter(Boolean))].slice(0,4):[];
+        if(codes.length<2)throw new Error('compare_requires_two_codes');
+        const found=await Promise.all(codes.map(async(code:string)=>{
+          const value=await catalogSearch(code,1) as Event;
+          const rows=Array.isArray(value?.results)?value.results:[];
+          return rows.find((family:Event)=>isExact(family,code))||null;
+        }));
+        const results=found.filter(Boolean);
+        result={success:results.length===codes.length,query:codes.join(' / '),familyCount:results.length,skuCount:results.reduce((n:number,f:Event)=>n+(Array.isArray(f.variants)?f.variants.length:0),0),results,notFoundCodes:codes.filter((_:string,index:number)=>!found[index])};
+      }else throw new Error('unknown_tool');
     }catch(error){
       const code=error instanceof Error?error.message:'catalog_unavailable';
-      result={success:false,query,familyCount:0,skuCount:0,results:[],error:code==='empty_query'?'empty_query':'catalog_unavailable'};
+      result={success:false,query,familyCount:0,skuCount:0,results:[],error:code==='empty_query'||code==='empty_code'||code==='compare_requires_two_codes'?code:'catalog_unavailable'};
     }
     if(toolResponseId&&cancelled.has(toolResponseId)){
       log('catalog_tool_cancelled',{queryLength:query.length});
@@ -125,6 +146,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     const displayResults=Array.isArray(result.results)?result.results:[];
     toClient({
       type:'catalog_results',
+      mode,
       query,
       success:result.success!==false,
       familyCount:Number(result.familyCount||displayResults.length),
