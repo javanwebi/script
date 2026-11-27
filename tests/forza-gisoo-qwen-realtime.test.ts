@@ -406,6 +406,13 @@ test('reconnect preserves transcript and vision context while avoiding false bac
  assert.match(client,/visibilityHandler=\(\)=>\{if\(document\.visibilityState==='visible'\)/);
  assert.match(client,/document\.removeEventListener\('visibilitychange'/);
 });
+test('barge-in cancellation is bounded and clears stale active responses',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(server,/cancelActiveResponse/);
+ assert.match(server,/cancelTimer=setTimeout/);
+ assert.match(server,/response_cancel_timeout/);
+ assert.match(server,/response_cancel_not_active&&active&&cancelled\.has\(active\)/);
+});
 test('provider failures cannot leave the live assistant waiting forever for a response start',()=>{
  const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
  assert.match(server,/responseStartTimer=setTimeout/);
