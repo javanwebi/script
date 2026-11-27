@@ -120,6 +120,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
       return false;
     }
     if(upstreamCongestedSince){log('upstream_audio_backpressure_recovered',{durationMs:Date.now()-upstreamCongestedSince,bufferedBytes:queued});upstreamCongestedSince=0;upstreamCongestedNotice=false;toClient({type:'network_restored'});}
+    else if(upstreamCongestedNotice&&queued<32768){upstreamCongestedNotice=false;toClient({type:'network_restored'});}
     if(queued>65536&&!upstreamCongestedNotice){upstreamCongestedNotice=true;toClient({type:'network_degraded',bufferedBytes:queued});}
     upstream.send(JSON.stringify(e));return true;
   };
