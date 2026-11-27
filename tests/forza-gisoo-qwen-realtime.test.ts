@@ -288,6 +288,9 @@ test('reconnect seeds context only on resumed calls and avoids an opening greeti
  assert.match(server,/if\(resuming\)\{toClient\(\{type:'connected',[^\n]*resumed:true\}\);return;\}greetingTriggerId=/);
  assert.match(server,/if\(!resuming\|\|resumeSeedAccepted\)return/);
  assert.match(client,/retryCount\.current<5/);
+ assert.match(client,/m\.retryable===true/);
+ assert.match(server,/retryable=false/);
+ assert.match(server,/browser_heartbeat_timeout/);
  assert.match(client,/type:'resume_context'/);
  assert.match(client,/type:'ping'/);
  assert.match(client,/m\.type==='pong'/);
