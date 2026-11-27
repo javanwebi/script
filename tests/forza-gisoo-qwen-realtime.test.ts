@@ -10,8 +10,8 @@ import {
 import { searchForzaRealtimeCatalog } from '../server/ai/forzaRealtimeCatalog';
 import type { Product } from '../src/types';
 
-test('Qwen session uses Gisoo direct-realtime PCM and server VAD contract', () => {
-  const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Raymond');
+test('Qwen session uses Gisoo direct-realtime PCM, Andre voice, and configured VAD contract', () => {
+  const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Andre');
   assert.equal(update.type, 'session.update');
   assert.deepEqual(update.session.output_modalities, ['audio']);
   assert.deepEqual(update.session.audio.input.format, {
@@ -22,7 +22,7 @@ test('Qwen session uses Gisoo direct-realtime PCM and server VAD contract', () =
     type: 'audio/pcm',
     rate: 24000,
   });
-  assert.equal(update.session.audio.output.voice, 'Raymond');
+  assert.equal(update.session.audio.output.voice, 'Andre');
   assert.match(update.session.instructions, /مشاور ارشد مهندسی/);
   assert.equal(update.session.audio.input.turn_detection.type, 'server_vad');
   assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 500);
@@ -98,13 +98,15 @@ test('Face-to-face page actually mounts the native Gisoo client without the old 
   assert.doesNotMatch(client,/\/api\/ai\/(?:stt|forza-speech|consult-stream|forza-live)/);
 });
 
- test('Customer barge-in cancels upstream generation and greeting is not fed back into the mic', () => {
+test('Customer barge-in cancels upstream generation, mic waits for first greeting, and reconnect never greets again', () => {
   const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
   assert.match(server,/speech_started'\)\{userSpeaking=true;[\s\S]*?send\(\{type:'response.cancel'\}\)/);
   assert.match(client,/if\(!s\.ready\|\|!s\.greeted\|\|micMuted\.current/);
-  assert.match(client,/send\(s,\{type:'text',text:greeting\}\);return;/);
- });
+  assert.match(client,/if\(greeted\.current\)\{s\.greeted=true;setPhase\('listening'\);return;\}/);
+  assert.match(client,/سلام، به صنعت پیش خوش آمدید/);
+  assert.doesNotMatch(client,/من آماده‌ام مهندس جان/);
+});
  test('Native capture and stable light are enabled for exhibition calls', () => {
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
   const worklet=readFileSync('public/forza-runtime/qwen-mic-worklet.js','utf8');
@@ -138,7 +140,9 @@ test('Qwen realtime session exposes the read-only Sanat Pish catalogue tool and 
   assert.deepEqual(update.session.tools[0].parameters.required, ['query']);
   assert.match(update.session.instructions, /مشاور ارشد مهندسی/);
   assert.match(update.session.instructions, /search_sanatpish_catalog/);
-  assert.match(update.session.instructions, /۷۰ تا ۱۳۰ کلمه/);
+  assert.match(update.session.instructions, /هرگز با «سلام مهندس جان»/);
+  assert.match(update.session.instructions, /۲۵ تا ۶۰ کلمه/);
+  assert.doesNotMatch(update.session.instructions, /۴ تا ۷ جمله/);
   assert.ok(update.session.instructions.lastIndexOf('مشاور ارشد مهندسی') > update.session.instructions.indexOf('دستیار فارسی صنعت پیش'));
 });
 
