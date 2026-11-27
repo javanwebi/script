@@ -318,6 +318,6 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     const now=Date.now();if(!firstMicFrameAt){firstMicFrameAt=now;micWindowStarted=now;log('mic_first_frame',{afterSessionReadyMs:now-started,bytes:pcm.length,sampleRate:Number(e.sampleRate)||16000});}
     micFrames++;micBytes+=pcm.length;for(let i=0;i<pcm.length;i+=2){const sample=pcm.readInt16LE(i);micSquareSum+=sample*sample;micSamples++;const peak=Math.abs(sample);if(peak>micPeak)micPeak=peak;}
     if(now-micWindowStarted>=5000){log('mic_stream',{intervalMs:now-micWindowStarted,frames:micFrames,bytes:micBytes,samples:micSamples,rms:micSamples?Math.round(Math.sqrt(micSquareSum/micSamples)):0,peak:micPeak,sampleRate:16000});micFrames=0;micBytes=0;micSquareSum=0;micSamples=0;micPeak=0;micWindowStarted=now;}
-    if(!sendAudio({type:'input_audio_buffer.append',audio:e.audio}))log('mic_forward_skipped',{bytes:pcm.length,upstreamBufferedBytes:upstream?.bufferedAmount||0});return;
+    sendAudio({type:'input_audio_buffer.append',audio:e.audio});return;
   }if(e.type==='cancel'){pendingText='';if(active){interrupt(active);send({type:'response.cancel'});}else if(requested)send({type:'response.cancel'});return;}if(e.type==='text'&&typeof e.text==='string'&&e.text.trim())textTurn(e.text.trim().slice(0,3000));});
 }
