@@ -29,9 +29,9 @@ The existing `applyPrivateForzaConfig` loader accepts `FORZA_*` values from this
 - A catalogue tool result is returned to the model through `function_call_output` and is also rendered as product cards in the live call panel. Family cards link to the real product detail route.
 - The voice-first Persian prompt prioritizes natural turn-taking, a single opening greeting, short conversational replies, and staged engineering consultation (normally 1–2 sentences for ordinary turns and 2–4 for technical advice). It never repeats a greeting or forces a follow-up question on every turn.
 - Input is PCM 16 kHz mono; output is PCM 24 kHz mono.
-- Gisoo server VAD currently ends turns and interrupts generated audio when the customer starts speaking. A semantic noise-aware VAD mode is being validated separately before activation; do not assume it is live yet.
+- Gisoo server VAD currently ends turns and interrupts generated audio when the customer starts speaking. A semantic noise-aware VAD mode is being validated separately before activation; do not assume it is live yet. The bridge reports whether the browser actually enabled echo cancellation, noise suppression, and automatic gain control.
 - Text input from the existing client remains supported.
-- Provider usage metadata is logged without logging customer audio, transcripts, or API credentials.
+- Provider usage metadata and actual browser capture-processing flags are logged without logging customer audio, transcripts, device identifiers, or API credentials.
 
 ## Revert after the exhibition
 
