@@ -51,29 +51,42 @@ const {chromium}=require('playwright');
    });
   };
 
+  // Attach rejection handlers immediately so a slow initial render cannot
+  // produce an unhandled Playwright rejection before the assertion awaits it.
+  const waitForAnalysisRequest=page=>page.waitForRequest(
+    request=>new URL(request.url()).pathname==='/api/ai/analyze-part',
+    {timeout:90000},
+  ).then(request=>({request}),error=>({error}));
+  const requireAnalysisRequest=async(pending,page,label)=>{
+    const outcome=await pending;
+    if(outcome.error){
+      const state=await page.evaluate(()=>({
+        bodyText:document.body.innerText.slice(0,2200),
+        reviewBusy:document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy'),
+        reviewState:document.querySelector('[data-testid="image-region-review"]')?.getAttribute('data-selected-region'),
+        cropState:document.querySelector('[data-testid="forza-automatic-crop"]')?.outerHTML.slice(0,1200),
+      }));
+      throw new Error('ANALYSIS_REQUEST_TIMEOUT '+label+' '+JSON.stringify({
+        state,errors,browserDiagnostics,detectionCount:detections.length,
+        queryCount:queries.length,uploads,
+      })+' '+outcome.error.message);
+    }
+    return outcome.request;
+  };
+
   const page=await browser.newPage({viewport:{width:1280,height:960}});
   await installRoutes(page);
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/index.html`);
-  const firstAnalysisRequestPromise=page.waitForRequest(request=>new URL(request.url()).pathname==='/api/ai/analyze-part');
+  const firstAnalysisRequestPromise=waitForAnalysisRequest(page);
   await page.locator('input[type=file]').first().setInputFiles({name:'industrial-part.png',mimeType:'image/png',buffer:imageBuffer});
   await page.getByTestId('image-region-review').waitFor();
   const candidate2=page.getByTestId('forza-region-candidate-2');
   await candidate2.waitFor({state:'visible'});
-  let firstAnalysisRequest;
-  try {
-   firstAnalysisRequest=await firstAnalysisRequestPromise;
-  } catch(error) {
-   const state=await page.evaluate(()=>({
-    bodyText:document.body.innerText.slice(0,2200),
-    review:document.querySelector('[data-testid="image-region-review"]')?.outerHTML.slice(0,1800),
-    crop:document.querySelector('[data-testid="forza-automatic-crop"]')?.getAttribute('data-region')
-   }));
-   throw new Error('INITIAL_ANALYSIS_REQUEST_MISSING '+JSON.stringify({state,errors,browserDiagnostics,lastDetection:detections.at(-1),uploads})+' '+error.message);
-  }
+  const firstAnalysisRequest=await requireAnalysisRequest(firstAnalysisRequestPromise,page,'initial');
   assert.deepEqual(firstAnalysisRequest.postDataJSON().region,{x:0.37,y:0.27,width:0.26,height:0.46});
-  const secondAnalysisRequestPromise=page.waitForRequest(request=>new URL(request.url()).pathname==='/api/ai/analyze-part');
+  const secondAnalysisRequestPromise=waitForAnalysisRequest(page);
   await candidate2.click();
-  const secondAnalysisRequest=await secondAnalysisRequestPromise;
+  const secondAnalysisRequest=await requireAnalysisRequest(secondAnalysisRequestPromise,page,'second-object');
   assert.deepEqual(secondAnalysisRequest.postDataJSON().region,{x:0.67,y:0.28,width:0.2,height:0.44},'tapping the second detected object must send its exact crop');
   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
   await page.getByTestId('kiki-inline-catalog-results').waitFor({timeout:45000});
@@ -160,9 +173,9 @@ const {chromium}=require('playwright');
   await page.mouse.up();
   await page.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='peek');
 
-  const thirdAnalysisRequestPromise=page.waitForRequest(request=>new URL(request.url()).pathname==='/api/ai/analyze-part');
+  const thirdAnalysisRequestPromise=waitForAnalysisRequest(page);
   await page.getByTestId('forza-region-candidate-1').click();
-  const thirdAnalysisRequest=await thirdAnalysisRequestPromise;
+  const thirdAnalysisRequest=await requireAnalysisRequest(thirdAnalysisRequestPromise,page,'mobile-first-object');
   assert.deepEqual(thirdAnalysisRequest.postDataJSON().region,{x:0.37,y:0.27,width:0.26,height:0.46},'mobile tapping the first object must switch back to its automatic crop');
   await page.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
   assert.equal(queries.length,3,'mobile object selection must trigger a fresh catalog query');
@@ -231,12 +244,12 @@ const {chromium}=require('playwright');
   assert.equal(await fallbackCrop.getByTestId('forza-automatic-crop-thumbnail').count(),0,'no unconfirmed crop preview may be displayed');
   assert.equal(await fallbackCrop.locator('.forza-auto-crop__candidate').count(),2,'the customer may still choose one of the detected proposals');
   await fallbackPage.getByText('ناحیه‌های پیشنهادی پیدا شدند').waitFor();
-  const fallbackSecondRequestPromise=fallbackPage.waitForRequest(request=>new URL(request.url()).pathname==='/api/ai/analyze-part');
+  const fallbackSecondRequestPromise=waitForAnalysisRequest(fallbackPage);
   // Tap the second detected object itself; this is the same target customers use on the image overlay.
   const fallbackCandidate2=fallbackCrop.getByTestId('forza-region-candidate-2');
   await fallbackCandidate2.click();
   await fallbackPage.waitForFunction(()=>document.querySelector('[data-testid="forza-region-candidate-2"]')?.getAttribute('data-selected')==='true',null,{timeout:5000});
-  const fallbackSecondRequest=await fallbackSecondRequestPromise;
+  const fallbackSecondRequest=await requireAnalysisRequest(fallbackSecondRequestPromise,fallbackPage,'fallback-second-object');
   assert.deepEqual(fallbackSecondRequest.postDataJSON().region,{x:0.67,y:0.28,width:0.2,height:0.44});
   await fallbackPage.waitForFunction(()=>document.querySelector('[data-testid="image-region-review"]')?.getAttribute('aria-busy')==='false',null,{timeout:45000});
   assert.equal(queries.length,5);
