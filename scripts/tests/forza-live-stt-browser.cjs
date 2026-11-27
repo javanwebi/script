@@ -164,17 +164,16 @@ function wav(){
       if(m.type==='realtime_audio'){micFrames++;assert.ok(Buffer.from(m.audio,'base64').length>0);}
       if(m.type==='text'){
         turns.push(m.text);
-        reply(socket,m.text.includes('سلام، به صنعت پیش خوش آمدید')?'سلام، به صنعت پیش خوش آمدید. من فورزا هستم.':'پاسخ فنی آزمایشی');
+        reply(socket,'پاسخ فنی آزمایشی');
       }
     });
     socket.send(JSON.stringify({type:'connected',provider:'qwen',voice:'Andre',voiceConfirmed:true}));
   });
   await qwenPage.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await qwenPage.getByText('فورزا گوش می‌دهد',{exact:true}).waitFor({timeout:25000});
-  assert.match(turns[0],/سلام، به صنعت پیش خوش آمدید/);
-  assert.doesNotMatch(turns[0],/مهندس جان/);
   await qwenPage.waitForTimeout(500);
-  assert.ok(micFrames>0,'native microphone frames reach the websocket after greeting');
+  assert.equal(turns.length,0,'connecting must not inject a synthetic greeting or user text turn');
+  assert.ok(micFrames>0,'native microphone frames reach the websocket immediately after session readiness');
   currentSocket.send(JSON.stringify({type:'speech_started'}));
   currentSocket.send(JSON.stringify({type:'user_transcript',text:'تسمه صنعتی',final:true}));
   currentSocket.send(JSON.stringify({type:'speech_stopped'}));
@@ -192,10 +191,10 @@ function wav(){
   await qwenPage.getByRole('button',{name:'اتصال مجدد',exact:true}).click();
   await qwenPage.getByText('فورزا گوش می‌دهد',{exact:true}).waitFor({timeout:25000});
   assert.equal(connectionCount,2);
-  assert.equal(turns.length,turnsBeforeReconnect,'reconnecting an already-greeted call must not send a second greeting');
+  assert.equal(turns.length,turnsBeforeReconnect,'reconnecting must not inject any synthetic text turn');
   assert.deepEqual(legacyRequests,[]);
   assert.deepEqual(qwenErrors,[]);
   await qwenPage.close();
-  console.log('FORZA_NATIVE_QWEN_BROWSER_PASS mock_websocket=1 microphone_pcm=1 multi_turn=1 reconnect=1 legacy_http_requests=0');
+  console.log('FORZA_NATIVE_QWEN_BROWSER_PASS mock_websocket=1 microphone_pcm=1 no_synthetic_turn=1 multi_turn=1 reconnect=1 legacy_http_requests=0');
  }finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_LIVE_STT_BROWSER_FAIL',e);process.exitCode=1;});
