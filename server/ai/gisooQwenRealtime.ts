@@ -176,7 +176,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     processedToolCalls.add(callId);
     if(processedToolCalls.size>128){const first=processedToolCalls.values().next().value;if(first)processedToolCalls.delete(first);}
     const toolResponseId=id(event,active);
-    if(toolResponseId){toolResponseIds.add(toolResponseId);if(toolResponseIds.size>64){const first=toolResponseIds.values().next().value;if(first)toolResponseIds.delete(first);}}
+    if(toolResponseId){toolResponseIds.add(toolResponseId);toolPendingCounts.set(toolResponseId,(toolPendingCounts.get(toolResponseId)||0)+1);if(toolResponseIds.size>64){const first=toolResponseIds.values().next().value;if(first){toolResponseIds.delete(first);toolResponseDone.delete(first);toolPendingCounts.delete(first);}}}
     let args:Event={};
     try{args=typeof event.arguments==='string'?JSON.parse(event.arguments):event.arguments||{};}catch{}
     const toolName=String(event.name||'');
@@ -225,7 +225,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     }
     if(toolResponseId&&cancelled.has(toolResponseId)){
       log('catalog_tool_cancelled',{queryLength:query.length});
-      return;
+      completeToolCall(toolResponseId);return;
     }
     const displayResults=Array.isArray(result.results)?result.results:[];
     if(toolName!=='update_forza_consultation')toClient({
@@ -238,8 +238,8 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
       results:displayResults
     });
     const outputSent=send({type:'conversation.item.create',item:{type:'function_call_output',call_id:callId,output:JSON.stringify(result)}});
-    const responseSent=outputSent&&send({type:'response.create'});
-    if(!responseSent){toClient({type:'provider_error',code:'catalog_response_failed',reason:'نتیجه کاتالوگ آماده شد اما پاسخ فورزا شروع نشد؛ دوباره سؤال کن.',recoverable:true});log('catalog_tool_response_failed',{queryLength:query.length});return;}
+    if(!outputSent){log('tool_output_send_failed',{toolName,queryLength:query.length});return;}
+    completeToolCall(toolResponseId);
     log('tool_completed',{toolName,queryLength:query.length,resultCount:displayResults.length,success:result.success!==false});
   };
   client.on('pong',()=>{lastClientPong=Date.now();});
