@@ -74,7 +74,7 @@ export function mapGisooQwenEvent(e:Event,responseId=''):Array<Record<string,unk
 export function classifyGisooRealtimeError(code:string,ready:boolean):'ignore'|'active_response'|'recoverable'|'fatal'{
   if(code==='response_cancel_not_active'||code==='input_audio_buffer_commit_empty')return 'ignore';
   if(code==='conversation_already_has_active_response')return 'active_response';
-  if(!ready||code==='session_closed'||code==='server_restart'||code==='insufficient_credit')return 'fatal';
+  if(!ready||code==='session_closed'||code==='server_restart'||code==='insufficient_credit'||code==='invalid_api_key'||code==='authentication_error')return 'fatal';
   return 'recoverable';
 }
 /** Exhibition-only native audio bridge. The site's legacy speech stack remains intact. */
@@ -86,14 +86,14 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   activeSessions++;
   let upstream:WebSocket|null=null,closed=false,ready=false,configured=false,userSpeaking=false,requested=false,firstAudio=false,greetingSeedPending=false,greetingResponsePending=false,greetingTriggerId='';
   let active='',pendingText='',partial='',seq=0,speechStop=0,timer:ReturnType<typeof setTimeout>|undefined;
-  let heartbeat:ReturnType<typeof setInterval>|undefined,lastUpstreamPong=Date.now(),upstreamCongestedSince=0,upstreamCongestedNotice=false;
+  let heartbeat:ReturnType<typeof setInterval>|undefined,responseStartTimer:ReturnType<typeof setTimeout>|undefined,lastUpstreamPong=Date.now(),upstreamCongestedSince=0,upstreamCongestedNotice=false;
   let resumeSeedAccepted=false;
   let micFrames=0,micBytes=0,micSquareSum=0,micSamples=0,micPeak=0,micWindowStarted=Date.now(),firstMicFrameAt=0,lastSpeechStartedAt=0;
   const cancelled=new Set<string>(),toolResponseIds=new Set<string>(),processedToolCalls=new Set<string>(),started=Date.now();
   const log=(event:string,data:Record<string,unknown>={})=>console.info('[FORZA QWEN] '+event+' '+JSON.stringify(data));
   const finish=(reason?:string,closeCode?:number,closeReason?:string)=>{
     if(closed)return;closed=true;activeSessions=Math.max(0,activeSessions-1);
-    if(timer)clearTimeout(timer);if(heartbeat)clearInterval(heartbeat);
+    if(timer)clearTimeout(timer);if(heartbeat)clearInterval(heartbeat);if(responseStartTimer)clearTimeout(responseStartTimer);
     log('session_end',{durationMs:Date.now()-started,reason:reason||'client_closed',upstreamCloseCode:closeCode??null,upstreamCloseReason:closeReason?closeReason.slice(0,120):null,upstreamBufferedBytes:upstream?.bufferedAmount||0,clientBufferedBytes:client.bufferedAmount});
     if(reason){toClient({type:'fallback_required',reason});if(client.readyState===WebSocket.OPEN)client.close(1011,'Qwen session ended');}
     try{if(upstream?.readyState===WebSocket.CONNECTING)upstream.terminate();else if(upstream?.readyState===WebSocket.OPEN)upstream.close(1000,'Call ended');}catch{}
@@ -112,7 +112,16 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     upstream.send(JSON.stringify(e));return true;
   };
   const interrupt=(response:string)=>{if(!response||cancelled.has(response))return;cancelled.add(response);if(cancelled.size>64){const oldest=cancelled.values().next().value;if(oldest)cancelled.delete(oldest);}toClient({type:'interrupted',responseId:response});};
-  const textTurn=(text:string)=>{if(closed||!ready)return;if(active||requested){pendingText=text;if(active&&!cancelled.has(active)){interrupt(active);send({type:'response.cancel'});}return;}requested=true;speechStop=Date.now();send({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text}]}});send({type:'response.create'});};
+  const textTurn=(text:string)=>{
+    if(closed||!ready)return;
+    if(active||requested){pendingText=text;if(active&&!cancelled.has(active)){interrupt(active);send({type:'response.cancel'});}return;}
+    requested=true;speechStop=Date.now();
+    const itemSent=send({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text}]}});
+    if(!itemSent){requested=false;toClient({type:'provider_error',code:'input_send_failed',reason:'پیام به موتور مکالمه نرسید؛ دوباره بگو.',recoverable:true});return;}
+    if(!send({type:'response.create'})){requested=false;toClient({type:'provider_error',code:'response_create_failed',reason:'پاسخ فورزا شروع نشد؛ دوباره تلاش کن.',recoverable:true});return;}
+    if(responseStartTimer)clearTimeout(responseStartTimer);
+    responseStartTimer=setTimeout(()=>{if(requested&&!active){requested=false;toClient({type:'provider_error',code:'response_start_timeout',reason:'پاسخ موتور مکالمه دیر شروع شد؛ یک بار دیگر بگو.',recoverable:true});}},18000);
+  };
   const runCatalogTool=async(event:Event)=>{
     const callId=String(event.call_id||'').trim();
     if(!callId||processedToolCalls.has(callId))return;
@@ -200,7 +209,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
     if(t==='input_audio_buffer.speech_stopped'){userSpeaking=false;speechStop=Date.now();log('speech_stopped',{speechDurationMs:lastSpeechStartedAt?Date.now()-lastSpeechStartedAt:null});toClient({type:'speech_stopped'});return;}
     if(t==='input_audio_buffer.committed'){log('audio_committed',{afterSpeechStopMs:speechStop?Date.now()-speechStop:null});return;}
     if(t==='conversation.item.created'||t==='conversation.item.added'){const item=e.item&&typeof e.item==='object'?e.item as Event:{};const receivedItemId=String(item.id||e.item_id||'');const content=Array.isArray(item.content)?item.content as Event[]:[];const contentTypes=content.map((part:Event)=>String(part.type||'unknown')).slice(0,4);log('conversation_item_received',{eventType:t,itemId:receivedItemId||null,role:String(item.role||'unknown'),contentTypes});const triggerText=content.some((part:Event)=>part.type==='input_text'&&String(part.text||'').includes('تماس صوتی اکنون برقرار شده است'));if(greetingSeedPending&&(receivedItemId===greetingTriggerId||triggerText)){greetingSeedPending=false;if(timer)clearTimeout(timer);toClient({type:'connected',provider:'qwen',model:MODEL,voice:selectedVoice,voiceConfirmed:true,inputSampleRate:16000,sampleRate:24000});requested=true;greetingResponsePending=true;if(!send({type:'response.create'})){finish('درخواست خوشامدگویی اولیه به گیسو ارسال نشد.');return;}timer=setTimeout(()=>{if(greetingResponsePending)finish('گیسو پاسخ خوشامدگویی را شروع نکرد.');},10000);log('opening_greeting_requested',{voice:selectedVoice,triggerItemId:receivedItemId||greetingTriggerId});}return;}
-    if(t==='response.created'){if(greetingResponsePending){greetingResponsePending=false;if(timer)clearTimeout(timer);}active=id(e,'qwen-'+(++seq));requested=false;firstAudio=false;log('response_created',{afterSpeechStopMs:speechStop?Date.now()-speechStop:null,afterSpeechStartedMs:lastSpeechStartedAt?Date.now()-lastSpeechStartedAt:null});if(userSpeaking||pendingText){interrupt(active);send({type:'response.cancel'});}else toClient({type:'response_started',responseId:active});return;}
+    if(t==='response.created'){if(greetingResponsePending){greetingResponsePending=false;if(timer)clearTimeout(timer);}if(responseStartTimer)clearTimeout(responseStartTimer);active=id(e,'qwen-'+(++seq));requested=false;firstAudio=false;log('response_created',{afterSpeechStopMs:speechStop?Date.now()-speechStop:null,afterSpeechStartedMs:lastSpeechStartedAt?Date.now()-lastSpeechStartedAt:null});if(userSpeaking||pendingText){interrupt(active);send({type:'response.cancel'});}else toClient({type:'response_started',responseId:active});return;}
     if(t==='response.function_call_arguments.done'){void runCatalogTool(e);return;}
     if(t==='response.done'){
       const response=id(e,active);
@@ -217,7 +226,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
         log('tool_response_done',{responseId:response,status:e.response?.status||'unknown'});
         return;
       }
-      if(response===active){active='';requested=false;if(!cancelled.has(response))toClient({type:'turn_complete',responseId:response});if(pendingText&&!userSpeaking){const next=pendingText;pendingText='';textTurn(next);}}
+      if(response===active){active='';requested=false;if(responseStartTimer)clearTimeout(responseStartTimer);if(!cancelled.has(response))toClient({type:'turn_complete',responseId:response,failed:e.response?.status&&e.response.status!=='completed'});if(pendingText&&!userSpeaking){const next=pendingText;pendingText='';textTurn(next);}}
       log('response_done',{status:e.response?.status||'unknown',usage:e.response?.usage||null});return;
     }
     if(t==='error'){
@@ -232,7 +241,11 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
         const reason=code==='insufficient_credit'?'اعتبار گیسو کافی نیست.':code==='session_closed'?'گیسو نشست را بسته است؛ دوباره متصل شوید.':code==='server_restart'?'گیسو در حال راه‌اندازی مجدد است؛ چند ثانیه بعد دوباره متصل شوید.': 'گیسو هنگام آماده‌سازی نشست خطا داد: '+code;
         finish(reason);return;
       }
-      const reason=code==='flood'?'گیسو فعلاً تعداد درخواست‌ها را محدود کرده است؛ اتصال برقرار مانده. کمی صبر کنید و دوباره صحبت کنید.': 'خطای موقت گیسو ('+code+')؛ اتصال برقرار است.';
+      const reason=code==='flood'||code==='rate_limit_exceeded'?'گیسو موقتاً درخواست‌ها را محدود کرده است؛ تماس را نگه داشتم. چند لحظه مکث کن و دوباره بگو.': 'خطای موقت گیسو ('+code+')؛ تماس برقرار است.';
+      if(['flood','rate_limit_exceeded','server_error','temporarily_unavailable'].includes(code)&&(active||requested)){
+        const failed=active;active='';requested=false;if(responseStartTimer)clearTimeout(responseStartTimer);
+        if(failed)toClient({type:'turn_complete',responseId:failed,failed:true});
+      }
       toClient({type:'provider_error',code,reason,recoverable:true});return;
     }
     if(t.includes('input_audio_transcription.delta')&&typeof e.delta==='string'&&typeof e.text!=='string'){partial+=e.delta;toClient({type:'user_transcript',text:partial,final:false});return;}
