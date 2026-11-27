@@ -6,12 +6,13 @@ import {
   classifyGisooRealtimeError,
   mapGisooQwenEvent,
   resolveGisooQwenVoice,
+  isGisooQwenVoiceConfirmed,
 } from '../server/ai/gisooQwenRealtime';
 import { searchForzaRealtimeCatalog } from '../server/ai/forzaRealtimeCatalog';
 import type { Product } from '../src/types';
 
-test('Qwen session uses Gisoo direct-realtime PCM, Andre voice, configured VAD, and only the supplied instruction', () => {
-  const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Andre');
+test('Qwen session uses Gisoo direct-realtime PCM, Bodega voice, configured VAD, and only the supplied instruction', () => {
+  const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Bodega');
   assert.equal(update.type, 'session.update');
   assert.deepEqual(update.session.output_modalities, ['audio']);
   assert.deepEqual(update.session.audio.input.format, {
@@ -22,7 +23,7 @@ test('Qwen session uses Gisoo direct-realtime PCM, Andre voice, configured VAD, 
     type: 'audio/pcm',
     rate: 24000,
   });
-  assert.equal(update.session.audio.output.voice, 'Andre');
+  assert.equal(update.session.audio.output.voice, 'Bodega');
   assert.equal(update.session.instructions, 'دستیار فارسی صنعت پیش');
   assert.equal(update.session.audio.input.turn_detection.type, 'server_vad');
   assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 500);
@@ -98,7 +99,7 @@ test('Face-to-face page actually mounts the native Gisoo client without the old 
   assert.doesNotMatch(client,/\/api\/ai\/(?:stt|forza-speech|consult-stream|forza-live)/);
 });
 
-test('Customer barge-in remains intact and the microphone starts immediately without synthetic greeting turns', () => {
+test('Customer barge-in remains intact and Gisoo generates one opening greeting after session acceptance', () => {
   const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
   const app=readFileSync('server.ts','utf8');
@@ -108,7 +109,16 @@ test('Customer barge-in remains intact and the microphone starts immediately wit
   assert.match(client,/setPhase\('listening'\);return;/);
   assert.doesNotMatch(client,/greeted|type:'text',text:greeting|سلام، به صنعت پیش خوش آمدید/);
   assert.match(prompt,/تو فورزا، مشاور فنی و راهنمای تأمین قطعات صنعتی صنعت پیش هستی/);
-  assert.doesNotMatch(prompt,/سلام|مهندس جان|خوشامدگویی|۲۵ تا ۶۰ کلمه|۴ تا ۷ جمله/);
+  assert.match(prompt,/مکالمه زنده و پیوسته بین دو انسان/);
+  assert.match(prompt,/به محض اینکه نشست آماده شد/);
+  assert.match(prompt,/سلام، به صنعت پیش خوش آمدید/);
+  assert.match(prompt,/فقط یک‌بار طبیعی خوشامد بگو/);
+  assert.match(prompt,/این تنها خوشامدگویی و معرفی تو در کل تماس است/);
+  assert.match(prompt,/حتی اگر مشتری دوباره سلام کرد/);
+  assert.match(server,/toClient\(\{type:'connected'[\s\S]*?send\(\{type:'response\.create'\}\)/);
+  assert.match(server,/log\('opening_greeting_requested'/);
+  assert.doesNotMatch(prompt,/هیچ خوشامدگویی خودکار یا پیام آغازینی نساز/);
+  assert.doesNotMatch(prompt,/۲۵ تا ۶۰ کلمه|۴ تا ۷ جمله/);
   assert.match(app,/connectGisooQwenRealtime\(clientWs, FORZA_QWEN_SYSTEM_INSTRUCTION/);
   assert.match(app,/systemInstruction: FORZA_SYSTEM_INSTRUCTION/);
   assert.doesNotMatch(server,/const ADVICE=|۷۰ تا ۱۳۰ کلمه/);
@@ -198,19 +208,25 @@ test('live call renders catalogue product cards and does not disconnect on a twe
   assert.match(client, /href=\{family\.link\}/);
   assert.match(client, /s\.next-ctx\.currentTime>90/);
   assert.doesNotMatch(client, /s\.next-ctx\.currentTime>12/);
-  assert.match(client, /useState\('Andre'\)/);
+  assert.match(client, /useState\('Bodega'\)/);
 });
 
 
-test('FORZA uses the natural steady male Andre voice and preserves supported Qwen voice choices', () => {
-  assert.equal(resolveGisooQwenVoice(undefined), 'Andre');
-  assert.equal(resolveGisooQwenVoice('Andre'), 'Andre');
-  assert.equal(resolveGisooQwenVoice('andre'), 'Andre');
+test('FORZA selects a different documented Qwen3.8 male voice and rejects silent voice fallback', () => {
+  assert.equal(resolveGisooQwenVoice(undefined), 'Bodega');
+  assert.equal(resolveGisooQwenVoice('Andre'), 'Bodega');
+  assert.equal(resolveGisooQwenVoice('andre'), 'Bodega');
+  assert.equal(resolveGisooQwenVoice('Bodega'), 'Bodega');
   assert.equal(resolveGisooQwenVoice('Ryan'), 'Ryan');
   assert.equal(resolveGisooQwenVoice('Raymond'), 'Raymond');
-  assert.equal(resolveGisooQwenVoice('Tina'), 'Tina');
-  assert.equal(resolveGisooQwenVoice('unsupported-voice'), 'Andre');
-  assert.equal(buildGisooQwenSessionUpdate('مشاور فنی فارسی').session.audio.output.voice, 'Andre');
+  assert.equal(resolveGisooQwenVoice('Aiden'), 'Aiden');
+  assert.equal(resolveGisooQwenVoice('Tina'), 'Bodega');
+  assert.equal(resolveGisooQwenVoice('Ethan'), 'Bodega');
+  assert.equal(resolveGisooQwenVoice('unsupported-voice'), 'Bodega');
+  assert.equal(buildGisooQwenSessionUpdate('مشاور فنی فارسی').session.audio.output.voice, 'Bodega');
+  assert.equal(isGisooQwenVoiceConfirmed({audio:{output:{voice:'Bodega'}}},'Bodega'),true);
+  assert.equal(isGisooQwenVoiceConfirmed({audio:{output:{voice:'Tina'}}},'Bodega'),false);
+  assert.equal(isGisooQwenVoiceConfirmed({},'Bodega'),false);
 });
 
 test('Browser reports actual laptop microphone noise-processing settings without exposing device identity', () => {
@@ -242,5 +258,5 @@ test('catalogue cards retain visible products during follow-up speech and expose
   assert.ok(start >= 0 && end > start);
   assert.doesNotMatch(client.slice(start, end), /setCatalogResults|setCatalogQuery/);
   assert.match(client, /href=\{'\/direct-product\/'\+encodeURIComponent\(variant\.code\)\}/);
-  assert.match(client, /useState\('Andre'\)/);
+  assert.match(client, /useState\('Bodega'\)/);
 });
