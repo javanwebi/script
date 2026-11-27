@@ -67,6 +67,14 @@ const LazyCustomPartRequestModal = lazy(() =>
 );
 const MAX_MANUFACTURING_IMAGE_BYTES = 8 * 1024 * 1024;
 
+function sameImageRegion(left: ImageRegion | null | undefined, right: ImageRegion | null | undefined): boolean {
+  return Boolean(left && right &&
+    Math.abs(left.x - right.x) < 0.002 &&
+    Math.abs(left.y - right.y) < 0.002 &&
+    Math.abs(left.width - right.width) < 0.002 &&
+    Math.abs(left.height - right.height) < 0.002);
+}
+
 async function createManufacturingImageFile(blob: Blob, originalName: string): Promise<File> {
   if (!blob.size || !blob.type.startsWith('image/')) {
     throw new Error('تصویر قطعه برای پیوست درخواست ساخت معتبر نیست.');
@@ -159,11 +167,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Form states
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [queryRegion,setQueryRegion]=useState<ImageRegion>();
+  const [queryRegions,setQueryRegions]=useState<ImageRegion[]>([]);
   const [regionDetectionState,setRegionDetectionState]=useState<RegionPreparationState>('uploading');
   const [regionDetectionMessage,setRegionDetectionMessage]=useState('');
   const [regionDetectionId,setRegionDetectionId]=useState<string|null>(null);
   const [fullImageSelected,setFullImageSelected]=useState(false);
   const regionDetectionSequenceRef=useRef(0);
+  const regionSelectionSequenceRef=useRef(0);
   const autoAnalysisKeyRef=useRef<string|null>(null);
   const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
@@ -179,7 +189,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{if(!isOpen){regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
+  React.useEffect(()=>{if(!isOpen){regionDetectionSequenceRef.current++;regionSelectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
   React.useEffect(() => {
     if (!isOpen) {
       customRequestSequenceRef.current++;
@@ -203,6 +213,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     imagePreparationSequenceRef.current++;
     imageUploadSequenceRef.current++;
     regionDetectionSequenceRef.current++;
+    regionSelectionSequenceRef.current++;
     customRequestSequenceRef.current++;
     analysisBusyRef.current = false;
     if (latestImageUrlRef.current?.startsWith('blob:')) {
@@ -258,7 +269,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [analysisResult, setAnalysisResult] =
     useState<AiPartAnalysisResult | null>(null);
   const [selectedProductId,setSelectedProductId]=useState<string>();
-  React.useEffect(()=>{autoAnalysisKeyRef.current=null;setQueryRegion(undefined);setRegionDetectionId(null);setFullImageSelected(false);setSelectedProductId(undefined);setInlineAnalysisBusy(false);setAnalysisResult(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
+  React.useEffect(()=>{autoAnalysisKeyRef.current=null;regionSelectionSequenceRef.current++;setQueryRegion(undefined);setQueryRegions([]);setRegionDetectionId(null);setFullImageSelected(false);setSelectedProductId(undefined);setInlineAnalysisBusy(false);setAnalysisResult(null);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
   const [customRequestDraft, setCustomRequestDraft] = useState<ManufacturingRequestDraft | null>(null);
   const [customRequestOpen, setCustomRequestOpen] = useState(false);
   const [isPreparingCustomRequest, setIsPreparingCustomRequest] = useState(false);
@@ -380,6 +391,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setRegionDetectionMessage('');
     setRegionDetectionId(null);
     setQueryRegion(undefined);
+    setQueryRegions([]);
     setFullImageSelected(false);
 
     try {
@@ -391,7 +403,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (sequence !== regionDetectionSequenceRef.current) return;
 
       const primaryRegion = detection.queryRegion;
+      const detectedRegions = Array.isArray(detection.queryRegions) ? detection.queryRegions : [];
+      const orderedRegions = [
+        ...(primaryRegion ? [primaryRegion] : []),
+        ...detectedRegions.filter(candidate => !sameImageRegion(candidate, primaryRegion)),
+      ].slice(0, 4);
       setRegionDetectionId(detection.detectionId);
+      setQueryRegions(orderedRegions);
       setQueryRegion(primaryRegion);
       setFullImageSelected(!primaryRegion);
       setRegionDetectionState('ready');
@@ -403,10 +421,27 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (sequence !== regionDetectionSequenceRef.current) return;
       setRegionDetectionId(null);
       setQueryRegion(undefined);
+      setQueryRegions([]);
       setFullImageSelected(true);
       setRegionDetectionState('fallback');
       setRegionDetectionMessage(friendlyVisionError(error));
     }
+  };
+
+  // Customers may choose only one of the server-detected proposals. No freeform
+  // rectangle is accepted; selecting another proposal reuses the same detection.
+  const handleDetectedRegionSelect = (region: ImageRegion) => {
+    const selectedIndex = queryRegions.findIndex(candidate => sameImageRegion(candidate, region));
+    if (regionDetectionState !== 'ready' || selectedIndex < 0) return;
+    if (!fullImageSelected && sameImageRegion(queryRegion, region)) return;
+    regionSelectionSequenceRef.current++;
+    autoAnalysisKeyRef.current = null;
+    setQueryRegion(region);
+    setFullImageSelected(false);
+    setAnalysisResult(null);
+    setSelectedProductId(undefined);
+    setErrorMessage('');
+    setRegionDetectionMessage(`قطعه ${toPersianDigits(String(selectedIndex + 1))} انتخاب شد؛ برش و جست‌وجوی کاتالوگ برای همین قطعه دوباره اجرا می‌شود.`);
   };
 
   const uploadAndPrepareImage = async (source: string | Blob, originalName = "customer-image") => {
@@ -421,6 +456,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     } catch (error: any) {
       if (sequence !== imagePreparationSequenceRef.current) return;
       setRegionDetectionState('fallback');
+      setQueryRegions([]);
       setFullImageSelected(true);
       setRegionDetectionMessage(friendlyVisionError(error));
     }
@@ -622,6 +658,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setRegionDetectionState('uploading');
     setRegionDetectionMessage('');
     setRegionDetectionId(null);
+    setQueryRegions([]);
+    regionSelectionSequenceRef.current++;
     setFullImageSelected(false);
     setErrorMessage("");
     setPendingStage("refined");
@@ -656,6 +694,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     }
     const requestRegion = localRegionEnabled ? (regionOverride === null ? undefined : regionOverride || queryRegion) : undefined;
     const requestFullImage = regionOverride === null || (!requestRegion && fullImageSelected);
+    const regionSelectionSequence = regionSelectionSequenceRef.current;
     analysisBusyRef.current = true;
     const sequence = ++analysisSequenceRef.current;
     setErrorMessage(""); setPendingStage(stage); setAnalysisProgress(0); setAnalysisPhaseIndex(0); setScanCounts(null);
@@ -686,11 +725,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         stage, observationOnly: false, region: requestRegion, detectionId: regionDetectionId || undefined, fullImage: requestFullImage, includeNearest: true,
         measurements: stage === "refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
-        if (sequence !== analysisSequenceRef.current) return;
+        if (sequence !== analysisSequenceRef.current || regionSelectionSequence !== regionSelectionSequenceRef.current) return;
         setScanCounts(progress); setAnalysisProgress(progress.total ? Math.floor(progress.compared * 100 / progress.total) : 0);
         setAnalysisPhaseIndex(progress.stage === "verifying" ? 4 : progress.stage === "scanning" ? 3 : progress.stage === "preparing" ? 0 : 1);
       });
-      if (sequence !== analysisSequenceRef.current) return;
+      if (sequence !== analysisSequenceRef.current || regionSelectionSequence !== regionSelectionSequenceRef.current) return;
       if (localRegionEnabled || result.localVisionMetrics) {
         setLocalRegionEnabled(true); setQueryRegion(result.queryRegion || requestRegion);
         setFullImageSelected(requestFullImage); setRegionDetectionState("ready");
@@ -732,7 +771,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         if (conversationImage) onAnalysisResult?.(result, conversationImage);
       } setLastStage(result.stage || stage); setCurrentStep(inlineWorkspace ? 1 : result.observationOnly ? 2 : "results");
     } catch (error: any) {
-      if (sequence !== analysisSequenceRef.current) return;
+      if (sequence !== analysisSequenceRef.current || regionSelectionSequence !== regionSelectionSequenceRef.current) return;
       console.error(error);
       if (activeImageEventId) void completeCustomerImageIdentification(activeImageEventId, { status: "failed" }).catch(() => undefined);
       setErrorMessage(friendlyVisionError(error)); setCurrentStep(inlineWorkspace ? 1 : stage === "quick" ? 1 : 3);
@@ -999,6 +1038,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           image={selectedImage || ''}
           status={regionDetectionState}
           selectedRegion={queryRegion}
+          candidateRegions={queryRegions}
+          onSelectRegion={handleDetectedRegionSelect}
           message={[!analysisResult ? regionDetectionMessage : '', localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
           analysisError={errorMessage}
           busy={isUploadingImage}
