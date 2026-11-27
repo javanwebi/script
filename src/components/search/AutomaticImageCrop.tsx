@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react';
+import { useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { AlertCircle, CheckCircle2, LoaderCircle, Scan } from 'lucide-react';
 import type { ImageRegion } from '../../utils/imageRegion';
 import './automatic-image-crop.css';
@@ -31,6 +31,7 @@ export function AutomaticImageCrop({
   compact = false,
 }: Props) {
   const [imageAspect, setImageAspect] = useState(1);
+  const framePointerDownRef = useRef<{ x: number; y: number } | null>(null);
   const uploading = status === 'uploading';
   const detecting = status === 'detecting';
   const preparing = uploading || detecting;
@@ -64,7 +65,15 @@ export function AutomaticImageCrop({
   const regionValue = region
     ? [region.x, region.y, region.width, region.height].map(value => value.toFixed(5)).join(',')
     : '';
+  const handleFramePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    framePointerDownRef.current = { x: event.clientX, y: event.clientY };
+  };
+
   const handleFrameTap = (event: MouseEvent<HTMLDivElement>) => {
+    const pointerDown = framePointerDownRef.current;
+    framePointerDownRef.current = null;
+    // A swipe or drag across the image is navigation/gesture input, never a crop selection.
+    if (pointerDown && Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y) > 8) return;
     if (!canSelectRegion || !onSelectRegion) return;
     if ((event.target as HTMLElement).closest('.forza-auto-crop__candidate')) return;
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -91,7 +100,7 @@ export function AutomaticImageCrop({
       aria-label="تشخیص و برش خودکار قطعه"
     >
       <div className="forza-auto-crop__image-stage">
-        <div className="forza-auto-crop__frame" data-testid="forza-automatic-crop-frame" onClick={handleFrameTap}>
+        <div className="forza-auto-crop__frame" data-testid="forza-automatic-crop-frame" onPointerDown={handleFramePointerDown} onClick={handleFrameTap}>
           <img
             src={src}
             alt="تصویر کامل ارسالی مشتری؛ کادرهای شماره‌دار محدوده قطعات شناسایی‌شده را نشان می‌دهند"
@@ -112,7 +121,7 @@ export function AutomaticImageCrop({
                 data-selected={selected ? 'true' : 'false'}
                 aria-label={'انتخاب قطعه ' + (index + 1) + ' از ' + selectableRegions.length}
                 aria-pressed={selected}
-                onClick={event => { event.stopPropagation(); onSelectRegion?.(candidate); }}
+                onClick={event => { framePointerDownRef.current = null; event.stopPropagation(); onSelectRegion?.(candidate); }}
                 style={{
                   left: candidate.x * 100 + '%',
                   top: candidate.y * 100 + '%',
