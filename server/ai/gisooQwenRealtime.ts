@@ -101,7 +101,7 @@ export function connectGisooQwenRealtime(client:WebSocket,instructions:string,ca
   let heartbeat:ReturnType<typeof setInterval>|undefined,clientHeartbeat:ReturnType<typeof setInterval>|undefined,responseStartTimer:ReturnType<typeof setTimeout>|undefined,cancelTimer:ReturnType<typeof setTimeout>|undefined,cancelTimerResponse='',lastUpstreamPong=Date.now(),lastClientPong=Date.now(),upstreamCongestedSince=0,upstreamCongestedNotice=false;
   let resumeSeedAccepted=false;
   let micFrames=0,micBytes=0,micSquareSum=0,micSamples=0,micPeak=0,micWindowStarted=Date.now(),firstMicFrameAt=0,lastSpeechStartedAt=0;
-  const cancelled=new Set<string>(),toolResponseIds=new Set<string>(),processedToolCalls=new Set<string>(),started=Date.now();
+  const cancelled=new Set<string>(),toolResponseIds=new Set<string>(),toolResponseDone=new Set<string>(),toolContinuationStarted=new Set<string>(),toolPendingCounts=new Map<string,number>(),processedToolCalls=new Set<string>(),started=Date.now();
   const log=(event:string,data:Record<string,unknown>={})=>console.info('[FORZA QWEN] '+event+' '+JSON.stringify(data));
   const finish=(reason?:string,closeCode?:number,closeReason?:string,retryable=false)=>{
     if(closed)return;closed=true;activeSessions=Math.max(0,activeSessions-1);
