@@ -15,12 +15,16 @@ type Session = { ws:WebSocket|null; stream:MediaStream|null; node:ScriptProcesso
 function newSession():Session {
   return {ws:null,stream:null,node:null,mic:null,sink:null,output:null,analyser:null,ctx:null,sources:new Set(),next:0,ready:false,done:true,ignored:new Set(),id:'',frame:0,lastVisual:0,heartbeat:null,lastPong:0,connectedAt:0,micCongestedSince:0};
 }
+function encodePcm16(pcm:Int16Array):string {
+  const bytes=new Uint8Array(pcm.buffer,pcm.byteOffset,pcm.byteLength);
+  let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);
+  return btoa(binary);
+}
 function encodePcm(samples:Float32Array,rate:number):string {
   const pcm=resampleDibaPcm(samples,rate);
   const bytes=new Uint8Array(pcm.length*2), view=new DataView(bytes.buffer);
   for(let i=0;i<pcm.length;i++){const x=Math.max(-1,Math.min(1,pcm[i]));view.setInt16(i*2,x<0?x*32768:x*32767,true);}
-  let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);
-  return btoa(binary);
+  return encodePcm16(new Int16Array(bytes.buffer));
 }
 
 export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
@@ -113,7 +117,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       s.output.connect(s.analyser);s.analyser.connect(ctx.destination);
       s.mic=ctx.createMediaStreamSource(stream);
       s.sink=ctx.createGain();s.sink.gain.value=0;
-      const sendMic=(samples:Float32Array)=>{
+      const sendMic=(samples:Float32Array|Int16Array)=>{
         if(!s.ready||micMuted.current||scanning.current||s.ws?.readyState!==WebSocket.OPEN)return;
         if(s.ws.bufferedAmount>131072){
           if(!s.micCongestedSince){s.micCongestedSince=Date.now();networkWarning.current=true;setError('شبکه کند شده؛ موقتاً ارسال صدا را کنترل می‌کنم تا تماس قطع نشود.');}
@@ -121,14 +125,14 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           return;
         }
         if(s.micCongestedSince){s.micCongestedSince=0;if(networkWarning.current){networkWarning.current=false;setError('');}}
-        send(s,{type:'realtime_audio',audio:encodePcm(samples,ctx.sampleRate)});
+        send(s,{type:'realtime_audio',audio:samples instanceof Int16Array?encodePcm16(samples):encodePcm(samples,ctx.sampleRate)});
       };
       if(ctx.audioWorklet){
         try{
           await ctx.audioWorklet.addModule('/forza-runtime/qwen-mic-worklet.js');
           if(session.current!==s)return;
           const node=new AudioWorkletNode(ctx,'forza-qwen-mic',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1]});
-          node.port.onmessage=e=>{if(e.data instanceof Float32Array)sendMic(e.data);};
+          node.port.onmessage=e=>{if(e.data instanceof Int16Array)sendMic(e.data);};
           s.node=node;
         }catch(error){console.warn('[FORZA QWEN] AudioWorklet unavailable',error);}
       }
