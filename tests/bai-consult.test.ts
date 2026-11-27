@@ -478,6 +478,25 @@ test('AvalAI fails over to its Cloudflare-backed route after a first-token timeo
  assert.deepEqual(deltas,['متوجه شدم.']);
 });
 
+test('AvalAI fails over to its alternate domain on Cloudflare HTTP 525 without changing key or model',async()=>{
+ let calls=0;const deltas:string[]=[];
+ const result=await streamAvalaiConsult({apiKey:'same-desk-key',model:'glm-5.3-flash',query:'سلام',
+  fetchImpl:(async(url,init)=>{
+   calls++;
+   assert.equal(JSON.parse(String(init?.body)).model,'glm-5.3-flash');
+   assert.match(String((init?.headers as Record<string,string>|undefined)?.Authorization||''),/Bearer same-desk-key/);
+   if(calls===1){
+    assert.equal(String(url),'https://api.avalai.ir/v1/chat/completions');
+    return new Response('Cloudflare SSL handshake failed',{status:525});
+   }
+   assert.equal(String(url),'https://api.avalai.org/v1/chat/completions');
+   return fakeStream(['data: {"choices":[{"delta":{"content":"OK"},"finish_reason":"stop"}]}\n\n']);
+  }) as typeof fetch,onDelta:d=>deltas.push(d)});
+ assert.equal(calls,2);
+ assert.equal(result.text,'OK');
+ assert.deepEqual(deltas,['OK']);
+});
+
 test('AvalAI recovery is bounded and never replays partial text or retries account failures',async()=>{
  for(const kind of ['empty','partial','auth','quota','aborted'] as const){
   let calls=0;const controller=new AbortController();
