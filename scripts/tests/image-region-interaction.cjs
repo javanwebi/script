@@ -105,6 +105,7 @@ const {chromium}=require('playwright');
   assert.equal(await crop.getAttribute('data-region'),'0.67000,0.28000,0.20000,0.44000');
   const cropBox=crop.locator('.forza-auto-crop__candidate.is-selected');
   await cropBox.waitFor({state:'visible'});
+  await cropBox.locator('.forza-auto-crop__selected-label').getByText('برش فعال').waitFor({state:'visible'});
   const overlay=await cropBox.evaluate(element=>({left:element.style.left,top:element.style.top,width:element.style.width,height:element.style.height,pointerEvents:getComputedStyle(element).pointerEvents}));
   assert.deepEqual(overlay,{left:'67%',top:'28%',width:'20%',height:'44%',pointerEvents:'auto'});
   await page.getByTestId('forza-automatic-crop-thumbnail').waitFor({state:'visible'});
