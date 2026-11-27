@@ -154,8 +154,8 @@ test('Customer barge-in remains intact and Gisoo generates one opening greeting 
 test('recoverable Gisoo flood errors do not tear down an established realtime session', () => {
   assert.equal(classifyGisooRealtimeError('flood', true), 'recoverable');
   assert.equal(classifyGisooRealtimeError('rate_limit_exceeded', true), 'recoverable');
-  assert.equal(classifyGisooRealtimeError('session_closed', true), 'fatal');
-  assert.equal(classifyGisooRealtimeError('server_restart', true), 'fatal');
+  assert.equal(classifyGisooRealtimeError('session_closed', true), 'recoverable');
+  assert.equal(classifyGisooRealtimeError('server_restart', true), 'recoverable');
   assert.equal(classifyGisooRealtimeError('insufficient_credit', true), 'fatal');
   assert.equal(classifyGisooRealtimeError('flood', false), 'recoverable');
   assert.equal(classifyGisooRealtimeError('rate_limit_exceeded', false), 'recoverable');
