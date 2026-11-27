@@ -130,8 +130,13 @@ const {chromium}=require('playwright');
   await page.mouse.move(handleBox.x+handleBox.width/2,handleBox.y-115,{steps:8});
   await page.mouse.up();
   await page.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='half');
+  // Wait for the 280 ms CSS height transition to settle before measuring the sheet.
+  await page.waitForFunction(()=> {
+    const element=document.querySelector('.kiki-image-workspace__catalog');
+    return element && element.getBoundingClientRect().height >= window.innerHeight * .48;
+  },null,{timeout:5000});
   const halfSheetBox=await sheet.boundingBox();assert.ok(halfSheetBox);
-  assert.ok(halfSheetBox.height>=844*.48&&halfSheetBox.height<=844*.60,'the mobile catalogue sheet must cover roughly half the image, not the whole screen');
+  assert.ok(halfSheetBox.height>=844*.48&&halfSheetBox.height<=844*.60,'the mobile catalogue sheet must cover roughly half the viewport after its transition');
   const catalogueBody=page.locator('#kiki-image-workspace-catalog-body');
   assert.equal(await catalogueBody.evaluate(element=>getComputedStyle(element).overflowY),'auto','mobile result list must scroll independently');
   await catalogueBody.evaluate(element=>{element.scrollTop=element.scrollHeight;});
