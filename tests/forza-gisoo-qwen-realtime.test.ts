@@ -138,7 +138,7 @@ test('Customer barge-in remains intact and Gisoo generates one opening greeting 
   assert.match(client,/if\(!s\.ready\|\|micMuted\.current\|\|scanning\.current/);
   assert.match(client,/setPhase\('listening'\);return;/);
   assert.doesNotMatch(client,/greeted|type:'text',text:greeting|سلام، به صنعت پیش خوش آمدید/);
-  assert.match(prompt,/تو فورزا، مشاور فنی و راهنمای تأمین قطعات صنعتی صنعت پیش هستی/);
+  assert.match(prompt,/تو فورزا هستی؛ مشاور مهندسی و راهنمای تأمین قطعات صنعتی صنعت پیش/);
   assert.match(prompt,/مکالمه زنده و پیوسته بین دو انسان/);
   assert.match(prompt,/به محض دریافت این فرمان داخلی/);
   assert.match(prompt,/فرمان داخلی آغاز تماس است و حرف مشتری نیست/);
@@ -231,7 +231,8 @@ test('native Gisoo server executes catalogue function calls and returns tool out
   assert.match(server, /response\.function_call_arguments\.done/);
   assert.match(server, /function_call_output/);
   assert.match(server, /type:'catalog_results'/);
-  assert.match(server, /cancelled\.has\(response\)&&pendingText&&!userSpeaking/);
+  assert.match(server, /if\(cancelled\.has\(response\)\|\|userSpeaking\)/);
+  assert.match(server, /if\(pendingText&&!userSpeaking\)/);
   assert.match(server, /toolResponseId&&cancelled\.has\(toolResponseId\)/);
   assert.match(app, /connectGisooQwenRealtime\(clientWs, FORZA_QWEN_SYSTEM_INSTRUCTION, searchForzaLiveCatalog, resuming\)/);
   assert.match(app, /systemInstruction: FORZA_SYSTEM_INSTRUCTION/);
@@ -428,7 +429,7 @@ test('live Qwen call keeps a provider-safe concurrency ceiling configurable up t
 });
 test('reconnect preserves transcript and vision context while avoiding false background heartbeat timeouts',()=>{
  const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
- assert.match(client,/history\.current=\[\.\.\.history\.current,\{role,text\}\]\.slice\(-8\)/);
+ assert.match(client,/history\.current=\[\.\.\.history\.current,\{role,text:clean\}\]\.slice\(-8\)/);
  assert.match(client,/visibilitychange/);
  assert.match(client,/visibilityHandler=\(\)=>\{if\(document\.visibilityState==='visible'\)/);
  assert.match(client,/document\.removeEventListener\('visibilitychange'/);
@@ -450,7 +451,7 @@ test('barge-in cancellation is bounded and clears stale active responses',()=>{
  assert.match(server,/cancelActiveResponse/);
  assert.match(server,/cancelTimer=setTimeout/);
  assert.match(server,/response_cancel_timeout/);
- assert.match(server,/response_cancel_not_active&&active&&cancelled\.has\(active\)/);
+ assert.match(server,/code==='response_cancel_not_active'&&active&&cancelled\.has\(active\)/);
 });
 test('provider failures cannot leave the live assistant waiting forever for a response start',()=>{
  const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
