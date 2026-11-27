@@ -93,6 +93,10 @@ if (realtimeProvider === "qwen") {
         settle();
       }
     });
+    socket.on("unexpected-response", (_request, response) => {
+      response.resume();
+      settle(new Error("FORZA_QWEN_GISOO_HTTP_" + String(response.statusCode || 0)));
+    });
     socket.on("error", error => settle(new Error("FORZA_QWEN_GISOO_SOCKET_ERROR_" +
       String(error?.message || "unknown").slice(0, 160))));
     socket.on("close", (code, reason) => {
