@@ -117,6 +117,12 @@ test('VISION entry uses original KIKI portal layout while retaining real image h
   assert.ok(!entry.includes('/src/assets/'));
 });
 
+test('server keeps one detection cache available for repeated object selection', () => {
+  const server = source('server.ts');
+  assert.ok(server.includes('localVisionDetectionCache.get(body.detectionId,imageFingerprint,localProfile.model)'));
+  assert.doesNotMatch(server, /localVisionDetectionCache\\.delete\\(body\\.detectionId\\)/);
+});
+
 test('catalog-guided crop is applied automatically and product results open their detail page', () => {
   const modal = source('src/components/search/AiVisualPartSearchModal.tsx');
   const review = source('src/components/search/ImageRegionReview.tsx');
