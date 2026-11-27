@@ -175,7 +175,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const regionDetectionSequenceRef=useRef(0);
   const regionSelectionSequenceRef=useRef(0);
   const autoAnalysisKeyRef=useRef<string|null>(null);
-  const analyzeSelectedRegionRef=useRef<((region: ImageRegion, imageId: string) => void) | null>(null);
   const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
@@ -436,25 +435,19 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     if (regionDetectionState !== 'ready' || selectedIndex < 0) return;
     if (!fullImageSelected && sameImageRegion(queryRegion, region)) return;
     regionSelectionSequenceRef.current++;
-    const imageId = localImageId;
-    if (!imageId) return;
     // Invalidate an in-flight search for the previously selected object.
-    // Otherwise handleAnalyze's busy guard would discard this tap and the
-    // old response would be ignored without ever querying the newly selected crop.
+    // Its eventual response is now stale and cannot replace the new selection.
     analysisSequenceRef.current++;
     analysisBusyRef.current = false;
     setInlineAnalysisBusy(false);
-    const regionKey = [region.x, region.y, region.width, region.height].map(value => value.toFixed(4)).join(':');
-    autoAnalysisKeyRef.current = `${imageId}:${regionKey}`;
+    autoAnalysisKeyRef.current = null;
     setQueryRegion(region);
     setFullImageSelected(false);
     setAnalysisResult(null);
     setSelectedProductId(undefined);
     setErrorMessage('');
     setRegionDetectionMessage(`قطعه ${toPersianDigits(String(selectedIndex + 1))} انتخاب شد؛ برش و جست‌وجوی کاتالوگ برای همین قطعه دوباره اجرا می‌شود.`);
-    // Start the new crop query directly from the user's tap. The matching
-    // auto-analysis key prevents the state-driven effect from duplicating it.
-    analyzeSelectedRegionRef.current?.(region, imageId);
+    // The state-driven auto-analysis effect now runs for this exact crop.
   };
 
   const uploadAndPrepareImage = async (source: string | Blob, originalName = "customer-image") => {
@@ -789,10 +782,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (activeImageEventId) void completeCustomerImageIdentification(activeImageEventId, { status: "failed" }).catch(() => undefined);
       setErrorMessage(friendlyVisionError(error)); setCurrentStep(inlineWorkspace ? 1 : stage === "quick" ? 1 : 3);
     } finally { if (sequence === analysisSequenceRef.current) {analysisBusyRef.current = false;if(inlineWorkspace)setInlineAnalysisBusy(false);} }
-  };
-
-  analyzeSelectedRegionRef.current = (region, imageId) => {
-    void handleAnalyze('quick', region, imageId, true);
   };
 
   React.useEffect(()=>{
