@@ -217,3 +217,61 @@
 @media (prefers-reduced-motion: reduce) {
   .forza-auto-crop__proof.is-detecting .forza-auto-crop__copy strong svg { animation: none; }
 }
+
+
+/* Only server-detected proposals are selectable; customers cannot draw or resize a crop. */
+.forza-auto-crop__candidate {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-width: 12px;
+  min-height: 12px;
+  margin: 0;
+  padding: 3px;
+  border: 2px dashed rgba(255,255,255,.98);
+  border-radius: 5px;
+  background: rgba(28,36,44,.08);
+  box-shadow: 0 0 0 1px rgba(28,36,44,.52);
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  appearance: none;
+}
+.forza-auto-crop__candidate > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #30363d;
+  background: #fff;
+  box-shadow: 0 1px 5px rgba(0,0,0,.24);
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+}
+.forza-auto-crop__candidate.is-selected {
+  border: 3px solid #e56b1e;
+  background: rgba(229,107,30,.09);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.98), 0 0 0 3px rgba(229,107,30,.2);
+}
+.forza-auto-crop__candidate.is-selected > span {
+  color: #fff;
+  background: #e56b1e;
+}
+.forza-auto-crop__candidate:focus-visible {
+  outline: 3px solid #e56b1e;
+  outline-offset: 3px;
+}
+.forza-auto-crop__candidate:active {
+  background: rgba(229,107,30,.18);
+}
+@media (max-width: 760px) {
+  .forza-auto-crop__candidate { border-width: 2px; padding: 2px; }
+  .forza-auto-crop__candidate.is-selected { border-width: 3px; }
+  .forza-auto-crop__candidate > span { width: 20px; height: 20px; font-size: 10px; }
+}
