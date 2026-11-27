@@ -365,7 +365,7 @@ test('exact SKU lookup prioritizes the requested active code and exposes its own
 
 test('Qwen realtime uses a natural Persian pause and exposes exact detail and comparison tools',()=>{
  const update=buildGisooQwenSessionUpdate('مشاور');
- assert.equal(update.session.audio.input.turn_detection.silence_duration_ms,900);
+ assert.equal(update.session.turn_detection.silence_duration_ms,800);
  assert.equal(update.session.tools.length,4);
  assert.equal(update.session.tools[0].name,'search_sanatpish_catalog');
  assert.equal(update.session.tools[1].name,'get_sanatpish_product_details');
