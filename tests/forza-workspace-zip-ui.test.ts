@@ -83,19 +83,23 @@ test('mobile FORZA launcher preserves the swipe-up contact sheet and direct desk
   assert.match(styles, /prefers-reduced-motion/);
 });
 
-test('approved optical tap feedback is cosmetic and retains the live region selector', () => {
-  const selector = read('src/components/search/ImageRegionSelector.tsx');
-  const styles = read('src/components/search/industrial-scan.css');
+test('FORZA Vision lets customers tap an automatic object proposal but never draw a crop', () => {
+  const crop = read('src/components/search/AutomaticImageCrop.tsx');
+  const cropStyles = read('src/components/search/automatic-image-crop.css');
+  const review = read('src/components/search/ImageRegionReview.tsx');
   const scanner = read('src/components/search/AiVisualPartSearchModal.tsx');
-  assert.match(selector, /tapFeedback/);
-  assert.match(selector, /fv-tap-ripple/);
-  assert.match(selector, /fv-object-dot--active/);
-  assert.match(selector, /findImageRegionAtPoint/);
-  assert.match(selector, /tapImageRegion/);
-  assert.match(styles, /fv-approved-tap-ripple/);
-  assert.match(styles, /prefers-reduced-motion/);
-  assert.match(scanner, /ImageRegionSelector/);
-  assert.match(scanner, /clientAiSegmentation/);
+  assert.match(crop, /candidateRegions/);
+  assert.match(crop, /onSelectRegion/);
+  assert.match(crop, /forza-region-candidate-/);
+  assert.match(crop, /onClick=\{\(\) => onSelectRegion\?\.\(candidate\)\}/);
+  assert.match(crop, /aria-pressed=\{selected\}/);
+  assert.match(cropStyles, /\.forza-auto-crop__candidate/);
+  assert.match(cropStyles, /touch-action: manipulation/);
+  assert.match(review, /candidateRegions=\{candidateRegions\}/);
+  assert.match(review, /onSelectRegion=\{onSelectRegion\}/);
+  assert.match(scanner, /candidateRegions=\{queryRegions\}/);
+  assert.match(scanner, /handleDetectedRegionSelect/);
+  assert.doesNotMatch(scanner, /ImageRegionSelector|handleRegionSelection|onRegionChange/);
 });
 
 test('approved workspace keeps catalog search collapsible without dropping live callbacks', () => {
