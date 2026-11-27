@@ -521,8 +521,10 @@ export async function streamAvalaiConsult(options: BaiConsultOptions) {
       // Retry only a failure before the first visible token. The alternate
       // domain uses the same AvalAI key and model, never a second provider.
       // Once any text was emitted, replaying would duplicate spoken content.
-      const retryable=error instanceof BaiConsultError&&
-        ['upstream_network_error','upstream_timeout','provider_stream_incomplete'].includes(error.code);
+      const retryable=error instanceof BaiConsultError&&(
+        ['upstream_network_error','upstream_timeout','provider_stream_incomplete'].includes(error.code)||
+        /^http_(?:502|503|504|520|521|522|523|524|525|526|527|530)(?:_|$)/.test(error.code)
+      );
       if(options.signal?.aborted||sentText||!retryable||index===endpoints.length-1)throw error;
       console.info('[FORZA_TEXT_STREAM] provider=avalai route_failover=1 from='+
         new URL(endpoints[index]).host+' to='+new URL(endpoints[index+1]).host+
