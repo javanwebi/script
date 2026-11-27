@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Eye,
   EyeOff,
-  Layers,
-  CheckCircle2,
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -207,34 +205,19 @@ export function AccountAccess({
   );
   return (
     <div className="account-access">
-      <aside className="account-access-story">
-        <img src={mode === "register" ? (A.bannerAuthRegister || A.authIndustrialHero) : (A.bannerAuthLogin || A.authIndustrialHero)} alt="" />
-        <div>
-          <span className="account-symbol" aria-hidden="true"><Layers size={26} /></span>
-          <span className="inline-flex items-center justify-center w-36 h-14 rounded-xl bg-white/95 p-2">
-            <SanatPishLogo className="w-full h-full object-contain" alt="لوگوی صنعت پیش" />
-          </span>
-          <h2>
-            {mode === "register" ? "از اولین استعلام" : "خوش آمدید به صنعت پیش"}
-            <br />
-            {mode === "register" ? "تا تأمین مطمئن قطعات" : "از جست‌وجو تا خرید مطمئن"}
-          </h2>
-          <ul>
-            {[
-              "قیمت و موجودی در پنل شما",
-              "استعلام با کد دقیق کالا",
-              "پیگیری سفارش و باشگاه مشتریان",
-            ].map((t) => (
-              <li key={t}>
-                <CheckCircle2 size={17} />
-                {t}
-              </li>
-            ))}
-          </ul>
-          <Link to="/about" onClick={onDone}>
-            آشنایی با صنعت پیش <ArrowLeft size={17} />
-          </Link>
-        </div>
+      <aside
+        className="account-access-story"
+        data-mode={mode}
+        aria-label={mode === "register" ? "بنر ثبت‌نام صنعت پیش" : "بنر ورود صنعت پیش"}
+      >
+        <img
+          src={mode === "register" ? A.bannerAuthRegister : A.bannerAuthLogin}
+          alt={mode === "register"
+            ? "عضو صنعت پیش شوید؛ دسترسی به کاتالوگ کامل، جست‌وجوی هوشمند و مشاوره FORZA"
+            : "به میزکار خود در صنعت پیش وارد شوید؛ دسترسی به کاتالوگ، سفارش‌ها و خدمات هوشمند FORZA"}
+          loading="eager"
+          decoding="async"
+        />
       </aside>
       <section className="account-access-form">
         <div className="account-form-heading">

@@ -33,7 +33,28 @@ test('mobile account dialog uses one scroll surface and keeps separate auth imag
   assert.match(auth, /A\.bannerAuthLogin/);
   assert.match(images, /bannerAuthLoginImg/);
   assert.match(images, /bannerAuthRegisterImg/);
+  assert.match(images, /auth-login-banner\.svg/);
+  assert.match(images, /auth-register-banner\.svg/);
+  assert.doesNotMatch(read('scripts/optimize-images.mjs'), /banner_auth_login_1791194148886\.jpg|banner_auth_register_1791194168672\.jpg/);
   assert.match(css, /\.account-dialog \.account-access\s*\{[^}]*overflow-y: auto/s);
   assert.match(css, /\.account-dialog \.account-access-form\s*\{[^}]*overflow: visible/s);
   assert.match(css, /-webkit-overflow-scrolling: touch/);
+});
+
+
+test('dedicated login and registration routes share the two replacement banners with the auth dialog', () => {
+  const app = read('src/App.tsx');
+  const modal = read('src/components/auth/AuthModal.tsx');
+  const auth = read('src/components/auth/AccountAccess.tsx');
+  const css = read('src/storefront.css');
+  assert.ok(app.includes('path="/login"'));
+  assert.ok(app.includes('path="/register"'));
+  assert.ok(modal.includes('initial={authModalInitialView}'));
+  assert.ok(auth.includes('data-mode={mode}'));
+  assert.ok(auth.includes('A.bannerAuthLogin'));
+  assert.ok(auth.includes('A.bannerAuthRegister'));
+  assert.ok(auth.includes('عضو صنعت پیش شوید'));
+  assert.ok(auth.includes('به میزکار خود در صنعت پیش وارد شوید'));
+  assert.ok(css.includes('aspect-ratio: 3.6 / 1'));
+  assert.ok(css.includes('Final banner replacement'));
 });
