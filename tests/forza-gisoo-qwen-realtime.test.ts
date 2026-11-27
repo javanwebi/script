@@ -375,6 +375,7 @@ test('transport protects the call from brief backpressure and records provider c
  assert.match(server,/session_started/);
  assert.match(server,/session_rejected/);
  assert.match(server,/upstream_audio_backpressure_started/);
+ assert.match(server,/upstreamCongestedNotice&&queued<32768/);
  assert.match(server,/browser_output_backpressure/);
  assert.match(server,/network_degraded/);
  assert.match(client,/retryCount\.current<5/);
