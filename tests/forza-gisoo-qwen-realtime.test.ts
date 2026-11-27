@@ -123,13 +123,15 @@ test('Customer barge-in remains intact and Gisoo generates one opening greeting 
   assert.doesNotMatch(client,/greeted|type:'text',text:greeting|سلام، به صنعت پیش خوش آمدید/);
   assert.match(prompt,/تو فورزا، مشاور فنی و راهنمای تأمین قطعات صنعتی صنعت پیش هستی/);
   assert.match(prompt,/مکالمه زنده و پیوسته بین دو انسان/);
-  assert.match(prompt,/به محض اینکه نشست آماده شد/);
+  assert.match(prompt,/به محض دریافت این فرمان داخلی/);
+  assert.match(prompt,/فرمان داخلی آغاز تماس است و حرف مشتری نیست/);
   assert.match(prompt,/سلام، به صنعت پیش خوش آمدید/);
   assert.match(prompt,/فقط یک‌بار طبیعی خوشامد بگو/);
   assert.match(prompt,/این تنها خوشامدگویی و معرفی تو در کل تماس است/);
   assert.match(prompt,/حتی اگر مشتری دوباره سلام کرد/);
   assert.match(server,/send\(buildGisooQwenOpeningGreetingTrigger\(greetingTriggerId\)\)/);
-  assert.match(server,/greetingSeedPending&&\(receivedItemId===greetingTriggerId\|\|triggerText\)/);\n  assert.match(server,/greetingResponsePending=true/);
+  assert.match(server,/greetingSeedPending&&\(receivedItemId===greetingTriggerId\|\|triggerText\)/);
+  assert.match(server,/greetingResponsePending=true/);
   assert.match(server,/send\(\{type:'response\.create'\}\)/);
   assert.match(server,/log\('opening_greeting_requested'/);
   assert.doesNotMatch(prompt,/هیچ خوشامدگویی خودکار یا پیام آغازینی نساز/);
