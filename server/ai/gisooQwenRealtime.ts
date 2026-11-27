@@ -39,6 +39,14 @@ export function buildGisooQwenSessionUpdate(instructions:string,silenceDurationM
           type:'function',name:'compare_sanatpish_products',
           description:'مقایسه دو تا چهار کد واقعی کاتالوگ. فقط تفاوت‌های ثبت‌شده را مقایسه کن و اطلاعات غایب را نامشخص اعلام کن.',
           parameters:{type:'object',properties:{codes:{type:'array',items:{type:'string'},minItems:2,maxItems:4,description:'دو تا چهار کد خانواده یا SKU برای مقایسه'}} ,required:['codes'],additionalProperties:false}
+        },
+        {
+          type:'function',name:'update_forza_consultation',
+          description:'ثبت مرحله فعلی مشاوره در میزکار مشتری. هنگام عبور واقعی از یک مرحله به مرحله بعد، وضعیت را بی‌صدا به‌روز کن؛ این ابزار جای پاسخ صوتی را نمی‌گیرد.',
+          parameters:{type:'object',properties:{
+            stage:{type:'string',enum:['understand','diagnose','specify','catalog','compare','recommend']},
+            summary:{type:'string',description:'خلاصه یک‌جمله‌ای از چیزی که تا این مرحله از مشتری فهمیده‌ای؛ بدون حدس یا ادعای تأییدنشده.'}
+          },required:['stage','summary'],additionalProperties:false}
         }
       ],
       reasoning:{effort:'none'},
