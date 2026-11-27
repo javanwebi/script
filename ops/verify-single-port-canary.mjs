@@ -168,6 +168,14 @@ assert.ok(Number(voskScript.headers.get("content-length") || 0) > 1_000_000,
   "DIBA_BROWSER_VOSK_SCRIPT_CONTENT_LENGTH_MISSING");
 console.log("PRIVATE_CANARY_DIBA_BROWSER_VOSK_SCRIPT_OK bytes=" + voskScript.headers.get("content-length"));
 
+const qwenMicWorklet = await fetch(candidate + "/forza-runtime/qwen-mic-worklet.js", {
+  method: "HEAD",
+  signal: AbortSignal.timeout(15000),
+});
+assert.equal(qwenMicWorklet.status, 200, "FORZA_QWEN_MIC_WORKLET_HTTP_" + qwenMicWorklet.status);
+assert.match(qwenMicWorklet.headers.get("content-type") || "", /javascript/i);
+console.log("FORZA_QWEN_MIC_WORKLET_ASSET_OK");
+
 // Probe real, protected mutation handlers without an authenticated session.
 // A correct endpoint rejects an anonymous write with JSON 401/403. An absent
 // endpoint typically returns 404 HTML, which previously broke CRM and image
