@@ -29,7 +29,7 @@ test('Qwen session uses Gisoo direct-realtime PCM, Bodega voice, configured VAD,
   assert.equal(update.session.audio.output.voice, 'Bodega');
   assert.equal(update.session.instructions, 'دستیار فارسی صنعت پیش');
   assert.equal(update.session.audio.input.turn_detection.type, 'server_vad');
-  assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 500);
+  assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 800);
   assert.equal(update.session.audio.input.turn_detection.interrupt_response, true);
   assert.equal(update.session.reasoning.effort, 'none');
 });
@@ -389,4 +389,23 @@ test('catalog lookup does not claim success when no family or SKU matched',()=>{
  const products=[{code:'OTHER',name:'قطعه دیگر',brand:'',categorySlug:'other',categoryName:'سایر',subcategory:'',technicalSpecs:[],prices:{base:0,retail:0,wholesale:0,dealer:0},stock:0,inquiryOnly:true,images:[],tags:[],unit:'عدد',active:true,variants:[]}] as unknown as Product[];
  const result=searchForzaRealtimeCatalog(products,'قطعه ناشناخته');
  if(result.results.length===0)assert.equal(result.success,false);
+});
+
+test('live Qwen call keeps a provider-safe concurrency ceiling configurable up to forty sessions',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(server,/FORZA_QWEN_MAX_SESSIONS\|\|8\),8,1,40/);
+});
+test('reconnect preserves transcript and vision context while avoiding false background heartbeat timeouts',()=>{
+ const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+ assert.match(client,/history\.current=\[\.\.\.history\.current,\{role,text\}\]\.slice\(-8\)/);
+ assert.match(client,/visibilitychange/);
+ assert.match(client,/visibilityHandler=\(\)=>\{if\(document\.visibilityState==='visible'\)/);
+ assert.match(client,/document\.removeEventListener\('visibilitychange'/);
+});
+test('provider failures cannot leave the live assistant waiting forever for a response start',()=>{
+ const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
+ assert.match(server,/responseStartTimer=setTimeout/);
+ assert.match(server,/response_start_timeout/);
+ assert.match(server,/\['flood','rate_limit_exceeded','server_error','temporarily_unavailable'\]/);
+ assert.match(server,/authentication_error/);
 });
