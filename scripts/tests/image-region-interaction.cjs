@@ -235,6 +235,15 @@ const {chromium}=require('playwright');
     return element && element.getBoundingClientRect().height >= window.innerHeight * .48;
   },null,{timeout:5000});
   await fallbackResults.waitFor({state:'visible',timeout:10000});
+  // Collapse the overlay before tapping a part in the covered lower half.
+  // The image remains interactive wherever it is visible; the sheet must not
+  // receive clicks intended for a hidden region beneath it.
+  const fallbackHandleAfterExpand=await fallbackHandle.boundingBox();assert.ok(fallbackHandleAfterExpand);
+  await fallbackPage.mouse.move(fallbackHandleAfterExpand.x+fallbackHandleAfterExpand.width/2,fallbackHandleAfterExpand.y+fallbackHandleAfterExpand.height/2);
+  await fallbackPage.mouse.down();
+  await fallbackPage.mouse.move(fallbackHandleAfterExpand.x+fallbackHandleAfterExpand.width/2,fallbackHandleAfterExpand.y+115,{steps:8});
+  await fallbackPage.mouse.up();
+  await fallbackPage.waitForFunction(()=>document.querySelector('.kiki-image-workspace__catalog')?.getAttribute('data-sheet-level')==='peek');
   assert.equal(detections.length,2);
   assert.equal(queries.length,4);
   assert.equal(queries[3].fullImage,true,'no confident crop must initially trigger full-image search');
