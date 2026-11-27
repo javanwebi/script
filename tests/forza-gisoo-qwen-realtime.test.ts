@@ -98,14 +98,15 @@ test('Face-to-face page actually mounts the native Gisoo client without the old 
   assert.doesNotMatch(client,/\/api\/ai\/(?:stt|forza-speech|consult-stream|forza-live)/);
 });
 
-test('Customer barge-in cancels upstream generation, mic waits for first greeting, and reconnect never greets again', () => {
+test('Customer barge-in remains intact and the microphone starts immediately without synthetic greeting turns', () => {
   const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
+  const app=readFileSync('server.ts','utf8');
   assert.match(server,/speech_started'\)\{userSpeaking=true;[\s\S]*?send\(\{type:'response.cancel'\}\)/);
-  assert.match(client,/if\(!s\.ready\|\|!s\.greeted\|\|micMuted\.current/);
-  assert.match(client,/if\(greeted\.current\)\{s\.greeted=true;setPhase\('listening'\);return;\}/);
-  assert.match(client,/سلام، به صنعت پیش خوش آمدید/);
-  assert.doesNotMatch(client,/من آماده‌ام مهندس جان/);
+  assert.match(client,/if\(!s\.ready\|\|micMuted\.current\|\|scanning\.current/);
+  assert.match(client,/setPhase\('listening'\);return;/);
+  assert.doesNotMatch(client,/greeted|type:'text',text:greeting|سلام، به صنعت پیش خوش آمدید/);
+  assert.doesNotMatch(app,/سلام مهندس جان|خوشامدگویی فقط یک بار/);
 });
  test('Native capture and stable light are enabled for exhibition calls', () => {
   const client=readFileSync('src/components/forza/ForzaQwenCallExperience.tsx','utf8');
@@ -131,19 +132,15 @@ test('recoverable Gisoo flood errors do not tear down an established realtime se
 });
 
 
-test('Qwen realtime session exposes the read-only Sanat Pish catalogue tool and voice-first consultation prompt', () => {
+test('Qwen realtime session exposes the read-only Sanat Pish catalogue tool without appending a second prompt', () => {
   const update = buildGisooQwenSessionUpdate('دستیار فارسی صنعت پیش', 500, 'Ryan');
   assert.equal(update.session.audio.output.voice, 'Ryan');
   assert.equal(update.session.max_output_tokens, 1536);
   assert.equal(update.session.tools[0].type, 'function');
   assert.equal(update.session.tools[0].name, 'search_sanatpish_catalog');
   assert.deepEqual(update.session.tools[0].parameters.required, ['query']);
-  assert.match(update.session.instructions, /تو فورزا هستی؛ مشاور صوتی فنی/);
-  assert.match(update.session.instructions, /search_sanatpish_catalog/);
-  assert.match(update.session.instructions, /هرگز با «سلام مهندس جان»/);
-  assert.match(update.session.instructions, /۲۵ تا ۶۰ کلمه/);
-  assert.doesNotMatch(update.session.instructions, /۴ تا ۷ جمله/);
-  assert.ok(update.session.instructions.lastIndexOf('قاعده نهایی:') > update.session.instructions.indexOf('دستیار فارسی صنعت پیش'));
+  assert.equal(update.session.instructions, 'دستیار فارسی صنعت پیش');
+  assert.doesNotMatch(update.session.instructions, /سلام|مهندس جان|جمله|خوشامدگویی/);
 });
 
 test('live catalogue lookup returns real family/SKU metadata without commercial fields', () => {
