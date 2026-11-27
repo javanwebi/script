@@ -185,7 +185,9 @@ test('desktop and mobile viewers allow taps only on server-detected crop proposa
   assert.ok(crop.includes('data-crop-ready={cropReady ? \'true\' : \'false\'}'));
   assert.ok(crop.includes('aria-label="تشخیص و برش خودکار قطعه"'));
   assert.ok(crop.includes('data-testid={\'forza-region-candidate-\' + (index + 1)}'));
-  assert.ok(crop.includes('onClick={() => onSelectRegion?.(candidate)}'));
+  assert.ok(crop.includes('onClick={event => { framePointerDownRef.current = null; event.stopPropagation(); onSelectRegion?.(candidate); }}'));
+  assert.ok(crop.includes('onPointerDown={handleFramePointerDown}'));
+  assert.ok(crop.includes('Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y) > 8'));
   assert.ok(crop.includes('aria-pressed={selected}'));
   assert.ok(crop.includes('کادر نارنجی و پیش‌نمایش'));
   assert.ok(crop.includes('جست‌وجو به‌صورت خودکار روی تصویر کامل انجام می‌شود'));
