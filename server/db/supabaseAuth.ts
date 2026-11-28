@@ -9,6 +9,14 @@ const error=(status:number,message:string)=>Object.assign(new Error(message),{st
 function client(){const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;if(!url || !key)throw error(503,'اتصال Supabase Auth هنوز کامل نشده است.');return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});}
 const cookie=(req:IncomingMessage,name:string)=>(req.headers.cookie || '').split(';').map(value=>value.trim()).find(value=>value.startsWith(name+'='))?.slice(name.length+1);
 function cookies(req:IncomingMessage,res:ServerResponse,session:Session|null){const secure=process.env.NODE_ENV==='production'?'; Secure':'';const values=[`sp_access=${session?.access_token || ''}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${session?.expires_in || 0}${secure}`,`sp_refresh=${session?.refresh_token || ''}; Path=/api/portal; HttpOnly; SameSite=Lax; Max-Age=${session?2592000:0}${secure}`];res.setHeader('Set-Cookie',values);req.headers.cookie=[...(req.headers.cookie || '').split(';').filter(value=>!/^\s*sp_(access|refresh)=/.test(value)),`sp_access=${session?.access_token || ''}`,`sp_refresh=${session?.refresh_token || ''}`].join(';');}
+async function warehouseAccountsTableReady():Promise<boolean>{
+ const result=await database().query("select to_regclass('app_private.warehouse_operator_accounts') is not null as ready");
+ return result.rows[0]?.ready===true;
+}
+async function hasWarehouseAccount(userId:string):Promise<boolean>{
+ if(!(await warehouseAccountsTableReady()))return false;
+ return (await database().query('select 1 from app_private.warehouse_operator_accounts where user_id=$1',[userId])).rowCount>0;
+}
 function phone(raw:string){const value=String(raw || '').replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\s()-]/g,'').replace(/^(\+98|0098|98)/,'0');if(!/^09\d{9}$/.test(value))throw error(400,'شماره موبایل معتبر وارد کنید.');return {local:value,e164:'+98'+value.slice(1)};}
 // Resolve only the authenticated profile for API authorization; never load all CRM users.
 async function identityProfile(authUserId:string){
@@ -50,8 +58,8 @@ export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
  if(!admin && !staff && user?.active!==false && user?.dbRole==='warehouse_operator'){
   // Warehouse identities are a distinct account class; never elevate them
   // into the generic staff portal even if a stale staff row also exists.
-  const warehouseAccount=await database().query('select 1 from app_private.warehouse_operator_accounts where user_id=$1',[result.data.user.id]);
-  if(!warehouseAccount.rowCount){
+  const isDedicatedWarehouseAccount=await hasWarehouseAccount(result.data.user.id);
+  if(!isDedicatedWarehouseAccount){
    const record=(await database().query('select permissions,active from app_private.admin_staff_accounts where user_id=$1',[result.data.user.id])).rows[0];
    staff=record?.active===true;
    if(staff)permissions=sanitizeStaffPermissions(record.permissions);
@@ -72,6 +80,7 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   const userId=String(identity.user?.authUserId || '');
   if(!userId || identity.user?.dbRole!=='warehouse_operator')
    throw error(401,'نشست انبارداری معتبر نیست؛ دوباره وارد شوید.');
+  if(!(await warehouseAccountsTableReady()))throw error(503,'ساختار حساب‌های انبارداری هنوز روی دیتابیس فعال نشده است.');
   const access=(await database().query('select active from app_private.warehouse_operator_accounts where user_id=$1',[userId])).rows[0];
   if(access?.active!==true)throw error(403,'دسترسی حساب انبارداری غیرفعال شده است.');
   send(200,{success:true,warehouse:true});
@@ -187,12 +196,13 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   if(result.error)throw error(result.error.status===429?429:401,'نام کاربری یا رمز عبور معتبر نیست؛ در صورت نیاز از ورود پیامکی استفاده کنید.');
   if(result.data.user?.id!==row.id)throw error(403,'حساب تأییدشده با پروفایل مطابقت ندارد.');
   if(body.action==='admin_login' && row.role==='warehouse_operator'){
-   const warehouseAccount=await database().query('select 1 from app_private.warehouse_operator_accounts where user_id=$1',[row.id]);
-   if(warehouseAccount.rowCount)throw error(403,'این حساب فقط برای ورود به پنل اختصاصی انبارداری ساخته شده است.');
+   if(await hasWarehouseAccount(row.id))
+    throw error(403,'این حساب فقط برای ورود به پنل اختصاصی انبارداری ساخته شده است.');
    const access=(await database().query('select active from app_private.admin_staff_accounts where user_id=$1',[row.id])).rows[0];
    if(access?.active!==true)throw error(403,'دسترسی کارکنان برای این حساب غیرفعال است.');
   }
   if(body.action==='warehouse_login' && row.role==='warehouse_operator'){
+   if(!(await warehouseAccountsTableReady()))throw error(503,'ساختار حساب‌های انبارداری هنوز روی دیتابیس فعال نشده است.');
    const access=(await database().query('select active from app_private.warehouse_operator_accounts where user_id=$1',[row.id])).rows[0];
    if(access?.active!==true)throw error(403,'دسترسی حساب انبارداری برای این کاربر فعال نیست.');
   }
