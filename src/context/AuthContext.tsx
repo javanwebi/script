@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Customer, UserRole, PriceTiers, Address, RegisterPayload, AuthResponse, AuthCredentials } from '../types';
 import { AuthService } from '../services/authService';
 import { clearPortalCache, hydratePortal, portalRequest } from '../services/portalRepository';
+import { useLocation } from 'react-router-dom';
 
 interface AuthContextType {
   currentUser: Customer | null;
@@ -44,17 +45,29 @@ const USERS_STORAGE_KEY = 'hyper_sanat_registered_users_v2';
 const CREDS_STORAGE_KEY = 'hyper_sanat_latest_credentials_v2';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
+  const isWarehouseRoute = /^\/warehouse(?:\/|$)/.test(location.pathname);
   const [currentUser, setCurrentUser] = useState<Customer | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   useEffect(() => {
     let mounted = true;
-    const sync = () => hydratePortal().catch(() => { if (mounted) setCurrentUser(null); }).finally(() => { if (mounted) setAuthLoading(false); });
+    const sync = () => {
+      // The warehouse workspace has its own isolated session endpoint. Do not
+      // refresh the general customer/admin portal session on that route.
+      if (isWarehouseRoute) {
+        if (mounted) { setCurrentUser(null); setAuthLoading(false); }
+        return;
+      }
+      hydratePortal()
+        .catch(() => { if (mounted) setCurrentUser(null); })
+        .finally(() => { if (mounted) setAuthLoading(false); });
+    };
     const sessionUpdated = (event: Event) => { if (mounted) setCurrentUser((event as CustomEvent).detail.user || null); };
     window.addEventListener('atlas-session-updated', sessionUpdated);
     window.addEventListener('focus', sync);
     void sync();
     return () => { mounted = false; window.removeEventListener('atlas-session-updated', sessionUpdated); window.removeEventListener('focus', sync); };
-  }, []);
+  }, [isWarehouseRoute]);
 
   const [activeRole, setActiveRole] = useState<UserRole>(() => {
     return currentUser ? currentUser.role : 'guest';

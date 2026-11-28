@@ -82,6 +82,11 @@ const AdminLayout = lazy(() =>
     default: module.AdminLayout,
   })),
 );
+const WarehouseLayout = lazy(() =>
+  import("./warehouse/WarehouseLayout").then((module) => ({
+    default: module.WarehouseLayout,
+  })),
+);
 
 function CustomerPanelEntry() { const { currentUser } = useAuth(); return <Navigate to={currentUser?.approvedB2B ? "/account" : "/consumer-dashboard"} replace/>; }
 
@@ -297,6 +302,7 @@ export default function App() {
                       path="/admin/demo-agencies"
                       element={<Navigate to="/admin" replace />}
                     />
+                    <Route path="/warehouse/*" element={<WarehouseLayout />} />
                     <Route path="/admin/*" element={<AdminLayout />} />
 
                     {/* 9. Full-screen Cinematic AI FORZA Experience */}

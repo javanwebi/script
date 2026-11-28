@@ -34,6 +34,10 @@ export interface CartItem {
   quantity: number;
 }
 
+export interface GuestQuoteSubmission {
+  requestNumber: string;
+}
+
 export interface InquiryItem {
   customerId?: string;
   id: string;
@@ -109,7 +113,7 @@ interface CartContextType {
     product: Product,
     quantity: number,
     notes?: string,
-  ) => Promise<boolean>;
+  ) => Promise<GuestQuoteSubmission>;
   placeOrder: (params: {
     address: Address;
     shippingMethod: ShippingMethod;
@@ -146,6 +150,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   const { currentUser, priceLayer, activeRole, addClubPoints, openAuthModal } =
     useAuth();
   const checkoutRequest=useRef<{fingerprint:string;key:string}|null>(null);
+  const guestQuoteRequestKeys = useRef(new Map<string, string>());
+  const quoteNoticeTimer = useRef<number | null>(null);
+  const [quoteNotice, setQuoteNotice] = useState<{ message: string; error: boolean } | null>(null);
+  const showQuoteNotice = (message: string, error = false) => {
+    if (quoteNoticeTimer.current) window.clearTimeout(quoteNoticeTimer.current);
+    setQuoteNotice({ message, error });
+    quoteNoticeTimer.current = window.setTimeout(() => {
+      setQuoteNotice(null);
+      quoteNoticeTimer.current = null;
+    }, 4500);
+  };
+  useEffect(() => () => {
+    if (quoteNoticeTimer.current) window.clearTimeout(quoteNoticeTimer.current);
+  }, []);
   const [, setContentVersion] = useState(0);
   useEffect(() => {
     const update = () => setContentVersion((v) => v + 1);
@@ -362,14 +380,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const addToCart = (product: Product, quantity = 1) => {
-    if (!currentUser) {
-      openAuthModal("/consumer-dashboard", "register");
+    // Inquiry-only products use the guest quote flow and never force account creation.
+    if (product.inquiryOnly) {
+      void submitInquiry(product, quantity)
+        .then((result) => showQuoteNotice(`درخواست پیش‌فاکتور بدون ثبت‌نام ثبت شد؛ شماره پیگیری RFQ-${result.requestNumber} است.`))
+        .catch((error) => showQuoteNotice(
+          error instanceof Error ? error.message : "ثبت درخواست پیش‌فاکتور انجام نشد.",
+          true,
+        ));
       return;
     }
-    if (product.inquiryOnly) {
-      void submitInquiry(product, quantity).catch(() =>
-        openAuthModal(undefined, "login"),
-      );
+    if (!currentUser) {
+      openAuthModal("/consumer-dashboard", "register");
       return;
     }
 
@@ -505,33 +527,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   const submitInquiry = async (
     product: Product,
     quantity: number,
-    notes?: string,
-  ): Promise<boolean> => {
-    if (!currentUser) {
-      openAuthModal("/consumer-dashboard", "register");
-      return false;
-    }
-    const response = await portalRequest({
-      action: "inquiry",
-      code: product.code,
-      productName: product.name,
-      quantity,
-      notes,
+    _notes?: string,
+  ): Promise<GuestQuoteSubmission> => {
+    // Idempotency key survives a network retry for the same product/quantity.
+    // The request body intentionally excludes all customer identity/contact data.
+    const fingerprint = JSON.stringify([product.code, quantity]);
+    const requestKey = guestQuoteRequestKeys.current.get(fingerprint) || crypto.randomUUID();
+    guestQuoteRequestKeys.current.set(fingerprint, requestKey);
+    const response = await fetch("/api/guest-quote-requests", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requestKey,
+        items: [{ productCode: product.code, quantity }],
+      }),
     });
-    setInquiries((prev) => [
-      {
-        id: response.inquiry.id,
-        customerId: currentUser.id,
-        product,
-        quantity,
-        notes,
-        date: new Date().toLocaleDateString("fa-IR"),
-        status: "pending",
-      },
-      ...prev,
-    ]);
-    await hydratePortal();
-    return true;
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.success)
+      throw new Error(data.message || "ثبت درخواست پیش‌فاکتور انجام نشد.");
+    const requestNumber = String(data.requestNumber || '').trim();
+    if (!requestNumber)
+      throw new Error("درخواست ثبت شد اما شماره پیگیری دریافت نشد؛ پیش از ارسال مجدد با مدیریت تماس بگیرید.");
+    guestQuoteRequestKeys.current.delete(fingerprint);
+    return { requestNumber };
   };
 
   // Computations
@@ -740,6 +759,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   return (
+    <>
     <CartContext.Provider
       value={{
         cart,
@@ -782,7 +802,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     >
       {children}
     </CartContext.Provider>
-  );
+    {quoteNotice && (
+      <div
+        role={quoteNotice.error ? "alert" : "status"}
+        className={`fixed bottom-4 left-4 right-4 sm:right-auto z-[120] max-w-md rounded-xl border px-4 py-3 text-sm font-semibold shadow-lg ${quoteNotice.error ? "border-red-200 bg-white text-red-700" : "border-emerald-200 bg-white text-emerald-800"}`}
+        dir="rtl"
+      >
+        {quoteNotice.message}
+      </div>
+    )}
+  </>);
 };
 
 export const useCart = () => {

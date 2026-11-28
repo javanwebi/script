@@ -98,6 +98,9 @@ export const ProductDetailPage: React.FC = () => {
   const [failedThumbUrls, setFailedThumbUrls] = useState<Record<string, boolean>>({});
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [quoteBusy, setQuoteBusy] = useState(false);
+  const [quoteFeedback, setQuoteFeedback] = useState('');
+  const [quoteFeedbackError, setQuoteFeedbackError] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [activeTab, setActiveTab] = useState<'specs' | 'delivery'>('specs');
@@ -411,7 +414,33 @@ export const ProductDetailPage: React.FC = () => {
     window.setTimeout(() => setCopiedLink(false), 1800);
   };
 
+  const handleGuestQuoteRequest = async () => {
+    if (!product || quoteBusy) return;
+    setQuoteBusy(true);
+    setQuoteFeedback('');
+    setQuoteFeedbackError(false);
+    try {
+      const result = await submitInquiry({
+        ...product,
+        code: activeSkuCode || product.code,
+        name: displayTitle || product.name,
+        unit: activeUnit || product.unit,
+      }, quantity);
+      setQuoteFeedback(`درخواست شما بدون ثبت‌نام و بدون دریافت اطلاعات شخصی ثبت شد. شماره پیگیری: RFQ-${result.requestNumber}. این شماره را برای پیگیری نزد خود نگه دارید.`);
+    } catch (error) {
+      setQuoteFeedbackError(true);
+      setQuoteFeedback(error instanceof Error ? error.message : 'ثبت درخواست پیش‌فاکتور انجام نشد.');
+    } finally {
+      setQuoteBusy(false);
+    }
+  };
+
   const handleAddToCart = () => {
+    // Quote-only variants must never display a misleading "added to cart" state.
+    if (isSelectedInquiryOnly) {
+      void handleGuestQuoteRequest();
+      return;
+    }
     const exactSkuImage = galleryImages.find(
       (image) =>
         image.scope === 'variant' &&
@@ -863,30 +892,32 @@ export const ProductDetailPage: React.FC = () => {
               </div>
 
               <div className="space-y-2.5">
-                <button
-                  type="button"
-                  data-testid="belt-add-to-cart"
-                  onClick={handleAddToCart}
-                  className={`w-full h-12 sm:h-11 rounded-xl px-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors active:scale-[0.99] cursor-pointer ${
-                    added
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                      : 'bg-[#E06518] hover:bg-[#c85612] text-white'
-                  }`}
-                >
-                  {added ? <Check className="w-4 h-4 shrink-0" /> : <ShoppingCart className="w-4 h-4 shrink-0" />}
-                  <span>{added ? 'به سبد خرید اضافه شد' : 'افزودن به سبد خرید'}</span>
-                </button>
+                {!isSelectedInquiryOnly && (
+                  <button
+                    type="button"
+                    data-testid="belt-add-to-cart"
+                    onClick={handleAddToCart}
+                    className={`w-full h-12 sm:h-11 rounded-xl px-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors active:scale-[0.99] cursor-pointer ${
+                      added
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        : 'bg-[#E06518] hover:bg-[#c85612] text-white'
+                    }`}
+                  >
+                    {added ? <Check className="w-4 h-4 shrink-0" /> : <ShoppingCart className="w-4 h-4 shrink-0" />}
+                    <span>{added ? 'به سبد خرید اضافه شد' : 'افزودن به سبد خرید'}</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
-                  onClick={() =>
-                    void submitInquiry({ ...product, code: activeSkuCode || product.code, name: displayTitle || product.name, unit: activeUnit || product.unit }, quantity, 'درخواست پیش‌فاکتور رسمی')
-                  }
-                  className="w-full h-11 sm:h-10 rounded-xl border border-slate-200 bg-white hover:border-[#E06518] hover:text-[#E06518] px-4 text-xs font-bold text-slate-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  disabled={quoteBusy}
+                  onClick={() => void handleGuestQuoteRequest()}
+                  className="w-full h-11 sm:h-10 rounded-xl border border-slate-200 bg-white hover:border-[#E06518] hover:text-[#E06518] px-4 text-xs font-bold text-slate-700 flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <FileSpreadsheet className="w-4 h-4 text-[#E06518]" />
-                  <span>درخواست پیش‌فاکتور رسمی</span>
+                  <span>{quoteBusy ? 'در حال ثبت درخواست…' : 'درخواست پیش‌فاکتور بدون ثبت‌نام'}</span>
                 </button>
+                {quoteFeedback && <p role={quoteFeedbackError ? 'alert' : 'status'} className={`rounded-xl border p-3 text-[11px] leading-6 ${quoteFeedbackError ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>{quoteFeedback}</p>}
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">

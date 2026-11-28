@@ -9,6 +9,7 @@ export const STAFF_SECTIONS = {
   customer_grading: ['view','edit'],
   agencies: ['view','edit'],
   inquiries: ['view','create','edit'],
+  guest_quotes: ['view','edit'],
   orders: ['view','edit'],
   clients: ['view','create','edit','delete'],
   reports: ['view'],

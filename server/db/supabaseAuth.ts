@@ -9,6 +9,15 @@ const error=(status:number,message:string)=>Object.assign(new Error(message),{st
 function client(){const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;if(!url || !key)throw error(503,'اتصال Supabase Auth هنوز کامل نشده است.');return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});}
 const cookie=(req:IncomingMessage,name:string)=>(req.headers.cookie || '').split(';').map(value=>value.trim()).find(value=>value.startsWith(name+'='))?.slice(name.length+1);
 function cookies(req:IncomingMessage,res:ServerResponse,session:Session|null){const secure=process.env.NODE_ENV==='production'?'; Secure':'';const values=[`sp_access=${session?.access_token || ''}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${session?.expires_in || 0}${secure}`,`sp_refresh=${session?.refresh_token || ''}; Path=/api/portal; HttpOnly; SameSite=Lax; Max-Age=${session?2592000:0}${secure}`];res.setHeader('Set-Cookie',values);req.headers.cookie=[...(req.headers.cookie || '').split(';').filter(value=>!/^\s*sp_(access|refresh)=/.test(value)),`sp_access=${session?.access_token || ''}`,`sp_refresh=${session?.refresh_token || ''}`].join(';');}
+async function warehouseAccountsTableReady():Promise<boolean>{
+ const result=await database().query("select to_regclass('app_private.warehouse_operator_accounts') is not null as ready");
+ return result.rows[0]?.ready===true;
+}
+async function hasWarehouseAccount(userId:string):Promise<boolean>{
+ if(!(await warehouseAccountsTableReady()))return false;
+ const result=await database().query('select 1 from app_private.warehouse_operator_accounts where user_id=$1',[userId]);
+ return (result.rowCount ?? 0)>0;
+}
 function phone(raw:string){const value=String(raw || '').replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\s()-]/g,'').replace(/^(\+98|0098|98)/,'0');if(!/^09\d{9}$/.test(value))throw error(400,'شماره موبایل معتبر وارد کنید.');return {local:value,e164:'+98'+value.slice(1)};}
 // Resolve only the authenticated profile for API authorization; never load all CRM users.
 async function identityProfile(authUserId:string){
@@ -27,7 +36,7 @@ async function identityProfile(authUserId:string){
  ) d on true
  where p.id=$1 limit 1`,[authUserId])).rows[0];
  if(!row)return undefined;
- const role:{[key:string]:string}={client:'retail',club:'wholesale',agency:'dealer',super_admin:'admin'};
+ const role:{[key:string]:string}={client:'retail',club:'wholesale',agency:'dealer',super_admin:'admin',sales_manager:'sales_manager'};
  return {...(row.draft_payload || {}),...(row.preferences || {}),
   addresses:row.profile_addresses || [],id:row.draft_id || row.legacy_user_id || row.id,
   authUserId:row.id,phone:row.phone?.replace(/^\+98/,'0'),
@@ -43,20 +52,49 @@ export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
  const user=db ? db.users.find(profile=>profile.authUserId===result.data.user.id && profile.active!==false) : await identityProfile(result.data.user.id);
  const admin=user?.active!==false && user?.role==='admin';
  let staff=false,permissions={};
- if(!admin && user?.active!==false && user?.dbRole==='warehouse_operator'){
-  const record=(await database().query('select permissions,active from app_private.admin_staff_accounts where user_id=$1',[result.data.user.id])).rows[0];
-  staff=record?.active===true;
-  if(staff)permissions=sanitizeStaffPermissions(record.permissions);
+ if(!admin && user?.active!==false && user?.dbRole==='sales_manager'){
+  staff=true;
+  permissions=sanitizeStaffPermissions({guest_quotes:['view','edit']});
+ }
+ if(!admin && !staff && user?.active!==false && user?.dbRole==='warehouse_operator'){
+  // Warehouse identities are a distinct account class; never elevate them
+  // into the generic staff portal even if a stale staff row also exists.
+  const isDedicatedWarehouseAccount=await hasWarehouseAccount(result.data.user.id);
+  if(!isDedicatedWarehouseAccount){
+   const record=(await database().query('select permissions,active from app_private.admin_staff_accounts where user_id=$1',[result.data.user.id])).rows[0];
+   staff=record?.active===true;
+   if(staff)permissions=sanitizeStaffPermissions(record.permissions);
+  }
  }
  return {admin,staff,permissions,user:user?.active===false||!user?undefined:{...user,mustChangePassword:result.data.user.app_metadata?.crm_password_change_required===true}};
 
 }
-export async function refreshAuth(req:IncomingMessage,res:ServerResponse){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
+export async function refreshAuth(req:IncomingMessage,res:ServerResponse,force=false){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token && !force){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
 export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,body:any,safe:(value:any)=>any):Promise<boolean>{
  if(handleDevelopmentOtp(req,res,body))return true;
- if(!['register','login','admin_login','otp_request','otp_verify','registration_credentials','initial_password_change','logout'].includes(body.action))return false;
+ if(!['register','login','admin_login','warehouse_login','warehouse_refresh','session_refresh','otp_request','otp_verify','registration_credentials','initial_password_change','logout'].includes(body.action))return false;
  const send=(status:number,data:any)=>{res.statusCode=status;res.end(JSON.stringify(data));};
  try{
+ if(body.action==='warehouse_refresh'){
+  await refreshAuth(req,res,true);
+  const identity=await supabaseIdentity(req);
+  const userId=String(identity.user?.authUserId || '');
+  if(!userId || identity.user?.dbRole!=='warehouse_operator')
+   throw error(401,'نشست انبارداری معتبر نیست؛ دوباره وارد شوید.');
+  if(!(await warehouseAccountsTableReady()))throw error(503,'ساختار حساب‌های انبارداری هنوز روی دیتابیس فعال نشده است.');
+  const access=(await database().query('select active from app_private.warehouse_operator_accounts where user_id=$1',[userId])).rows[0];
+  if(access?.active!==true)throw error(403,'دسترسی حساب انبارداری غیرفعال شده است.');
+  send(200,{success:true,warehouse:true});
+  return true;
+ }
+ if(body.action==='session_refresh'){
+  await refreshAuth(req,res,true);
+  const identity=await supabaseIdentity(req);
+  if(!identity.admin && !identity.staff && !identity.user)
+   throw error(401,'نشست کاربری معتبر نیست؛ دوباره وارد شوید.');
+  send(200,{success:true,session:true});
+  return true;
+ }
  const auth=client();
  if(body.action==='logout'){const access=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(access && refresh){const sdk=client();await sdk.auth.setSession({access_token:access,refresh_token:refresh});await sdk.auth.signOut({scope:'local'});}cookies(req,res,null);send(200,{success:true});return true;}
  if(body.action==='register'){
@@ -146,17 +184,28 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
     "select id,email,phone,role,status from public.user_profiles where lower(username)=$1 or lower(email)=$1 or phone=$1 limit 1",
     [identifier]
   )).rows[0];
-  if(!row || row.status!=='active' || (body.action==='admin_login' && row.role!=='super_admin' && row.role!=='warehouse_operator'))
+  if(body.action==='login' && row?.role==='warehouse_operator')
+    throw error(403,'برای ورود به این حساب از نشانی پنل انبارداری استفاده کنید.');
+  if(body.action==='login' && row?.role==='sales_manager')
+    throw error(403,'برای ورود به حساب مدیر فروش از نشانی پنل مدیریت استفاده کنید.');
+  if(!row || row.status!=='active' || (body.action==='admin_login' && row.role!=='super_admin' && row.role!=='warehouse_operator' && row.role!=='sales_manager') || (body.action==='warehouse_login' && row.role!=='warehouse_operator'))
     throw error(401,'نام کاربری یا رمز عبور معتبر نیست.');
-  const credentials=body.action==='admin_login' && row.email
+  const credentials=(body.action==='admin_login' || body.action==='warehouse_login') && row.email
     ? {email:String(row.email),password:String(body.password)}
     : {phone:phone(row.phone).e164,password:String(body.password)};
   const result=await auth.auth.signInWithPassword(credentials);
   if(result.error)throw error(result.error.status===429?429:401,'نام کاربری یا رمز عبور معتبر نیست؛ در صورت نیاز از ورود پیامکی استفاده کنید.');
   if(result.data.user?.id!==row.id)throw error(403,'حساب تأییدشده با پروفایل مطابقت ندارد.');
   if(body.action==='admin_login' && row.role==='warehouse_operator'){
+   if(await hasWarehouseAccount(row.id))
+    throw error(403,'این حساب فقط برای ورود به پنل اختصاصی انبارداری ساخته شده است.');
    const access=(await database().query('select active from app_private.admin_staff_accounts where user_id=$1',[row.id])).rows[0];
    if(access?.active!==true)throw error(403,'دسترسی کارکنان برای این حساب غیرفعال است.');
+  }
+  if(body.action==='warehouse_login' && row.role==='warehouse_operator'){
+   if(!(await warehouseAccountsTableReady()))throw error(503,'ساختار حساب‌های انبارداری هنوز روی دیتابیس فعال نشده است.');
+   const access=(await database().query('select active from app_private.warehouse_operator_accounts where user_id=$1',[row.id])).rows[0];
+   if(access?.active!==true)throw error(403,'دسترسی حساب انبارداری برای این کاربر فعال نیست.');
   }
   session=result.data.session;
  }
@@ -173,23 +222,34 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   }
  }
  const p=(await database().query('select id,username,email,phone,full_name,company_name,role,status,preferences,approved_b2b,can_view_prices from public.user_profiles where id=$1',[session.user.id])).rows[0];
- const profile=p?{id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:p.role==='super_admin'?'admin':p.role==='club'?'wholesale':p.role==='client'?'retail':p.role==='agency'?'dealer':'guest',active:p.status==='active',approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices,...(p.preferences || {}),mustChangePassword:session.user.app_metadata?.crm_password_change_required===true}:null;
- let staff=false,permissions={};
+ const profile=p?{id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:p.role==='super_admin'?'admin':p.role==='sales_manager'?'sales_manager':p.role==='club'?'wholesale':p.role==='client'?'retail':p.role==='agency'?'dealer':'guest',active:p.status==='active',approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices,...(p.preferences || {}),mustChangePassword:session.user.app_metadata?.crm_password_change_required===true}:null;
+ let staff=false,permissions={},warehouse=false;
+ if(body.action==='admin_login' && p?.role==='sales_manager'){
+  staff=true;
+  permissions=sanitizeStaffPermissions({guest_quotes:['view','edit']});
+ }
  if(body.action==='admin_login' && p?.role==='warehouse_operator'){
   const access=(await database().query('select active,permissions from app_private.admin_staff_accounts where user_id=$1',[p.id])).rows[0];
   staff=access?.active===true;
   permissions=staff?sanitizeStaffPermissions(access.permissions):{};
  }
- if(!profile || !profile.active || (body.action==='admin_login' && profile.role!=='admin' && !staff)){
+ if(body.action==='warehouse_login' && p?.role==='warehouse_operator'){
+  const access=(await database().query('select active from app_private.warehouse_operator_accounts where user_id=$1',[p.id])).rows[0];
+  warehouse=access?.active===true;
+ }
+ if(!profile || !profile.active ||
+    (body.action==='admin_login' && profile.role!=='admin' && !staff) ||
+    (body.action==='warehouse_login' && !warehouse)){
   cookies(req,res,null);throw error(403,'این حساب دسترسی لازم را ندارد.');
  }
- // Report actual successful staff logins, never invented browser timestamps.
- if(staff){
+ // Report actual successful staff and warehouse logins.
+ if(staff || warehouse){
   try{await database().query('update public.user_profiles set last_login_at=now() where id=$1',[p.id]);}
   catch{console.warn('[Staff Login] Unable to update last-login timestamp');}
  }
- send(200,{success:true,user:safe(profile),admin:profile.role==='admin',staff,permissions,
+ send(200,{success:true,user:safe(profile),admin:profile.role==='admin',staff,warehouse,permissions,
   staffUser:staff?{id:p.id,username:p.username,name:p.full_name,email:p.email,role:'staff',permissions}:undefined,
+  warehouseUser:warehouse?{id:p.id,username:p.username,name:p.full_name,email:p.email,role:'warehouse_operator'}:undefined,
   requiresCredentials:profile.registrationCredentialsPending===true,requiresPasswordChange:profile.mustChangePassword===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
  }catch(e:any){send(e.status || 503,{success:false,message:e.status?e.message:'ارتباط با Supabase Auth برقرار نشد.'});return true;}
 }

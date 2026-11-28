@@ -427,7 +427,7 @@ export default async function handler(
     try{
       csrf(req);
       const body=await readBody(req);
-      if(['register','login','admin_login','otp_request','otp_verify','registration_credentials','initial_password_change','logout','dev_otp_request','dev_otp_verify'].includes(body.action)){
+      if(['register','login','admin_login','warehouse_login','warehouse_refresh','session_refresh','otp_request','otp_verify','registration_credentials','initial_password_change','logout','dev_otp_request','dev_otp_verify'].includes(body.action)){
         res.setHeader('Content-Type','application/json; charset=utf-8');
         res.setHeader('Cache-Control','private, no-store');
         await rateLimit(req);
@@ -468,6 +468,9 @@ export default async function handler(
     }
     if (databaseEnabled() && adoptedSchema() && req.method === "GET") {
       const auth = await supabaseIdentity(req);
+      // Warehouse identities are intentionally isolated from the customer/admin portal.
+      if (!auth.admin && !auth.staff && auth.user?.dbRole === 'warehouse_operator')
+        return send(403, { success: false, message: 'این حساب فقط به پنل اختصاصی انبارداری دسترسی دارد.' });
       // Staff receive only the admin modules explicitly granted by the owner.
       if(auth.staff){
         const wanted=keys.filter(key=>namespacePermission(auth,domainFor(key)||'',false,key));

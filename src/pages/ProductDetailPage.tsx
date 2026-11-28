@@ -153,8 +153,8 @@ export const ProductDetailPage: React.FC = () => {
     );
   }, [product, visibleVariants, isPreviewMode, selectedVariantCode]);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
-  const [inquiryNotes, setInquiryNotes] = useState("");
   const [inquirySubmitted, setInquirySubmitted] = useState(false);
+  const [inquiryRequestNumber, setInquiryRequestNumber] = useState('');
   const [inquiryBusy, setInquiryBusy] = useState(false);
   const [inquiryError, setInquiryError] = useState("");
   const [copiedCode, setCopiedCode] = useState(false);
@@ -438,7 +438,7 @@ export const ProductDetailPage: React.FC = () => {
       return;
     }
     if (!buyingAllowed || isSelectedInquiryOnly || activeUnitPrice <= 0) {
-      setIsInquiryModalOpen(true);
+      handleInquirePriceClick();
       return;
     }
     addToCart(requestedProduct, quantity);
@@ -447,23 +447,19 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   const handleInquirePriceClick = () => {
-    if (!canViewCommercial) {
-      continueInPanel();
-      return;
-    }
+    setInquiryError("");
+    setInquirySubmitted(false);
+    setInquiryRequestNumber('');
     setIsInquiryModalOpen(true);
   };
 
   const handleInquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canViewCommercial) {
-      continueInPanel();
-      return;
-    }
     setInquiryBusy(true);
     setInquiryError("");
     try {
-      await submitInquiry(requestedProduct, quantity, inquiryNotes);
+      const result = await submitInquiry(requestedProduct, quantity);
+      setInquiryRequestNumber(result.requestNumber);
     } catch (error) {
       setInquiryError(
         error instanceof Error ? error.message : "ثبت استعلام انجام نشد.",
@@ -473,10 +469,6 @@ export const ProductDetailPage: React.FC = () => {
       setInquiryBusy(false);
     }
     setInquirySubmitted(true);
-    setTimeout(() => {
-      setInquirySubmitted(false);
-      setIsInquiryModalOpen(false);
-    }, 1400);
   };
 
   const copyProductCode = () => {
@@ -1138,10 +1130,19 @@ export const ProductDetailPage: React.FC = () => {
             {/* Primary SKU-Owned Pricing & Order Action Area */}
             <div className="product-detail-pricing pt-5 border-t border-slate-200/80 space-y-4">
               {!canViewCommercial ? (
-                <MemberAccess
-                  code={selectedVariantCode || product.code}
-                  compact
-                />
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-3">
+                  <div>
+                    <p className="text-sm font-black text-slate-800">درخواست پیش‌فاکتور بدون ثبت‌نام</p>
+                    <p className="mt-1 text-xs leading-6 text-slate-500">فقط کالا و تعداد برای بررسی داخلی ارسال می‌شود؛ نیازی به نام، شماره تماس یا حساب کاربری نیست.</p>
+                  </div>
+                  <div className="grid grid-cols-[1fr_auto] items-end gap-3">
+                    <label className="space-y-1">
+                      <span className="block text-xs font-bold text-slate-600">تعداد ({activeUnit})</span>
+                      <input type="number" min="1" max="9999" value={quantity} onChange={e=>setQuantity(Math.max(1,Math.min(9999,Number(e.target.value)||1)))} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm" />
+                    </label>
+                    <button type="button" onClick={handleInquirePriceClick} className="h-11 rounded-xl bg-[#E06518] px-4 text-xs font-bold text-white">درخواست پیش‌فاکتور</button>
+                  </div>
+                </div>
               ) : !isSelectedInquiryOnly && activeUnitPrice > 0 ? (
                 /* SKU HAS AN ACTIVE PRICE */
                 <div className="product-detail-price-card space-y-4 p-4 sm:p-5 rounded-2xl bg-slate-50/90 border border-slate-200/90">
@@ -1241,7 +1242,7 @@ export const ProductDetailPage: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={() => setIsInquiryModalOpen(true)}
+                      onClick={handleInquirePriceClick}
                       className="h-12 rounded-xl border border-slate-300 hover:border-slate-400 bg-white text-[#55565A] font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs hover:bg-slate-50 active:scale-98"
                     >
                       <FileSpreadsheet className="w-4 h-4 text-[#E06518]" />
@@ -1770,28 +1771,16 @@ export const ProductDetailPage: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-[#55565A] mb-1">
-              توضیحات و ملزومات فنی:
-            </label>
-            <textarea
-              rows={3}
-              value={inquiryNotes}
-              onChange={(e) => setInquiryNotes(e.target.value)}
-              placeholder="نکات مربوط به زمان تحویل یا نوع بسته‌بندی..."
-              className="w-full p-3 border border-slate-200 rounded-xl text-xs"
-            />
-          </div>
-
           {inquiryError && (
             <p role="alert" className="account-error">
               {inquiryError}
             </p>
           )}
           {inquirySubmitted ? (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold text-center">
-              درخواست استعلام با موفقیت ثبت شد. واحد فروش به زودی پاسخ خواهد
-              داد.
+            <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold text-center leading-7">
+              درخواست شما بدون ثبت‌نام ثبت شد و برای بررسی به مدیریت ارسال گردید.
+              <span className="mt-2 block text-sm">شماره پیگیری شما: <bdi dir="ltr" className="font-mono">RFQ-{inquiryRequestNumber}</bdi></span>
+              <span className="block text-[11px] font-medium">این شماره را برای پیگیری نزد خود نگه دارید.</span>
             </div>
           ) : (
             <button
@@ -1799,7 +1788,7 @@ export const ProductDetailPage: React.FC = () => {
               disabled={inquiryBusy}
               className="w-full h-11 bg-[#E06518] hover:bg-[#C95210] text-white font-bold text-xs rounded-xl shadow-md cursor-pointer"
             >
-              ارسال استعلام رسمی برای کد {requestedProduct.code}
+              ثبت درخواست پیش‌فاکتور بدون ثبت‌نام
             </button>
           )}
         </form>

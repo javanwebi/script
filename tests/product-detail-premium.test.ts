@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 
 const page = readFileSync('src/pages/ProductDetailPage.tsx', 'utf8');
+const popdPage = readFileSync('src/pages/PopdProductDetailPage.tsx', 'utf8');
 const styles = readFileSync('src/pages/product-detail-premium.css', 'utf8');
 const routes = readFileSync('src/App.tsx', 'utf8');
 
@@ -40,7 +41,14 @@ test('price access and inquiry-only purchase safeguards remain in place', () => 
   assert.match(page, /getCurrentCustomerSkuPrice\(/);
   assert.match(page, /isSelectedInquiryOnly/);
   assert.match(page, /buyingAllowed && isSelectedStockKnown && activeStockCount <= 0/);
-  assert.match(page, /submitInquiry\(requestedProduct, quantity, inquiryNotes\)/);
+  assert.match(page, /submitInquiry\(requestedProduct, quantity\)/);
+  assert.doesNotMatch(page, /inquiryNotes/);
+});
+
+test('quote-only POPD variants cannot show a false add-to-cart success', () => {
+  assert.match(popdPage, /if \(isSelectedInquiryOnly\) \{\s*void handleGuestQuoteRequest\(\);\s*return;/);
+  assert.match(popdPage, /!isSelectedInquiryOnly && \(/);
+  assert.match(popdPage, /درخواست پیش‌فاکتور بدون ثبت‌نام/);
 });
 
 test('product information tabs are accessible and retain all three content panels', () => {

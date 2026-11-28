@@ -26,6 +26,7 @@ const MODULES=[
  {id:'customer_grading',label:'اعتبار و قیمت‌ها',description:'اعتبارسنجی و قیمت‌نامه',actions:[['view','مشاهده'],['edit','ویرایش']]},
  {id:'agencies',label:'نمایندگی‌ها',description:'شبکه نمایندگان',actions:[['view','مشاهده'],['edit','ویرایش']]},
  {id:'inquiries',label:'استعلام و پیش‌فاکتور',description:'مدیریت درخواست قیمت',actions:[['view','مشاهده'],['create','ایجاد'],['edit','ویرایش']]},
+ {id:'guest_quotes',label:'درخواست‌های پیش‌فاکتور مهمان',description:'بررسی و ارجاع درخواست‌های ناشناس به انبارداری',actions:[['view','مشاهده'],['edit','ارجاع و تکمیل']]},
  {id:'orders',label:'سفارش‌ها و لجستیک',description:'ثبت و پیگیری سفارش',actions:[['view','مشاهده'],['edit','ویرایش']]},
  {id:'clients',label:'مشتریان ما',description:'لوگو و فهرست مشتریان',actions:[['view','مشاهده'],['create','افزودن'],['edit','ویرایش'],['delete','حذف']]},
  {id:'reports',label:'گزارش‌های مدیریتی',description:'رتبه‌بندی و گزارش فروش',actions:[['view','مشاهده']]},

@@ -18,6 +18,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Install pinned ONNX runtime types before shared TypeScript check
+        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund onnxruntime-web@1.18.0
       - run: npm run lint
       - run: npm run test:portal
       - run: npm run build
