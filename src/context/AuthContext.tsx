@@ -46,6 +46,7 @@ const CREDS_STORAGE_KEY = 'hyper_sanat_latest_credentials_v2';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const isWarehouseRoute = /^\/warehouse(?:\/|$)/.test(location.pathname);
   const [currentUser, setCurrentUser] = useState<Customer | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   useEffect(() => {
@@ -53,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const sync = () => {
       // The warehouse workspace has its own isolated session endpoint. Do not
       // refresh the general customer/admin portal session on that route.
-      if (typeof window !== 'undefined' && /^\/warehouse(?:\/|$)/.test(window.location.pathname)) {
+      if (isWarehouseRoute) {
         if (mounted) { setCurrentUser(null); setAuthLoading(false); }
         return;
       }
@@ -66,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.addEventListener('focus', sync);
     void sync();
     return () => { mounted = false; window.removeEventListener('atlas-session-updated', sessionUpdated); window.removeEventListener('focus', sync); };
-  }, [location.pathname]);
+  }, [isWarehouseRoute]);
 
   const [activeRole, setActiveRole] = useState<UserRole>(() => {
     return currentUser ? currentUser.role : 'guest';
