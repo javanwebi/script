@@ -421,7 +421,7 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
    await owner(req);
    res.setHeader('Cache-Control', 'private, no-store');
    const result = await database().query(`
-    select a.user_id as id,p.username,p.full_name as name,p.email,a.active,
+    select a.user_id as id,p.username,p.full_name as name,a.active,
            a.created_at as "createdAt",p.last_login_at as "lastLogin"
       from app_private.warehouse_operator_accounts a
       join public.user_profiles p on p.id=a.user_id
@@ -436,17 +436,15 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
    const actor = await owner(req);
    const username = String(req.body?.username || '').trim().toLowerCase();
    const name = String(req.body?.name || '').trim();
-   const suppliedEmail = String(req.body?.email || '').trim().toLowerCase();
-   const email = suppliedEmail || (username + '.' + crypto.randomUUID().slice(0, 8) + '@warehouse.sanatpish.invalid');
+   const email = username + '.' + crypto.randomUUID().slice(0, 8) + '@warehouse.sanatpish.invalid';
    const password = req.body?.password;
    if (!usernamePattern.test(username)) throw fail(400, 'نام کاربری باید ۴ تا ۳۲ حرف انگلیسی، عدد یا زیرخط باشد و با حرف شروع شود.');
    if (name.length < 2 || name.length > 160) throw fail(400, 'نام انباردار باید بین ۲ تا ۱۶۰ نویسه باشد.');
-   if (email.length > 320 || !emailPattern.test(email)) throw fail(400, 'ایمیل حساب معتبر نیست.');
    if (typeof password !== 'string' || password.length < 12 || password.length > 128)
     throw fail(400, 'رمز عبور باید حداقل ۱۲ و حداکثر ۱۲۸ نویسه باشد.');
    const existing = await database().query(
-    'select id from public.user_profiles where lower(username)=$1 or lower(email)=$2 limit 1',
-    [username, email]
+    'select id from public.user_profiles where lower(username)=$1 limit 1',
+    [username]
    );
    if (existing.rowCount) throw fail(409, 'نام کاربری یا ایمیل قبلاً ثبت شده است.');
    const created = await adminAuth().auth.admin.createUser({
@@ -458,6 +456,10 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
     await client.query(`
      insert into public.user_profiles(id,email,username,full_name,role,status,approved_b2b,can_view_prices,can_view_stock)
      values($1,$2,$3,$4,'warehouse_operator','active',false,false,false)
+     on conflict(id) do update set
+       email=excluded.email,username=excluded.username,full_name=excluded.full_name,
+       role='warehouse_operator',status='active',approved_b2b=false,
+       can_view_prices=false,can_view_stock=false,updated_at=now()
     `, [createdId, email, username, name]);
     await client.query(
      'insert into app_private.warehouse_operator_accounts(user_id,created_by) values($1,$2)',
