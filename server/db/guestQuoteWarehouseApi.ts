@@ -379,12 +379,12 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
     )).rows[0];
     if (!request || !['sent_to_warehouse','warehouse_reviewing'].includes(String(request.status)))
      throw fail(409, 'این درخواست دیگر در صف بررسی انبارداری نیست.');
-    if (request.warehouse_assigned_to && String(request.warehouse_assigned_to) !== actor.id)
-     throw fail(403, 'این درخواست به انباردار دیگری واگذار شده است.');
+    if (String(request.warehouse_assigned_to || '') !== actor.id)
+     throw fail(403, 'ابتدا درخواست را از صف دریافت کنید؛ این درخواست به حساب شما واگذار نشده است.');
     await client.query(
      `update public.guest_quote_requests
-         set warehouse_assigned_to=$2,status='warehouse_reviewing',updated_at=now()
-       where id=$1`,
+         set status='warehouse_reviewing',updated_at=now()
+       where id=$1 and warehouse_assigned_to=$2`,
      [id, actor.id]
     );
     for (const item of items) {
