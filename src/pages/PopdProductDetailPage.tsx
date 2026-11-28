@@ -98,6 +98,8 @@ export const ProductDetailPage: React.FC = () => {
   const [failedThumbUrls, setFailedThumbUrls] = useState<Record<string, boolean>>({});
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [quoteBusy, setQuoteBusy] = useState(false);
+  const [quoteFeedback, setQuoteFeedback] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [activeTab, setActiveTab] = useState<'specs' | 'delivery'>('specs');
@@ -409,6 +411,25 @@ export const ProductDetailPage: React.FC = () => {
     navigator.clipboard?.writeText(window.location.href).catch(() => {});
     setCopiedLink(true);
     window.setTimeout(() => setCopiedLink(false), 1800);
+  };
+
+  const handleGuestQuoteRequest = async () => {
+    if (!product || quoteBusy) return;
+    setQuoteBusy(true);
+    setQuoteFeedback('');
+    try {
+      await submitInquiry({
+        ...product,
+        code: activeSkuCode || product.code,
+        name: displayTitle || product.name,
+        unit: activeUnit || product.unit,
+      }, quantity);
+      setQuoteFeedback('درخواست شما بدون ثبت‌نام و بدون دریافت اطلاعات شخصی ثبت شد و برای بررسی داخلی به مدیریت ارسال گردید.');
+    } catch (error) {
+      setQuoteFeedback(error instanceof Error ? error.message : 'ثبت درخواست پیش‌فاکتور انجام نشد.');
+    } finally {
+      setQuoteBusy(false);
+    }
   };
 
   const handleAddToCart = () => {
@@ -879,14 +900,14 @@ export const ProductDetailPage: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    void submitInquiry({ ...product, code: activeSkuCode || product.code, name: displayTitle || product.name, unit: activeUnit || product.unit }, quantity, 'درخواست پیش‌فاکتور رسمی')
-                  }
-                  className="w-full h-11 sm:h-10 rounded-xl border border-slate-200 bg-white hover:border-[#E06518] hover:text-[#E06518] px-4 text-xs font-bold text-slate-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  disabled={quoteBusy}
+                  onClick={() => void handleGuestQuoteRequest()}
+                  className="w-full h-11 sm:h-10 rounded-xl border border-slate-200 bg-white hover:border-[#E06518] hover:text-[#E06518] px-4 text-xs font-bold text-slate-700 flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <FileSpreadsheet className="w-4 h-4 text-[#E06518]" />
-                  <span>درخواست پیش‌فاکتور رسمی</span>
+                  <span>{quoteBusy ? 'در حال ثبت درخواست…' : 'درخواست پیش‌فاکتور بدون ثبت‌نام'}</span>
                 </button>
+                {quoteFeedback && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] leading-6 text-emerald-800">{quoteFeedback}</p>}
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
