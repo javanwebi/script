@@ -418,13 +418,13 @@ export const ProductDetailPage: React.FC = () => {
     setQuoteBusy(true);
     setQuoteFeedback('');
     try {
-      await submitInquiry({
+      const result = await submitInquiry({
         ...product,
         code: activeSkuCode || product.code,
         name: displayTitle || product.name,
         unit: activeUnit || product.unit,
       }, quantity);
-      setQuoteFeedback('درخواست شما بدون ثبت‌نام و بدون دریافت اطلاعات شخصی ثبت شد و برای بررسی داخلی به مدیریت ارسال گردید.');
+      setQuoteFeedback(`درخواست شما بدون ثبت‌نام و بدون دریافت اطلاعات شخصی ثبت شد. شماره پیگیری: RFQ-${result.requestNumber}. این شماره را برای پیگیری نزد خود نگه دارید.`);
     } catch (error) {
       setQuoteFeedback(error instanceof Error ? error.message : 'ثبت درخواست پیش‌فاکتور انجام نشد.');
     } finally {
