@@ -436,6 +436,11 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   const handleAddToCart = () => {
+    // Quote-only variants must never display a misleading "added to cart" state.
+    if (isSelectedInquiryOnly) {
+      void handleGuestQuoteRequest();
+      return;
+    }
     const exactSkuImage = galleryImages.find(
       (image) =>
         image.scope === 'variant' &&
@@ -887,19 +892,21 @@ export const ProductDetailPage: React.FC = () => {
               </div>
 
               <div className="space-y-2.5">
-                <button
-                  type="button"
-                  data-testid="belt-add-to-cart"
-                  onClick={handleAddToCart}
-                  className={`w-full h-12 sm:h-11 rounded-xl px-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors active:scale-[0.99] cursor-pointer ${
-                    added
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                      : 'bg-[#E06518] hover:bg-[#c85612] text-white'
-                  }`}
-                >
-                  {added ? <Check className="w-4 h-4 shrink-0" /> : <ShoppingCart className="w-4 h-4 shrink-0" />}
-                  <span>{added ? 'به سبد خرید اضافه شد' : 'افزودن به سبد خرید'}</span>
-                </button>
+                {!isSelectedInquiryOnly && (
+                  <button
+                    type="button"
+                    data-testid="belt-add-to-cart"
+                    onClick={handleAddToCart}
+                    className={`w-full h-12 sm:h-11 rounded-xl px-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors active:scale-[0.99] cursor-pointer ${
+                      added
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        : 'bg-[#E06518] hover:bg-[#c85612] text-white'
+                    }`}
+                  >
+                    {added ? <Check className="w-4 h-4 shrink-0" /> : <ShoppingCart className="w-4 h-4 shrink-0" />}
+                    <span>{added ? 'به سبد خرید اضافه شد' : 'افزودن به سبد خرید'}</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
