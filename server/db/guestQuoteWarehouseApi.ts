@@ -11,6 +11,7 @@ type QuoteRow = {
  id: string;
  requestNumber: string | number;
  status: string;
+ warehouseAssignedTo?: string | null;
  createdAt: string;
  sentToWarehouseAt?: string | null;
  warehouseCompletedAt?: string | null;
@@ -120,6 +121,7 @@ async function warehouseActor(req: Request, checkRequestOrigin = false) {
 async function listRequests(client: SqlClient, whereSql = '', values: unknown[] = []): Promise<QuoteRow[]> {
  const result = await client.query(
   `select r.id,r.request_number as "requestNumber",r.status,
+          r.warehouse_assigned_to as "warehouseAssignedTo",
           r.created_at as "createdAt",
           r.sent_to_warehouse_at as "sentToWarehouseAt",
           r.warehouse_completed_at as "warehouseCompletedAt",
@@ -259,14 +261,24 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
    const actor = await manager(req, 'edit');
    const id = String(req.params.id || '');
    if (!uuidPattern.test(id)) throw fail(400, 'شناسه درخواست معتبر نیست.');
-   const result = await database().query(`
-    update public.guest_quote_requests
-       set status='sent_to_warehouse',sent_by=$2,sent_to_warehouse_at=now(),
-           warehouse_assigned_to=null,warehouse_completed_at=null,updated_at=now()
-     where id=$1 and status in ('new','warehouse_returned')
-     returning id
-   `, [id, actor || null]);
-   if (!result.rowCount) throw fail(409, 'این درخواست در وضعیت قابل ارجاع به انبارداری نیست.');
+   const result = await transaction(async client => {
+    const updated = await client.query(`
+     update public.guest_quote_requests
+        set status='sent_to_warehouse',sent_by=$2,sent_to_warehouse_at=now(),
+            warehouse_assigned_to=null,warehouse_completed_at=null,updated_at=now()
+      where id=$1 and status in ('new','warehouse_returned')
+      returning id
+    `, [id, actor || null]);
+    if (!updated.rowCount) return false;
+    await client.query(`
+     update public.guest_quote_request_items
+        set warehouse_status='pending',available_quantity=null,warehouse_note=null,
+            reviewed_by=null,reviewed_at=null
+      where request_id=$1
+    `, [id]);
+    return true;
+   });
+   if (!result) throw fail(409, 'این درخواست در وضعیت قابل ارجاع به انبارداری نیست.');
    await audit(actor, 'ارجاع درخواست پیش‌فاکتور به انبار', id);
    emit(adminListeners, 'guest-quote-updated');
    emit(warehouseListeners, 'warehouse-request-updated');
@@ -425,7 +437,7 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
    const username = String(req.body?.username || '').trim().toLowerCase();
    const name = String(req.body?.name || '').trim();
    const suppliedEmail = String(req.body?.email || '').trim().toLowerCase();
-   const email = suppliedEmail || (username + '.' + crypto.randomUUID().slice(0, 8) + '@warehouse.sanatpish.com');
+   const email = suppliedEmail || (username + '.' + crypto.randomUUID().slice(0, 8) + '@warehouse.sanatpish.invalid');
    const password = req.body?.password;
    if (!usernamePattern.test(username)) throw fail(400, 'نام کاربری باید ۴ تا ۳۲ حرف انگلیسی، عدد یا زیرخط باشد و با حرف شروع شود.');
    if (name.length < 2 || name.length > 160) throw fail(400, 'نام انباردار باید بین ۲ تا ۱۶۰ نویسه باشد.');
@@ -455,7 +467,7 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
    await audit(actor, 'ایجاد حساب انباردار', createdId);
    return res.status(201).json({ success: true, id: createdId });
   } catch (error) {
-   if (createdId) await adminAuth().auth.admin.deleteUser(createdId).catch(() => {});
+   if (createdId) { try { await adminAuth().auth.admin.deleteUser(createdId); } catch { /* best-effort Auth cleanup */ } }
    return respond(res, error);
   }
  });
