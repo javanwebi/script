@@ -438,7 +438,7 @@ export const ProductDetailPage: React.FC = () => {
       return;
     }
     if (!buyingAllowed || isSelectedInquiryOnly || activeUnitPrice <= 0) {
-      setIsInquiryModalOpen(true);
+      handleInquirePriceClick();
       return;
     }
     addToCart(requestedProduct, quantity);
@@ -1242,7 +1242,7 @@ export const ProductDetailPage: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={() => setIsInquiryModalOpen(true)}
+                      onClick={handleInquirePriceClick}
                       className="h-12 rounded-xl border border-slate-300 hover:border-slate-400 bg-white text-[#55565A] font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs hover:bg-slate-50 active:scale-98"
                     >
                       <FileSpreadsheet className="w-4 h-4 text-[#E06518]" />
@@ -1788,7 +1788,7 @@ export const ProductDetailPage: React.FC = () => {
               disabled={inquiryBusy}
               className="w-full h-11 bg-[#E06518] hover:bg-[#C95210] text-white font-bold text-xs rounded-xl shadow-md cursor-pointer"
             >
-              ارسال استعلام رسمی برای کد {requestedProduct.code}
+              ثبت درخواست پیش‌فاکتور بدون ثبت‌نام
             </button>
           )}
         </form>
