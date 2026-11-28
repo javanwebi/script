@@ -40,7 +40,14 @@ export const WarehouseAccountsModule: React.FC = () => {
   } catch (e) { setError(e instanceof Error ? e.message : 'دریافت حساب‌ها ناموفق بود.'); }
   finally { setLoading(false); }
  }, []);
- useEffect(() => { void load(); }, [load]);
+ useEffect(() => {
+  void load();
+  const keepAlive = window.setInterval(() => {
+   void api('/api/portal', { method: 'POST', body: JSON.stringify({ action: 'session_refresh' }) })
+    .catch(() => { void load(); });
+  }, 35 * 60 * 1000);
+  return () => window.clearInterval(keepAlive);
+ }, [load]);
 
  const create = async (event: React.FormEvent) => {
   event.preventDefault();
