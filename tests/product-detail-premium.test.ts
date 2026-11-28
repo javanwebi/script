@@ -40,7 +40,8 @@ test('price access and inquiry-only purchase safeguards remain in place', () => 
   assert.match(page, /getCurrentCustomerSkuPrice\(/);
   assert.match(page, /isSelectedInquiryOnly/);
   assert.match(page, /buyingAllowed && isSelectedStockKnown && activeStockCount <= 0/);
-  assert.match(page, /submitInquiry\(requestedProduct, quantity, inquiryNotes\)/);
+  assert.match(page, /submitInquiry\(requestedProduct, quantity\)/);
+  assert.doesNotMatch(page, /inquiryNotes/);
 });
 
 test('product information tabs are accessible and retain all three content panels', () => {
