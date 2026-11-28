@@ -225,7 +225,8 @@ test("the private canary verifies the legacy AvalAI voice and the actual Gisoo Q
   assert.match(gate, /incrementalSpeech, true/);
   assert.match(gate, /FORZA_PRIVATE_VOICE_NOT_READY/);
   assert.match(gate, /FORZA_VOICE_CANARY_AVALAI_READY_OK/);
-  assert.match(canary, /FORZA_QWEN_GISOO_REALTIME_CANARY_OK/);\n  assert.match(canary, /turn_detection=semantic_vad/);
+  assert.match(canary, /FORZA_QWEN_GISOO_REALTIME_CANARY_OK/);
+  assert.match(canary, /turn_detection=semantic_vad/);
   assert.match(canary, /FORZA_QWEN_GISOO_AUDIO_APPEND_OK/);
   assert.match(canary, /buildGisooQwenSessionUpdate/);
   assert.match(canary, /isGisooQwenVoiceConfirmed/);
