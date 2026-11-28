@@ -184,9 +184,10 @@ export const AdminLayout: React.FC = () => {
   useEffect(()=>{
     if(currentUser?.role!=='staff')return;
     const visible=Object.entries(currentUser.permissions||{}).filter(([,actions])=>actions.includes('view')).map(([section])=>section);
-    // Guest quote requests reuse the existing inquiries permission, but remain
-    // a distinct read-only/editable module in the interface.
-    if((currentUser.permissions?.inquiries||[]).includes('view'))visible.push('guest_quotes');
+    // Quote requests can be granted independently, or inherited from the
+    // existing inquiries permission for staff who already manage quotations.
+    if((currentUser.permissions?.guest_quotes||[]).includes('view') ||
+       (currentUser.permissions?.inquiries||[]).includes('view'))visible.push('guest_quotes');
     if(!visible.includes(activeTab))setActiveTab(visible[0]||'no_access');
   },[currentUser,activeTab]);
 
@@ -402,7 +403,9 @@ export const AdminLayout: React.FC = () => {
       case 'inquiries':
         return <PricingInquiriesModule />;
       case 'guest_quotes':
-        return <GuestQuoteRequestsModule canEdit={currentUser.role === 'super_admin' || (currentUser.permissions?.inquiries || []).includes('edit')} />;
+        return <GuestQuoteRequestsModule canEdit={currentUser.role === 'super_admin' ||
+          (currentUser.permissions?.guest_quotes || []).includes('edit') ||
+          (currentUser.permissions?.inquiries || []).includes('edit')} />;
       case 'warehouse_accounts':
         return <WarehouseAccountsModule />;
       case 'orders':
