@@ -30,7 +30,6 @@ type QuoteRow = {
 const fail = (status: number, message: string) => Object.assign(new Error(message), { status });
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const usernamePattern = /^[a-z][a-z0-9_]{3,31}$/;
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const guestRate = new Map<string, { count: number; resetAt: number }>();
 const adminListeners = new Set<Response>();
 const warehouseListeners = new Set<Response>();
