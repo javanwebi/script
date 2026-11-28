@@ -184,6 +184,9 @@ export const AdminLayout: React.FC = () => {
   useEffect(()=>{
     if(currentUser?.role!=='staff')return;
     const visible=Object.entries(currentUser.permissions||{}).filter(([,actions])=>actions.includes('view')).map(([section])=>section);
+    // Guest quote requests reuse the existing inquiries permission, but remain
+    // a distinct read-only/editable module in the interface.
+    if((currentUser.permissions?.inquiries||[]).includes('view'))visible.push('guest_quotes');
     if(!visible.includes(activeTab))setActiveTab(visible[0]||'no_access');
   },[currentUser,activeTab]);
 
