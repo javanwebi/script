@@ -811,7 +811,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         {quoteNotice.message}
       </div>
     )}
-  </>;
+  </>);
 };
 
 export const useCart = () => {
