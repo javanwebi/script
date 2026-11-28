@@ -56,6 +56,10 @@ export const WarehouseLayout: React.FC = () => {
 
  const loadSession = useCallback(async () => {
   try {
+   // The refresh cookie is scoped to /api/portal. Touch that endpoint first;
+   // warehouse identities receive 403 there by design, but a valid refresh
+   // still rotates the access cookie before the isolated session check.
+   await fetch('/api/portal', { credentials: 'same-origin', cache: 'no-store' }).catch(() => undefined);
    const data = await api<{ user: WarehouseUser }>('/api/warehouse/session');
    setUser(data.user);
    return true;
