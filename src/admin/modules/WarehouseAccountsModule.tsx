@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { KeyRound, Plus, RefreshCw, ShieldCheck, UserRound, UserX } from 'lucide-react';
+import { KeyRound, Plus, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
 
 type WarehouseAccount = {
  id: string;
