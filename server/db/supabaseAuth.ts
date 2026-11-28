@@ -27,7 +27,7 @@ async function identityProfile(authUserId:string){
  ) d on true
  where p.id=$1 limit 1`,[authUserId])).rows[0];
  if(!row)return undefined;
- const role:{[key:string]:string}={client:'retail',club:'wholesale',agency:'dealer',super_admin:'admin'};
+ const role:{[key:string]:string}={client:'retail',club:'wholesale',agency:'dealer',super_admin:'admin',sales_manager:'sales_manager'};
  return {...(row.draft_payload || {}),...(row.preferences || {}),
   addresses:row.profile_addresses || [],id:row.draft_id || row.legacy_user_id || row.id,
   authUserId:row.id,phone:row.phone?.replace(/^\+98/,'0'),
@@ -43,7 +43,11 @@ export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
  const user=db ? db.users.find(profile=>profile.authUserId===result.data.user.id && profile.active!==false) : await identityProfile(result.data.user.id);
  const admin=user?.active!==false && user?.role==='admin';
  let staff=false,permissions={};
- if(!admin && user?.active!==false && user?.dbRole==='warehouse_operator'){
+ if(!admin && user?.active!==false && user?.dbRole==='sales_manager'){
+  staff=true;
+  permissions=sanitizeStaffPermissions({guest_quotes:['view','edit']});
+ }
+ if(!admin && !staff && user?.active!==false && user?.dbRole==='warehouse_operator'){
   // Warehouse identities are a distinct account class; never elevate them
   // into the generic staff portal even if a stale staff row also exists.
   const warehouseAccount=await database().query('select 1 from app_private.warehouse_operator_accounts where user_id=$1',[result.data.user.id]);
@@ -172,7 +176,7 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   )).rows[0];
   if(body.action==='login' && row?.role==='warehouse_operator')
     throw error(403,'برای ورود به این حساب از نشانی پنل انبارداری استفاده کنید.');
-  if(!row || row.status!=='active' || (body.action==='admin_login' && row.role!=='super_admin' && row.role!=='warehouse_operator') || (body.action==='warehouse_login' && row.role!=='warehouse_operator'))
+  if(!row || row.status!=='active' || (body.action==='admin_login' && row.role!=='super_admin' && row.role!=='warehouse_operator' && row.role!=='sales_manager') || (body.action==='warehouse_login' && row.role!=='warehouse_operator'))
     throw error(401,'نام کاربری یا رمز عبور معتبر نیست.');
   const credentials=(body.action==='admin_login' || body.action==='warehouse_login') && row.email
     ? {email:String(row.email),password:String(body.password)}
@@ -205,8 +209,12 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   }
  }
  const p=(await database().query('select id,username,email,phone,full_name,company_name,role,status,preferences,approved_b2b,can_view_prices from public.user_profiles where id=$1',[session.user.id])).rows[0];
- const profile=p?{id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:p.role==='super_admin'?'admin':p.role==='club'?'wholesale':p.role==='client'?'retail':p.role==='agency'?'dealer':'guest',active:p.status==='active',approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices,...(p.preferences || {}),mustChangePassword:session.user.app_metadata?.crm_password_change_required===true}:null;
+ const profile=p?{id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:p.role==='super_admin'?'admin':p.role==='sales_manager'?'sales_manager':p.role==='club'?'wholesale':p.role==='client'?'retail':p.role==='agency'?'dealer':'guest',active:p.status==='active',approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices,...(p.preferences || {}),mustChangePassword:session.user.app_metadata?.crm_password_change_required===true}:null;
  let staff=false,permissions={},warehouse=false;
+ if(body.action==='admin_login' && p?.role==='sales_manager'){
+  staff=true;
+  permissions=sanitizeStaffPermissions({guest_quotes:['view','edit']});
+ }
  if(body.action==='admin_login' && p?.role==='warehouse_operator'){
   const access=(await database().query('select active,permissions from app_private.admin_staff_accounts where user_id=$1',[p.id])).rows[0];
   staff=access?.active===true;
