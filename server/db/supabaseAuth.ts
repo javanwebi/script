@@ -44,9 +44,14 @@ export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
  const admin=user?.active!==false && user?.role==='admin';
  let staff=false,permissions={};
  if(!admin && user?.active!==false && user?.dbRole==='warehouse_operator'){
-  const record=(await database().query('select permissions,active from app_private.admin_staff_accounts where user_id=$1',[result.data.user.id])).rows[0];
-  staff=record?.active===true;
-  if(staff)permissions=sanitizeStaffPermissions(record.permissions);
+  // Warehouse identities are a distinct account class; never elevate them
+  // into the generic staff portal even if a stale staff row also exists.
+  const warehouseAccount=await database().query('select 1 from app_private.warehouse_operator_accounts where user_id=$1',[result.data.user.id]);
+  if(!warehouseAccount.rowCount){
+   const record=(await database().query('select permissions,active from app_private.admin_staff_accounts where user_id=$1',[result.data.user.id])).rows[0];
+   staff=record?.active===true;
+   if(staff)permissions=sanitizeStaffPermissions(record.permissions);
+  }
  }
  return {admin,staff,permissions,user:user?.active===false||!user?undefined:{...user,mustChangePassword:result.data.user.app_metadata?.crm_password_change_required===true}};
 
@@ -176,6 +181,8 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   if(result.error)throw error(result.error.status===429?429:401,'نام کاربری یا رمز عبور معتبر نیست؛ در صورت نیاز از ورود پیامکی استفاده کنید.');
   if(result.data.user?.id!==row.id)throw error(403,'حساب تأییدشده با پروفایل مطابقت ندارد.');
   if(body.action==='admin_login' && row.role==='warehouse_operator'){
+   const warehouseAccount=await database().query('select 1 from app_private.warehouse_operator_accounts where user_id=$1',[row.id]);
+   if(warehouseAccount.rowCount)throw error(403,'این حساب فقط برای ورود به پنل اختصاصی انبارداری ساخته شده است.');
    const access=(await database().query('select active from app_private.admin_staff_accounts where user_id=$1',[row.id])).rows[0];
    if(access?.active!==true)throw error(403,'دسترسی کارکنان برای این حساب غیرفعال است.');
   }
