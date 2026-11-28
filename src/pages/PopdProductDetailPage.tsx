@@ -100,6 +100,7 @@ export const ProductDetailPage: React.FC = () => {
   const [added, setAdded] = useState(false);
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [quoteFeedback, setQuoteFeedback] = useState('');
+  const [quoteFeedbackError, setQuoteFeedbackError] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [activeTab, setActiveTab] = useState<'specs' | 'delivery'>('specs');
@@ -417,6 +418,7 @@ export const ProductDetailPage: React.FC = () => {
     if (!product || quoteBusy) return;
     setQuoteBusy(true);
     setQuoteFeedback('');
+    setQuoteFeedbackError(false);
     try {
       const result = await submitInquiry({
         ...product,
@@ -426,6 +428,7 @@ export const ProductDetailPage: React.FC = () => {
       }, quantity);
       setQuoteFeedback(`درخواست شما بدون ثبت‌نام و بدون دریافت اطلاعات شخصی ثبت شد. شماره پیگیری: RFQ-${result.requestNumber}. این شماره را برای پیگیری نزد خود نگه دارید.`);
     } catch (error) {
+      setQuoteFeedbackError(true);
       setQuoteFeedback(error instanceof Error ? error.message : 'ثبت درخواست پیش‌فاکتور انجام نشد.');
     } finally {
       setQuoteBusy(false);
@@ -907,7 +910,7 @@ export const ProductDetailPage: React.FC = () => {
                   <FileSpreadsheet className="w-4 h-4 text-[#E06518]" />
                   <span>{quoteBusy ? 'در حال ثبت درخواست…' : 'درخواست پیش‌فاکتور بدون ثبت‌نام'}</span>
                 </button>
-                {quoteFeedback && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] leading-6 text-emerald-800">{quoteFeedback}</p>}
+                {quoteFeedback && <p role={quoteFeedbackError ? 'alert' : 'status'} className={`rounded-xl border p-3 text-[11px] leading-6 ${quoteFeedbackError ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>{quoteFeedback}</p>}
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
