@@ -91,7 +91,9 @@ function respond(res: Response, error: unknown) {
 async function manager(req: Request, action: 'view' | 'edit' = 'view') {
  ready();
  const identity = await getPortalIdentity(req);
- if (!identity.admin && !canStaff(identity, 'inquiries', action))
+ if (!identity.admin &&
+     !canStaff(identity, 'guest_quotes', action) &&
+     !canStaff(identity, 'inquiries', action))
   throw fail(403, 'مجوز مدیریت درخواست‌های پیش‌فاکتور را ندارید.');
  checkOrigin(req);
  return String(identity.user?.authUserId || '');
