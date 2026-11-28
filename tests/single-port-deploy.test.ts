@@ -242,6 +242,19 @@ test("private FORZA provider credentials are mounted read-only into each release
   assert.match(one, /Always bind the canonical host FORZA config/);
 });
 
+test("guest quote and warehouse schema is migrated and verified before app promotion", () => {
+  const migration = "$STAGE/supabase/adopted/migrations/20261128140000_guest_quote_warehouse_workflow.sql";
+  const apply = one.indexOf('===== APPLY CUSTOMER 360, MANUFACTURING REQUEST AND GUEST QUOTE WAREHOUSE SCHEMA =====');
+  const verified = one.indexOf("PRODUCTION_GUEST_QUOTE_WAREHOUSE_SCHEMA_READY", apply);
+  const promote = one.indexOf("===== CONTINUE BLUE-GREEN DEPLOY =====");
+  assert.ok(apply >= 0 && verified > apply && promote > verified,
+    "guest quote schema must be applied and verified against the live database before app promotion");
+  assert.ok(one.includes(migration));
+  assert.match(one, /to_regclass\(\$1\) as requests/);
+  assert.match(one, /to_regclass\(\$2\) as items/);
+  assert.match(one, /to_regclass\(\$3\) as warehouse_accounts/);
+});
+
 test("industrial belt PFAM reconciliation is guarded by the active production catalog lineage", () => {
   assert.match(one, /BELT_TAXONOMY_SQL="\$STAGE\/ops\/sql\/20261116_belt_family_taxonomy_followup\.sql"/);
   assert.match(one, /active_pfam/);
