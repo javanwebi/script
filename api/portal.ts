@@ -468,6 +468,9 @@ export default async function handler(
     }
     if (databaseEnabled() && adoptedSchema() && req.method === "GET") {
       const auth = await supabaseIdentity(req);
+      // Warehouse identities are intentionally isolated from the customer/admin portal.
+      if (!auth.admin && !auth.staff && auth.user?.dbRole === 'warehouse_operator')
+        return send(403, { success: false, message: 'این حساب فقط به پنل اختصاصی انبارداری دسترسی دارد.' });
       // Staff receive only the admin modules explicitly granted by the owner.
       if(auth.staff){
         const wanted=keys.filter(key=>namespacePermission(auth,domainFor(key)||'',false,key));
