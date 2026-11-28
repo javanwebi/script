@@ -34,6 +34,10 @@ export interface CartItem {
   quantity: number;
 }
 
+export interface GuestQuoteSubmission {
+  requestNumber: string;
+}
+
 export interface InquiryItem {
   customerId?: string;
   id: string;
@@ -109,7 +113,7 @@ interface CartContextType {
     product: Product,
     quantity: number,
     notes?: string,
-  ) => Promise<boolean>;
+  ) => Promise<GuestQuoteSubmission>;
   placeOrder: (params: {
     address: Address;
     shippingMethod: ShippingMethod;
@@ -379,7 +383,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     // Inquiry-only products use the guest quote flow and never force account creation.
     if (product.inquiryOnly) {
       void submitInquiry(product, quantity)
-        .then(() => showQuoteNotice("درخواست پیش‌فاکتور شما بدون ثبت‌نام ثبت شد."))
+        .then((result) => showQuoteNotice(`درخواست پیش‌فاکتور بدون ثبت‌نام ثبت شد؛ شماره پیگیری RFQ-${result.requestNumber} است.`))
         .catch((error) => showQuoteNotice(
           error instanceof Error ? error.message : "ثبت درخواست پیش‌فاکتور انجام نشد.",
           true,
@@ -524,7 +528,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     product: Product,
     quantity: number,
     _notes?: string,
-  ): Promise<boolean> => {
+  ): Promise<GuestQuoteSubmission> => {
     // Idempotency key survives a network retry for the same product/quantity.
     // The request body intentionally excludes all customer identity/contact data.
     const fingerprint = JSON.stringify([product.code, quantity]);
@@ -543,7 +547,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!response.ok || !data.success)
       throw new Error(data.message || "ثبت درخواست پیش‌فاکتور انجام نشد.");
     guestQuoteRequestKeys.current.delete(fingerprint);
-    return true;
+    return { requestNumber: String(data.requestNumber || '') };
   };
 
   // Computations
