@@ -63,7 +63,7 @@ function emit(listeners: Set<Response>, event: string) {
   catch { listeners.delete(listener); }
  }
 }
-function stream(req: Request, res: Response, listeners: Set<Response>, event: string) {
+function stream(req: Request, res: Response, listeners: Set<Response>) {
  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
  res.setHeader('Cache-Control', 'private, no-cache, no-transform');
  res.setHeader('Connection', 'keep-alive');
@@ -256,7 +256,7 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
  app.get('/api/admin/guest-quote-requests/events', async (req, res) => {
   try {
    await manager(req, 'view');
-   stream(req, res, adminListeners, 'guest-quote-updated');
+   stream(req, res, adminListeners);
   } catch (error) { return respond(res, error); }
  });
  app.post('/api/admin/guest-quote-requests/:id/send-to-warehouse', async (req, res) => {
@@ -334,7 +334,7 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
  app.get('/api/warehouse/requests/events', async (req, res) => {
   try {
    await warehouseActor(req, res);
-   stream(req, res, warehouseListeners, 'warehouse-request-updated');
+   stream(req, res, warehouseListeners);
   } catch (error) { return respond(res, error); }
  });
  app.post('/api/warehouse/requests/:id/claim', async (req, res) => {
