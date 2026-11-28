@@ -40,8 +40,9 @@ const stockLabel: Record<WarehouseStatus, string> = {
 };
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
- const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', ...init,
-  headers: { ...(init?.headers || {}), ...(init?.body ? { 'Content-Type': 'application/json' } : {}) } });
+ const headers = new Headers(init?.headers);
+ if (init?.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+ const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', ...init, headers });
  const data = await response.json().catch(() => ({}));
  if (!response.ok || !data.success) throw new Error(data.message || 'دریافت اطلاعات انجام نشد.');
  return data as T;
