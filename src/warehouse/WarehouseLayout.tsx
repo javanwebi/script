@@ -109,13 +109,15 @@ export const WarehouseLayout: React.FC = () => {
   try {
    await api('/api/portal', { method: 'POST', body: JSON.stringify({ action: 'warehouse_login', identifier: username.trim().toLowerCase(), username: username.trim().toLowerCase(), password }) });
    setPassword('');
-   await loadSession();
+   const active = await loadSession();
+   if (!active) setLoginError('ورود تأیید شد اما دسترسی پنل انبارداری فعال نیست. با مدیر سامانه تماس بگیرید.');
   } catch (e) { setLoginError(e instanceof Error ? e.message : 'ورود انجام نشد.'); }
   finally { setLoginBusy(false); }
  };
 
  const logout = async () => {
   try { await api('/api/portal', { method: 'POST', body: JSON.stringify({ action: 'logout' }) }); }
+  catch { /* local sign-out still clears this isolated workspace */ }
   finally { setUser(null); setRequests([]); setDrafts({}); }
  };
 
