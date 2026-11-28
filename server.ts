@@ -8,6 +8,7 @@ import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import { registerCatalogReferenceApi } from './server/catalogReferenceApi';
 import {readPopdVisionCatalog} from './server/popdVisionCatalog';
 import {registerAdminStaffApi} from './server/db/adminStaffApi';
+import {registerGuestQuoteWarehouseApi} from './server/db/guestQuoteWarehouseApi';
 import {registerAdminSecurityApi} from './server/db/adminSecurityApi';
 import {registerAdminCustomersApi} from './server/db/adminCustomersApi';
 import {registerCustomerIntelligenceApi} from './server/db/customerIntelligenceApi';
@@ -446,6 +447,7 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
   }
 });
 registerAdminStaffApi(app);
+registerGuestQuoteWarehouseApi(app);
 registerAdminSecurityApi(app);
 registerAdminCustomersApi(app);
 registerCustomerIntelligenceApi(app);
