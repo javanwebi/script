@@ -15,7 +15,7 @@ async function warehouseAccountsTableReady():Promise<boolean>{
 }
 async function hasWarehouseAccount(userId:string):Promise<boolean>{
  if(!(await warehouseAccountsTableReady()))return false;
- return (await database().query('select 1 from app_private.warehouse_operator_accounts where user_id=$1',[userId])).rowCount>0;
+ return (await database().query('select 1 from app_private.warehouse_operator_accounts where user_id=$1',[userId)).rowCount??0)>0;
 }
 function phone(raw:string){const value=String(raw || '').replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\s()-]/g,'').replace(/^(\+98|0098|98)/,'0');if(!/^09\d{9}$/.test(value))throw error(400,'شماره موبایل معتبر وارد کنید.');return {local:value,e164:'+98'+value.slice(1)};}
 // Resolve only the authenticated profile for API authorization; never load all CRM users.
