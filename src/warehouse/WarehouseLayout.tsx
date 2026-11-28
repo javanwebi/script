@@ -78,7 +78,11 @@ export const WarehouseLayout: React.FC = () => {
    setDrafts(previous => {
     const updated = { ...previous };
     for (const request of next) {
-     const current = { ...(updated[request.id] || {}) };
+     // A fresh unassigned dispatch means management reset the warehouse review.
+     // Never carry stale local stock decisions into a newly dispatched request.
+     const current = request.status === 'sent_to_warehouse' && !request.warehouseAssignedTo
+      ? {}
+      : { ...(updated[request.id] || {}) };
      for (const item of request.items) {
       if (!current[item.id]) current[item.id] = {
        warehouseStatus: item.warehouseStatus || 'pending',
