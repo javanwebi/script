@@ -48,7 +48,7 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
  return data as T;
 }
 
-export const GuestQuoteRequestsModule: React.FC = () => {
+export const GuestQuoteRequestsModule: React.FC<{ canEdit?: boolean }> = ({ canEdit = true }) => {
  const [requests, setRequests] = useState<GuestQuoteRequest[]>([]);
  const [loading, setLoading] = useState(true);
  const [error, setError] = useState('');
@@ -151,12 +151,12 @@ export const GuestQuoteRequestsModule: React.FC = () => {
          <p className="mt-1 text-[11px] text-slate-500">زمان ثبت: {dateLabel(request.createdAt)} · {nf(request.items.length)} قلم کالا</p>
         </div>
         <div className="flex flex-wrap gap-2">
-         {(request.status === 'new' || request.status === 'warehouse_returned') && (
+         {canEdit && (request.status === 'new' || request.status === 'warehouse_returned') && (
           <button type="button" disabled={busyId === request.id} onClick={() => void runAction(request,'send-to-warehouse')} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#E56B1E] px-3.5 text-xs font-bold text-white hover:bg-[#c85612] disabled:opacity-50">
            <Send size={15}/> {request.status === 'warehouse_returned' ? 'ارجاع مجدد به انبار' : 'ارسال به انبارداری'}
           </button>
          )}
-         {request.status === 'warehouse_returned' && (
+         {canEdit && request.status === 'warehouse_returned' && (
           <button type="button" disabled={busyId === request.id} onClick={() => void runAction(request,'complete')} className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 text-xs font-bold text-emerald-800 disabled:opacity-50">
            <CheckCircle2 size={15}/> تکمیل بررسی
           </button>
