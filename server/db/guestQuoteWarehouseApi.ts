@@ -151,7 +151,7 @@ async function audit(actor: string, action: string, target: string) {
  try {
   await database().query(`
    insert into public.audit_logs(id,user_id,user_name,user_role,action,entity,target,details,created_at)
-   select $1,$2,coalesce(nullif(p.full_name,''),p.username),'super_admin',$3,'warehouse',$4,
+   select $1,$2,coalesce(nullif(p.full_name,''),p.username),p.role::text,$3,'warehouse',$4,
           'عملیات گردش درخواست یا حساب انبارداری ثبت شد.',now()
    from public.user_profiles p where p.id=$2`,
    [crypto.randomUUID(), actor, action, target]);
