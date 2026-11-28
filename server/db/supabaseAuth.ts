@@ -54,9 +54,20 @@ export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
 export async function refreshAuth(req:IncomingMessage,res:ServerResponse){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
 export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,body:any,safe:(value:any)=>any):Promise<boolean>{
  if(handleDevelopmentOtp(req,res,body))return true;
- if(!['register','login','admin_login','warehouse_login','otp_request','otp_verify','registration_credentials','initial_password_change','logout'].includes(body.action))return false;
+ if(!['register','login','admin_login','warehouse_login','warehouse_refresh','otp_request','otp_verify','registration_credentials','initial_password_change','logout'].includes(body.action))return false;
  const send=(status:number,data:any)=>{res.statusCode=status;res.end(JSON.stringify(data));};
  try{
+ if(body.action==='warehouse_refresh'){
+  await refreshAuth(req,res);
+  const identity=await supabaseIdentity(req);
+  const userId=String(identity.user?.authUserId || '');
+  if(!userId || identity.user?.dbRole!=='warehouse_operator')
+   throw error(401,'نشست انبارداری معتبر نیست؛ دوباره وارد شوید.');
+  const access=(await database().query('select active from app_private.warehouse_operator_accounts where user_id=$1',[userId])).rows[0];
+  if(access?.active!==true)throw error(403,'دسترسی حساب انبارداری غیرفعال شده است.');
+  send(200,{success:true,warehouse:true});
+  return true;
+ }
  const auth=client();
  if(body.action==='logout'){const access=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(access && refresh){const sdk=client();await sdk.auth.setSession({access_token:access,refresh_token:refresh});await sdk.auth.signOut({scope:'local'});}cookies(req,res,null);send(200,{success:true});return true;}
  if(body.action==='register'){
