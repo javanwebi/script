@@ -98,9 +98,15 @@ export const WarehouseLayout: React.FC = () => {
   const events = new EventSource('/api/warehouse/requests/events', { withCredentials: true });
   events.addEventListener('warehouse-request-updated', () => { void loadRequests(true); });
   const poll = window.setInterval(() => { void loadRequests(true); }, 15000);
+  // Refresh before the short-lived access token expires. The refresh cookie is
+  // intentionally scoped to /api/portal, so this authenticated action owns it.
+  const keepAlive = window.setInterval(() => {
+   void api('/api/portal', { method: 'POST', body: JSON.stringify({ action: 'warehouse_refresh' }) })
+    .catch(() => { void loadSession(); });
+  }, 35 * 60 * 1000);
   const onFocus = () => { void loadRequests(true); };
   window.addEventListener('focus', onFocus);
-  return () => { events.close(); window.clearInterval(poll); window.removeEventListener('focus', onFocus); };
+  return () => { events.close(); window.clearInterval(poll); window.clearInterval(keepAlive); window.removeEventListener('focus', onFocus); };
  }, [user?.id, loadRequests]);
 
  const login = async (event: React.FormEvent) => {
