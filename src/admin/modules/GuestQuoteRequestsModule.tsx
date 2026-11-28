@@ -151,7 +151,7 @@ export const GuestQuoteRequestsModule: React.FC<{ canEdit?: boolean }> = ({ canE
           <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-black text-slate-700">RFQ-{nf(request.requestNumber)}</span>
           <span className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${request.status === 'new' ? 'bg-amber-50 text-amber-800' : request.status === 'warehouse_returned' ? 'bg-emerald-50 text-emerald-800' : request.status === 'completed' ? 'bg-slate-100 text-slate-600' : 'bg-blue-50 text-blue-800'}`}>{statusLabel[request.status]}</span>
          </div>
-         <h3 className="mt-2 text-sm font-black text-[#55565A]">مشتری {nf(request.requestNumber)} <span className="font-medium text-slate-400">— مهمان، بدون اطلاعات تماس</span></h3>
+         <h3 className="mt-2 text-sm font-black text-[#55565A]">درخواست مهمان {nf(request.requestNumber)} <span className="font-medium text-slate-400">— بدون اطلاعات هویتی یا تماس</span></h3>
          <p className="mt-1 text-[11px] text-slate-500">زمان ثبت: {dateLabel(request.createdAt)} · {nf(request.items.length)} قلم کالا</p>
         </div>
         <div className="flex flex-wrap gap-2">
