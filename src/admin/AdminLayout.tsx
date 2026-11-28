@@ -48,6 +48,8 @@ const AnnouncementsAdminModule = React.lazy(() => import('./modules/Announcement
 const SettingsSystemModule = React.lazy(() => import('./modules/SettingsSystemModule').then(module => ({ default: module.SettingsSystemModule })));
 const AdminStaffUsersModule = React.lazy(() => import('./modules/AdminStaffUsersModule').then(module => ({ default: module.AdminStaffUsersModule })));
 const ClientsAdminModule = React.lazy(() => import('./modules/ClientsAdminModule').then(module => ({ default: module.ClientsAdminModule })));
+const GuestQuoteRequestsModule = React.lazy(() => import('./modules/GuestQuoteRequestsModule').then(module => ({ default: module.GuestQuoteRequestsModule })));
+const WarehouseAccountsModule = React.lazy(() => import('./modules/WarehouseAccountsModule').then(module => ({ default: module.WarehouseAccountsModule })));
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -111,6 +113,8 @@ export const AdminLayout: React.FC = () => {
   useEffect(() => {
     const path = location.pathname;
     if (path.includes('/admin/staff-users')) setActiveTab('staff_users');
+    else if (path.includes('/admin/warehouse-accounts')) setActiveTab('warehouse_accounts');
+    else if (path.includes('/admin/guest-quotes')) setActiveTab('guest_quotes');
     else if (path.includes('/admin/reports/')) setActiveTab('reports');
     else if (path.includes('/admin/products')) setActiveTab('products');
     else if (path.includes('/admin/bulk-import')) setActiveTab('bulk_import');
@@ -198,7 +202,8 @@ export const AdminLayout: React.FC = () => {
   }
 
   const canView=(section:string)=>currentUser.role==='super_admin'
-    || (currentUser.permissions?.[section]||[]).includes('view');
+    || (currentUser.permissions?.[section]||[]).includes('view')
+    || (section==='guest_quotes' && (currentUser.permissions?.inquiries||[]).includes('view'));
 
   // Real-time notification counters
   const pendingInquiries = adminService.getInquiries().filter(i => i.status === 'pending');
@@ -279,6 +284,13 @@ export const AdminLayout: React.FC = () => {
       badgeColor: 'bg-amber-500 text-white',
     },
     {
+      id: 'guest_quotes',
+      label: 'درخواست‌های پیش‌فاکتور مهمان',
+      icon: FileSpreadsheet,
+      badge: null,
+      badgeColor: 'bg-amber-500 text-white',
+    },
+    {
       id: 'orders',
       label: 'سفارش‌ها و لجستیک',
       icon: ShoppingBag,
@@ -303,20 +315,26 @@ export const AdminLayout: React.FC = () => {
       icon: Users,
       badge: null,
     },
+    {
+      id: 'warehouse_accounts',
+      label: 'حساب‌های انبارداری',
+      icon: Package,
+      badge: null,
+    },
   ];
 
   // Grouping and navigation are UI only. Never substitute menu visibility for server-side permissions.
   const groups=[
     {title:'نمای کلی',ids:['dashboard']},
-    {title:'فروش و مشتریان',ids:['orders','inquiries','crm','customer_grading','agencies']},
+    {title:'فروش و مشتریان',ids:['orders','inquiries','guest_quotes','crm','customer_grading','agencies']},
     {title:'کالا و محتوا',ids:['products','bulk_import','content_studio','announcements','clients']},
-    {title:'سامانه',ids:['settings','staff_users']},
+    {title:'سامانه',ids:['settings','staff_users','warehouse_accounts']},
   ];
   const descriptions:Record<string,string>={
-    dashboard:'نمای کلی و آمار فروش',orders:'سفارش‌ها، ارسال و بارنامه',inquiries:'پیگیری استعلام و پیش‌فاکتور',
+    dashboard:'نمای کلی و آمار فروش',orders:'سفارش‌ها، ارسال و بارنامه',inquiries:'پیگیری استعلام و پیش‌فاکتور',guest_quotes:'درخواست‌های بدون ثبت‌نام و ارجاع به انبارداری',
     crm:'ارتباط با مشتری و پشتیبانی',customer_grading:'سطوح خرید و قیمت‌گذاری',agencies:'مدیریت شبکه نمایندگی',
     products:'کاتالوگ و مشخصات کالا',bulk_import:'ورود اطلاعات از اکسل',content_studio:'محتوای صفحات و پنل‌ها',
-    announcements:'اطلاعیه‌های سایت و کاربران',clients:'لوگوی مشتریان',settings:'تنظیمات و امنیت',staff_users:'ساخت کاربران واقعی و مدیریت مجوزها',reports:'رتبه‌بندی فروش'
+    announcements:'اطلاعیه‌های سایت و کاربران',clients:'لوگوی مشتریان',settings:'تنظیمات و امنیت',staff_users:'ساخت کاربران واقعی و مدیریت مجوزها',warehouse_accounts:'ساخت حساب مستقل انباردار و مدیریت دسترسی',reports:'رتبه‌بندی فروش'
   };
   const currentModule=navItems.find(item=>item.id===activeTab);
   const visibleGroups=groups.map(g=>({...g,items:g.ids.map(id=>navItems.find(item=>item.id===id)!)
@@ -330,7 +348,11 @@ export const AdminLayout: React.FC = () => {
       if(location.pathname!=='/admin/settings')navigate('/admin/settings');
     }else if(id==='staff_users'){
       if(location.pathname!=='/admin/staff-users')navigate('/admin/staff-users');
-    }else if(location.pathname.startsWith('/admin/reports/') || location.pathname.startsWith('/admin/settings') || location.pathname.startsWith('/admin/staff-users')){
+    }else if(id==='guest_quotes'){
+      if(location.pathname!=='/admin/guest-quotes')navigate('/admin/guest-quotes');
+    }else if(id==='warehouse_accounts'){
+      if(location.pathname!=='/admin/warehouse-accounts')navigate('/admin/warehouse-accounts');
+    }else if(location.pathname.startsWith('/admin/reports/') || location.pathname.startsWith('/admin/settings') || location.pathname.startsWith('/admin/staff-users') || location.pathname.startsWith('/admin/guest-quotes') || location.pathname.startsWith('/admin/warehouse-accounts')){
       navigate('/admin',{state:{adminModule:id}});
     }
   };
@@ -376,6 +398,10 @@ export const AdminLayout: React.FC = () => {
         return <BulkImportModule />;
       case 'inquiries':
         return <PricingInquiriesModule />;
+      case 'guest_quotes':
+        return <GuestQuoteRequestsModule />;
+      case 'warehouse_accounts':
+        return <WarehouseAccountsModule />;
       case 'orders':
         return <OrdersModule />;
       case 'crm':
