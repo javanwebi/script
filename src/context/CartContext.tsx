@@ -546,8 +546,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.success)
       throw new Error(data.message || "ثبت درخواست پیش‌فاکتور انجام نشد.");
+    const requestNumber = String(data.requestNumber || '').trim();
+    if (!requestNumber)
+      throw new Error("درخواست ثبت شد اما شماره پیگیری دریافت نشد؛ پیش از ارسال مجدد با مدیریت تماس بگیرید.");
     guestQuoteRequestKeys.current.delete(fingerprint);
-    return { requestNumber: String(data.requestNumber || '') };
+    return { requestNumber };
   };
 
   // Computations
