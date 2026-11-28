@@ -28,6 +28,10 @@ test('anonymous quote workflow stores catalog lines only and keeps browser roles
   )).rows[0];
   assert.ok(request.id);
   assert.equal(Number(request.request_number) > 0, true);
+  await assert.rejects(db.query(
+   'insert into public.guest_quote_requests(request_key) values($1)',
+   [requestKey]
+  ));
   await db.query(
    'insert into public.guest_quote_request_items(request_id,product_code,product_name,quantity) values($1,$2,$3,$4)',
    [request.id,'A-49','تسمه وی A-49',12]
@@ -43,6 +47,7 @@ test('anonymous quote workflow stores catalog lines only and keeps browser roles
 
   await db.exec('set role anon');
   await assert.rejects(db.query('select * from public.guest_quote_requests'));
+  await assert.rejects(db.query('select * from public.guest_quote_request_items'));
   await assert.rejects(db.query('insert into public.guest_quote_requests(request_key) values($1)', ['44444444-4444-4444-8444-444444444444']));
   await db.exec('reset role');
  } finally {
