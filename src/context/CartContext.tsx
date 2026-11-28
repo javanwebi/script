@@ -505,32 +505,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   const submitInquiry = async (
     product: Product,
     quantity: number,
-    notes?: string,
+    _notes?: string,
   ): Promise<boolean> => {
-    if (!currentUser) {
-      openAuthModal("/consumer-dashboard", "register");
-      return false;
-    }
-    const response = await portalRequest({
-      action: "inquiry",
-      code: product.code,
-      productName: product.name,
-      quantity,
-      notes,
+    // Storefront quote requests are intentionally anonymous. Only the catalog
+    // product code and requested quantity are sent; no account or contact data.
+    const response = await fetch("/api/guest-quote-requests", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requestKey: crypto.randomUUID(),
+        items: [{ productCode: product.code, quantity }],
+      }),
     });
-    setInquiries((prev) => [
-      {
-        id: response.inquiry.id,
-        customerId: currentUser.id,
-        product,
-        quantity,
-        notes,
-        date: new Date().toLocaleDateString("fa-IR"),
-        status: "pending",
-      },
-      ...prev,
-    ]);
-    await hydratePortal();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.success)
+      throw new Error(data.message || "ثبت درخواست پیش‌فاکتور انجام نشد.");
     return true;
   };
 
