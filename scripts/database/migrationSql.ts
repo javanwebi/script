@@ -1,6 +1,6 @@
 /**
  * Normalize optional file-level transaction wrappers before the migration
- * runner applies each file inside its own PostgreSQL transaction.
+ * runner applies all pending files inside its single PostgreSQL transaction.
  *
  * A migration may either be authored with an explicit outer BEGIN/COMMIT
  * pair or rely on the runner. Sending the former inside transaction() would
