@@ -176,6 +176,8 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   )).rows[0];
   if(body.action==='login' && row?.role==='warehouse_operator')
     throw error(403,'برای ورود به این حساب از نشانی پنل انبارداری استفاده کنید.');
+  if(body.action==='login' && row?.role==='sales_manager')
+    throw error(403,'برای ورود به حساب مدیر فروش از نشانی پنل مدیریت استفاده کنید.');
   if(!row || row.status!=='active' || (body.action==='admin_login' && row.role!=='super_admin' && row.role!=='warehouse_operator' && row.role!=='sales_manager') || (body.action==='warehouse_login' && row.role!=='warehouse_operator'))
     throw error(401,'نام کاربری یا رمز عبور معتبر نیست.');
   const credentials=(body.action==='admin_login' || body.action==='warehouse_login') && row.email
