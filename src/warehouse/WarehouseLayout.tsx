@@ -107,7 +107,7 @@ export const WarehouseLayout: React.FC = () => {
   const onFocus = () => { void loadRequests(true); };
   window.addEventListener('focus', onFocus);
   return () => { events.close(); window.clearInterval(poll); window.clearInterval(keepAlive); window.removeEventListener('focus', onFocus); };
- }, [user?.id, loadRequests]);
+ }, [user?.id, loadRequests, loadSession]);
 
  const login = async (event: React.FormEvent) => {
   event.preventDefault();
