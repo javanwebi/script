@@ -399,7 +399,7 @@ export const AdminLayout: React.FC = () => {
       case 'inquiries':
         return <PricingInquiriesModule />;
       case 'guest_quotes':
-        return <GuestQuoteRequestsModule />;
+        return <GuestQuoteRequestsModule canEdit={currentUser.role === 'super_admin' || (currentUser.permissions?.inquiries || []).includes('edit')} />;
       case 'warehouse_accounts':
         return <WarehouseAccountsModule />;
       case 'orders':
