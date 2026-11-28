@@ -56,12 +56,19 @@ export const WarehouseLayout: React.FC = () => {
 
  const loadSession = useCallback(async () => {
   try {
-   // If the access token expired, the first isolated request rotates the
-   // refresh cookie; retry once with the new cookie without touching /api/portal.
    const load = () => api<{ user: WarehouseUser }>('/api/warehouse/session');
    let data: { user: WarehouseUser };
-   try { data = await load(); }
-   catch { data = await load(); }
+   try {
+    data = await load();
+   } catch {
+    // The refresh cookie is intentionally scoped to /api/portal; rotate it
+    // through the warehouse-only refresh action, then retry the isolated API.
+    await api('/api/portal', {
+     method: 'POST',
+     body: JSON.stringify({ action: 'warehouse_refresh' })
+    });
+    data = await load();
+   }
    setUser(data.user);
    return true;
   } catch {
