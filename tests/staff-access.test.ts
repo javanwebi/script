@@ -9,6 +9,20 @@ test('unknown sections and actions are removed, view is required',()=>{
  assert.equal(safe.crm,undefined);
  assert.deepEqual(safe.bulk_import,['view','import']);
 });
+test('guest quote access is isolated from warehouse account management',()=>{
+ const permissions=sanitizeStaffPermissions({
+  guest_quotes:['view','edit'],
+  warehouse_accounts:['view'],
+  settings:['view'],
+ });
+ assert.deepEqual(permissions,{guest_quotes:['view','edit']});
+ const manager={staff:true,permissions};
+ assert.equal(canStaff(manager,'guest_quotes','view'),true);
+ assert.equal(canStaff(manager,'guest_quotes','edit'),true);
+ assert.equal(canStaff(manager,'inquiries','view'),false);
+ assert.equal(canStaff(manager,'warehouse_accounts','view'),false);
+});
+
 test('catalog staff cannot escalate by owning the menu',()=>{
  const user={staff:true,admin:false,permissions:{products:['view','images']}};
  assert.equal(canStaff(user,'products'),true);
