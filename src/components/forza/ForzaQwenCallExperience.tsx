@@ -59,7 +59,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const [sheetHeight,setSheetHeight]=useState(58);
   const sheetDrag=useRef<{y:number;height:number}|null>(null);
   const [confirmed,setConfirmed]=useState(false);
-  const [noiseAwareVadReady,setNoiseAwareVadReady]=useState(false);
+  const [semanticVadReady,setSemanticVadReady]=useState(false);
   const [voice,setVoice]=useState('Arda');
   const [catalogQuery,setCatalogQuery]=useState('');
   const [catalogResults,setCatalogResults]=useState<LiveCatalogFamily[]>([]);
@@ -102,7 +102,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
   const start=useCallback(async()=>{
     if(retryTimer.current!==null){window.clearTimeout(retryTimer.current);retryTimer.current=null;}
     callActive.current=true;dispose();const s=newSession();session.current=s;
-    setError('');setPhase('connecting');setConfirmed(false);setNoiseAwareVadReady(false);
+    setError('');setPhase('connecting');setConfirmed(false);setSemanticVadReady(false);
     const fail=(message:string,retry=false)=>{
       if(session.current!==s)return;dispose();setCatalogBusy(false);
       if(retry&&callActive.current&&retryCount.current<5){
@@ -130,8 +130,8 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
       s.mic=ctx.createMediaStreamSource(stream);
       s.sink=ctx.createGain();s.sink.gain.value=0;
       // Full duplex: keep streaming microphone frames even while FORZA audio is playing.
-      // Do not gate on UI phase or playback state; Qwen semantic_vad_ec handles
-      // noise-aware speech-turn detection and barge-in while the model is speaking.
+      // Do not gate on UI phase or playback state; Qwen semantic_vad handles
+      // semantic speech-turn detection and barge-in while the model is speaking.
       const sendMic=(samples:Float32Array|Int16Array)=>{
         if(!s.ready||micMuted.current||scanning.current||s.ws?.readyState!==WebSocket.OPEN)return;
         if(s.ws.bufferedAmount>131072){
@@ -185,7 +185,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
           if(m.resumed===true){send(s,{type:'resume_context',text:JSON.stringify({history:history.current,vision:visionContext.current.slice(0,2900),consultation:consultationRef.current})});}
           wasConnected.current=true;
           s.heartbeat=window.setInterval(()=>{if(session.current!==s)return;if(document.visibilityState==='visible'&&Date.now()-s.lastPong>60000){fail('پاسخی از ارتباط زنده دریافت نشد.',true);return;}if(Date.now()-s.connectedAt>60000)retryCount.current=0;if(document.visibilityState==='visible')send(s,{type:'ping'});},10000);
-          setVoice(typeof m.voice==='string'?m.voice:'Bodega');setConfirmed(m.voiceConfirmed===true);setNoiseAwareVadReady(m.turnDetection==='semantic_vad_ec');const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});setPhase('listening');return;
+          setVoice(typeof m.voice==='string'?m.voice:'Bodega');setConfirmed(m.voiceConfirmed===true);setSemanticVadReady(m.turnDetection==='semantic_vad');const capture=s.stream?.getAudioTracks()[0]?.getSettings();send(s,{type:'capture_settings',echoCancellation:capture?.echoCancellation,noiseSuppression:capture?.noiseSuppression,autoGainControl:capture?.autoGainControl,sampleRate:capture?.sampleRate,channelCount:capture?.channelCount});setPhase('listening');return;
         }
         if(m.type==='catalog_search_started'){setCatalogQuery(String(m.query||''));setCatalogMode(m.mode==='compare'?'compare':m.mode==='details'?'details':'search');setCatalogResults([]);setCatalogBusy(true);updateConsultation(m.mode==='compare'?'compare':'catalog',consultationRef.current.summary);return;}
         if(m.type==='consultation_update'){updateConsultation(m.stage,m.summary,m.knownFacts,m.missingFacts);return;}
@@ -269,7 +269,7 @@ export function ForzaQwenCallExperience({onClose}:{onClose?:()=>void}) {
     <div dir="rtl" className="forza-conversation-panel absolute bottom-3 right-3 sm:bottom-20 sm:right-10 w-[calc(100%-1.5rem)] sm:w-[min(36vw,30rem)] max-h-[var(--forza-sheet-height)] sm:max-h-[min(74dvh,760px)] overflow-y-auto overscroll-contain max-w-[34rem] z-30 flex flex-col gap-3 pointer-events-none" style={{'--forza-sheet-height':sheetHeight+'dvh'} as CSSProperties}>
       <button type="button" aria-label="تغییر ارتفاع پنل مشاوره" className="sm:hidden sticky top-0 z-10 pointer-events-auto self-center w-20 min-h-8 rounded-full bg-black/85 border border-white/20 touch-none flex items-center justify-center" onPointerDown={e=>{sheetDrag.current={y:e.clientY,height:sheetHeight};e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{const drag=sheetDrag.current;if(drag)setSheetHeight(Math.max(35,Math.min(88,drag.height+(drag.y-e.clientY)/window.innerHeight*100)));}} onPointerUp={()=>{sheetDrag.current=null;}} onPointerCancel={()=>{sheetDrag.current=null;}} onClick={e=>{if(e.detail===0)setSheetHeight(v=>v>70?45:85);}}><span className="w-10 h-1 rounded-full bg-white/60"/></button>
       <div className="forza-status-dock sticky top-0 sm:static z-10 self-end inline-flex flex-wrap items-center gap-2 px-4 py-2 rounded-full bg-black/90 border border-white/15 text-xs pointer-events-auto"><span className="font-semibold text-white">{labels[phase]}</span><button className={control} onClick={toggleMic} aria-label="میکروفون">{muted?<MicOff size={14}/>:<Mic size={14}/>}</button><button className={control} onClick={toggleSpeaker} aria-label="بلندگو">{silent?<VolumeX size={14}/>:<Volume2 size={14}/>}</button><button className={control} onClick={cancel} aria-label="قطع پاسخ"><Square size={13}/></button><button className={control} onClick={()=>setShowText(v=>!v)} aria-label="پیام متنی"><MessageSquare size={14}/></button><button className={control} onClick={pauseCall} aria-label="قطع اتصال"><PhoneOff size={14}/></button><button className={control} onClick={manualReconnect} aria-label="اتصال مجدد"><RotateCcw size={14}/></button></div>
-      <div className="forza-voice-meta self-end text-[10px] text-white/70">گیسو · Qwen Realtime · {voice} {confirmed?'(صدای تأییدشده)':'(صدای تأییدنشده)'} · {noiseAwareVadReady?'فیلتر هوشمند نویز و تشخیص گفتار فعال':'در انتظار تأیید فیلتر هوشمند نویز'}</div>
+      <div className="forza-voice-meta self-end text-[10px] text-white/70">گیسو · Qwen Realtime · {voice} {confirmed?'(صدای تأییدشده)':'(صدای تأییدنشده)'} · {semanticVadReady?'تشخیص معنایی گفتار فعال':'در انتظار تأیید تشخیص گفتار'}</div>
       <section dir="rtl" aria-label="مراحل مشاوره مهندسی" className="pointer-events-auto rounded-2xl border border-white/10 bg-[#100a06]/90 p-3">
         <div className="flex items-center justify-between gap-2 mb-2"><strong className="text-xs text-orange-300">مسیر مشاوره مهندسی</strong><span className="text-[10px] text-white/55">{consultationStageIndex+1} از ۶</span></div>
         <div className="grid grid-cols-3 gap-1.5">

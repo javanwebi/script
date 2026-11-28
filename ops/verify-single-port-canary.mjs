@@ -85,7 +85,7 @@ if (realtimeProvider === "qwen") {
       }
       if (event.type === "session.updated") {
         if (!isGisooQwenTurnDetectionConfirmed(event.session || {})) {
-          settle(new Error("FORZA_QWEN_GISOO_SEMANTIC_VAD_EC_NOT_CONFIRMED"));
+          settle(new Error("FORZA_QWEN_GISOO_SEMANTIC_VAD_NOT_CONFIRMED"));
           return;
         }
         if (!isGisooQwenVoiceConfirmed(event.session || {}, selectedVoice)) {
@@ -97,7 +97,7 @@ if (realtimeProvider === "qwen") {
           audio: Buffer.alloc(640).toString("base64"),
         }));
         console.log("FORZA_QWEN_GISOO_REALTIME_CANARY_OK model=" + model +
-          " voice=" + selectedVoice + " turn_detection=semantic_vad_ec");
+          " voice=" + selectedVoice + " turn_detection=semantic_vad");
         setTimeout(() => {
           if (!settled) {
             console.log("FORZA_QWEN_GISOO_AUDIO_APPEND_OK");
