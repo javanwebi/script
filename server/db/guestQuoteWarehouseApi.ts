@@ -436,7 +436,7 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
    const actor = await owner(req);
    const username = String(req.body?.username || '').trim().toLowerCase();
    const name = String(req.body?.name || '').trim();
-   const email = username + '.' + crypto.randomUUID().slice(0, 8) + '@warehouse.sanatpish.invalid';
+   const email = username + '.' + crypto.randomUUID().slice(0, 8) + '@warehouse.sanatpish.com';
    const password = req.body?.password;
    if (!usernamePattern.test(username)) throw fail(400, 'نام کاربری باید ۴ تا ۳۲ حرف انگلیسی، عدد یا زیرخط باشد و با حرف شروع شود.');
    if (name.length < 2 || name.length > 160) throw fail(400, 'نام انباردار باید بین ۲ تا ۱۶۰ نویسه باشد.');
