@@ -151,7 +151,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     useAuth();
   const checkoutRequest=useRef<{fingerprint:string;key:string}|null>(null);
   const guestQuoteRequestKeys = useRef(new Map<string, string>());
-  const quoteNoticeTimer = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const quoteNoticeTimer = useRef<number | null>(null);
   const [quoteNotice, setQuoteNotice] = useState<{ message: string; error: boolean } | null>(null);
   const showQuoteNotice = (message: string, error = false) => {
     if (quoteNoticeTimer.current) window.clearTimeout(quoteNoticeTimer.current);
