@@ -546,11 +546,12 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
  }finally{await closeDatabase()}
 ' < "$LEGACY_FAM_WELDING_SQL"
 
-echo '===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA ====='
+echo '===== APPLY CUSTOMER 360, MANUFACTURING REQUEST AND GUEST QUOTE WAREHOUSE SCHEMA ====='
 for MIGRATION in \
   "$STAGE/supabase/adopted/migrations/20261109010000_customer_360_local_vault.sql" \
   "$STAGE/supabase/adopted/migrations/20261110010000_custom_part_requests.sql" \
-  "$STAGE/supabase/adopted/migrations/20261116010000_catalog_identity_specs_compat.sql"; do
+  "$STAGE/supabase/adopted/migrations/20261116010000_catalog_identity_specs_compat.sql" \
+  "$STAGE/supabase/adopted/migrations/20261128140000_guest_quote_warehouse_workflow.sql"; do
   test -s "$MIGRATION" || { echo "REQUIRED_MIGRATION_MISSING=$MIGRATION"; exit 1; }
   docker exec -i "$OLD" node --import tsx --input-type=module -e '
     import {readFileSync} from "node:fs";
@@ -565,6 +566,21 @@ for MIGRATION in \
     } finally { await closeDatabase(); }
   ' < "$MIGRATION"
 done
+docker exec "$OLD" node --import tsx --input-type=module -e '
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const r=await database().query(
+   "select to_regclass($1) as requests,to_regclass($2) as items,to_regclass($3) as warehouse_accounts",
+   ["public.guest_quote_requests","public.guest_quote_request_items","app_private.warehouse_operator_accounts"]
+  );
+  if(!r.rows[0].requests||!r.rows[0].items||!r.rows[0].warehouse_accounts)
+   throw Error("Guest quote/warehouse tables are missing after migration");
+  console.log("PRODUCTION_GUEST_QUOTE_WAREHOUSE_SCHEMA_READY");
+ }catch(error){
+  console.error("PRODUCTION_GUEST_QUOTE_WAREHOUSE_SCHEMA_FAILED",error.code||"",error.message);
+  process.exitCode=1;
+ }finally{await closeDatabase()}
+'
 echo 'PRODUCTION_CATALOG_IDENTITY_SCHEMA_READY'
 
 echo '===== CONTINUE BLUE-GREEN DEPLOY ====='
