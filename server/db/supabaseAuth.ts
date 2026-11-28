@@ -69,14 +69,14 @@ export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
  return {admin,staff,permissions,user:user?.active===false||!user?undefined:{...user,mustChangePassword:result.data.user.app_metadata?.crm_password_change_required===true}};
 
 }
-export async function refreshAuth(req:IncomingMessage,res:ServerResponse){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
+export async function refreshAuth(req:IncomingMessage,res:ServerResponse,force=false){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token && !force){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
 export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,body:any,safe:(value:any)=>any):Promise<boolean>{
  if(handleDevelopmentOtp(req,res,body))return true;
  if(!['register','login','admin_login','warehouse_login','warehouse_refresh','session_refresh','otp_request','otp_verify','registration_credentials','initial_password_change','logout'].includes(body.action))return false;
  const send=(status:number,data:any)=>{res.statusCode=status;res.end(JSON.stringify(data));};
  try{
  if(body.action==='warehouse_refresh'){
-  await refreshAuth(req,res);
+  await refreshAuth(req,res,true);
   const identity=await supabaseIdentity(req);
   const userId=String(identity.user?.authUserId || '');
   if(!userId || identity.user?.dbRole!=='warehouse_operator')
@@ -88,7 +88,7 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   return true;
  }
  if(body.action==='session_refresh'){
-  await refreshAuth(req,res);
+  await refreshAuth(req,res,true);
   const identity=await supabaseIdentity(req);
   if(!identity.admin && !identity.staff && !identity.user)
    throw error(401,'نشست کاربری معتبر نیست؛ دوباره وارد شوید.');
