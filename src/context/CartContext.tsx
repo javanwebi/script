@@ -146,6 +146,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   const { currentUser, priceLayer, activeRole, addClubPoints, openAuthModal } =
     useAuth();
   const checkoutRequest=useRef<{fingerprint:string;key:string}|null>(null);
+  const guestQuoteRequestKeys = useRef(new Map<string, string>());
+  const quoteNoticeTimer = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const [quoteNotice, setQuoteNotice] = useState<{ message: string; error: boolean } | null>(null);
+  const showQuoteNotice = (message: string, error = false) => {
+    if (quoteNoticeTimer.current) window.clearTimeout(quoteNoticeTimer.current);
+    setQuoteNotice({ message, error });
+    quoteNoticeTimer.current = window.setTimeout(() => {
+      setQuoteNotice(null);
+      quoteNoticeTimer.current = null;
+    }, 4500);
+  };
+  useEffect(() => () => {
+    if (quoteNoticeTimer.current) window.clearTimeout(quoteNoticeTimer.current);
+  }, []);
   const [, setContentVersion] = useState(0);
   useEffect(() => {
     const update = () => setContentVersion((v) => v + 1);
@@ -362,14 +376,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const addToCart = (product: Product, quantity = 1) => {
-    if (!currentUser) {
-      openAuthModal("/consumer-dashboard", "register");
+    // Inquiry-only products use the guest quote flow and never force account creation.
+    if (product.inquiryOnly) {
+      void submitInquiry(product, quantity)
+        .then(() => showQuoteNotice("درخواست پیش‌فاکتور شما بدون ثبت‌نام ثبت شد."))
+        .catch((error) => showQuoteNotice(
+          error instanceof Error ? error.message : "ثبت درخواست پیش‌فاکتور انجام نشد.",
+          true,
+        ));
       return;
     }
-    if (product.inquiryOnly) {
-      void submitInquiry(product, quantity).catch(() =>
-        openAuthModal(undefined, "login"),
-      );
+    if (!currentUser) {
+      openAuthModal("/consumer-dashboard", "register");
       return;
     }
 
@@ -507,20 +525,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     quantity: number,
     _notes?: string,
   ): Promise<boolean> => {
-    // Storefront quote requests are intentionally anonymous. Only the catalog
-    // product code and requested quantity are sent; no account or contact data.
+    // Idempotency key survives a network retry for the same product/quantity.
+    // The request body intentionally excludes all customer identity/contact data.
+    const fingerprint = JSON.stringify([product.code, quantity]);
+    const requestKey = guestQuoteRequestKeys.current.get(fingerprint) || crypto.randomUUID();
+    guestQuoteRequestKeys.current.set(fingerprint, requestKey);
     const response = await fetch("/api/guest-quote-requests", {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        requestKey: crypto.randomUUID(),
+        requestKey,
         items: [{ productCode: product.code, quantity }],
       }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.success)
       throw new Error(data.message || "ثبت درخواست پیش‌فاکتور انجام نشد.");
+    guestQuoteRequestKeys.current.delete(fingerprint);
     return true;
   };
 
@@ -772,7 +794,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     >
       {children}
     </CartContext.Provider>
-  );
+    {quoteNotice && (
+      <div
+        role={quoteNotice.error ? "alert" : "status"}
+        className={`fixed bottom-4 left-4 right-4 sm:right-auto z-[120] max-w-md rounded-xl border px-4 py-3 text-sm font-semibold shadow-lg ${quoteNotice.error ? "border-red-200 bg-white text-red-700" : "border-emerald-200 bg-white text-emerald-800"}`}
+        dir="rtl"
+      >
+        {quoteNotice.message}
+      </div>
+    )}
+  </>;
 };
 
 export const useCart = () => {
