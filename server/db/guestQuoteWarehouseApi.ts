@@ -363,8 +363,9 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
    const items = req.body.items.map((raw: any) => {
     const itemId = String(raw?.id || '');
     const status = String(raw?.warehouseStatus || '');
-    const available = raw?.availableQuantity === null || raw?.availableQuantity === undefined || raw?.availableQuantity === ''
+    const rawAvailable = raw?.availableQuantity === null || raw?.availableQuantity === undefined || raw?.availableQuantity === ''
      ? null : Number(raw.availableQuantity);
+    const available = status === 'unavailable' ? 0 : rawAvailable;
     const note = typeof raw?.warehouseNote === 'string' ? raw.warehouseNote.trim().slice(0, 1000) : '';
     if (!uuidPattern.test(itemId) || !['available','partial','unavailable'].includes(status) ||
         (available !== null && (!Number.isInteger(available) || available < 0 || available > 1000000)))
@@ -387,6 +388,18 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
      [id, actor.id]
     );
     for (const item of items) {
+     const requested = (await client.query(
+      'select quantity from public.guest_quote_request_items where id=$1 and request_id=$2',
+      [item.id, id]
+     )).rows[0];
+     if (!requested) throw fail(400, 'یکی از اقلام به این درخواست تعلق ندارد.');
+     const requestedQuantity = Number(requested.quantity);
+     if (item.status === 'available' && (item.available === null || item.available < requestedQuantity))
+      throw fail(400, 'برای وضعیت «موجود»، تعداد موجود باید برابر یا بیشتر از تعداد درخواستی باشد.');
+     if (item.status === 'partial' && (item.available === null || item.available < 1 || item.available >= requestedQuantity))
+      throw fail(400, 'برای وضعیت «موجودی ناکافی»، تعداد موجود باید بیشتر از صفر و کمتر از تعداد درخواستی باشد.');
+     if (item.status === 'unavailable' && item.available !== 0)
+      throw fail(400, 'برای کالای ناموجود، تعداد موجود باید صفر باشد.');
      const updated = await client.query(
       `update public.guest_quote_request_items
           set warehouse_status=$3,available_quantity=$4,warehouse_note=$5,
