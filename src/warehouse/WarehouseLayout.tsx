@@ -120,7 +120,7 @@ export const WarehouseLayout: React.FC = () => {
    void api('/api/portal', { method: 'POST', body: JSON.stringify({ action: 'warehouse_refresh' }) })
     .catch(() => { void loadSession(); });
   }, 35 * 60 * 1000);
-  const onFocus = () => { void loadRequests(true); };
+  const onFocus = () => { void loadSession().then(active => { if (active) void loadRequests(true); }); };
   window.addEventListener('focus', onFocus);
   return () => { events.close(); window.clearInterval(poll); window.clearInterval(keepAlive); window.removeEventListener('focus', onFocus); };
  }, [user?.id, loadRequests, loadSession]);
