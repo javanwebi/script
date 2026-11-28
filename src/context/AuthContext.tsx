@@ -48,7 +48,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authLoading, setAuthLoading] = useState(true);
   useEffect(() => {
     let mounted = true;
-    const sync = () => hydratePortal().catch(() => { if (mounted) setCurrentUser(null); }).finally(() => { if (mounted) setAuthLoading(false); });
+    const sync = () => {
+      // The warehouse workspace has its own isolated session endpoint. Do not
+      // refresh the general customer/admin portal session on that route.
+      if (typeof window !== 'undefined' && /^\/warehouse(?:\/|$)/.test(window.location.pathname)) {
+        if (mounted) { setCurrentUser(null); setAuthLoading(false); }
+        return;
+      }
+      hydratePortal()
+        .catch(() => { if (mounted) setCurrentUser(null); })
+        .finally(() => { if (mounted) setAuthLoading(false); });
+    };
     const sessionUpdated = (event: Event) => { if (mounted) setCurrentUser((event as CustomEvent).detail.user || null); };
     window.addEventListener('atlas-session-updated', sessionUpdated);
     window.addEventListener('focus', sync);
