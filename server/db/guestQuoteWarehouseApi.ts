@@ -44,14 +44,14 @@ function checkOrigin(req: Request) {
   throw fail(403, 'مبدأ درخواست معتبر نیست.');
 }
 function rateLimitGuest(req: Request) {
- const key = req.socket.remoteAddress || 'unknown';
+ const key = req.ip || req.socket.remoteAddress || 'unknown';
  const now = Date.now();
  const current = guestRate.get(key);
  if (!current || current.resetAt <= now) {
   guestRate.set(key, { count: 1, resetAt: now + 10 * 60 * 1000 });
  } else {
   current.count += 1;
-  if (current.count > 30) throw fail(429, 'تعداد درخواست‌ها بیش از حد مجاز است؛ چند دقیقه دیگر دوباره تلاش کنید.');
+  if (current.count > 60) throw fail(429, 'تعداد درخواست‌ها بیش از حد مجاز است؛ چند دقیقه دیگر دوباره تلاش کنید.');
  }
  if (guestRate.size > 5000) {
   for (const [ip, value] of guestRate) if (value.resetAt <= now) guestRate.delete(ip);
