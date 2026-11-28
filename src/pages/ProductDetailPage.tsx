@@ -154,6 +154,7 @@ export const ProductDetailPage: React.FC = () => {
   }, [product, visibleVariants, isPreviewMode, selectedVariantCode]);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [inquirySubmitted, setInquirySubmitted] = useState(false);
+  const [inquiryRequestNumber, setInquiryRequestNumber] = useState('');
   const [inquiryBusy, setInquiryBusy] = useState(false);
   const [inquiryError, setInquiryError] = useState("");
   const [copiedCode, setCopiedCode] = useState(false);
@@ -447,6 +448,8 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleInquirePriceClick = () => {
     setInquiryError("");
+    setInquirySubmitted(false);
+    setInquiryRequestNumber('');
     setIsInquiryModalOpen(true);
   };
 
@@ -455,7 +458,8 @@ export const ProductDetailPage: React.FC = () => {
     setInquiryBusy(true);
     setInquiryError("");
     try {
-      await submitInquiry(requestedProduct, quantity);
+      const result = await submitInquiry(requestedProduct, quantity);
+      setInquiryRequestNumber(result.requestNumber);
     } catch (error) {
       setInquiryError(
         error instanceof Error ? error.message : "ثبت استعلام انجام نشد.",
@@ -465,10 +469,6 @@ export const ProductDetailPage: React.FC = () => {
       setInquiryBusy(false);
     }
     setInquirySubmitted(true);
-    setTimeout(() => {
-      setInquirySubmitted(false);
-      setIsInquiryModalOpen(false);
-    }, 1400);
   };
 
   const copyProductCode = () => {
@@ -1777,8 +1777,10 @@ export const ProductDetailPage: React.FC = () => {
             </p>
           )}
           {inquirySubmitted ? (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold text-center">
-              درخواست شما بدون ثبت‌نام ثبت شد و برای بررسی داخلی به مدیریت ارسال گردید.
+            <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold text-center leading-7">
+              درخواست شما بدون ثبت‌نام ثبت شد و برای بررسی به مدیریت ارسال گردید.
+              <span className="mt-2 block text-sm">شماره پیگیری شما: <bdi dir="ltr" className="font-mono">RFQ-{inquiryRequestNumber}</bdi></span>
+              <span className="block text-[11px] font-medium">این شماره را برای پیگیری نزد خود نگه دارید.</span>
             </div>
           ) : (
             <button
