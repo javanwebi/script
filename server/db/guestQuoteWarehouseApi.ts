@@ -104,8 +104,9 @@ async function owner(req: Request) {
  checkOrigin(req);
  return String(identity.user.authUserId);
 }
-async function warehouseActor(req: Request, checkRequestOrigin = false) {
+async function warehouseActor(req: Request, res: Response, checkRequestOrigin = false) {
  ready();
+ await refreshAuth(req, res);
  const identity = await getPortalIdentity(req);
  const userId = String(identity.user?.authUserId || '');
  if (!userId || identity.user?.dbRole !== 'warehouse_operator')
@@ -306,8 +307,7 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
  // Separate warehouse identity/session. It cannot read the general admin portal.
  app.get('/api/warehouse/session', async (req, res) => {
   try {
-   await refreshAuth(req, res);
-   const actor = await warehouseActor(req);
+   const actor = await warehouseActor(req, res);
    const profile = (await database().query(
     'select username,full_name from public.user_profiles where id=$1 and status=\'active\'',
     [actor.id]
@@ -318,7 +318,7 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
  });
  app.get('/api/warehouse/requests', async (req, res) => {
   try {
-   const actor = await warehouseActor(req);
+   const actor = await warehouseActor(req, res);
    res.setHeader('Cache-Control', 'private, no-store');
    const requests = await listRequests(
     database(),
@@ -331,13 +331,13 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
  });
  app.get('/api/warehouse/requests/events', async (req, res) => {
   try {
-   await warehouseActor(req);
+   await warehouseActor(req, res);
    stream(req, res, warehouseListeners, 'warehouse-request-updated');
   } catch (error) { return respond(res, error); }
  });
  app.post('/api/warehouse/requests/:id/claim', async (req, res) => {
   try {
-   const actor = await warehouseActor(req, true);
+   const actor = await warehouseActor(req, res, true);
    const id = String(req.params.id || '');
    if (!uuidPattern.test(id)) throw fail(400, 'شناسه درخواست معتبر نیست.');
    const result = await database().query(`
@@ -355,7 +355,7 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
  });
  app.patch('/api/warehouse/requests/:id/items', async (req, res) => {
   try {
-   const actor = await warehouseActor(req, true);
+   const actor = await warehouseActor(req, res, true);
    const id = String(req.params.id || '');
    if (!uuidPattern.test(id)) throw fail(400, 'شناسه درخواست معتبر نیست.');
    if (!Array.isArray(req.body?.items) || req.body.items.length < 1 || req.body.items.length > 100)
