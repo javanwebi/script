@@ -56,11 +56,12 @@ export const WarehouseLayout: React.FC = () => {
 
  const loadSession = useCallback(async () => {
   try {
-   // The refresh cookie is scoped to /api/portal. Touch that endpoint first;
-   // warehouse identities receive 403 there by design, but a valid refresh
-   // still rotates the access cookie before the isolated session check.
-   await fetch('/api/portal', { credentials: 'same-origin', cache: 'no-store' }).catch(() => undefined);
-   const data = await api<{ user: WarehouseUser }>('/api/warehouse/session');
+   // If the access token expired, the first isolated request rotates the
+   // refresh cookie; retry once with the new cookie without touching /api/portal.
+   const load = () => api<{ user: WarehouseUser }>('/api/warehouse/session');
+   let data: { user: WarehouseUser };
+   try { data = await load(); }
+   catch { data = await load(); }
    setUser(data.user);
    return true;
   } catch {
