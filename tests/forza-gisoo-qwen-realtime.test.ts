@@ -29,12 +29,13 @@ test('Qwen session uses Gisoo direct-realtime PCM, Bodega voice, configured VAD,
   });
   assert.equal(update.session.audio.output.voice, 'Bodega');
   assert.equal(update.session.instructions, 'دستیار فارسی صنعت پیش');
-  assert.equal(update.session.audio.input.turn_detection.type, 'semantic_vad_ec');
+  assert.equal(update.session.audio.input.turn_detection.type, 'semantic_vad');
   assert.equal(update.session.audio.input.turn_detection.silence_duration_ms, 800);
   assert.deepEqual(Object.keys(update.session.audio.input.turn_detection).sort(), ['silence_duration_ms','threshold','type']);
   assert.equal('turn_detection' in update.session, false);
-  assert.equal(isGisooQwenTurnDetectionConfirmed({audio:{input:{turn_detection:{type:'semantic_vad_ec'}}}}), true);
-  assert.equal(isGisooQwenTurnDetectionConfirmed({turn_detection:{type:'semantic_vad_ec'}}), true);
+  assert.equal(isGisooQwenTurnDetectionConfirmed({audio:{input:{turn_detection:{type:'semantic_vad'}}}}), true);
+  assert.equal(isGisooQwenTurnDetectionConfirmed({turn_detection:{type:'semantic_vad'}}), true);
+  assert.equal(isGisooQwenTurnDetectionConfirmed({audio:{input:{turn_detection:{type:'semantic_vad_ec'}}}}), false);
   assert.equal(isGisooQwenTurnDetectionConfirmed({audio:{input:{turn_detection:{type:'server_vad'}}}}), false);
   assert.equal(update.session.reasoning.effort, 'none');
 });
@@ -46,7 +47,7 @@ test('live microphone remains streaming while FORZA speaks so the model can inte
  assert.doesNotMatch(mic,/phase|speaking|assistantSpeaking|s\.sources\.size/);
  assert.match(client,/m\.type==='speech_started'\)\{setError\(''\);stopPlayback\(s\)/);
  const server=readFileSync('server/ai/gisooQwenRealtime.ts','utf8');
- assert.match(server,/turn_detection:\{type:'semantic_vad_ec'/);
+ assert.match(server,/turn_detection:\{type:'semantic_vad'/);
  assert.match(server,/cancelActiveResponse\(active\)/);
 });
 test('opening greeting uses one documented internal input_text bootstrap, not fake audio', () => {
