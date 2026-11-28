@@ -4,6 +4,7 @@ import {createReadStream} from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {database, closeDatabase, transaction} from '../../server/db/connection';
+import { normalizeMigrationSql } from './migrationSql';
 
 const sha = (value: string | Buffer) => crypto.createHash('sha256').update(value).digest('hex');
 const shaFile = (filePath: string) => new Promise<string>((resolve, reject) => {
@@ -23,7 +24,7 @@ async function readMigrations() {
     const sql = await fs.readFile(path.join(folder, name), 'utf8');
     if (!sql.trim()) throw new Error(`Empty migration: ${name}`);
     const version = name.split('_')[0];
-    return {name, version, sha256: sha(sql), sql};
+    return {name, version, sha256: sha(sql), sql, executionSql: normalizeMigrationSql(sql)};
   }));
 }
 
@@ -35,7 +36,7 @@ async function buildPlan(client: {query: (sql: string, params?: any[]) => Promis
   const appliedVersions = new Set(applied.map(r => r.version));
   const pending = migrations.filter(m => !appliedVersions.has(m.version));
   const identity = (await client.query('select current_database() as database, inet_server_addr()::text as host')).rows[0];
-  const plan = {target: identity, environment, appliedCount: applied.length, pendingCount: pending.length, pending: pending.map(({sql, ...m}) => m)};
+  const plan = {target: identity, environment, appliedCount: applied.length, pendingCount: pending.length, pending: pending.map(({sql, executionSql, ...m}) => m)};
   return {plan, planSha256: sha(JSON.stringify(plan)), pending};
 }
 
@@ -77,7 +78,7 @@ try {
         await client.query(`create table if not exists app_private.schema_change_log(version text primary key, description text not null, applied_at timestamptz not null default now())`);
         for (const migration of lockedPlan.pending) {
           console.log(`Applying adopted migration: ${migration.name}...`);
-          await client.query(migration.sql);
+          await client.query(migration.executionSql);
           await client.query('insert into app_private.schema_change_log(version, description) values($1, $2) on conflict(version) do nothing',[migration.version, migration.name]);
         }
       });
