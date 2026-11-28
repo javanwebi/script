@@ -73,9 +73,13 @@ export const GuestQuoteRequestsModule: React.FC<{ canEdit?: boolean }> = ({ canE
   const events = new EventSource('/api/admin/guest-quote-requests/events', { withCredentials: true });
   events.addEventListener('guest-quote-updated', () => { void load(true); });
   const poll = window.setInterval(() => { void load(true); }, 15000);
+  const keepAlive = window.setInterval(() => {
+   void api('/api/portal', { method: 'POST', body: JSON.stringify({ action: 'session_refresh' }) })
+    .catch(() => { void load(true); });
+  }, 35 * 60 * 1000);
   const onFocus = () => { void load(true); };
   window.addEventListener('focus', onFocus);
-  return () => { events.close(); window.clearInterval(poll); window.removeEventListener('focus', onFocus); };
+  return () => { events.close(); window.clearInterval(poll); window.clearInterval(keepAlive); window.removeEventListener('focus', onFocus); };
  }, [load]);
 
  const runAction = async (request: GuestQuoteRequest, action: 'send-to-warehouse' | 'complete') => {
