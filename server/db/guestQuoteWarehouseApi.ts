@@ -207,7 +207,7 @@ export function registerGuestQuoteWarehouseApi(app: Express) {
    const byCode = new Map<string, { code: string; name: string; unit: string }>(
     catalog.rows.map((row: any) => [String(row.code), {
      code: String(row.code), name: String(row.name || row.code), unit: String(row.unit || 'عدد')
-    }])
+    }] as const)
    );
    const missing = codes.filter(code => !byCode.has(code));
    if (missing.length) throw fail(400, 'یک یا چند کالا در کاتالوگ فعال صنعت پیش یافت نشد؛ فهرست کالاها را دوباره بررسی کنید.');
